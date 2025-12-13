@@ -17,7 +17,8 @@ interface FormViewProps {
   parentRecord?: Record<string, any>;
   linkConfig?: { masterFieldId: string, childFieldId: string };
   permissions?: { canAdd: boolean, canDelete: boolean, canEdit: boolean };
-  startInAddMode?: boolean; // New prop to force "Add New" state on mount
+  startInAddMode?: boolean; 
+  hideNavigation?: boolean; // New prop to hide footer
 }
 
 export const FormView: React.FC<FormViewProps> = ({ 
@@ -31,7 +32,8 @@ export const FormView: React.FC<FormViewProps> = ({
   parentRecord,
   linkConfig,
   permissions = { canAdd: true, canDelete: true, canEdit: true },
-  startInAddMode = false
+  startInAddMode = false,
+  hideNavigation = false
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -41,54 +43,57 @@ export const FormView: React.FC<FormViewProps> = ({
       targetTableId: string;
       sourceFieldName: string; 
       initialRowCount: number;
-      targetFormId?: string; // Specific form to use
+      targetFormId?: string; 
   } | null>(null);
 
   const sourceTable = allTables.find(t => t.id === form.sourceId);
   const isDisplayMode = form.mode === 'readonly';
   const isQuerySource = form.sourceType === 'query';
   
-  // Calculate effective ReadOnly state
   const isReadOnly = isDisplayMode || isQuerySource || !sourceTable || (isSubform && !permissions.canEdit);
 
   const data = isSubform ? (filteredData || []) : (sourceTable?.data || []);
   const currentRecord = data[currentIndex] || {};
 
   useEffect(() => {
-    // Navigate logic
     if (currentIndex >= data.length && data.length > 0) {
       setCurrentIndex(data.length - 1);
-    } else if (data.length === 0) {
+    } else if (data.length === 0 && !startInAddMode) {
         setCurrentIndex(0);
     }
-  }, [data, currentIndex]);
+  }, [data.length]); 
 
   // Initial Add Mode effect
   useEffect(() => {
       if (startInAddMode && !isReadOnly && permissions.canAdd) {
-          // We need to defer this slightly to ensure component is mounted and data is ready
-          // However, calling addNewRecord modifies state which might trigger re-renders.
-          // Check if we are already at a "new" record (empty/default) or just trigger it.
-          // Simple heuristic: If we are forced to add mode, we do it once on mount.
           addNewRecord();
       }
-  }, []); // Run once on mount if startInAddMode is true
+  }, []); 
 
   const handleInputChange = (fieldName: string, value: any) => {
     if (isReadOnly || !sourceTable) return;
 
-    const originalIndex = sourceTable?.data?.findIndex(row => 
-        JSON.stringify(row) === JSON.stringify(currentRecord)
-    );
+    // Determine the index in the actual source table
+    let originalIndex = -1;
 
-    if (originalIndex === undefined || originalIndex === -1) return;
+    if (isSubform) {
+        // If subform, we must find the record in the main table data
+        originalIndex = sourceTable?.data?.findIndex(row => 
+            JSON.stringify(row) === JSON.stringify(currentRecord)
+        ) ?? -1;
+    } else {
+        // If main form (or modal acting as main form), currentIndex matches the data array
+        originalIndex = currentIndex;
+    }
 
-    const newFullData = [...(sourceTable!.data || [])];
+    if (originalIndex === undefined || originalIndex === -1 || !sourceTable.data) return;
+
+    const newFullData = [...sourceTable.data];
     if (newFullData[originalIndex]) {
       newFullData[originalIndex] = { ...newFullData[originalIndex], [fieldName]: value };
     }
     
-    onTableChange({ ...sourceTable!, data: newFullData });
+    onTableChange({ ...sourceTable, data: newFullData });
   };
   
   const navigate = (index: number) => {
@@ -109,7 +114,7 @@ export const FormView: React.FC<FormViewProps> = ({
             }, 0);
             acc[field.name] = maxVal + 1;
         } else {
-            acc[field.name] = '';
+            acc[field.name] = ''; 
         }
         return acc;
     }, {} as Record<string, any>);
@@ -124,16 +129,13 @@ export const FormView: React.FC<FormViewProps> = ({
         }
     }
 
-    onTableChange({ ...sourceTable, data: [...(sourceTable.data || []), newRow]});
-    // Set index to the new last element
+    const newData = [...(sourceTable.data || []), newRow];
+    onTableChange({ ...sourceTable, data: newData});
+    
     if(!isSubform) {
-        // We use a timeout to allow the state update to propagate before setting index, 
-        // though typically with React batching we might need to rely on the data.length check effect or set directly.
-        // Since we are pushing to end, data.length will increase.
-        // Actually, onTableChange triggers parent re-render. 
-        // We can't easily predict the new index here instantly if it depends on props.
-        // For standard forms, we can just set it to length (current length + 1).
-        setCurrentIndex((sourceTable.data || []).length);
+        // Immediate jump to new record for main forms
+        // We use the length of the new array because index is 0-based
+        setCurrentIndex(newData.length - 1);
     }
   };
   
@@ -145,27 +147,66 @@ export const FormView: React.FC<FormViewProps> = ({
       'Datensatz löschen',
       'Möchten Sie diesen Datensatz wirklich löschen?',
       () => {
-        const originalIndex = sourceTable.data?.findIndex(row => 
-            JSON.stringify(row) === JSON.stringify(currentRecord)
-        );
+        let originalIndex = -1;
+        if (isSubform) {
+             originalIndex = sourceTable.data?.findIndex(row => 
+                JSON.stringify(row) === JSON.stringify(currentRecord)
+            ) ?? -1;
+        } else {
+            originalIndex = currentIndex;
+        }
+
         if (originalIndex === -1) return;
 
         const newFullData = (sourceTable.data || []).filter((_, i) => i !== originalIndex);
         onTableChange({...sourceTable, data: newFullData});
+        
+        if (currentIndex >= newFullData.length) {
+            setCurrentIndex(Math.max(0, newFullData.length - 1));
+        }
       }
      );
   };
 
   // --- Lookup Logic ---
 
-  const getLookupOptions = (lookupConfig: { tableId: string, valueFieldId: string, labelFields: string[], displayFormat?: { fieldId: string, prefix?: string, suffix?: string }[] }) => {
+  const getLookupOptions = (lookupConfig: { tableId: string, valueFieldId: string, labelFields: string[], displayFormat?: { fieldId: string, prefix?: string, suffix?: string }[], sort?: { fieldId: string, direction: 'ASC' | 'DESC' } }) => {
       const table = allTables.find(t => t.id === lookupConfig.tableId);
       if (!table) return [];
       
       const valueField = table.fields.find(f => f.id === lookupConfig.valueFieldId)?.name;
       if (!valueField || !table.data) return [];
 
-      return table.data.map(row => {
+      let sortedData = [...table.data];
+
+      // Smart Sort Implementation
+      if (lookupConfig.sort && lookupConfig.sort.fieldId) {
+          const sortField = table.fields.find(f => f.id === lookupConfig.sort!.fieldId);
+          if (sortField) {
+              const directionMultiplier = lookupConfig.sort.direction === 'DESC' ? -1 : 1;
+              const isNumeric = sortField.type === 'INTEGER' || sortField.type === 'DECIMAL' || sortField.type === 'DOUBLE';
+
+              sortedData.sort((a, b) => {
+                  const valA = a[sortField.name];
+                  const valB = b[sortField.name];
+
+                  if (valA === valB) return 0;
+                  if (valA === null || valA === undefined) return 1; // Nulls last
+                  if (valB === null || valB === undefined) return -1;
+
+                  if (isNumeric) {
+                      return (Number(valA) - Number(valB)) * directionMultiplier;
+                  } else {
+                      return String(valA).localeCompare(String(valB)) * directionMultiplier;
+                  }
+              });
+          }
+      } else {
+          // Default sorting (e.g. by first label field or ID if no sort config)
+          // Typically ID or First Display Field is good
+      }
+
+      return sortedData.map(row => {
           let label = '';
           
           if (lookupConfig.displayFormat && lookupConfig.displayFormat.length > 0) {
@@ -237,6 +278,7 @@ export const FormView: React.FC<FormViewProps> = ({
           
           const value = currentRecord[fieldName] ?? '';
           const label = el.label || fieldName;
+          const elementId = `field_${el.id}`; // Generate a unique ID for the input
           
           let widget = el.widgetType;
           if (!widget) {
@@ -251,13 +293,15 @@ export const FormView: React.FC<FormViewProps> = ({
                   <div key={el.id} className={el.className}>
                       <div className="flex items-center gap-2 mt-6 mb-2">
                           <input 
+                              id={elementId}
+                              name={fieldName}
                               type="checkbox"
                               disabled={isReadOnly || field?.isAutoIncrement}
                               checked={!!value}
                               onChange={e => handleInputChange(fieldName, e.target.checked)}
                               className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
                           />
-                          <label className="text-sm font-semibold text-slate-700">{label}</label>
+                          <label htmlFor={elementId} className="text-sm font-semibold text-slate-700 cursor-pointer">{label}</label>
                       </div>
                   </div>
               );
@@ -280,9 +324,11 @@ export const FormView: React.FC<FormViewProps> = ({
 
               return (
                   <div key={el.id} className={el.className}>
-                      <label className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+                      <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
                       <div className="flex gap-2">
                         <select
+                            id={elementId}
+                            name={fieldName}
                             disabled={isReadOnly}
                             value={value}
                             onChange={e => handleInputChange(fieldName, e.target.value)}
@@ -310,13 +356,15 @@ export const FormView: React.FC<FormViewProps> = ({
           if (widget === 'textarea') {
                return (
                   <div key={el.id} className={el.className}>
-                      <label className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+                      <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
                       {isReadOnly ? (
                             <div className="w-full border-b border-slate-300 py-2 text-slate-800 text-sm min-h-[36px] whitespace-pre-wrap">
                                 {value}
                             </div>
                         ) : (
                             <textarea
+                                id={elementId}
+                                name={fieldName}
                                 readOnly={isReadOnly}
                                 value={value}
                                 onChange={(e) => handleInputChange(fieldName, e.target.value)}
@@ -330,13 +378,16 @@ export const FormView: React.FC<FormViewProps> = ({
 
           return (
               <div key={el.id} className={el.className}>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+                  <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
                   {isReadOnly ? (
                         <div className="w-full border-b border-slate-300 py-2 text-slate-800 text-sm min-h-[36px]">
                             {value !== '' ? value : <span className="text-slate-400 italic">Leer</span>}
                         </div>
                     ) : (
                         <input
+                          id={elementId}
+                          name={fieldName}
+                          autoComplete="off"
                           type={widget === 'date' ? 'date' : widget === 'number' ? 'number' : 'text'}
                           readOnly={isReadOnly || field?.isAutoIncrement}
                           value={value}
@@ -393,9 +444,6 @@ export const FormView: React.FC<FormViewProps> = ({
   if (lookupModal) {
       const targetTable = allTables.find(t => t.id === lookupModal.targetTableId);
       
-      // Resolve which form to use: 
-      // 1. Explicitly configured form (quickCreateFormId)
-      // 2. Any form bound to this table
       let targetForm = lookupModal.targetFormId 
           ? allForms.find(f => f.id === lookupModal.targetFormId) 
           : allForms.find(f => f.sourceId === lookupModal.targetTableId && f.sourceType === 'table');
@@ -414,8 +462,9 @@ export const FormView: React.FC<FormViewProps> = ({
                           allTables={allTables}
                           onTableChange={onTableChange} 
                           showConfirmation={showConfirmation}
-                          isSubform={true} 
-                          startInAddMode={true} // CRITICAL: Force new record mode
+                          isSubform={false} // IMPORTANT: False, so it treats it as a root data source (but focused on the new record)
+                          startInAddMode={true} 
+                          hideNavigation={true} 
                       />
                   </div>
                   <div className="p-3 bg-slate-100 border-t border-slate-200 text-right shrink-0">
@@ -489,29 +538,31 @@ export const FormView: React.FC<FormViewProps> = ({
           )}
         </main>
         
-        <footer className={`${isSubform ? 'bg-indigo-50' : 'bg-slate-100'} border-t ${isSubform ? 'border-indigo-200' : 'border-slate-200'} p-3 flex justify-between items-center ${!isFullScreen && !isSubform ? 'rounded-b-lg' : ''} flex-shrink-0`}>
-           <div className="flex items-center gap-2">
-            {!isQuerySource && !isDisplayMode && (
-              <>
-                {permissions.canAdd && (
-                    <button onClick={addNewRecord} title="Neuer Datensatz" className="p-2 hover:bg-slate-200 rounded text-slate-700 flex items-center gap-1 text-sm"><Plus size={16} /> Neu</button>
+        {!hideNavigation && (
+            <footer className={`${isSubform ? 'bg-indigo-50' : 'bg-slate-100'} border-t ${isSubform ? 'border-indigo-200' : 'border-slate-200'} p-3 flex justify-between items-center ${!isFullScreen && !isSubform ? 'rounded-b-lg' : ''} flex-shrink-0`}>
+            <div className="flex items-center gap-2">
+                {!isQuerySource && !isDisplayMode && (
+                <>
+                    {permissions.canAdd && (
+                        <button onClick={addNewRecord} title="Neuer Datensatz" className="p-2 hover:bg-slate-200 rounded text-slate-700 flex items-center gap-1 text-sm"><Plus size={16} /> Neu</button>
+                    )}
+                    {permissions.canDelete && (
+                        <button onClick={deleteCurrentRecord} title="Datensatz löschen" disabled={data.length === 0} className="p-2 hover:bg-slate-200 rounded text-slate-700 disabled:text-slate-400"><Trash2 size={16} /></button>
+                    )}
+                </>
                 )}
-                {permissions.canDelete && (
-                    <button onClick={deleteCurrentRecord} title="Datensatz löschen" disabled={data.length === 0} className="p-2 hover:bg-slate-200 rounded text-slate-700 disabled:text-slate-400"><Trash2 size={16} /></button>
-                )}
-              </>
-            )}
-           </div>
-           <div className="flex items-center gap-2">
-             <button onClick={() => navigate(0)} disabled={currentIndex === 0} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronsLeft size={18} /></button>
-             <button onClick={() => navigate(currentIndex - 1)} disabled={currentIndex === 0} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronLeft size={18} /></button>
-             <span className="text-sm text-slate-600">
-                Datensatz {data.length > 0 ? currentIndex + 1 : 0} von {data.length}
-             </span>
-             <button onClick={() => navigate(currentIndex + 1)} disabled={currentIndex >= data.length - 1} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronRight size={18} /></button>
-             <button onClick={() => navigate(data.length - 1)} disabled={currentIndex >= data.length - 1} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronsRight size={18} /></button>
-           </div>
-        </footer>
+            </div>
+            <div className="flex items-center gap-2">
+                <button onClick={() => navigate(0)} disabled={currentIndex === 0} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronsLeft size={18} /></button>
+                <button onClick={() => navigate(currentIndex - 1)} disabled={currentIndex === 0} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronLeft size={18} /></button>
+                <span className="text-sm text-slate-600">
+                    Datensatz {data.length > 0 ? currentIndex + 1 : 0} von {data.length}
+                </span>
+                <button onClick={() => navigate(currentIndex + 1)} disabled={currentIndex >= data.length - 1} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronRight size={18} /></button>
+                <button onClick={() => navigate(data.length - 1)} disabled={currentIndex >= data.length - 1} className="p-2 hover:bg-slate-200 rounded disabled:text-slate-400"><ChevronsRight size={18} /></button>
+            </div>
+            </footer>
+        )}
       </div>
     </div>
   );

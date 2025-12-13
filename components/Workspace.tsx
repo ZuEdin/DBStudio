@@ -226,6 +226,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 relationships={relationships} 
                 queries={queries} 
                 forms={forms} 
+                reports={reports} // Pass reports here
                 exportTrigger={exportTrigger}
                 generateTrigger={generateTrigger}
                 config={backendConfig}

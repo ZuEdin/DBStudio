@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Table, Field } from '../../../types/index';
-import { X, GripVertical, ArrowRight, Check, Search, Plus, Trash2, AlignCenter } from 'lucide-react';
+import { X, GripVertical, ArrowRight, Check, Search, Plus, Trash2, AlignCenter, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
 
 interface DisplayConfigItem {
     fieldId: string;
@@ -16,8 +16,9 @@ interface LookupConfigModalProps {
     valueFieldId: string;
     labelFields: string[];
     displayFormat?: DisplayConfigItem[];
+    sort?: { fieldId: string; direction: 'ASC' | 'DESC' };
   };
-  onSave: (config: { tableId: string; valueFieldId: string; labelFields: string[], displayFormat: DisplayConfigItem[] }) => void;
+  onSave: (config: any) => void;
   onClose: () => void;
 }
 
@@ -30,6 +31,10 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
   const [tableId, setTableId] = useState(initialConfig?.tableId || (allTables[0]?.id || ''));
   const [valueFieldId, setValueFieldId] = useState(initialConfig?.valueFieldId || '');
   
+  // Sort State
+  const [sortFieldId, setSortFieldId] = useState(initialConfig?.sort?.fieldId || '');
+  const [sortDirection, setSortDirection] = useState<'ASC' | 'DESC'>(initialConfig?.sort?.direction || 'ASC');
+
   // State for the sortable, configurable list
   const [selectedItems, setSelectedItems] = useState<DisplayConfigItem[]>([]);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -49,10 +54,16 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
   // Reset fields when table changes
   useEffect(() => {
     if (selectedTable) {
-        const isValid = selectedTable.fields.some(f => f.id === valueFieldId);
-        if (!isValid) {
+        // Validate Value Field
+        const isValueValid = selectedTable.fields.some(f => f.id === valueFieldId);
+        if (!isValueValid) {
             setValueFieldId(selectedTable.fields.find(f => f.isPrimaryKey)?.id || selectedTable.fields[0]?.id || '');
             setSelectedItems([]);
+        }
+        // Validate Sort Field
+        const isSortValid = selectedTable.fields.some(f => f.id === sortFieldId);
+        if (!isSortValid && sortFieldId !== '') {
+            setSortFieldId('');
         }
     }
   }, [tableId, selectedTable]);
@@ -99,7 +110,8 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
       tableId,
       valueFieldId,
       labelFields: selectedItems.map(i => i.fieldId), // Keep strictly for legacy compatibility
-      displayFormat: selectedItems
+      displayFormat: selectedItems,
+      sort: sortFieldId ? { fieldId: sortFieldId, direction: sortDirection } : undefined
     });
     onClose();
   };
@@ -118,7 +130,7 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl border border-slate-300 flex flex-col h-[85vh]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl border border-slate-300 flex flex-col h-[90vh]">
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 bg-slate-800 text-white rounded-t-xl shrink-0">
@@ -126,7 +138,7 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
             <h2 className="text-xl font-bold flex items-center gap-2">
                <Search size={24} className="text-blue-400"/> Lookup Konfiguration
             </h2>
-            <p className="text-slate-300 text-sm mt-1">Definieren Sie Quelle und Anzeigeformat für das Dropdown.</p>
+            <p className="text-slate-300 text-sm mt-1">Definieren Sie Quelle, Sortierung und Anzeigeformat.</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <X size={24} />
@@ -137,16 +149,54 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
             
             {/* Top Settings */}
             <div className="grid grid-cols-2 gap-6 bg-white p-4 rounded-lg border border-slate-200 shadow-sm shrink-0">
-                <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Quelle (Tabelle)</label>
-                    <select 
-                        className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={tableId}
-                        onChange={(e) => setTableId(e.target.value)}
-                    >
-                        {allTables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Quelle (Tabelle)</label>
+                        <select 
+                            className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={tableId}
+                            onChange={(e) => setTableId(e.target.value)}
+                        >
+                            {allTables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Sortieren nach</label>
+                            <select 
+                                className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={sortFieldId}
+                                onChange={(e) => setSortFieldId(e.target.value)}
+                            >
+                                <option value="">(Keine Sortierung)</option>
+                                {selectedTable?.fields.map(f => (
+                                    <option key={f.id} value={f.id}>{f.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="w-1/3">
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Reihenfolge</label>
+                            <div className="flex bg-slate-100 rounded p-1 border border-slate-300">
+                                <button 
+                                    onClick={() => setSortDirection('ASC')}
+                                    className={`flex-1 flex justify-center py-1 rounded text-xs ${sortDirection === 'ASC' ? 'bg-white shadow text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-200'}`}
+                                    title="Aufsteigend (A-Z, 0-9)"
+                                >
+                                    <ArrowUpAZ size={16}/>
+                                </button>
+                                <button 
+                                    onClick={() => setSortDirection('DESC')}
+                                    className={`flex-1 flex justify-center py-1 rounded text-xs ${sortDirection === 'DESC' ? 'bg-white shadow text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-200'}`}
+                                    title="Absteigend (Z-A, 9-0)"
+                                >
+                                    <ArrowDownAZ size={16}/>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Gespeicherter Wert (Value / ID)</label>
                     <select 
@@ -158,6 +208,7 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
                             <option key={f.id} value={f.id}>{f.name} {f.isPrimaryKey ? '(PK)' : ''}</option>
                         ))}
                     </select>
+                    <p className="text-[10px] text-slate-400 mt-2">Das ist der Wert, der tatsächlich in der Datenbank gespeichert wird (meistens die ID).</p>
                 </div>
             </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Table, Query, Report, Field, ReportSummary } from '../types/index';
 import { X, FileText } from 'lucide-react';
@@ -24,6 +25,15 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
     ...tables.map(t => ({ id: `table:${t.id}`, name: t.name, type: 'Tabelle' })),
     ...queries.map(q => ({ id: `query:${q.id}`, name: q.name, type: 'Abfrage' }))
   ], [tables, queries]);
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value;
+      setSource(val);
+      const selected = dataSources.find(ds => ds.id === val);
+      if (selected) {
+          setReportName(selected.name);
+      }
+  };
 
   const selectedSourceFields = useMemo((): Field[] => {
     if (!source) return [];
@@ -92,16 +102,16 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
         <div className="p-6 overflow-y-auto" style={{ maxHeight: '70vh' }}>
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Berichtsname</label>
-              <input type="text" value={reportName} onChange={e => setReportName(e.target.value)} className="w-full max-w-md border border-slate-300 rounded p-2 text-sm" />
-            </div>
-
-            <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">1. Datenquelle auswählen</label>
-              <select value={source} onChange={e => setSource(e.target.value)} className="w-full border border-slate-300 rounded p-2 text-sm">
+              <select value={source} onChange={handleSourceChange} className="w-full border border-slate-300 rounded p-2 text-sm">
                 <option value="">Bitte wählen...</option>
                 {dataSources.map(ds => <option key={ds.id} value={ds.id}>{ds.type}: {ds.name}</option>)}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Berichtsname</label>
+              <input type="text" value={reportName} onChange={e => setReportName(e.target.value)} className="w-full max-w-md border border-slate-300 rounded p-2 text-sm" />
             </div>
 
             {source && (

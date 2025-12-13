@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Table, BackendConfig, VirtualFile, Relationship, Query, Form } from '../../types/index';
+import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report } from '../../types/index';
 import Editor from '@monaco-editor/react';
 import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { generateBackendCode } from '../../utils/backendGenerators';
@@ -12,6 +12,7 @@ interface BackendViewProps {
   relationships: Relationship[];
   queries: Query[];
   forms?: Form[]; 
+  reports?: Report[]; // Add reports prop
   exportTrigger: number;
   generateTrigger: number;
   config: BackendConfig;
@@ -134,7 +135,7 @@ const FileTreeItem: React.FC<{
     );
 };
 
-export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], exportTrigger, generateTrigger, config }) => {
+export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], reports = [], exportTrigger, generateTrigger, config }) => {
   const [generatedFiles, setGeneratedFiles] = useState<VirtualFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<VirtualFile | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -158,8 +159,8 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
 
   const handleGenerate = () => {
     try {
-        // Pass forms to generator
-        const files = generateBackendCode(tables, relationships, queries, config, forms);
+        // Pass forms AND reports to generator
+        const files = generateBackendCode(tables, relationships, queries, config, forms, reports);
         setGeneratedFiles(files);
         
         // Keep selection if file still exists, else select first reasonable entry point

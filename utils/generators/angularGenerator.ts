@@ -8,13 +8,26 @@ const toCamelCase = (str: string) => {
   return str.charAt(0).toLowerCase() + str.slice(1);
 };
 
-// Helper to find field name by ID for layout generation
-const findFieldName = (fieldId: string, tables: Table[]) => {
-    for (const t of tables) {
-        const f = t.fields.find(field => field.id === fieldId);
-        if (f) return f.name;
+// Helper: Collect all lookup configurations from the layout tree (Same logic as React generator)
+const collectLookups = (element: FormElement, tables: Table[], accumulated: any[] = []) => {
+    if (element.widgetType === 'select' && element.lookup && element.lookup.tableId) {
+        const table = tables.find(t => t.id === element.lookup!.tableId);
+        if (table) {
+            const variableName = `${toCamelCase(table.name)}List`;
+            // Avoid duplicates
+            if (!accumulated.find(l => l.variableName === variableName)) {
+                accumulated.push({
+                    table,
+                    variableName,
+                    endpoint: table.name.toLowerCase()
+                });
+            }
+        }
     }
-    return null;
+    if (element.children) {
+        element.children.forEach(child => collectLookups(child, tables, accumulated));
+    }
+    return accumulated;
 };
 
 // Helper to recursively generate HTML for Form Layout with camelCase bindings
@@ -23,19 +36,114 @@ const generateHtmlForLayout = (element: FormElement, tables: Table[]): string =>
         const childrenHtml = element.children?.map(c => generateHtmlForLayout(c, tables)).join('\n    ') || '';
         return `<div class="${element.className || ''}">\n    ${childrenHtml}\n</div>`;
     } else if (element.type === 'label') {
-        return `<div class="${element.className || ''}">${element.label}</div>`;
+        return `<div class="${element.className || 'text-lg font-bold mb-2'}">${element.label}</div>`;
     } else if (element.type === 'field' && element.fieldId) {
-        const fieldName = findFieldName(element.fieldId, tables);
-        // Use camelCase property access
-        const bindProp = fieldName ? toCamelCase(fieldName) : `field_${element.fieldId}`;
+        // Find field definition
+        let fieldName = '';
+        let isAuto = false;
+        let fieldType = 'text';
+
+        for (const t of tables) {
+            const f = t.fields.find(field => field.id === element.fieldId);
+            if (f) {
+                fieldName = f.name;
+                isAuto = !!f.isAutoIncrement;
+                if (f.type === 'INTEGER' || f.type === 'DECIMAL') fieldType = 'number';
+                else if (f.type === 'DATE') fieldType = 'date';
+                else if (f.type === 'BOOLEAN') fieldType = 'checkbox';
+                break;
+            }
+        }
+
+        if (!fieldName) return `<!-- Field ${element.label} not found -->`;
+        const bindProp = toCamelCase(fieldName);
         
+        // --- HANDLE SELECT / LOOKUP ---
+        if (element.widgetType === 'select' && element.lookup) {
+            const lookupTable = tables.find(t => t.id === element.lookup!.tableId);
+            if (lookupTable) {
+                const listVar = `${toCamelCase(lookupTable.name)}List`;
+                const valueField = lookupTable.fields.find(f => f.id === element.lookup!.valueFieldId);
+                const valueProp = valueField ? toCamelCase(valueField.name) : 'id';
+                
+                // Construct Label Expression for Angular Template
+                let labelExpr = '';
+                if (element.lookup.displayFormat && element.lookup.displayFormat.length > 0) {
+                    const parts = element.lookup.displayFormat.map(fmt => {
+                        const f = lookupTable.fields.find(field => field.id === fmt.fieldId);
+                        if (!f) return "''";
+                        const p = fmt.prefix ? `'${fmt.prefix}' + ` : '';
+                        const s = fmt.suffix ? ` + '${fmt.suffix}'` : '';
+                        // Note: Angular templates handle nulls gracefully usually, but simple concat is safest
+                        return `${p}(item.${toCamelCase(f.name)} || '')${s}`;
+                    });
+                    labelExpr = parts.join(' + ');
+                } else {
+                    // Fallback
+                    labelExpr = `item.${valueProp}`;
+                }
+
+                const quickCreateBtn = element.lookup.allowQuickCreate ? `
+                <button 
+                    type="button"
+                    (click)="navigateToNew('${lookupTable.name.toLowerCase()}')"
+                    class="bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 rounded px-3 flex items-center justify-center transition-colors"
+                    title="Neuen Eintrag erstellen"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>` : '';
+
+                return `
+                <div class="field-wrapper ${element.className || 'mb-4'}">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">${element.label}</label>
+                    <div class="flex gap-2">
+                        <select 
+                            [(ngModel)]="data.${bindProp}" 
+                            name="${bindProp}"
+                            class="block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-2 focus:ring-blue-500 outline-none flex-1"
+                            ${isAuto ? 'disabled' : ''}
+                        >
+                            <option [ngValue]="null">Bitte wählen...</option>
+                            <option *ngFor="let item of ${listVar}" [ngValue]="item.${valueProp}">
+                                {{ ${labelExpr} }}
+                            </option>
+                        </select>
+                        ${quickCreateBtn}
+                    </div>
+                </div>`;
+            }
+        }
+
+        // --- HANDLE CHECKBOX ---
+        if (fieldType === 'checkbox') {
+             return `
+            <div class="flex items-center gap-2 mb-4 ${element.className || ''}">
+                <input 
+                    type="checkbox"
+                    id="${bindProp}"
+                    name="${bindProp}"
+                    [(ngModel)]="data.${bindProp}"
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    ${isAuto ? 'disabled' : ''}
+                />
+                <label for="${bindProp}" class="text-sm font-medium text-gray-700">${element.label}</label>
+            </div>`;
+        }
+
+        // --- STANDARD INPUT ---
         return `
-        <div class="field-wrapper ${element.className || ''}">
-            <label class="block text-sm font-medium text-gray-700">${element.label}</label>
-            <input [(ngModel)]="data.${bindProp}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+        <div class="field-wrapper ${element.className || 'mb-4'}">
+            <label class="block text-sm font-medium text-gray-700 mb-1">${element.label}</label>
+            <input 
+                type="${fieldType}" 
+                [(ngModel)]="data.${bindProp}" 
+                name="${bindProp}"
+                class="block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
+                ${isAuto ? 'disabled' : ''}
+            />
         </div>`;
     } else if (element.type === 'subform') {
-        return `<div class="subform-wrapper border p-4 rounded">\n    <h3>${element.label}</h3>\n    <!-- Subform Component Placeholder -->\n    <app-subform-${element.subform?.formId}></app-subform-${element.subform?.formId}>\n</div>`;
+        return `<div class="subform-wrapper border p-4 rounded bg-indigo-50 border-indigo-200 mb-4">\n    <h3 class="font-bold text-indigo-800 mb-2">${element.label}</h3>\n    <!-- Subform Component Placeholder -->\n    <p class="text-sm text-indigo-600">Subform logic here...</p>\n</div>`;
     }
     return '';
 };
@@ -122,23 +230,43 @@ ${props}
       const tableName = sourceTable ? sourceTable.name : 'any';
 
       // HTML Template
-      let htmlContent = `<div class="p-6 bg-white rounded shadow">\n  <h2 class="text-2xl font-bold mb-4">${form.name}</h2>\n  <form *ngIf="data">\n`;
+      let htmlContent = `<div class="p-6 bg-white rounded shadow max-w-4xl mx-auto">\n  <h2 class="text-2xl font-bold mb-4 text-slate-800">${form.name}</h2>\n  <form *ngIf="data">\n`;
       if (form.layout) {
           htmlContent += generateHtmlForLayout(form.layout, tables);
       } else {
           htmlContent += `    <p>Kein Layout definiert.</p>`;
       }
-      htmlContent += `\n    <div class="mt-6 flex justify-end gap-2">\n      <button (click)="save()" class="px-4 py-2 bg-blue-600 text-white rounded">Speichern</button>\n    </div>\n  </form>\n</div>`;
+      htmlContent += `\n    <div class="mt-6 flex justify-end gap-2 border-t pt-4">\n      <button type="button" (click)="goBack()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Abbrechen</button>\n      <button (click)="save()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2">Speichern</button>\n    </div>\n  </form>\n</div>`;
       
       files.push({ name: `${componentName}.component.html`, path: `${root}/components/${componentName}/${componentName}.component.html`, content: htmlContent, language: 'html' });
 
       // CSS
       files.push({ name: `${componentName}.component.css`, path: `${root}/components/${componentName}/${componentName}.component.css`, content: `.field-wrapper { margin-bottom: 1rem; }`, language: 'css' });
 
+      // Analyze layout to find Lookups
+      const lookups = form.layout ? collectLookups(form.layout, tables) : [];
+      
+      // Prepare Imports
+      const tableImports = new Set<string>();
+      tableImports.add(tableName);
+      lookups.forEach(l => tableImports.add(l.table.name));
+      const importsStr = Array.from(tableImports).map(t => `import { ${t} } from '../../models/${t.toLowerCase()}.interface';`).join('\n');
+
+      // Prepare Properties
+      const lookupProperties = lookups.map(l => 
+          `  public ${l.variableName}: ${l.table.name}[] = [];`
+      ).join('\n');
+
+      // Prepare Load Calls
+      const loadCalls = lookups.map(l => 
+          `    this.api.getAll('${l.endpoint}').subscribe(res => this.${l.variableName} = res);`
+      ).join('\n');
+
       // TS
       const tsContent = `import { Component, OnInit } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../services/api.service';
-import { ${sourceTable?.name || 'any'} } from '../../models/${sourceTable?.name.toLowerCase() || 'any'}.interface';
+${importsStr}
 
 @Component({
   selector: 'app-${componentName}',
@@ -146,19 +274,42 @@ import { ${sourceTable?.name || 'any'} } from '../../models/${sourceTable?.name.
   styleUrls: ['./${componentName}.component.css']
 })
 export class ${className} implements OnInit {
-  data: ${tableName} | any = {};
+  public data: ${tableName} | any = {};
+${lookupProperties}
 
-  constructor(private api: ApiService<${tableName}>) {}
+  constructor(
+    private api: ApiService<any>,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit(): void {
-    // Load initial data if needed
+    // Load Lookups
+${loadCalls}
+
+    // Load Data if ID present
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id && id !== 'new') {
+        this.api.getById('${tableName.toLowerCase()}', id).subscribe(res => this.data = res);
+    }
   }
 
   save() {
-    console.log('Saving data', this.data);
-    this.api.create('${tableName.toLowerCase()}', this.data).subscribe(res => {
-        alert('Gespeichert!');
-    });
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id && id !== 'new') {
+        this.api.update('${tableName.toLowerCase()}', id, this.data).subscribe(() => this.goBack());
+    } else {
+        this.api.create('${tableName.toLowerCase()}', this.data).subscribe(() => this.goBack());
+    }
+  }
+
+  goBack() {
+    // Navigate back to list or previous page
+    window.history.back();
+  }
+
+  navigateToNew(entity: string) {
+    this.router.navigate(['/' + entity + '/new']);
   }
 }`;
       files.push({ name: `${componentName}.component.ts`, path: `${root}/components/${componentName}/${componentName}.component.ts`, content: tsContent, language: 'typescript' });

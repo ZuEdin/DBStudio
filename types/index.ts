@@ -186,6 +186,12 @@ export interface FormElement {
       // Quick Create Configuration
       allowQuickCreate?: boolean; // Zeige (+) Button
       quickCreateFormId?: string; // Welches Formular soll im Modal geladen werden?
+      
+      // Sorting Configuration
+      sort?: {
+          fieldId: string;
+          direction: 'ASC' | 'DESC';
+      };
   };
 
   // Für Subforms (in Container eingebettet oder als eigenes Element)

@@ -1,5 +1,5 @@
 
-import { Table, BackendConfig, VirtualFile, Relationship, Query, Form } from '../types/index';
+import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report } from '../types/index';
 import { generateDotNet } from './generators/dotnetGenerator';
 import { generateNodeJs } from './generators/nodeGenerator';
 import { generateAngular } from './generators/angularGenerator';
@@ -7,7 +7,14 @@ import { generateReact } from './generators/reactGenerator';
 import { generatePhp } from './generators/phpGenerator';
 
 // Main Generator Function
-export const generateBackendCode = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, forms: Form[] = []): VirtualFile[] => {
+export const generateBackendCode = (
+    tables: Table[], 
+    relationships: Relationship[], 
+    queries: Query[], 
+    config: BackendConfig, 
+    forms: Form[] = [], 
+    reports: Report[] = [] // Add reports param
+): VirtualFile[] => {
   let files: VirtualFile[] = [];
 
   if (config.language === 'dotnet') {
@@ -23,7 +30,8 @@ export const generateBackendCode = (tables: Table[], relationships: Relationship
     const angularFiles = generateAngular(tables, relationships, queries, forms, config);
     files = [...files, ...angularFiles];
   } else if (config.frontendFramework === 'react') {
-    const reactFiles = generateReact(tables, relationships, queries, config);
+    // Pass reports to React generator
+    const reactFiles = generateReact(tables, relationships, queries, config, forms, reports);
     files = [...files, ...reactFiles];
   }
 
