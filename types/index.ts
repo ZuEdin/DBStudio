@@ -205,6 +205,7 @@ export interface FormField {
 
 export interface FormSettings {
   isFullScreen?: boolean;
+  showEditToggle?: boolean; // NEU: Steuert den Bearbeitungs-Button
 }
 
 export interface Form {

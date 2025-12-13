@@ -1,4 +1,4 @@
-import { Table, Form, Report, VirtualFile, BackendConfig, Query } from '../../../types/index';
+import { Table, Form, Report, VirtualFile, BackendConfig, Query, Relationship } from '../../../types/index';
 import { toCamelCase, toKebabCase, toPascalCase } from '../common';
 import { generateHtmlForLayout } from './layoutHelper';
 
@@ -9,7 +9,7 @@ interface RouteInfo {
   file: string;
 }
 
-export const generateAngularComponents = (tables: Table[], forms: Form[], reports: Report[], config: BackendConfig, appRoot: string, queries: Query[]): { files: VirtualFile[], routes: RouteInfo[] } => {
+export const generateAngularComponents = (tables: Table[], relationships: Relationship[], forms: Form[], reports: Report[], config: BackendConfig, appRoot: string, queries: Query[]): { files: VirtualFile[], routes: RouteInfo[] } => {
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
 
@@ -81,7 +81,7 @@ export class AppComponent {}`;
                     <tr *ngFor="let item of items" class="border-b hover:bg-gray-50">
                         ${table.fields.map(f=>`<td class="p-3 text-sm text-gray-800">{{item.${toCamelCase(f.name)}}}</td>`).join('')}
                         <td class="p-3 text-right">
-                            <a [routerLink]="['/${camelName}', item.${pkField}]" class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-4">Bearbeiten</a>
+                            <a [routerLink]="['/${camelName}', item.${pkField}]" class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-4">Details</a>
                             <button (click)="delete(item.${pkField})" class="text-red-600 hover:text-red-800 text-sm font-medium">Löschen</button>
                         </td>
                     </tr>
@@ -130,7 +130,110 @@ export class ${listCompName} implements OnInit {
       // If custom form exists use its name, otherwise use TableName + FormComponent
       const formCompName = customForm ? `${toPascalCase(customForm.name)}FormComponent` : `${pascalName}FormComponent`;
       const formKebabName = customForm ? `${toKebabCase(customForm.name)}-form` : `${kebabName}-form`;
-      const formFolderName = `forms/${formKebabName}`; // Separate folder for clarity
+      const formFolderName = `forms/${formKebabName}`; 
+
+      // -- 1:N Logic (Sub-Lists) --
+      const childRelationships = relationships.filter(r => r.fromTableId === table.id);
+      let childListsHtml = '';
+      let childImports = '';
+      let childProps = '';
+      let childMethods = '';
+      let childModalHtml = '';
+
+      childRelationships.forEach(rel => {
+          const childTable = tables.find(t => t.id === rel.toTableId);
+          if (!childTable) return;
+          
+          const childPascal = toPascalCase(childTable.name);
+          const childCamel = toCamelCase(childTable.name);
+          const childPk = toCamelCase(childTable.fields.find(f => f.isPrimaryKey)?.name || 'id');
+          const relField = toCamelCase(childTable.fields.find(f => f.id === rel.toFieldId)?.name || 'parentId');
+
+          // Check if child has a specific form
+          const childForm = formMap.get(childTable.id);
+          const childFormComponentName = childForm ? `${toPascalCase(childForm.name)}FormComponent` : `${childPascal}FormComponent`;
+          const childFormKebab = childForm ? `${toKebabCase(childForm.name)}-form` : `${toKebabCase(childPascal)}-form`;
+          const childFormFolder = `forms/${childFormKebab}`; // Assume standard folder structure
+
+          childImports += `import { ${childFormComponentName} } from '../../${childFormFolder}/${childFormKebab}.component';\n`;
+          childImports += `import { ${childPascal} } from '../../models/${childPascal.toLowerCase()}.interface';\n`;
+
+          childProps += `  ${childCamel}List: ${childPascal}[] = [];\n`;
+          childProps += `  selected${childPascal}: ${childPascal} | null = null;\n`;
+          childProps += `  show${childPascal}Modal = false;\n`;
+
+          childMethods += `
+  load${childPascal}List(masterId: any) {
+      // In a real app, you'd filter by FK. For prototype, we load all and filter client-side or use a specific endpoint
+      this.api.getAll('${childCamel}').subscribe(all => {
+          this.${childCamel}List = all.filter((x: any) => x.${relField} == masterId);
+      });
+  }
+
+  open${childPascal}Modal(item?: ${childPascal}) {
+      this.selected${childPascal} = item ? { ...item } : { ${relField}: this.data.${pkField} } as any;
+      this.show${childPascal}Modal = true;
+  }
+
+  close${childPascal}Modal() {
+      this.show${childPascal}Modal = false;
+      this.selected${childPascal} = null;
+  }
+
+  on${childPascal}Saved() {
+      this.close${childPascal}Modal();
+      if (this.data.${pkField}) this.load${childPascal}List(this.data.${pkField});
+  }
+  
+  delete${childPascal}(id: any) {
+      if(confirm('Eintrag löschen?')) {
+          this.api.delete('${childCamel}', id).subscribe(() => this.load${childPascal}List(this.data.${pkField}));
+      }
+  }
+`;
+
+          childListsHtml += `
+            <div *ngIf="data.${pkField}" class="mt-8 border-t pt-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">${childTable.name}</h3>
+                    <button type="button" (click)="open${childPascal}Modal()" class="bg-green-600 text-white px-3 py-1 rounded text-sm">Neuer Eintrag</button>
+                </div>
+                <table class="w-full text-left border text-sm">
+                    <thead class="bg-gray-100"><tr>${childTable.fields.filter(f=>!f.isPrimaryKey).slice(0,3).map(f=>`<th class="p-2">${f.name}</th>`).join('')}<th class="p-2 text-right">Aktionen</th></tr></thead>
+                    <tbody>
+                        <tr *ngFor="let child of ${childCamel}List" class="border-b">
+                            ${childTable.fields.filter(f=>!f.isPrimaryKey).slice(0,3).map(f=>`<td class="p-2">{{child.${toCamelCase(f.name)}}}</td>`).join('')}
+                            <td class="p-2 text-right">
+                                <button type="button" (click)="open${childPascal}Modal(child)" class="text-blue-600 mr-2">Edit</button>
+                                <button type="button" (click)="delete${childPascal}(child.${childPk})" class="text-red-600">Delete</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+          `;
+
+          // Embedded Modal Wrapper around the Child Form Component
+          // NOTE: Child component needs to accept @Input() data and emit (save)/(cancel)
+          childModalHtml += `
+            <div *ngIf="show${childPascal}Modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+                    <button (click)="close${childPascal}Modal()" class="absolute top-2 right-2 text-gray-500 hover:text-black">✕</button>
+                    <div class="p-4">
+                        <h2 class="text-xl font-bold mb-4">${childTable.name} {{ selected${childPascal}?.${childPk} ? 'bearbeiten' : 'erstellen' }}</h2>
+                        <!-- Reusing the generated form component for the child -->
+                        <app-${childFormKebab} 
+                            [dataInput]="selected${childPascal}" 
+                            [isModal]="true"
+                            (saved)="on${childPascal}Saved()" 
+                            (cancelled)="close${childPascal}Modal()">
+                        </app-${childFormKebab}>
+                    </div>
+                </div>
+            </div>
+          `;
+      });
+
 
       // Determine Layout HTML
       let formLayoutHtml = '';
@@ -139,10 +242,8 @@ export class ${listCompName} implements OnInit {
       let lookupLoads = '';
 
       if (customForm && customForm.layout) {
-          // Use Custom Layout
           formLayoutHtml = generateHtmlForLayout(customForm.layout, tables);
           
-          // Collect lookups from layout
           const lookups: any[] = [];
           const traverse = (el: any) => {
               if (el.widgetType === 'select' && el.lookup) lookups.push(el.lookup);
@@ -166,45 +267,89 @@ export class ${listCompName} implements OnInit {
           }).join('\n');
 
       } else {
-          // Default Layout (Vertical Stack of Fields)
-          formLayoutHtml = `<div className="p-4 space-y-4">
+          formLayoutHtml = `<div class="grid grid-cols-1 gap-4">
             ${table.fields.filter(f => !f.isPrimaryKey).map(f => `
-            <div class="mb-4">
+            <div>
                 <label class="block text-sm font-medium mb-1">${f.name}</label>
-                <input type="text" [(ngModel)]="data.${toCamelCase(f.name)}" name="${toCamelCase(f.name)}" class="w-full border rounded p-2" />
+                <input type="text" [(ngModel)]="data.${toCamelCase(f.name)}" name="${toCamelCase(f.name)}" class="w-full border rounded p-2" [disabled]="!isEditing" />
             </div>`).join('')}
           </div>`;
       }
 
-      const formHtml = `<div class="p-6 max-w-4xl mx-auto">
-        <div class="bg-white shadow rounded-lg p-6">
-            <h1 class="text-2xl font-bold mb-6 pb-2 border-b">${customForm ? customForm.name : table.name + ' bearbeiten'}</h1>
+      // Edit Button Logic (if enabled)
+      const showEditToggle = customForm?.settings?.showEditToggle;
+      let headerButtons = '';
+      
+      if (showEditToggle) {
+          headerButtons = `
+            <div class="flex gap-2">
+                <button *ngIf="!isEditing && !isModal" type="button" (click)="enableEdit()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">Bearbeiten</button>
+                <button *ngIf="isEditing || isModal" type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Speichern</button>
+                <button *ngIf="isModal" type="button" (click)="cancelled.emit()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Abbrechen</button>
+            </div>`;
+      } else {
+          headerButtons = `
+            <div class="flex gap-2">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Speichern</button>
+                <button *ngIf="isModal" type="button" (click)="cancelled.emit()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">Abbrechen</button>
+            </div>`;
+      }
+
+      const html = `<div class="p-6 max-w-4xl mx-auto" [class.p-0]="isModal">
+        <div class="bg-white shadow rounded-lg p-6" [class.shadow-none]="isModal" [class.p-0]="isModal">
+            <div class="flex justify-between items-center mb-6 pb-2 border-b" *ngIf="!isModal">
+                <h1 class="text-2xl font-bold">{{ data.${pkField} ? '${customForm ? customForm.name : table.name}' : 'Neu erstellen' }}</h1>
+                ${headerButtons}
+            </div>
+            
             <form (ngSubmit)="save()">
-                ${formLayoutHtml}
-                <div class="mt-6 flex justify-end">
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium transition-colors">Speichern</button>
+                <fieldset [disabled]="!isEditing">
+                    ${formLayoutHtml}
+                </fieldset>
+                
+                <!-- Modal Footer Buttons (only if inside modal or if header buttons hidden) -->
+                <div *ngIf="isModal" class="mt-6 flex justify-end gap-2">
+                     <button type="button" (click)="cancelled.emit()" class="bg-gray-200 px-4 py-2 rounded">Abbrechen</button>
+                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Speichern</button>
                 </div>
             </form>
-        </div>
-      </div>`;
 
-      const formTs = `import { Component, OnInit } from '@angular/core';
+            ${childListsHtml}
+        </div>
+      </div>
+      ${childModalHtml}
+      `;
+
+      const ts = `import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { ${pascalName} } from '../../models/${pascalName.toLowerCase()}.interface';
 ${lookupImports}
+${childImports}
 
 @Component({
   selector: 'app-${formKebabName}',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, ${childRelationships.map(r => {
+      const t = tables.find(x => x.id === r.toTableId);
+      const f = formMap.get(t?.id || '');
+      return f ? `${toPascalCase(f.name)}FormComponent` : (t ? `${toPascalCase(t.name)}FormComponent` : '');
+  }).filter(Boolean).join(', ')}],
   templateUrl: './${formKebabName}.component.html'
 })
 export class ${formCompName} implements OnInit {
+  @Input() dataInput: ${pascalName} | null = null;
+  @Input() isModal: boolean = false;
+  @Output() saved = new EventEmitter<void>();
+  @Output() cancelled = new EventEmitter<void>();
+
   data: ${pascalName} = {} as ${pascalName};
+  isEditing = true; // Default to true, logic in ngOnInit handles toggle
+
 ${lookupProps}
+${childProps}
 
   constructor(
     private api: ApiService, 
@@ -213,35 +358,72 @@ ${lookupProps}
   ) {}
 
   ngOnInit() {
-${lookupLoads}
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-        this.api.getById('${camelName}', id).subscribe(res => this.data = res);
+    this.loadLookups();
+    
+    // Check if used as a Component (Input) or via Routing
+    if (this.dataInput) {
+        this.data = { ...this.dataInput };
+        this.isEditing = true; // Always edit in modal
+    } else {
+        const id = this.route.snapshot.paramMap.get('id');
+        if (id && id !== 'new') {
+            this.api.getById('${camelName}', id).subscribe(res => {
+                this.data = res;
+                // If toggle enabled, start in view mode
+                this.isEditing = ${!showEditToggle};
+                
+                // Load children if any
+                ${childRelationships.map(r => {
+                    const ct = tables.find(t => t.id === r.toTableId);
+                    return ct ? `this.load${toPascalCase(ct.name)}List(id);` : '';
+                }).join('\n                ')}
+            });
+        } else {
+            this.isEditing = true;
+        }
     }
   }
 
+  loadLookups() {
+${lookupLoads}
+  }
+
+  enableEdit() {
+      this.isEditing = true;
+  }
+
   save() {
-    const id = this.route.snapshot.paramMap.get('id');
+    // If not editing, do nothing (should be disabled via fieldset, but double check)
+    if (!this.isEditing) return;
+
+    const id = this.data.${pkField};
     const operation = id
       ? this.api.update('${camelName}', id, this.data)
       : this.api.create('${camelName}', this.data);
       
-    operation.subscribe(() => this.router.navigate(['/${camelName}']));
+    operation.subscribe((res) => {
+        if (this.isModal) {
+            this.saved.emit();
+        } else {
+            // Update mode: stay on page or navigate back? Usually list.
+            this.router.navigate(['/${camelName}']);
+        }
+    });
   }
+
+${childMethods}
 }`;
 
-      files.push({ name: `${formKebabName}.component.html`, path: `${appRoot}/pages/${formFolderName}/${formKebabName}.component.html`, content: formHtml, language: 'html' });
-      files.push({ name: `${formKebabName}.component.ts`, path: `${appRoot}/pages/${formFolderName}/${formKebabName}.component.ts`, content: formTs, language: 'typescript' });
+      files.push({ name: `${formKebabName}.component.html`, path: `${appRoot}/pages/${formFolderName}/${formKebabName}.component.html`, content: html, language: 'html' });
+      files.push({ name: `${formKebabName}.component.ts`, path: `${appRoot}/pages/${formFolderName}/${formKebabName}.component.ts`, content: ts, language: 'typescript' });
 
       // Register Form Routes (Linked to Table URLs)
-      // path: 'table/new' -> FormComponent
       routes.push({ path: `${camelName}/new`, component: formCompName, folder: formFolderName, file: `${formKebabName}.component` });
-      // path: 'table/:id' -> FormComponent
       routes.push({ path: `${camelName}/:id`, component: formCompName, folder: formFolderName, file: `${formKebabName}.component` });
   });
 
   // ---------------------------------------------------------
-  // REPORTS: Separated by Source Type
+  // REPORTS
   // ---------------------------------------------------------
   reports.forEach(report => {
       const pascalName = toPascalCase(report.name);
@@ -252,7 +434,6 @@ ${lookupLoads}
       let modelName = 'any';
       let modelImport = '';
 
-      // Determine Source & Model
       if (report.sourceType === 'table') {
           const t = tables.find(t => t.id === report.sourceId);
           if (t) {
@@ -310,7 +491,6 @@ export class ${reportCompName} implements OnInit {
   constructor(private api: ApiService) {}
 
   ngOnInit() {
-      // For reports based on queries, we assume the API has an endpoint matching the query name
       this.api.getAll('${endpoint}').subscribe(res => this.data = res);
   }
 }`;

@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { Form, Table, Subform, FormElement, FormElementType, FormWidgetType, Relationship } from '../../types/index';
 import { Layout, Trash2, Eye, Edit3, Type, Box, GripVertical, Monitor, List, CheckSquare, Settings2, Shield, PlusSquare } from 'lucide-react';
@@ -44,6 +43,13 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       onFormChange({ 
           ...form, 
           settings: { ...form.settings, isFullScreen: !form.settings?.isFullScreen } 
+      });
+  };
+
+  const toggleEditButton = () => {
+      onFormChange({ 
+          ...form, 
+          settings: { ...form.settings, showEditToggle: !form.settings?.showEditToggle } 
       });
   };
 
@@ -173,21 +179,16 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       const el = findElement(newLayout, selectedElementId);
       if (el) {
           (el as any)[key] = value;
-          // Auto-init lookup object if switching to select
           if (key === 'widgetType' && value === 'select' && !el.lookup) {
-              
               const sourceTableId = form.sourceId;
               const fieldId = el.fieldId;
-              let targetTableId = allTables[0]?.id || ''; // Default fallback
-              
+              let targetTableId = allTables[0]?.id || ''; 
               if (sourceTableId && fieldId && relationships) {
-                  // Find if this field is a `toField` (a foreign key) in any relationship
                   const rel = relationships.find(r => r.toTableId === sourceTableId && r.toFieldId === fieldId);
                   if (rel) {
-                      targetTableId = rel.fromTableId; // The lookup table is the 'from' side (the parent)
+                      targetTableId = rel.fromTableId;
                   }
               }
-
               el.lookup = { 
                   tableId: targetTableId, 
                   valueFieldId: '', 
@@ -226,7 +227,6 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       const newLayout = JSON.parse(JSON.stringify(form.layout));
       const el = findElement(newLayout, selectedElementId);
       if (el) {
-          // Merge old config (to keep allowQuickCreate) with new config
           el.lookup = { ...el.lookup, ...newLookup };
           onFormChange({ ...form, layout: newLayout });
       }
@@ -383,7 +383,6 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       {/* Sidebar Right: Properties */}
       <div className="w-72 bg-white border-l border-slate-300 flex flex-col">
           
-          {/* Properties Panel */}
           <div className="flex-1 p-4 border-b border-slate-300 overflow-y-auto">
               <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <Edit3 size={16}/> Eigenschaften
@@ -478,7 +477,6 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                               <div>Quelle: {allTables.find(t => t.id === selectedEl.lookup?.tableId)?.name || 'Unbekannt'}</div>
                                               <div>Felder: {selectedEl.lookup?.labelFields.length || 0} ausgewählt</div>
                                               
-                                              {/* Quick Create Settings */}
                                               <div className="pt-2 border-t border-slate-100 mt-1">
                                                   <label className="flex items-center gap-2 cursor-pointer mb-2">
                                                       <input 
@@ -530,23 +528,37 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                       </button>
                   </div>
               ) : (
-                  <div className="text-slate-500 text-sm">
-                      <p className="italic mb-4">Formulareigenschaften</p>
-                      <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="text-slate-500 text-sm space-y-4">
+                      <p className="italic mb-2">Formulareigenschaften</p>
+                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded">
                           <input 
                             type="checkbox" 
                             checked={form.settings?.isFullScreen || false} 
                             onChange={toggleFullScreen}
                             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
-                          <span>Vollbild-Modus</span>
+                          <div>
+                            <span className="block font-semibold text-slate-700">Vollbild-Modus</span>
+                            <span className="text-xs text-slate-400">Kein Rand, kein Schatten im View-Mode.</span>
+                          </div>
                       </label>
-                      <p className="text-xs text-slate-400 mt-1">Wenn aktiviert, nimmt das Formular den gesamten Anzeigebereich ein (kein Rand, kein Schatten).</p>
+                      
+                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded">
+                          <input 
+                            type="checkbox" 
+                            checked={form.settings?.showEditToggle || false} 
+                            onChange={toggleEditButton}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <span className="block font-semibold text-slate-700">Bearbeiten-Button anzeigen</span>
+                            <span className="text-xs text-slate-400">Erlaubt Wechsel zwischen Lese- und Bearbeitungsmodus.</span>
+                          </div>
+                      </label>
                   </div>
               )}
           </div>
 
-          {/* Toolbox Bottom (Fields) */}
           <div className="h-1/3 border-t border-slate-300 p-4 bg-slate-50 overflow-y-auto">
              <h3 className="font-bold text-slate-700 mb-2 text-xs uppercase tracking-wider">Datenfelder</h3>
              <div className="space-y-1">

@@ -10,7 +10,7 @@ export const generateAngular = (tables: Table[], relationships: Relationship[], 
   const appRoot = `${root}/src/app`;
   
   // Generate component files and get route definitions
-  const { files: componentFiles, routes: routeObjects } = generateAngularComponents(tables, forms, reports, config, appRoot, queries);
+  const { files: componentFiles, routes: routeObjects } = generateAngularComponents(tables, relationships, forms, reports, config, appRoot, queries);
 
   // Generate app.routes.ts
   const routeImports = [...new Set(routeObjects.map(r => `import { ${r.component} } from './pages/${r.folder}/${r.file}';`))].join('\n');
