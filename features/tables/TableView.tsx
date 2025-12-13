@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { Table } from '../../types/index';
 import { Plus, Trash2, Upload } from 'lucide-react';
@@ -65,15 +66,28 @@ export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, show
       const lines = text.split('\n');
       const csvHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
       
+      // Identify Auto Increment Fields and their current max values
+      const autoIncFields = table.fields.filter(f => f.isAutoIncrement && f.type === 'INTEGER');
+      const nextAutoIncValues: Record<string, number> = {};
+
+      autoIncFields.forEach(f => {
+          const maxVal = data.reduce((max, row) => {
+              const val = parseInt(row[f.name], 10);
+              return !isNaN(val) && val > max ? val : max;
+          }, 0);
+          nextAutoIncValues[f.name] = maxVal + 1;
+      });
+      
       const newRows: Record<string, any>[] = [];
       
-      // Simple CSV parser (does not handle commas inside quotes perfectly, but sufficient for basic usage)
+      // Simple CSV parser
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
         
         if (values.length === csvHeaders.length) {
           const row: Record<string, any> = {};
+          
           // Try to map CSV headers to Table fields (case insensitive)
           table.fields.forEach(field => {
              const index = csvHeaders.findIndex(h => h.toLowerCase() === field.name.toLowerCase());
@@ -83,6 +97,23 @@ export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, show
                row[field.name] = ''; // Default for missing column
              }
           });
+
+          // Handle Auto Increment for imported rows
+          autoIncFields.forEach(f => {
+              const val = row[f.name];
+              // Apply auto-increment if value is missing, empty string, or undefined
+              if (val === '' || val === undefined || val === null) {
+                  row[f.name] = nextAutoIncValues[f.name];
+                  nextAutoIncValues[f.name]++;
+              } else {
+                  // If CSV provided a value, update our tracker if it's higher
+                  const numVal = parseInt(val, 10);
+                  if (!isNaN(numVal) && numVal >= nextAutoIncValues[f.name]) {
+                      nextAutoIncValues[f.name] = numVal + 1;
+                  }
+              }
+          });
+
           newRows.push(row);
         }
       }

@@ -86,12 +86,13 @@ export default function App() {
   // Backend Configuration State
   const [backendConfig, setBackendConfig] = useState<BackendConfig>({
     language: 'dotnet',
+    backendVersion: '9.0', // Default to .NET 9
     dbType: DbType.SQL, // Default
     projectName: 'MyApiProject',
     port: 5000,
     dbConnection: 'Server=.;Database=MyDb;Trusted_Connection=True;',
     useSwagger: true,
-    frontendFramework: 'angular'
+    frontendFramework: 'react'
   });
 
   // Sync loaded project config to local state

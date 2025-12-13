@@ -209,12 +209,13 @@ export const useDatabase = () => {
       
       const configToSave: BackendConfig = overrideConfig || loadedBackendConfig || {
           language: 'dotnet',
+          backendVersion: '9.0',
           dbType: dbType,
           projectName: currentProjectName.replace(/\s+/g, ''),
           port: 5000,
           dbConnection: '',
           useSwagger: true,
-          frontendFramework: 'angular'
+          frontendFramework: 'react'
       };
 
       const project: Project = {
@@ -306,12 +307,13 @@ export const useDatabase = () => {
     // Initial Save
     const initialConfig: BackendConfig = {
         language: 'dotnet',
+        backendVersion: '9.0',
         dbType: type,
         projectName: projectName.replace(/\s+/g, ''),
         port: 5000,
         dbConnection: '',
         useSwagger: true,
-        frontendFramework: 'angular'
+        frontendFramework: 'react'
     };
     setLoadedBackendConfig(initialConfig);
 

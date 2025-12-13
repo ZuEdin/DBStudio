@@ -288,7 +288,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     if (!activeObject) {
       switch (currentView.type) {
          case 'relationships': return 'Beziehungen';
-         case 'backend_generator': return 'Backend Generator';
+         case 'backend_generator': return 'App Generator';
          default: return '';
       }
     }

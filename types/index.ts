@@ -229,6 +229,7 @@ export type FrontendFramework = 'none' | 'angular' | 'react';
 
 export interface BackendConfig {
   language: BackendLanguage;
+  backendVersion?: string; // e.g., "8.0", "9.0", "10.0"
   dbType: DbType; // New: Pass the DB Type to the generator
   projectName: string;
   port: number;
