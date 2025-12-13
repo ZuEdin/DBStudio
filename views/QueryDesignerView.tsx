@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Canvas } from '../components/Canvas';
 import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery } from '../types/index';
+import { generateSqlSelect } from '../utils/sqlHelper';
 
 interface QueryDesignerViewProps {
   query: Query;
@@ -15,7 +17,6 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   tables,
   relationships,
 }) => {
-  // FIX: Add type guard to ensure the query is a SELECT query, as this component is a designer for it.
   if (query.type !== 'SELECT') {
     return <div className="p-4">Dieser Abfragetyp kann nicht im Designer bearbeitet werden.</div>;
   }
@@ -24,7 +25,12 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   const { nodes, columns: queryColumns } = query;
 
   useEffect(() => {
-    generateSql();
+    if (queryColumns.length === 0 || nodes.length === 0) {
+      setGeneratedSql('Ziehen Sie Felder in den Grid, um eine Abfrage zu erstellen.');
+    } else {
+      const sql = generateSqlSelect(nodes, queryColumns, tables, relationships);
+      setGeneratedSql(sql + ';');
+    }
   }, [query, relationships, tables]);
   
   const setNodes = (nodes: TableNode[]) => {
@@ -89,8 +95,6 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   };
 
   const handleCriteriaChange = (columnId: string, criteriaIndex: number, value: string) => {
-    // FIX: The `setQueryColumns` function expects an array, not a state update function.
-    // The logic has been changed to compute the new array first and then pass it to the setter.
     const newColumns = queryColumns.map(col => {
       if (col.id === columnId) {
         const newCriteria = [...col.criteria];
@@ -105,50 +109,6 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     setQueryColumns(newColumns);
   };
   
-  const generateSql = () => {
-    if (queryColumns.length === 0 || nodes.length === 0) {
-      setGeneratedSql('Ziehen Sie Felder in den Grid, um eine Abfrage zu erstellen.');
-      return;
-    }
-    
-    const selectClause = queryColumns.filter(c => c.show).map(c => `  ${c.tableName}.${c.fieldName}`).join(',\n');
-    const fromTable = tables.find(t => t.id === nodes[0].tableId);
-    if (!fromTable) return;
-
-    let fromClause = `FROM\n  ${fromTable.name}`;
-    const joinedTables = new Set([fromTable.id]);
-    let joins = '';
-    const queryTableIds = new Set(nodes.map(n => n.tableId));
-    const relevantRels = relationships.filter(r => queryTableIds.has(r.fromTableId) && queryTableIds.has(r.toTableId));
-
-    for (const rel of relevantRels) {
-        const processJoin = (fromTId: string, toTId: string, fromFId: string, toFId: string) => {
-             if (joinedTables.has(fromTId) && !joinedTables.has(toTId)) {
-                const fromT = tables.find(t => t.id === fromTId)!; const fromF = fromT.fields.find(f => f.id === fromFId)!;
-                const toT = tables.find(t => t.id === toTId)!; const toF = toT.fields.find(f => f.id === toFId)!;
-                joins += `\nINNER JOIN ${toT.name}\n  ON ${fromT.name}.${fromF.name} = ${toT.name}.${toF.name}`;
-                joinedTables.add(toTId);
-            }
-        }
-        processJoin(rel.fromTableId, rel.toTableId, rel.fromFieldId, rel.toFieldId);
-        processJoin(rel.toTableId, rel.fromTableId, rel.toFieldId, rel.fromFieldId);
-    }
-    
-    const whereConditions = queryColumns
-      .map(c => {
-        const validCriteria = c.criteria.filter(crit => crit.trim() !== '');
-        if (validCriteria.length === 0) return null;
-        const fieldName = `${c.tableName}.${c.fieldName}`;
-        const conditions = validCriteria.map(crit => `${fieldName} ${crit}`);
-        return conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0];
-      }).filter(Boolean);
-
-    let whereClause = '';
-    if (whereConditions.length > 0) whereClause = `\nWHERE\n  ${whereConditions.join('\n  AND ')}`;
-    const sql = `SELECT\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause};`;
-    setGeneratedSql(sql);
-  };
-
   const maxCriteriaRows = Math.max(1, ...queryColumns.map(c => c.criteria.length));
 
   return (

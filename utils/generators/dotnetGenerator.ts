@@ -24,11 +24,11 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
   files.push(generateProgram(config, root));
   
   // Data Layer
-  files.push(generateDbContext(tables, config, root));
-  files.push(...generateModels(tables, relationships, config, root));
+  files.push(generateDbContext(tables, queries, config, root));
+  files.push(...generateModels(tables, relationships, queries, config, root));
   
   // API Layer
-  files.push(...generateControllers(tables, relationships, config, root));
+  files.push(...generateControllers(tables, relationships, queries, config, root));
 
   // Docs
   files.push({ name: 'README.md', path: `${root}/README.md`, content: `# ${config.projectName}\nRun with: dotnet run`, language: 'text' });

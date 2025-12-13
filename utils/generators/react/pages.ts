@@ -3,7 +3,7 @@ import { Table, Form, Report, VirtualFile } from '../../../types/index';
 import { toCamelCase, toPascalCase } from '../common';
 import { generateJsxForLayout, collectLookups } from './layoutHelper';
 
-export const generateReactPages = (tables: Table[], forms: Form[], reports: Report[], root: string): VirtualFile[] => {
+export const generateReactPages = (tables: Table[], forms: Form[], reports: Report[], root: string, queries: any[] = []): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
   // Lists
@@ -95,8 +95,17 @@ export const ${compName} = () => {
   // Reports
   reports.forEach(report => {
       const compName = `${toPascalCase(report.name)}Report`;
-      const sourceTable = tables.find(t => t.id === report.sourceId);
-      const endpoint = sourceTable ? sourceTable.name.toLowerCase() : 'unknown';
+      
+      // Determine endpoint
+      let endpoint = 'unknown';
+      if (report.sourceType === 'table') {
+          const t = tables.find(t => t.id === report.sourceId);
+          if (t) endpoint = t.name.toLowerCase();
+      } else if (report.sourceType === 'query') {
+          const q = queries.find(q => q.id === report.sourceId);
+          if (q) endpoint = q.name.toLowerCase();
+      }
+
       const cols = report.columns || [];
 
       const content = `import React, { useEffect, useState } from 'react';

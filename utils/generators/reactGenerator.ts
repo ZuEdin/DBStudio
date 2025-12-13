@@ -9,9 +9,10 @@ export const generateReact = (tables: Table[], relationships: Relationship[], qu
   const root = `Frontend`;
   
   const configFiles = generateReactConfigs(config, root);
-  const apiFiles = generateReactApi(tables, config, root);
+  // Pass queries for models
+  const apiFiles = generateReactApi(tables, queries, config, root);
   const structureFiles = generateReactStructure(tables, forms, reports, config, root);
-  const pageFiles = generateReactPages(tables, forms, reports, root);
+  const pageFiles = generateReactPages(tables, forms, reports, root, queries);
 
   return [
       ...configFiles,

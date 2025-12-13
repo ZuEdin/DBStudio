@@ -10,8 +10,9 @@ export const generateAngular = (tables: Table[], relationships: Relationship[], 
   const appRoot = `${root}/src/app`;
   
   const configFiles = generateAngularConfigs(config, root);
-  const serviceFiles = generateAngularServices(tables, config, appRoot);
-  const { files: componentFiles, declarations, routes } = generateAngularComponents(tables, forms, reports, config, appRoot);
+  // Pass queries to service generation for models
+  const serviceFiles = generateAngularServices(tables, queries, config, appRoot);
+  const { files: componentFiles, declarations, routes } = generateAngularComponents(tables, forms, reports, config, appRoot, queries);
   const moduleFile = generateAngularModule(declarations, routes, appRoot);
 
   return [

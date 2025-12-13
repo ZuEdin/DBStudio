@@ -1,14 +1,14 @@
 
-import { Table, Form, Report, VirtualFile, BackendConfig } from '../../../types/index';
+import { Table, Form, Report, VirtualFile, BackendConfig, Query } from '../../../types/index';
 import { toCamelCase, toKebabCase, toPascalCase } from '../common';
 import { generateHtmlForLayout } from './layoutHelper';
 
-export const generateAngularComponents = (tables: Table[], forms: Form[], reports: Report[], config: BackendConfig, appRoot: string): { files: VirtualFile[], declarations: string[], routes: string[] } => {
+export const generateAngularComponents = (tables: Table[], forms: Form[], reports: Report[], config: BackendConfig, appRoot: string, queries: Query[]): { files: VirtualFile[], declarations: string[], routes: string[] } => {
   const files: VirtualFile[] = [];
   const declarations: string[] = ['AppComponent', 'SidebarComponent'];
   const routes: string[] = [];
 
-  // Sidebar
+  // Sidebar (Same as before)
   const navLinks = `
     <div class="px-4 py-2 text-xs font-bold text-slate-500 uppercase mt-4">Daten</div>
     ${tables.map(t => `<a routerLink="/${toCamelCase(t.name)}" routerLinkActive="bg-slate-700 text-white" class="block py-1 px-4 hover:bg-slate-700 text-slate-300 rounded mx-2 transition-colors">${t.name}</a>`).join('')}
@@ -33,11 +33,11 @@ export const generateAngularComponents = (tables: Table[], forms: Form[], report
   files.push({ name: 'sidebar.component.html', path: `${appRoot}/components/sidebar/sidebar.component.html`, content: sidebarHtml, language: 'html' });
   files.push({ name: 'sidebar.component.ts', path: `${appRoot}/components/sidebar/sidebar.component.ts`, content: `import { Component } from '@angular/core'; @Component({ selector: 'app-sidebar', templateUrl: './sidebar.component.html' }) export class SidebarComponent {}`, language: 'typescript' });
 
-  // App Component
+  // App Component (Same as before)
   files.push({ name: 'app.component.html', path: `${appRoot}/app.component.html`, content: `<div class="flex min-h-screen bg-gray-50"><app-sidebar></app-sidebar><main class="flex-1 overflow-auto"><router-outlet></router-outlet></main></div>`, language: 'html' });
   files.push({ name: 'app.component.ts', path: `${appRoot}/app.component.ts`, content: `import { Component } from '@angular/core'; @Component({ selector: 'app-root', templateUrl: './app.component.html' }) export class AppComponent {}`, language: 'typescript' });
 
-  // Lists
+  // Lists (Tables)
   tables.forEach(table => {
       const kebabName = toKebabCase(table.name);
       const listCompName = `${table.name}ListComponent`;
@@ -149,8 +149,16 @@ export class ${formCompName} implements OnInit {
       const kebabName = toKebabCase(report.name) + '-report';
       declarations.push(reportCompName);
 
-      const sourceTable = tables.find(t => t.id === report.sourceId);
-      const endpoint = sourceTable ? toCamelCase(sourceTable.name) : 'unknown';
+      // Endpoint Logic for Tables OR Queries
+      let endpoint = 'unknown';
+      if (report.sourceType === 'table') {
+          const t = tables.find(t => t.id === report.sourceId);
+          if (t) endpoint = toCamelCase(t.name);
+      } else if (report.sourceType === 'query') {
+          const q = queries.find(q => q.id === report.sourceId);
+          if (q) endpoint = toCamelCase(q.name); // Queries use same naming convention in API
+      }
+
       const columns = report.columns || [];
       
       const html = `<div class="p-8 bg-gray-50 min-h-full">
@@ -166,7 +174,7 @@ export class ${formCompName} implements OnInit {
                 <tbody>
                     <tr *ngFor="let item of data" class="border-b hover:bg-gray-50">
                         ${columns.map(c => {
-                            const fieldName = toCamelCase(c.label); 
+                            const fieldName = toCamelCase(c.label); // Heuristic map
                             return `<td class="p-2">{{ item['${fieldName}'] || item['${c.label}'] }}</td>`;
                         }).join('')}
                     </tr>

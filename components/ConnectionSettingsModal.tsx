@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DbType } from '../types/index';
-import { X, Save, Server, Database, User, Key, FileCode, CheckCircle } from 'lucide-react';
+import { X, Save, Server, Database, User, Key, FileCode, CheckCircle, Globe } from 'lucide-react';
 
 interface ConnectionSettingsModalProps {
   dbType: DbType;
@@ -17,6 +17,7 @@ export const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = (
   const [password, setPassword] = useState('');
   const [port, setPort] = useState('');
   const [sqliteFile, setSqliteFile] = useState('app.db');
+  const [noSqlUri, setNoSqlUri] = useState('mongodb://localhost:27017');
   const [trusted, setTrusted] = useState(true); // For SQL Server
 
   useEffect(() => {
@@ -25,6 +26,11 @@ export const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = (
     if (dbType === DbType.SQLite) {
        const match = currentConnectionString.match(/Data Source=(.*?)(?:;|$)/i);
        if (match) setSqliteFile(match[1]);
+    } else if (dbType === DbType.NoSQL) {
+       // Simple check if it looks like a URI
+       if (currentConnectionString.startsWith('mongodb://') || currentConnectionString.startsWith('mongodb+srv://')) {
+           setNoSqlUri(currentConnectionString);
+       }
     } else {
        // Parse standard connection string parts
        const sMatch = currentConnectionString.match(/(?:Server|Data Source|Host)=(.*?)(?:;|$)/i);
@@ -53,6 +59,8 @@ export const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = (
       let cs = '';
       if (dbType === DbType.SQLite) {
           cs = `Data Source=${sqliteFile}`;
+      } else if (dbType === DbType.NoSQL) {
+          cs = noSqlUri;
       } else if (dbType === DbType.MySQL) {
           const portPart = port ? `Port=${port};` : '';
           cs = `Server=${server};${portPart}Database=${database};User Id=${user};Password=${password};`;
@@ -95,6 +103,21 @@ export const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = (
                         placeholder="app.db"
                     />
                 </div>
+             </div>
+          ) : dbType === DbType.NoSQL ? (
+             <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Connection URI (z.B. MongoDB)</label>
+                <div className="flex items-center gap-2 border border-slate-300 rounded p-2 focus-within:ring-2 focus-within:ring-blue-500">
+                    <Globe size={16} className="text-slate-400" />
+                    <input 
+                        type="text" 
+                        value={noSqlUri} 
+                        onChange={e => setNoSqlUri(e.target.value)} 
+                        className="flex-1 outline-none text-sm"
+                        placeholder="mongodb://localhost:27017/my_db"
+                    />
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Geben Sie den vollständigen Connection String inklusive Datenbankname an.</p>
              </div>
           ) : (
              <>

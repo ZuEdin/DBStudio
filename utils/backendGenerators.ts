@@ -15,7 +15,7 @@ export const generateBackendCode = (
     queries: Query[], 
     config: BackendConfig, 
     forms: Form[] = [], 
-    reports: Report[] = [] // Add reports param
+    reports: Report[] = []
 ): VirtualFile[] => {
   let files: VirtualFile[] = [];
 
@@ -31,7 +31,7 @@ export const generateBackendCode = (
   }
 
   // 2. Generate Database Schema/Scripts (Common for all backends)
-  const dbFiles = generateDatabaseScripts(tables, relationships, config);
+  const dbFiles = generateDatabaseScripts(tables, relationships, config, queries);
   files = [...files, ...dbFiles];
 
   // 3. Generate Frontend Code

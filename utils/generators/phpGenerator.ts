@@ -7,6 +7,18 @@ export const generatePhp = (tables: Table[], relationships: Relationship[], quer
   const root = `Backend/${config.projectName}`;
 
   // 1. Composer.json (Basic Metadata)
+  // Ensure mongodb driver is requested if NoSQL
+  const requires = {
+    "php": ">=7.4",
+    "ext-json": "*"
+  };
+  
+  if (config.dbType === DbType.NoSQL) {
+      (requires as any)["mongodb/mongodb"] = "^1.15";
+  } else {
+      (requires as any)["ext-pdo"] = "*";
+  }
+
   files.push({
     name: 'composer.json',
     path: `${root}/composer.json`,
@@ -14,11 +26,7 @@ export const generatePhp = (tables: Table[], relationships: Relationship[], quer
       "name": config.projectName.toLowerCase() + "/api",
       "description": "Auto-generated PHP Backend",
       "type": "project",
-      "require": {
-        "php": ">=7.4",
-        "ext-pdo": "*",
-        "ext-json": "*"
-      },
+      "require": requires,
       "autoload": {
         "psr-4": {
           "App\\": "./"
@@ -28,60 +36,87 @@ export const generatePhp = (tables: Table[], relationships: Relationship[], quer
     language: 'json'
   });
 
-  // 2. Database Config (PDO Factory)
-  let dbConnectionLogic = '';
-  let dbProps = '';
+  // 2. Database Config
+  let dbClassContent = '';
 
-  if (config.dbType === DbType.SQLite) {
-      const dbFile = config.dbConnection.includes('=') ? config.dbConnection.split('=')[1] : 'database.sqlite';
-      dbProps = `private $db_file = __DIR__ . '/../../database/${dbFile}';`; // Assuming database folder is sibling to backend code or adjusted path
-      // Adjustment: The database generator puts files in Backend/[Project]/database. 
-      // The PHP code runs in Backend/[Project]/index.php.
-      // So relative path from config/Database.php (level 2) to database/ (level 1) is ../database
-      dbProps = `private $db_file = __DIR__ . '/../database/app.db'; // Adjust path as needed`;
-      dbConnectionLogic = `$this->conn = new PDO("sqlite:" . $this->db_file);`;
+  if (config.dbType === DbType.NoSQL) {
+      // MongoDB Implementation
+      const uri = config.dbConnection || 'mongodb://localhost:27017';
+      // Parse DB name roughly from URI or default
+      let dbName = 'my_db';
+      const parts = uri.split('/');
+      if (parts.length > 3 && parts[3]) dbName = parts[3].split('?')[0];
+
+      dbClassContent = `<?php
+namespace App\\Config;
+
+use MongoDB\\Client;
+
+class Database {
+    private $uri = "${uri}";
+    private $db_name = "${dbName}";
+    public $conn;
+
+    public function getConnection() {
+        $this->conn = null;
+        try {
+            $client = new Client($this->uri);
+            $this->conn = $client->selectDatabase($this->db_name);
+        } catch(\\Exception $exception) {
+            echo "Connection error: " . $exception->getMessage();
+        }
+        return $this->conn;
+    }
+}
+?>`;
   } else {
-      // Parse Connection String for MySQL/SQLServer
-      let host = 'localhost';
-      let db_name = 'my_db';
-      let username = 'root';
-      let password = '';
-      let port = '';
+      // PDO Implementation
+      let dbConnectionLogic = '';
+      let dbProps = '';
 
-      if (config.dbConnection) {
-          const parts = config.dbConnection.split(';');
-          parts.forEach(p => {
-              const [k, v] = p.split('=');
-              if(!k || !v) return;
-              const key = k.trim().toLowerCase();
-              const val = v.trim();
-              if (key === 'server' || key === 'data source' || key === 'host') host = val;
-              if (key === 'database' || key === 'initial catalog') db_name = val;
-              if (key === 'user id' || key === 'uid' || key === 'user') username = val;
-              if (key === 'password' || key === 'pwd') password = val;
-              if (key === 'port') port = val;
-          });
-      }
+      if (config.dbType === DbType.SQLite) {
+          const dbFile = config.dbConnection.includes('=') ? config.dbConnection.split('=')[1] : 'app.db';
+          dbProps = `private $db_file = __DIR__ . '/../database/${dbFile}'; // Adjust path as needed`;
+          dbConnectionLogic = `$this->conn = new PDO("sqlite:" . $this->db_file);`;
+      } else {
+          // Parse Connection String for MySQL/SQLServer
+          let host = 'localhost';
+          let db_name = 'my_db';
+          let username = 'root';
+          let password = '';
+          let port = '';
 
-      dbProps = `
+          if (config.dbConnection) {
+              const parts = config.dbConnection.split(';');
+              parts.forEach(p => {
+                  const [k, v] = p.split('=');
+                  if(!k || !v) return;
+                  const key = k.trim().toLowerCase();
+                  const val = v.trim();
+                  if (key === 'server' || key === 'data source' || key === 'host') host = val;
+                  if (key === 'database' || key === 'initial catalog') db_name = val;
+                  if (key === 'user id' || key === 'uid' || key === 'user') username = val;
+                  if (key === 'password' || key === 'pwd') password = val;
+                  if (key === 'port') port = val;
+              });
+          }
+
+          dbProps = `
     private $host = "${host}";
     private $db_name = "${db_name}";
     private $username = "${username}";
     private $password = "${password}";
     private $port = "${port}";`;
 
-      if (config.dbType === DbType.MySQL) {
-          const portStr = port ? `;port=" . $this->port` : '';
-          dbConnectionLogic = `$this->conn = new PDO("mysql:host=" . $this->host . ";dbname=" . $this->db_name . "${portStr}", $this->username, $this->password);`;
-      } else if (config.dbType === DbType.SQL) {
-          dbConnectionLogic = `$this->conn = new PDO("sqlsrv:Server=" . $this->host . ";Database=" . $this->db_name, $this->username, $this->password);`;
-      } else {
-          // NoSQL or fallback
-          dbConnectionLogic = `throw new Exception("Database type ${config.dbType} not supported in PHP Generator yet.");`;
+          if (config.dbType === DbType.MySQL) {
+              const portStr = port ? `;port=" . $this->port` : '';
+              dbConnectionLogic = `$this->conn = new PDO("mysql:host=" . $this->host . ";dbname=" . $this->db_name . "${portStr}", $this->username, $this->password);`;
+          } else if (config.dbType === DbType.SQL) {
+              dbConnectionLogic = `$this->conn = new PDO("sqlsrv:Server=" . $this->host . ";Database=" . $this->db_name, $this->username, $this->password);`;
+          }
       }
-  }
 
-  const dbClassContent = `<?php
+      dbClassContent = `<?php
 namespace App\\Config;
 
 use PDO;
@@ -104,10 +139,44 @@ class Database {
     }
 }
 ?>`;
+  }
+  
   files.push({ name: 'Database.php', path: `${root}/config/Database.php`, content: dbClassContent, language: 'php' });
 
-  // 3. Base Model
-  const baseModelContent = `<?php
+  // 3. Base Model (Adapted for NoSQL vs SQL)
+  const isNoSql = config.dbType === DbType.NoSQL;
+  
+  const baseModelContent = isNoSql ? `<?php
+namespace App\\Models;
+
+use MongoDB\\BSON\\ObjectId;
+
+class BaseModel {
+    protected $db;
+    protected $collection_name;
+
+    public function __construct($db) {
+        $this->db = $db;
+    }
+
+    public function getAll() {
+        $collection = $this->db->selectCollection($this->collection_name);
+        $cursor = $collection->find();
+        return iterator_to_array($cursor);
+    }
+
+    public function getById($id) {
+        $collection = $this->db->selectCollection($this->collection_name);
+        return $collection->findOne(['_id' => new ObjectId($id)]);
+    }
+
+    public function delete($id) {
+        $collection = $this->db->selectCollection($this->collection_name);
+        $result = $collection->deleteOne(['_id' => new ObjectId($id)]);
+        return $result->getDeletedCount() > 0;
+    }
+}
+?>` : `<?php
 namespace App\\Models;
 
 class BaseModel {
@@ -143,23 +212,49 @@ class BaseModel {
     }
 }
 ?>`;
+
   files.push({ name: 'BaseModel.php', path: `${root}/models/BaseModel.php`, content: baseModelContent, language: 'php' });
 
   // 4. Models & Controllers per Table
   tables.forEach(table => {
       const modelName = toPascalCase(table.name);
-      const pkField = table.fields.find(f => f.isPrimaryKey);
-      const pkName = pkField ? pkField.name : 'id';
       
-      // -- Model --
-      const fieldsList = table.fields.map(f => f.name).filter(n => n !== pkName); // Exclude PK for Insert usually if auto-increment
-      const fieldsStr = fieldsList.join(", ");
-      const paramsStr = fieldsList.map(f => ":" + f).join(", ");
-      const updateStr = fieldsList.map(f => `${f} = :${f}`).join(", ");
+      let modelContent = '';
+      if (isNoSql) {
+          modelContent = `<?php
+namespace App\\Models;
 
-      const bindParams = fieldsList.map(f => `$stmt->bindParam(":${f}", $data->${f});`).join("\n        ");
+class ${modelName} extends BaseModel {
+    protected $collection_name = "${table.name}";
 
-      const modelContent = `<?php
+    public function create($data) {
+        $collection = $this->db->selectCollection($this->collection_name);
+        // Cast object to array for MongoDB driver
+        $doc = (array) $data;
+        $result = $collection->insertOne($doc);
+        return $result->getInsertedCount() > 0;
+    }
+
+    public function update($id, $data) {
+        $collection = $this->db->selectCollection($this->collection_name);
+        $result = $collection->updateOne(
+            ['_id' => new \\MongoDB\\BSON\\ObjectId($id)],
+            ['$set' => (array) $data]
+        );
+        return $result->getModifiedCount() > 0;
+    }
+}
+?>`;
+      } else {
+          // SQL Model
+          const pkField = table.fields.find(f => f.isPrimaryKey);
+          const pkName = pkField ? pkField.name : 'id';
+          const fieldsList = table.fields.map(f => f.name).filter(n => n !== pkName);
+          const paramsStr = fieldsList.map(f => ":" + f).join(", ");
+          const updateStr = fieldsList.map(f => `${f} = :${f}`).join(", ");
+          const bindParams = fieldsList.map(f => `$stmt->bindParam(":${f}", $data->${f});`).join("\n        ");
+
+          modelContent = `<?php
 namespace App\\Models;
 
 class ${modelName} extends BaseModel {
@@ -189,9 +284,11 @@ class ${modelName} extends BaseModel {
     }
 }
 ?>`;
+      }
+      
       files.push({ name: `${modelName}.php`, path: `${root}/models/${modelName}.php`, content: modelContent, language: 'php' });
 
-      // -- Controller --
+      // Controller (Mostly generic, but good to have generated)
       const controllerContent = `<?php
 namespace App\\Controllers;
 
@@ -252,6 +349,8 @@ class ${modelName}Controller {
 use App\\Config\\Database;
 
 // Autoloader (Simple manual implementation if not using Composer directly in dev)
+require_once __DIR__ . '/vendor/autoload.php'; // Assuming composer install was run
+// Fallback autoloader if vendor is missing in viewing
 spl_autoload_register(function ($class_name) {
     // Convert App\\Models\\Name to ./models/Name.php
     $file = __DIR__ . '/' . str_replace(['App\\\\', '\\\\'], ['', '/'], $class_name) . '.php';
@@ -277,20 +376,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $uriSegments = explode('/', trim($uri, '/'));
 
-// Assuming URL structure: /api/[table_name]/[id]
-// Adjust index based on your local server setup. 
-// If serving from root, controller is segment 0. If serving from localhost:8000/api, it's 1.
-// We'll look for the first segment that matches a known controller.
-
 $resource = null;
 $id = null;
 
-// Determine Resource
 if (isset($uriSegments[0]) && $uriSegments[0] === 'api' && isset($uriSegments[1])) {
     $resource = $uriSegments[1];
     $id = isset($uriSegments[2]) ? $uriSegments[2] : null;
 } elseif (isset($uriSegments[0])) {
-    // Fallback if not /api prefix
     $resource = $uriSegments[0];
     $id = isset($uriSegments[1]) ? $uriSegments[1] : null;
 }
@@ -300,8 +392,6 @@ if (!$resource) {
     exit();
 }
 
-// Map Resource to Controller
-// resource name "users" -> "UsersController"
 $controllerName = 'App\\Controllers\\' . ucfirst($resource) . 'Controller';
 
 if (class_exists($controllerName)) {
@@ -318,7 +408,7 @@ if (class_exists($controllerName)) {
 
   files.push({ name: 'index.php', path: `${root}/index.php`, content: routerContent, language: 'php' });
 
-  // 6. Helper: .htaccess for Apache
+  // 6. Helper: .htaccess
   files.push({
       name: '.htaccess',
       path: `${root}/.htaccess`,
