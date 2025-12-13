@@ -20,6 +20,12 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
       dbPackage = `<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="${packageVersion}" />`;
   }
 
+  // Check for Windows Auth
+  let authPackage = '';
+  if (config.authConfig?.useWindowsAuth) {
+      authPackage = `<PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="${packageVersion}" />`;
+  }
+
   const content = `<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
@@ -32,6 +38,7 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="${openApiVersion}" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="${packageVersion}" />
     ${dbPackage}
+    ${authPackage}
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
 

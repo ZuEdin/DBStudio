@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { Relationship, Table, Field } from '../../../types/index';
-import { X } from 'lucide-react';
+import { Relationship, Table, Field, ReferentialAction } from '../../../types/index';
+import { X, ShieldAlert } from 'lucide-react';
 
 interface EditRelationshipModalProps {
   relationship: Relationship;
@@ -20,6 +21,10 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
   const [toTableId, setToTableId] = useState(relationship.toTableId);
   const [toFieldId, setToFieldId] = useState(relationship.toFieldId);
   const [integrity, setIntegrity] = useState(relationship.referentialIntegrity ?? true);
+  
+  // Cascade Options
+  const [onDelete, setOnDelete] = useState<ReferentialAction>(relationship.onDelete || 'NO ACTION');
+  const [onUpdate, setOnUpdate] = useState<ReferentialAction>(relationship.onUpdate || 'NO ACTION');
 
   const fromTable = tables.find(t => t.id === fromTableId);
   const toTable = tables.find(t => t.id === toTableId);
@@ -37,8 +42,12 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
       toFieldId,
       type: relationshipType,
       referentialIntegrity: integrity,
+      onDelete,
+      onUpdate
     });
   };
+
+  const actionOptions: ReferentialAction[] = ['NO ACTION', 'CASCADE', 'SET NULL', 'RESTRICT'];
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in-25">
@@ -53,7 +62,7 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
         <div className="p-6">
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Linke Tabelle</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Linke Tabelle (Parent / 1)</label>
               <select
                 value={fromTableId}
                 onChange={e => {
@@ -75,7 +84,7 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
             </div>
             
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Rechte Tabelle</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Rechte Tabelle (Child / n)</label>
               <select
                 value={toTableId}
                 onChange={e => {
@@ -96,19 +105,57 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
               </select>
             </div>
           </div>
-          <div className="mt-6 pt-4 border-t border-slate-200">
-             <div className="text-sm text-slate-500 mb-2">
-                Beziehungstyp: <span className="font-semibold text-slate-700">{relationshipType}</span>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                  <input
-                      type="checkbox"
-                      checked={integrity}
-                      onChange={e => setIntegrity(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  Referentielle Integrität erzwingen
-              </label>
+          
+          <div className="mt-6 pt-4 border-t border-slate-200 space-y-4">
+             <div className="flex justify-between items-center">
+                 <div className="text-sm text-slate-500">
+                    Beziehungstyp: <span className="font-semibold text-slate-700">{relationshipType}</span>
+                 </div>
+                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input
+                          type="checkbox"
+                          checked={integrity}
+                          onChange={e => setIntegrity(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      Referentielle Integrität erzwingen
+                  </label>
+             </div>
+
+             {integrity && (
+                 <div className="bg-slate-50 p-4 rounded border border-slate-200 grid grid-cols-2 gap-4">
+                     <div>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
+                             <ShieldAlert size={12}/> Löschweitergabe
+                         </label>
+                         <select 
+                            value={onDelete} 
+                            onChange={e => setOnDelete(e.target.value as ReferentialAction)}
+                            className="w-full border border-slate-300 rounded p-1.5 text-sm"
+                         >
+                             {actionOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                         </select>
+                         <p className="text-[10px] text-slate-400 mt-1">
+                             Was passiert mit Kind-Datensätzen, wenn der Eltern-Datensatz gelöscht wird?
+                         </p>
+                     </div>
+                     <div>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
+                             <ShieldAlert size={12}/> Aktualisierungsweitergabe
+                         </label>
+                         <select 
+                            value={onUpdate} 
+                            onChange={e => setOnUpdate(e.target.value as ReferentialAction)}
+                            className="w-full border border-slate-300 rounded p-1.5 text-sm"
+                         >
+                             {actionOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                         </select>
+                         <p className="text-[10px] text-slate-400 mt-1">
+                             Was passiert mit Kind-Datensätzen, wenn der Schlüssel des Eltern-Datensatzes geändert wird?
+                         </p>
+                     </div>
+                 </div>
+             )}
           </div>
         </div>
 

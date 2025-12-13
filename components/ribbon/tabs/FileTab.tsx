@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Database, Save } from 'lucide-react';
+import { Database, Save, Undo, Redo } from 'lucide-react';
+import { useProjectStore } from '../../../stores/useProjectStore';
 
 interface FileTabProps {
   onAction: (action: string) => void;
@@ -8,6 +9,10 @@ interface FileTabProps {
 }
 
 export const FileTab: React.FC<FileTabProps> = ({ onAction, currentDbType }) => {
+  const undo = useProjectStore(state => state.undo);
+  const redo = useProjectStore(state => state.redo);
+  const history = useProjectStore(state => (state as any).history);
+
   return (
     <div className="flex gap-4 h-full items-center">
       <div className="flex flex-col items-center group cursor-pointer p-2 hover:bg-slate-200 rounded" onClick={() => onAction('new_db')}>
@@ -18,10 +23,32 @@ export const FileTab: React.FC<FileTabProps> = ({ onAction, currentDbType }) => 
         <Save className="w-8 h-8 text-green-600 mb-1" />
         <span className="text-xs">Speichern</span>
       </div>
-      <div className="border-l border-slate-300 mx-2 h-16"></div>
+      
+      <div className="flex gap-1 border-l border-r border-slate-300 px-2 h-12 items-center">
+          <button 
+            onClick={undo} 
+            disabled={history?.past.length === 0}
+            className="p-2 hover:bg-slate-200 rounded disabled:text-slate-300 text-slate-700" 
+            title="Rückgängig (Strg+Z)"
+          >
+              <Undo size={20} />
+          </button>
+          <button 
+            onClick={redo} 
+            disabled={history?.future.length === 0}
+            className="p-2 hover:bg-slate-200 rounded disabled:text-slate-300 text-slate-700" 
+            title="Wiederherstellen (Strg+Y)"
+          >
+              <Redo size={20} />
+          </button>
+      </div>
+
       <div className="flex flex-col justify-center text-sm text-slate-600">
-        <span className="font-bold">Aktuelle DB:</span>
-        <span>{currentDbType}</span>
+        <span className="font-bold">Engine:</span>
+        <span className="flex items-center gap-1">
+            {currentDbType} 
+            <span className="text-[10px] bg-green-100 text-green-800 px-1 rounded">WASM</span>
+        </span>
       </div>
     </div>
   );

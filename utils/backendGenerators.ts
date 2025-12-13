@@ -6,6 +6,7 @@ import { generateAngular } from './generators/angularGenerator';
 import { generateReact } from './generators/reactGenerator';
 import { generatePhp } from './generators/phpGenerator';
 import { generateLaravel } from './generators/laravelGenerator';
+import { generateBlazor } from './generators/blazorGenerator';
 import { generateDatabaseScripts } from './generators/databaseGenerator';
 
 // Main Generator Function
@@ -41,6 +42,9 @@ export const generateBackendCode = (
   } else if (config.frontendFramework === 'react') {
     const reactFiles = generateReact(tables, relationships, queries, config, forms, reports);
     files = [...files, ...reactFiles];
+  } else if (config.frontendFramework === 'blazor') {
+    const blazorFiles = generateBlazor(tables, relationships, queries, config, forms, reports);
+    files = [...files, ...blazorFiles];
   }
 
   return files;

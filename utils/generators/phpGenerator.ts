@@ -417,5 +417,30 @@ if (class_exists($controllerName)) {
       language: 'text'
   });
 
+  // Docs
+  const readmeContent = `# ${config.projectName} (PHP Native)
+
+## Voraussetzungen
+1. Installieren Sie **PHP** (Version 7.4 oder höher).
+2. Installieren Sie **Composer** (für Autoloading, optional aber empfohlen).
+3. Stellen Sie sicher, dass Ihre Datenbank (${config.dbType}) läuft.
+
+## Einrichtung
+1. Öffnen Sie \`config/Database.php\` und passen Sie die Verbindungseinstellungen an (Host, User, Password).
+2. Führen Sie im Terminal \`composer install\` aus (oder nutzen Sie den eingebauten Fallback-Autoloader im \`index.php\`, falls keine externen Libs genutzt werden).
+
+## Starten
+Sie können den eingebauten PHP-Server verwenden. Öffnen Sie ein Terminal in diesem Ordner:
+
+\`\`\`bash
+# Server starten
+php -S localhost:${config.port}
+\`\`\`
+
+Die API ist dann unter \`http://localhost:${config.port}/api\` erreichbar.
+`;
+
+  files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });
+
   return files;
 };

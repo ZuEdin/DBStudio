@@ -25,9 +25,69 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }` : '';
 
+  // Auth Logic
+  let authServices = '';
+  let authAppUse = '';
+  let namespaces = 'using System.Security.Claims;';
+
+  const authConfig = config.authConfig;
+
+  if (authConfig?.useWindowsAuth) {
+      namespaces += '\nusing Microsoft.AspNetCore.Authentication.Negotiate;';
+      authServices += `
+builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+   .AddNegotiate();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = options.DefaultPolicy;
+});`;
+      authAppUse += `
+app.UseAuthentication();
+app.UseAuthorization();`;
+  }
+
+  if (authConfig?.useAdGroups && authConfig.adGroups) {
+      // Split groups and create policy logic (simplified)
+      const groups = authConfig.adGroups.split(',').map(g => g.trim());
+      // Real implementation needs specific group SID or name check logic
+      // This is a placeholder for the generated policy
+      authServices += `
+// AD Group Policy
+builder.Services.AddAuthorization(options => {
+    options.AddPolicy("AdGroupPolicy", policy => 
+        policy.RequireAssertion(context => 
+            ${groups.map(g => `context.User.IsInRole("${g}")`).join(' || ')}
+        ));
+});`;
+  }
+
+  if (authConfig?.devBypass) {
+      authAppUse = `
+if (app.Environment.IsDevelopment())
+{
+    // DEV BYPASS: Simulate an authenticated user
+    app.Use(async (context, next) =>
+    {
+        if (context.User.Identity == null || !context.User.Identity.IsAuthenticated)
+        {
+            var claims = new[] { 
+                new Claim(ClaimTypes.Name, "DevUser"), 
+                new Claim(ClaimTypes.Role, "Admin") 
+            };
+            var identity = new ClaimsIdentity(claims, "DevBypass");
+            context.User = new ClaimsPrincipal(identity);
+        }
+        await next();
+    });
+}
+` + authAppUse;
+  }
+
   const content = `using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using ${config.projectName}.Data;
+${namespaces}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +101,9 @@ builder.Services.AddControllers()
 // Database Connection
 ${dbConfigCode}
 ${swaggerSetup}
+
+// Authentication Config
+${authServices}
 
 var app = builder.Build();
 
@@ -65,7 +128,9 @@ ${swaggerUse}
 
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 app.UseHttpsRedirection();
-app.UseAuthorization();
+
+${authAppUse}
+
 app.MapControllers();
 
 app.Run();`;

@@ -51,5 +51,34 @@ db.sequelize.sync({ alter: true }).then(() => {
 });`;
 
   files.push({ name: 'server.js', path: `${root}/server.js`, content: serverJs, language: 'javascript' });
+
+  // Docs
+  const readmeContent = `# ${config.projectName} (Node.js / Express)
+
+## Voraussetzungen
+1. Installieren Sie **Node.js** (LTS Version empfohlen).
+   Download: https://nodejs.org/
+2. Stellen Sie sicher, dass Ihre Datenbank (${config.dbType}) läuft.
+
+## Einrichtung
+1. Öffnen Sie die Datei \`models.js\`.
+2. Überprüfen Sie die \`Sequelize\` Konfiguration (Host, User, Passwort). Passen Sie diese an Ihre lokale Datenbank an.
+
+## Starten
+Öffnen Sie ein Terminal in diesem Ordner und führen Sie folgende Befehle aus:
+
+\`\`\`bash
+# Abhängigkeiten installieren
+npm install
+
+# Server starten
+node server.js
+\`\`\`
+
+Der Server läuft unter \`http://localhost:${config.port}\`.
+`;
+
+  files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });
+
   return files;
 };

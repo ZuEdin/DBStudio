@@ -1,6 +1,4 @@
 
-
-
 import { useState, useEffect } from 'react';
 import { DbType, Table, Query, Relationship, Report, Form, SelectQuery, Project, BackendConfig, FormElement } from '../types/index';
 import { executeSelectQuery } from '../features/queries/utils/queryExecution';
@@ -98,7 +96,6 @@ export const useDatabase = () => {
                   { id: 'qc2', tableId: 't_ma', fieldId: 'f_ma_3', tableName: 'Mitarbeiter', fieldName: 'Nachname', sort: 'ASC', show: true, criteria: [''] },
                   { id: 'qc3', tableId: 't_nb', fieldId: 'f_nb_2', tableName: 'Notebooks', fieldName: 'Modell', sort: '', show: true, criteria: [''] },
                   { id: 'qc4', tableId: 't_vl', fieldId: 'f_vl_4', tableName: 'Verleihliste', fieldName: 'Ausgabedatum', sort: '', show: true, criteria: [''] },
-                  // FIX: The following QueryColumn object was incomplete due to a corrupted line, causing a type error.
                   { id: 'qc5', tableId: 't_vl', fieldId: 'f_vl_5', tableName: 'Verleihliste', fieldName: 'Rueckgabedatum', sort: '', show: false, criteria: ['is null'] }
               ],
           }
@@ -110,7 +107,7 @@ export const useDatabase = () => {
       return { tables, relationships, queries, reports, forms };
   };
 
-  const createNewDatabase = (type: DbType, name: string, isDemo: boolean = false) => {
+  const createNewDatabase = (type: DbType, name: string, config?: BackendConfig, isDemo: boolean = false) => {
       const newProjectId = crypto.randomUUID();
       setCurrentProjectId(newProjectId);
       setCurrentProjectName(name);
@@ -124,13 +121,34 @@ export const useDatabase = () => {
           setForms(demoData.forms);
           setReports(demoData.reports);
       } else {
-          setTables([]);
+          // Initialize empty lists
+          let initialTables: Table[] = [];
+          
+          // Check for Auth Config to auto-create Users table
+          if (config?.authConfig?.useUserLogin) {
+              initialTables.push({
+                  id: 'sys_users',
+                  name: 'Users',
+                  fields: [
+                      { id: 'u1', name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, // Explicit AutoInc
+                      { id: 'u2', name: 'Username', type: 'VARCHAR', length: 50, allowNull: false },
+                      { id: 'u3', name: 'PasswordHash', type: 'VARCHAR', length: 255, allowNull: false },
+                      { id: 'u4', name: 'Email', type: 'VARCHAR', length: 100, allowNull: true },
+                      { id: 'u5', name: 'Role', type: 'VARCHAR', length: 20, defaultValue: 'User' }
+                  ],
+                  data: []
+              });
+          }
+
+          setTables(initialTables);
           setRelationships([]);
           setQueries([]);
           setForms([]);
           setReports([]);
       }
-      setLoadedBackendConfig(null);
+      
+      // Store the config passed from Selector
+      setLoadedBackendConfig(config || null);
   };
   
   const loadProject = (project: Project) => {
@@ -260,7 +278,6 @@ export const useDatabase = () => {
       setRelationships(prev => prev.map(r => r.id === rel.id ? rel : r));
   };
   
-  // FIX: This hook was missing a return statement, causing all properties to be undefined in `App.tsx`.
   return {
     currentProjectId,
     currentProjectName,

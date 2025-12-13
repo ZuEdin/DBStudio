@@ -31,7 +31,33 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
   files.push(...generateControllers(tables, relationships, queries, config, root));
 
   // Docs
-  files.push({ name: 'README.md', path: `${root}/README.md`, content: `# ${config.projectName}\nRun with: dotnet run`, language: 'text' });
+  const readmeContent = `# ${config.projectName} (.NET Web API)
+
+## Voraussetzungen
+1. Installieren Sie das **.NET SDK** (Version ${config.backendVersion || '8.0'} oder höher).
+   Download: https://dotnet.microsoft.com/download
+2. Stellen Sie sicher, dass Ihre Datenbank (${config.dbType}) läuft.
+
+## Einrichtung
+1. Öffnen Sie die Datei \`appsettings.json\`.
+2. Überprüfen Sie den \`ConnectionStrings:DefaultConnection\`. Passen Sie diesen ggf. an Ihre lokale Datenbank an.
+
+## Starten
+Öffnen Sie ein Terminal in diesem Ordner und führen Sie folgende Befehle aus:
+
+\`\`\`bash
+# Wiederherstellen der Abhängigkeiten
+dotnet restore
+
+# Starten der Anwendung
+dotnet run
+\`\`\`
+
+Die API ist anschließend meist unter \`http://localhost:${config.port}\` erreichbar.
+Die Swagger-Dokumentation finden Sie unter \`http://localhost:${config.port}/swagger\`.
+`;
+
+  files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });
 
   return files;
 };

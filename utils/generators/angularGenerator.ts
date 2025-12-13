@@ -27,10 +27,38 @@ export const generateAngular = (tables: Table[], relationships: Relationship[], 
   const configFiles = generateAngularConfigs(config, root);
   const serviceFiles = generateAngularServices(tables, queries, config, appRoot);
 
+  // Docs
+  const readmeContent = `# ${config.projectName} (Angular Client)
+
+## Voraussetzungen
+- Node.js (LTS Version)
+- Angular CLI (optional, \`npm install -g @angular/cli\`)
+
+## Installation
+Öffnen Sie ein Terminal im Ordner \`Frontend\` und führen Sie aus:
+
+\`\`\`bash
+npm install
+\`\`\`
+
+## Starten
+\`\`\`bash
+npm start
+# oder
+ng serve
+\`\`\`
+
+Die Anwendung ist unter \`http://localhost:4200\` erreichbar.
+Stellen Sie sicher, dass das Backend läuft.
+`;
+
+  const readme: VirtualFile = { name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' };
+
   return [
       ...configFiles,
       ...serviceFiles,
       ...componentFiles,
-      routesFile
+      routesFile,
+      readme
   ];
 };

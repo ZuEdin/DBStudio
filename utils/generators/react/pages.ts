@@ -1,3 +1,4 @@
+
 import { Table, Form, Report, VirtualFile } from '../../../types/index';
 import { toCamelCase, toPascalCase } from '../common';
 import { generateJsxForLayout, collectLookups } from './layoutHelper';
@@ -5,12 +6,22 @@ import { generateJsxForLayout, collectLookups } from './layoutHelper';
 export const generateReactPages = (tables: Table[], forms: Form[], reports: Report[], root: string, queries: any[] = []): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
-  // Lists
+  // Map Tables to their specific Forms
+  const formMap = new Map<string, Form>();
+  forms.forEach(f => { if(f.sourceType === 'table') formMap.set(f.sourceId, f); });
+
+  // 1. Table Lists
   tables.forEach(table => {
       const pascalName = toPascalCase(table.name);
       const camelName = toCamelCase(table.name);
       const listName = `${pascalName}List`;
       const pk = toCamelCase(table.fields.find(f=>f.isPrimaryKey)?.name || 'id');
+      
+      // Determine Link Targets
+      const customForm = formMap.get(table.id);
+      const createLink = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/new` : `/${camelName}/new`;
+      const editLinkPrefix = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/` : `/${camelName}/`;
+
       const content = `import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ${pascalName} } from '../../types';
@@ -19,22 +30,13 @@ import { Trash2, Plus, Edit } from 'lucide-react';
 
 export const ${listName} = () => {
   const [items, setItems] = useState<${pascalName}[]>([]);
-  
-  const loadItems = () => {
-      get<${pascalName}[]>('${camelName}').then(setItems);
-  };
-
+  const loadItems = () => get<${pascalName}[]>('${camelName}').then(setItems);
   useEffect(() => { loadItems(); }, []);
-
-  const handleDelete = (id: any) => { 
-      if(confirm('Löschen?')) {
-          remove(\`${camelName}/\${id}\`).then(loadItems);
-      } 
-  };
+  const handleDelete = (id: any) => { if(confirm('Löschen?')) remove(\`${camelName}/\${id}\`).then(loadItems); };
   
   return (
     <div className="p-6">
-      <div className="flex justify-between mb-4"><h1 className="text-2xl font-bold">${table.name}</h1><Link to="/${camelName}/new" className="bg-blue-600 text-white px-4 py-2 rounded flex gap-2 items-center"><Plus size={16}/> Neu erstellen</Link></div>
+      <div className="flex justify-between mb-4"><h1 className="text-2xl font-bold">${table.name}</h1><Link to="${createLink}" className="bg-blue-600 text-white px-4 py-2 rounded flex gap-2 items-center"><Plus size={16}/> Neu erstellen</Link></div>
       <div className="bg-white shadow rounded overflow-hidden border border-slate-200">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b"><tr>
@@ -46,9 +48,7 @@ export const ${listName} = () => {
                 <tr key={i.${pk}} className="hover:bg-slate-50">
                     ${table.fields.map(f => `<td className="p-4 text-sm text-slate-800">{i.${toCamelCase(f.name)}}</td>`).join('')}
                     <td className="p-4 flex justify-end gap-2">
-                        <Link to={'/${camelName}/' + i.${pk}} className="text-blue-500 hover:text-blue-700 transition-colors" title="Bearbeiten">
-                            <Edit size={18}/>
-                        </Link>
+                        <Link to={'${editLinkPrefix}' + i.${pk}} className="text-blue-500 hover:text-blue-700 transition-colors"><Edit size={18}/></Link>
                         <button onClick={()=>handleDelete(i.${pk})} className="text-red-500 hover:text-red-700 transition-colors"><Trash2 size={18}/></button>
                     </td>
                 </tr>
@@ -62,17 +62,20 @@ export const ${listName} = () => {
       files.push({ name: `${listName}.tsx`, path: `${root}/src/pages/${pascalName}/${listName}.tsx`, content, language: 'typescript' });
   });
 
-  // Forms
+  // 2. Forms (Both Default and Custom logic handled here)
+  // If a table has NO custom form, we should generate a default one? 
+  // The structure.ts maps /tablename/:id to XForm.tsx. We need to ensure XForm exists.
+  
+  // A. Custom Forms
   forms.forEach(form => {
       const compName = `${toPascalCase(form.name)}Form`;
       const sourceTable = tables.find(t => t.id === form.sourceId);
       if(!sourceTable) return;
       
-      const sourceTablePascal = toPascalCase(sourceTable.name);
       const sourceTableCamel = toCamelCase(sourceTable.name);
       
       const lookups = form.layout ? collectLookups(form.layout, tables) : [];
-      const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables) : 'Empty';
+      const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables) : '<div>Empty Layout</div>';
       
       const content = `import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -97,7 +100,8 @@ export const ${compName} = () => {
           <h1 className="text-2xl font-bold mb-6 pb-2 border-b text-slate-800">${form.name}</h1>
           <form onSubmit={handleSubmit}>
             ${layoutJsx}
-            <div className="mt-8 flex justify-end">
+            <div className="mt-8 flex justify-end gap-2">
+                <button type="button" onClick={() => navigate(-1)} className="bg-gray-200 px-4 py-2 rounded">Abbrechen</button>
                 <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium flex gap-2 items-center transition-colors">
                     <Save size={18}/> Speichern
                 </button>
@@ -110,53 +114,44 @@ export const ${compName} = () => {
       files.push({ name: `${compName}.tsx`, path: `${root}/src/pages/forms/${compName}.tsx`, content, language: 'typescript' });
   });
 
-  // Reports
-  reports.forEach(report => {
-      const compName = `${toPascalCase(report.name)}Report`;
+  // B. Queries (Select) - Read Only Grid
+  queries.filter(q => q.type === 'SELECT').forEach(q => {
+      const compName = `${toPascalCase(q.name)}Query`;
+      const camelName = toCamelCase(q.name);
+      // Assuming query is exposed as read-only API endpoint
+      const cols = q.columns.filter((c: any) => c.show);
       
-      let endpoint = 'unknown';
-      if (report.sourceType === 'table') {
-          const t = tables.find(t => t.id === report.sourceId);
-          if (t) endpoint = toCamelCase(t.name);
-      } else if (report.sourceType === 'query') {
-          const q = queries.find(q => q.id === report.sourceId);
-          if (q) endpoint = toCamelCase(q.name);
-      }
-
-      const cols = report.columns || [];
-
       const content = `import React, { useEffect, useState } from 'react';
 import { get } from '../../services/api';
 
 export const ${compName} = () => {
-  const [data, setData] = useState<any[]>([]);
-  useEffect(() => { get('${endpoint}').then(setData); }, []);
+  const [items, setItems] = useState<any[]>([]);
+  useEffect(() => { get('${camelName}').then(setItems); }, []);
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="max-w-6xl mx-auto bg-white shadow-lg p-10">
-        <h1 className="text-3xl font-bold mb-6 border-b-2 border-black pb-4">${report.name}</h1>
-        <table className="w-full text-sm text-left">
-            <thead>
-                <tr className="border-b-2 border-black">
-                    ${cols.map(c => `<th className="p-2 font-bold uppercase text-slate-600">${c.label}</th>`).join('')}
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">${q.name} (Abfrage)</h1>
+      <div className="bg-white shadow rounded overflow-hidden border border-slate-200">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 border-b"><tr>
+            ${cols.map((c: any) => `<th className="p-4 font-semibold text-sm text-slate-600">${c.alias || c.fieldName}</th>`).join('')}
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {items.map((item, i) => (
+                <tr key={i} className="hover:bg-slate-50">
+                    ${cols.map((c: any) => {
+                        const prop = toCamelCase(c.alias || c.fieldName);
+                        return `<td className="p-4 text-sm text-slate-800">{item.${prop}}</td>`
+                    }).join('')}
                 </tr>
-            </thead>
-            <tbody>
-                {data.length > 0 ? data.map((item, i) => (
-                    <tr key={i} className="border-b hover:bg-slate-50">
-                        ${cols.map(c => `<td className="p-2">{item.${toCamelCase(c.label)}}</td>`).join('')}
-                    </tr>
-                )) : (
-                    <tr><td colSpan={${cols.length}} className="p-4 text-center text-slate-500 italic">Keine Daten vorhanden.</td></tr>
-                )}
-            </tbody>
+            ))}
+          </tbody>
         </table>
       </div>
     </div>
   );
 };`;
-      files.push({ name: `${compName}.tsx`, path: `${root}/src/pages/reports/${compName}.tsx`, content, language: 'typescript' });
+      files.push({ name: `${compName}.tsx`, path: `${root}/src/pages/queries/${compName}.tsx`, content, language: 'typescript' });
   });
 
   return files;

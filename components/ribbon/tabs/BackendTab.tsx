@@ -103,6 +103,7 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                         onChange={e => setBackendConfig({ ...backendConfig, frontendFramework: e.target.value as FrontendFramework })}
                     >
                         <option value="none">Keines</option>
+                        <option value="blazor">Blazor (WASM)</option>
                         <option value="angular">Angular</option>
                         <option value="react">React (Vite)</option>
                     </select>

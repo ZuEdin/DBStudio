@@ -38,6 +38,8 @@ export interface TableNode {
   y: number;
 }
 
+export type ReferentialAction = 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION';
+
 export interface Relationship {
   id: string;
   fromTableId: string;
@@ -46,6 +48,8 @@ export interface Relationship {
   toFieldId: string;
   type: '1:1' | '1:n' | 'n:m';
   referentialIntegrity?: boolean;
+  onDelete?: ReferentialAction;
+  onUpdate?: ReferentialAction;
 }
 
 export type AggregateFunction = 'GROUP_BY' | 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX' | 'EXPRESSION';
@@ -225,8 +229,16 @@ export interface Form {
 
 // --- Backend Configuration ---
 
-export type BackendLanguage = 'dotnet' | 'nodejs' | 'php';
-export type FrontendFramework = 'none' | 'angular' | 'react';
+export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel';
+export type FrontendFramework = 'none' | 'angular' | 'react' | 'blazor';
+
+export interface AuthConfig {
+  useWindowsAuth: boolean;
+  useAdGroups: boolean;
+  adGroups?: string; // Comma separated
+  useUserLogin: boolean;
+  devBypass: boolean; // Bypass security in Development mode
+}
 
 export interface BackendConfig {
   language: BackendLanguage;
@@ -237,6 +249,7 @@ export interface BackendConfig {
   dbConnection: string;
   useSwagger: boolean;
   frontendFramework: FrontendFramework;
+  authConfig?: AuthConfig;
 }
 
 export interface ProjectData {
@@ -255,10 +268,19 @@ export interface Project {
   data: ProjectData;
 }
 
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  data: ProjectData;
+}
+
 export interface VirtualFile {
   name: string;
   content: string;
-  language: 'csharp' | 'typescript' | 'javascript' | 'php' | 'json' | 'sql' | 'html' | 'css' | 'xml' | 'text' | 'markdown';
+  language: 'csharp' | 'typescript' | 'javascript' | 'php' | 'json' | 'sql' | 'html' | 'css' | 'xml' | 'text' | 'markdown' | 'razor';
   path: string;
 }
 

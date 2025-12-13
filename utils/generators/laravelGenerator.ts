@@ -263,5 +263,28 @@ class ${controllerName} extends Controller
 
   files.push({ name: 'api.php', path: `${root}/routes/api.php`, content: apiRoutes, language: 'php' });
 
+  // Docs
+  const readmeContent = `# ${config.projectName} (Laravel)
+
+## Voraussetzungen
+1. Installieren Sie **PHP** und **Composer**.
+2. Datenbank (${config.dbType}) muss erreichbar sein.
+
+## Einrichtung
+1. Führen Sie \`composer install\` im Terminal aus.
+2. Kopieren Sie die \`.env\` Datei: \`cp .env .env.example\` (falls nötig, hier wird sie bereits generiert).
+3. Generieren Sie den App-Key: \`php artisan key:generate\`.
+4. Führen Sie die Migrationen aus: \`php artisan migrate\`.
+
+## Starten
+\`\`\`bash
+php artisan serve
+\`\`\`
+
+Die API ist unter \`http://localhost:8000/api\` erreichbar.
+`;
+
+  files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });
+
   return files;
 };

@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH } from '../types/index';
 import { X } from 'lucide-react';
@@ -113,7 +114,6 @@ export const Canvas: React.FC<CanvasProps> = ({
     setConnectionStart(null);
   };
 
-  // FIX: Changed event type from React.MouseEvent to React.DragEvent to access dataTransfer property.
   const handleFieldDragStart = (e: React.DragEvent, tableId: string, fieldId: string) => {
     if (!onRemoveNode) return; // Only allow field dragging in query view
     e.dataTransfer.setData('application/json', JSON.stringify({ type: 'query_field', tableId, fieldId }));
@@ -155,10 +155,23 @@ export const Canvas: React.FC<CanvasProps> = ({
 
             if (!fromNode || !toNode || !fromTable || !toTable) return null;
 
-            const start = getFieldPos(fromNode, fromTable, rel.fromFieldId, 'right');
-            const end = getFieldPos(toNode, toTable, rel.toFieldId, 'left');
+            // Determine orientation based on X position
+            // If From is Left of To: Connect Right of From -> Left of To
+            // If From is Right of To: Connect Left of From -> Right of To
+            const fromIsLeft = fromNode.x < toNode.x;
+            
+            const startSide = fromIsLeft ? 'right' : 'left';
+            const endSide = fromIsLeft ? 'left' : 'right';
 
-            const d = `M ${start.x} ${start.y} C ${start.x + 50} ${start.y}, ${end.x - 50} ${end.y}, ${end.x} ${end.y}`;
+            const start = getFieldPos(fromNode, fromTable, rel.fromFieldId, startSide);
+            const end = getFieldPos(toNode, toTable, rel.toFieldId, endSide);
+
+            // Control points for bezier curve
+            const controlOffset = 50;
+            const cx1 = fromIsLeft ? start.x + controlOffset : start.x - controlOffset;
+            const cx2 = fromIsLeft ? end.x - controlOffset : end.x + controlOffset;
+
+            const d = `M ${start.x} ${start.y} C ${cx1} ${start.y}, ${cx2} ${end.y}, ${end.x} ${end.y}`;
             const labelTo = rel.type === '1:1' ? '1' : '∞';
 
             return (
@@ -167,13 +180,19 @@ export const Canvas: React.FC<CanvasProps> = ({
                 className="pointer-events-auto"
                 onContextMenu={(e) => onRelationshipContextMenu && onRelationshipContextMenu(e, rel.id)}
               >
-                <path d={d} stroke="transparent" strokeWidth="12" fill="none" className="cursor-pointer" />
+                {/* Invisible wide path for easier clicking */}
+                <path d={d} stroke="transparent" strokeWidth="12" fill="none" className="cursor-pointer hover:stroke-slate-200/50" />
+                {/* Visible path */}
                 <path d={d} stroke="#64748b" strokeWidth="2" fill="none" markerEnd="url(#arrowhead)" className="pointer-events-none" strokeDasharray={rel.referentialIntegrity === false ? '4 2' : 'none'}/>
-                <circle cx={start.x} cy={start.y} r="3" fill="#64748b" className="pointer-events-none" />
-                <circle cx={end.x} cy={end.y} r="3" fill="#64748b" className="pointer-events-none" />
+                
+                {/* Connection Dots (Circles) */}
+                <circle cx={start.x} cy={start.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
+                <circle cx={end.x} cy={end.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
+
                  {/* Labels */}
-                <text x={start.x + 8} y={start.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">1</text>
-                <text x={end.x - 15} y={end.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">{labelTo}</text>
+                 {/* Adjust label position slightly based on side */}
+                <text x={fromIsLeft ? start.x + 8 : start.x - 15} y={start.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">1</text>
+                <text x={fromIsLeft ? end.x - 15 : end.x + 8} y={end.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">{labelTo}</text>
               </g>
             );
           })}
