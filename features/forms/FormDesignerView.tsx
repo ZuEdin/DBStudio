@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { Form, Table, Subform, FormElement, FormElementType, FormWidgetType } from '../../types/index';
+import { Form, Table, Subform, FormElement, FormElementType, FormWidgetType, Relationship } from '../../types/index';
 import { Layout, Trash2, Eye, Edit3, Type, Box, GripVertical, Monitor, List, CheckSquare, Settings2, Shield, PlusSquare } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
@@ -9,12 +10,13 @@ interface FormDesignerViewProps {
   form: Form;
   allForms: Form[];
   allTables: Table[];
+  relationships: Relationship[];
   onFormChange: (form: Form) => void;
   // Expose methods for parent (App) to call
   actionTrigger?: { action: string, timestamp: number }; 
 }
 
-export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allForms, allTables, onFormChange, actionTrigger }) => {
+export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allForms, allTables, relationships, onFormChange, actionTrigger }) => {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [linkingSubform, setLinkingSubform] = useState<Form | null>(null);
   const [showLookupModal, setShowLookupModal] = useState(false);
@@ -173,7 +175,27 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
           (el as any)[key] = value;
           // Auto-init lookup object if switching to select
           if (key === 'widgetType' && value === 'select' && !el.lookup) {
-              el.lookup = { tableId: allTables[0]?.id || '', valueFieldId: '', labelFields: [] };
+              
+              const sourceTableId = form.sourceId;
+              const fieldId = el.fieldId;
+              let targetTableId = allTables[0]?.id || ''; // Default fallback
+              
+              if (sourceTableId && fieldId && relationships) {
+                  // Find if this field is a `toField` (a foreign key) in any relationship
+                  const rel = relationships.find(r => r.toTableId === sourceTableId && r.toFieldId === fieldId);
+                  if (rel) {
+                      targetTableId = rel.fromTableId; // The lookup table is the 'from' side (the parent)
+                  }
+              }
+
+              el.lookup = { 
+                  tableId: targetTableId, 
+                  valueFieldId: '', 
+                  labelFields: [], 
+                  displayFormat: [], 
+                  allowQuickCreate: false, 
+                  quickCreateFormId: '' 
+              };
           }
           onFormChange({ ...form, layout: newLayout });
       }
@@ -481,7 +503,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                                 .filter(f => f.sourceId === selectedEl.lookup?.tableId)
                                                                 .map(f => (
                                                                   <option key={f.id} value={f.id}>{f.name}</option>
-                                                              ))}
+                                                                ))}
                                                           </select>
                                                       </div>
                                                   )}

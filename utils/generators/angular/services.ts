@@ -24,7 +24,6 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
       const safeName = toPascalCase(q.name);
       
       const props = query.columns.filter(c => c.show).map(c => {
-          // Resolve Type
           let type = 'string';
           const table = tables.find(t => t.id === c.tableId);
           const field = table?.fields.find(f => f.id === c.fieldId);
@@ -46,15 +45,35 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
   });
 
   // API Service
-  const apiService = `import { Injectable } from '@angular/core'; import { HttpClient } from '@angular/common/http'; import { Observable } from 'rxjs';
-@Injectable({ providedIn: 'root' }) export class ApiService {
+  const apiService = `import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class ApiService {
   private baseUrl = 'http://localhost:${config.port}/api';
+
   constructor(private http: HttpClient) { }
-  getAll(endpoint: string): Observable<any[]> { return this.http.get<any[]>(this.baseUrl + '/' + endpoint); }
-  getById(endpoint: string, id: any): Observable<any> { return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id); }
-  create(endpoint: string, item: any): Observable<any> { return this.http.post<any>(this.baseUrl + '/' + endpoint, item); }
-  update(endpoint: string, id: any, item: any): Observable<any> { return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item); }
-  delete(endpoint: string, id: any): Observable<void> { return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id); }
+
+  getAll(endpoint: string): Observable<any[]> {
+    return this.http.get<any[]>(this.baseUrl + '/' + endpoint);
+  }
+
+  getById(endpoint: string, id: any): Observable<any> {
+    return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id);
+  }
+
+  create(endpoint: string, item: any): Observable<any> {
+    return this.http.post<any>(this.baseUrl + '/' + endpoint, item);
+  }
+
+  update(endpoint: string, id: any, item: any): Observable<any> {
+    return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item);
+  }
+
+  delete(endpoint: string, id: any): Observable<void> {
+    return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id);
+  }
 }`;
   files.push({ name: 'api.service.ts', path: `${appRoot}/services/api.service.ts`, content: apiService, language: 'typescript' });
 

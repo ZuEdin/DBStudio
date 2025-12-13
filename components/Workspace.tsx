@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { ViewType, Table, TableNode, Relationship, Query, Report, Field, Form, SelectQuery, BackendConfig } from '../types/index';
 import { X, Command } from 'lucide-react';
@@ -213,6 +214,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 form={form} 
                 allForms={forms} 
                 allTables={tables} 
+                relationships={relationships}
                 onFormChange={onActiveObjectChange as (f: Form) => void}
                 actionTrigger={formActionTrigger}
               />
@@ -262,6 +264,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
               onQueryChange={onActiveObjectChange as (q: Query) => void}
               tables={tables}
               relationships={relationships}
+              dbType={backendConfig.dbType}
             />
           );
         }

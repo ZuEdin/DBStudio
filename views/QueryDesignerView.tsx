@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Canvas } from '../components/Canvas';
-import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery } from '../types/index';
+// FIX: Added DbType to import to be used in props and passed to generateSqlSelect.
+import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType } from '../types/index';
 import { generateSqlSelect } from '../utils/sqlHelper';
 
 interface QueryDesignerViewProps {
@@ -9,6 +10,7 @@ interface QueryDesignerViewProps {
   onQueryChange: (query: Query) => void;
   tables: Table[];
   relationships: Relationship[];
+  dbType: DbType;
 }
 
 export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
@@ -16,6 +18,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   onQueryChange,
   tables,
   relationships,
+  dbType,
 }) => {
   if (query.type !== 'SELECT') {
     return <div className="p-4">Dieser Abfragetyp kann nicht im Designer bearbeitet werden.</div>;
@@ -24,14 +27,15 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   const [generatedSql, setGeneratedSql] = useState('');
   const { nodes, columns: queryColumns } = query;
 
+  // FIX: Pass dbType to generateSqlSelect and add it to the dependency array.
   useEffect(() => {
     if (queryColumns.length === 0 || nodes.length === 0) {
       setGeneratedSql('Ziehen Sie Felder in den Grid, um eine Abfrage zu erstellen.');
     } else {
-      const sql = generateSqlSelect(nodes, queryColumns, tables, relationships);
+      const sql = generateSqlSelect(nodes, queryColumns, tables, relationships, dbType);
       setGeneratedSql(sql + ';');
     }
-  }, [query, relationships, tables]);
+  }, [query, relationships, tables, dbType]);
   
   const setNodes = (nodes: TableNode[]) => {
     onQueryChange({ ...query, nodes });

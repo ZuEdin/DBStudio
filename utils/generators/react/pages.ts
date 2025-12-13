@@ -8,21 +8,34 @@ export const generateReactPages = (tables: Table[], forms: Form[], reports: Repo
 
   // Lists
   tables.forEach(table => {
-      const listName = `${table.name}List`;
+      const pascalName = toPascalCase(table.name);
+      const camelName = toCamelCase(table.name);
+      const listName = `${pascalName}List`;
       const pk = toCamelCase(table.fields.find(f=>f.isPrimaryKey)?.name || 'id');
       const content = `import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ${table.name} } from '../../types';
+import { ${pascalName} } from '../../types';
 import { get, remove } from '../../services/api';
 import { Trash2, Plus } from 'lucide-react';
 
 export const ${listName} = () => {
-  const [items, setItems] = useState<${table.name}[]>([]);
-  useEffect(() => { get<${table.name}[]>('${table.name.toLowerCase()}').then(setItems); }, []);
-  const handleDelete = (id: any) => { if(confirm('Löschen?')) remove(\`${table.name.toLowerCase()}/\${id}\`).then(() => get<${table.name}[]>('${table.name.toLowerCase()}').then(setItems)); };
+  const [items, setItems] = useState<${pascalName}[]>([]);
+  
+  const loadItems = () => {
+      get<${pascalName}[]>('${camelName}').then(setItems);
+  };
+
+  useEffect(() => { loadItems(); }, []);
+
+  const handleDelete = (id: any) => { 
+      if(confirm('Löschen?')) {
+          remove(\`${camelName}/\${id}\`).then(loadItems);
+      } 
+  };
+  
   return (
     <div className="p-6">
-      <div className="flex justify-between mb-4"><h1 className="text-2xl font-bold">${table.name}</h1><Link to="/${table.name.toLowerCase()}/new" className="bg-blue-600 text-white px-4 py-2 rounded flex gap-2 items-center"><Plus size={16}/> Neu erstellen</Link></div>
+      <div className="flex justify-between mb-4"><h1 className="text-2xl font-bold">${table.name}</h1><Link to="/${camelName}/new" className="bg-blue-600 text-white px-4 py-2 rounded flex gap-2 items-center"><Plus size={16}/> Neu erstellen</Link></div>
       <div className="bg-white shadow rounded overflow-hidden border border-slate-200">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b"><tr>
@@ -44,7 +57,7 @@ export const ${listName} = () => {
     </div>
   );
 };`;
-      files.push({ name: `${listName}.tsx`, path: `${root}/src/pages/${table.name}/${listName}.tsx`, content, language: 'typescript' });
+      files.push({ name: `${listName}.tsx`, path: `${root}/src/pages/${pascalName}/${listName}.tsx`, content, language: 'typescript' });
   });
 
   // Forms
@@ -52,6 +65,9 @@ export const ${listName} = () => {
       const compName = `${toPascalCase(form.name)}Form`;
       const sourceTable = tables.find(t => t.id === form.sourceId);
       if(!sourceTable) return;
+      
+      const sourceTablePascal = toPascalCase(sourceTable.name);
+      const sourceTableCamel = toCamelCase(sourceTable.name);
       
       const lookups = form.layout ? collectLookups(form.layout, tables) : [];
       const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables) : 'Empty';
@@ -64,14 +80,14 @@ import { Save } from 'lucide-react';
 export const ${compName} = () => {
   const { id } = useParams(); const navigate = useNavigate();
   const [data, setData] = useState<any>({});
-  ${lookups.map(l => `const [${l.variableName}, set${l.variableName}] = useState<any[]>([]);`).join('\n')}
+  ${lookups.map(l => `const [${l.variableName}, set${toPascalCase(l.variableName)}] = useState<any[]>([]);`).join('\n')}
 
   useEffect(() => {
-      ${lookups.map(l => `get('${l.endpoint}').then(set${l.variableName});`).join('\n')}
-      if (id && id !== 'new') get(\`${sourceTable.name.toLowerCase()}/\${id}\`).then(setData);
+      ${lookups.map(l => `get('${l.endpoint}').then(set${toPascalCase(l.variableName)});`).join('\n')}
+      if (id && id !== 'new') get(\`${sourceTableCamel}/\${id}\`).then(setData);
   }, [id]);
 
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); (id && id!=='new' ? put(\`${sourceTable.name.toLowerCase()}/\${id}\`, data) : post('${sourceTable.name.toLowerCase()}', data)).then(() => navigate(-1)); };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); (id && id!=='new' ? put(\`${sourceTableCamel}/\${id}\`, data) : post('${sourceTableCamel}', data)).then(() => navigate(-1)); };
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -96,14 +112,13 @@ export const ${compName} = () => {
   reports.forEach(report => {
       const compName = `${toPascalCase(report.name)}Report`;
       
-      // Determine endpoint
       let endpoint = 'unknown';
       if (report.sourceType === 'table') {
           const t = tables.find(t => t.id === report.sourceId);
-          if (t) endpoint = t.name.toLowerCase();
+          if (t) endpoint = toCamelCase(t.name);
       } else if (report.sourceType === 'query') {
           const q = queries.find(q => q.id === report.sourceId);
-          if (q) endpoint = q.name.toLowerCase();
+          if (q) endpoint = toCamelCase(q.name);
       }
 
       const cols = report.columns || [];

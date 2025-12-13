@@ -10,10 +10,10 @@ export const generateDbContext = (tables: Table[], queries: Query[], config: Bac
     .map(q => `        public DbSet<${toPascalCase(q.name)}> ${toPascalCase(q.name)}s { get; set; }`)
     .join('\n');
   
-  const tableMappings = tables.map(t => `            modelBuilder.Entity<${toPascalCase(t.name)}>().ToTable("${t.name}");`).join('\n');
+  const tableMappings = tables.map(t => `            modelBuilder.Entity<${toPascalCase(t.name)}>().ToTable("${toPascalCase(t.name)}");`).join('\n');
   const queryMappings = queries
     .filter(q => q.type === 'SELECT')
-    .map(q => `            modelBuilder.Entity<${toPascalCase(q.name)}>().ToView("${q.name}").HasNoKey();`).join('\n');
+    .map(q => `            modelBuilder.Entity<${toPascalCase(q.name)}>().ToView("${toPascalCase(q.name)}").HasNoKey();`).join('\n');
 
   const content = `using Microsoft.EntityFrameworkCore;
 using ${config.projectName}.Models;

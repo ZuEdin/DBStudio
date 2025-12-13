@@ -1,5 +1,6 @@
 
-import { Field } from '../../types/index';
+
+import { Field, DbType } from '../../types/index';
 import { DATA_TYPES } from '../../config/dataTypes';
 
 export const isNullable = (field: Field) => field.allowNull !== false && !field.isPrimaryKey;
@@ -72,4 +73,26 @@ export const toKebabCase = (str: string) => {
     clean = clean.replace(/[^a-zA-Z0-9-]/g, '');
     
     return clean.toLowerCase();
+};
+
+export const toSnakeCase = (str: string) => {
+    if (!str) return '';
+    return toPascalCase(str)
+        .replace(/([A-Z])/g, '_$1')
+        .toLowerCase()
+        .replace(/^_/, '');
+};
+
+export const quoteIdentifier = (name: string, dbType: DbType): string => {
+    if (!name) return '';
+    switch (dbType) {
+        case DbType.SQL:
+            return `[${name}]`;
+        case DbType.MySQL:
+            return `\`${name}\``;
+        case DbType.SQLite:
+            return `"${name}"`;
+        default:
+            return name;
+    }
 };

@@ -1,19 +1,22 @@
 
-import { Table, Relationship, QueryColumn, TableNode } from '../types/index';
 
-export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[]): string => {
+import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
+import { quoteIdentifier, toPascalCase } from './generators/common';
+
+export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType): string => {
     if (columns.length === 0 || nodes.length === 0) return '';
     
     const selectClause = columns.filter(c => c.show).map(c => {
-        if (c.isCalculated) return `  (${c.expression}) AS ${c.alias || c.fieldName}`;
+        const alias = c.alias ? toPascalCase(c.alias) : toPascalCase(c.fieldName);
+        if (c.isCalculated) return `  (${c.expression}) AS ${quoteIdentifier(alias, dbType)}`;
         // Use alias if defined, else default name
-        return `  ${c.tableName}.${c.fieldName}${c.alias ? ` AS ${c.alias}` : ''}`;
+        return `  ${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}${c.alias ? ` AS ${quoteIdentifier(alias, dbType)}` : ''}`;
     }).join(',\n');
 
     const fromTable = tables.find(t => t.id === nodes[0].tableId);
     if (!fromTable) return '';
 
-    let fromClause = `FROM ${fromTable.name}`;
+    let fromClause = `FROM ${quoteIdentifier(toPascalCase(fromTable.name), dbType)}`;
     const joinedTables = new Set([fromTable.id]);
     let joins = '';
     const queryTableIds = new Set(nodes.map(n => n.tableId));
@@ -28,7 +31,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                  if (joinedTables.has(fromTId) && !joinedTables.has(toTId)) {
                     const fromT = tables.find(t => t.id === fromTId)!; const fromF = fromT.fields.find(f => f.id === fromFId)!;
                     const toT = tables.find(t => t.id === toTId)!; const toF = toT.fields.find(f => f.id === toFId)!;
-                    joins += `\nINNER JOIN ${toT.name} ON ${fromT.name}.${fromF.name} = ${toT.name}.${toF.name}`;
+                    joins += `\nINNER JOIN ${quoteIdentifier(toPascalCase(toT.name), dbType)} ON ${quoteIdentifier(toPascalCase(fromT.name), dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(toPascalCase(toT.name), dbType)}.${quoteIdentifier(toF.name, dbType)}`;
                     joinedTables.add(toTId);
                     madeProgress = true;
                 }
@@ -45,7 +48,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         
         // Handling calculated fields in WHERE usually requires wrapping the query or repeating expression
         // For simplicity in this generator, we repeat expression or field name
-        const fieldRef = c.isCalculated ? `(${c.expression})` : `${c.tableName}.${c.fieldName}`;
+        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
         
         const conditions = validCriteria.map(crit => {
             if (crit.toUpperCase() === 'IS NULL' || crit.toUpperCase() === 'IS NOT NULL') return `${fieldRef} ${crit}`;

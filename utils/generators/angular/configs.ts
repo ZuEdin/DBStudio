@@ -4,7 +4,8 @@ import { VirtualFile, BackendConfig } from '../../../types/index';
 export const generateAngularConfigs = (config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
   
-  files.push({ name: 'package.json', path: `${root}/package.json`, content: `{"name":"angular-client","version":"0.0.0","scripts":{"start":"ng serve","build":"ng build"},"dependencies":{"@angular/common":"^16.0.0","@angular/core":"^16.0.0","@angular/forms":"^16.0.0","@angular/router":"^16.0.0","rxjs":"~7.8.0","tslib":"^2.3.0","zone.js":"~0.13.0"},"devDependencies":{"@angular-devkit/build-angular":"^16.0.0","@angular/cli":"~16.0.0","@angular/compiler-cli":"^16.0.0","typescript":"~5.0.2","tailwindcss":"^3.3.0","postcss":"^8.4.31","autoprefixer":"^10.4.16"}}`, language: 'json' });
+  // package.json and other configs remain largely the same, but we ensure correct dependencies for standalone.
+  files.push({ name: 'package.json', path: `${root}/package.json`, content: `{"name":"angular-client","version":"0.0.0","scripts":{"start":"ng serve","build":"ng build"},"dependencies":{"@angular/common":"^16.0.0","@angular/core":"^16.0.0","@angular/forms":"^16.0.0","@angular/platform-browser":"^16.0.0", "@angular/platform-browser-dynamic":"^16.0.0","@angular/router":"^16.0.0","rxjs":"~7.8.0","tslib":"^2.3.0","zone.js":"~0.13.0"},"devDependencies":{"@angular-devkit/build-angular":"^16.0.0","@angular/cli":"~16.0.0","@angular/compiler-cli":"^16.0.0","typescript":"~5.0.2","tailwindcss":"^3.3.0","postcss":"^8.4.31","autoprefixer":"^10.4.16"}}`, language: 'json' });
   files.push({ name: 'angular.json', path: `${root}/angular.json`, content: JSON.stringify({"version":1,"projects":{"angular-client":{"projectType":"application","root":"","sourceRoot":"src","prefix":"app","architect":{"build":{"builder":"@angular-devkit/build-angular:browser","options":{"outputPath":"dist/angular-client","index":"src/index.html","main":"src/main.ts","polyfills":["src/polyfills.ts"],"tsConfig":"tsconfig.app.json","assets":["src/favicon.ico","src/assets"],"styles":["src/styles.css"],"scripts":[]}},"serve":{"builder":"@angular-devkit/build-angular:dev-server","configurations":{"production":{"browserTarget":"angular-client:build:production"},"development":{"browserTarget":"angular-client:build:development"}},"defaultConfiguration":"development"}}}}}, null, 2), language: 'json' });
   
   files.push({ name: 'tsconfig.json', path: `${root}/tsconfig.json`, content: JSON.stringify({ "compileOnSave": false, "compilerOptions": { "baseUrl": "./", "outDir": "./dist/out-tsc", "forceConsistentCasingInFileNames": true, "strict": true, "noImplicitOverride": true, "noPropertyAccessFromIndexSignature": true, "noImplicitReturns": true, "noFallthroughCasesInSwitch": true, "sourceMap": true, "declaration": false, "downlevelIteration": true, "experimentalDecorators": true, "moduleResolution": "node", "importHelpers": true, "target": "ES2022", "module": "ES2022", "useDefineForClassFields": false, "lib": ["ES2022", "dom"] }, "angularCompilerOptions": { "enableI18nLegacyMessageIdFormat": false, "strictInjectionParameters": true, "strictInputAccessModifiers": true, "strictTemplates": true } }, null, 2), language: 'json' });
@@ -18,7 +19,22 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   files.push({ name: '.gitkeep', path: `${root}/src/assets/.gitkeep`, content: '', language: 'text' });
   files.push({ name: 'polyfills.ts', path: `${root}/src/polyfills.ts`, content: `import 'zone.js';`, language: 'typescript' });
   
-  files.push({ name: 'main.ts', path: `${root}/src/main.ts`, content: `import { platformBrowserDynamic } from '@angular/platform-browser-dynamic'; import { AppModule } from './app/app.module'; platformBrowserDynamic().bootstrapModule(AppModule).catch(err => console.error(err));`, language: 'typescript' });
+  // Updated main.ts for Standalone Bootstrap
+  const mainTsContent = `import { bootstrapApplication } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { AppComponent } from './app/app.component';
+import { appRoutes } from './app/app.routes';
+
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideRouter(appRoutes),
+    provideHttpClient()
+  ]
+}).catch(err => console.error(err));
+`;
+  files.push({ name: 'main.ts', path: `${root}/src/main.ts`, content: mainTsContent, language: 'typescript' });
+  
   files.push({ name: 'index.html', path: `${root}/src/index.html`, content: `<!doctype html><html lang="en"><head><title>${config.projectName}</title><base href="/"><script src="https://cdn.tailwindcss.com"></script></head><body><app-root></app-root></body></html>`, language: 'html' });
 
   return files;

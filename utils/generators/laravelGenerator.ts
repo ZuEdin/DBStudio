@@ -1,6 +1,6 @@
 
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
-import { toPascalCase, toCamelCase, resolveType } from './common';
+import { toPascalCase, toCamelCase, toSnakeCase } from './common';
 
 export const generateLaravel = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -96,7 +96,7 @@ SESSION_LIFETIME=120
   tables.forEach((table, index) => {
       // Increment timestamp slightly to ensure order
       const ts = new Date(migrationTimestamp + (index * 1000)).toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
-      const tableName = table.name.toLowerCase(); // Laravel conventions usually plural lowercase, but we stick to user input or lowercase it
+      const tableName = toSnakeCase(table.name);
       const className = `Create${toPascalCase(table.name)}Table`;
 
       const schemaFields = table.fields.map(f => {
@@ -150,6 +150,7 @@ ${schemaFields}
   tables.forEach(table => {
       const modelName = toPascalCase(table.name);
       const controllerName = `${modelName}Controller`;
+      const tableName = toSnakeCase(table.name);
       
       // -- Model --
       const fillable = table.fields.filter(f => !f.isPrimaryKey).map(f => `'${f.name}'`).join(', ');
@@ -200,7 +201,7 @@ class ${modelName} extends Model
 {
     use HasFactory;
 
-    protected $table = '${table.name.toLowerCase()}';
+    protected $table = '${tableName}';
     protected $fillable = [${fillable}];
 
     ${relationMethods}

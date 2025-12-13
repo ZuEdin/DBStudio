@@ -1,14 +1,18 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { Canvas } from '../../components/Canvas';
 import { QueryGrid } from './components/QueryGrid';
-import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery } from '../../types/index';
+import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType } from '../../types/index';
 import { Calculator, Sigma } from 'lucide-react';
+import { generateSqlSelect } from '../../utils/sqlHelper';
 
 interface QueryDesignerViewProps {
   query: Query;
   onQueryChange: (query: Query) => void;
   tables: Table[];
   relationships: Relationship[];
+  dbType: DbType;
 }
 
 export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
@@ -16,13 +20,24 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   onQueryChange,
   tables,
   relationships,
+  dbType,
 }) => {
   if (query.type !== 'SELECT') {
     return <div className="p-4">Dieser Abfragetyp kann nicht im Designer bearbeitet werden.</div>;
   }
   
   const [showTotals, setShowTotals] = useState(query.columns.some(c => c.aggregate));
+  const [generatedSql, setGeneratedSql] = useState('');
   const { nodes, columns: queryColumns } = query;
+  
+  useEffect(() => {
+    if (queryColumns.length === 0 || nodes.length === 0) {
+      setGeneratedSql('Ziehen Sie Felder in den Grid, um eine Abfrage zu erstellen.');
+    } else {
+      const sql = generateSqlSelect(nodes, queryColumns, tables, relationships, dbType);
+      setGeneratedSql(sql + ';');
+    }
+  }, [query, relationships, tables, dbType]);
 
   const setNodes = (nodes: TableNode[]) => {
     onQueryChange({ ...query, nodes });
@@ -137,6 +152,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
              showTotals={showTotals}
            />
         </div>
+        <div className="bg-slate-800 p-2 text-white font-mono text-xs overflow-auto h-24 border-t border-slate-400"><pre>{generatedSql}</pre></div>
       </div>
     </div>
   );

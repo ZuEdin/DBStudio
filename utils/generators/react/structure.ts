@@ -1,6 +1,6 @@
 
 import { Table, Form, Report, VirtualFile, BackendConfig } from '../../../types/index';
-import { toPascalCase } from '../common';
+import { toPascalCase, toCamelCase } from '../common';
 
 export const generateReactStructure = (tables: Table[], forms: Form[], reports: Report[], config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -26,30 +26,39 @@ export const Sidebar = () => {
         <div>
             <div className="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Daten</div>
             <div className="space-y-1 px-2">
-                ${tables.map(t => `
-                <Link to="/${t.name.toLowerCase()}" className={\`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors \${isActive('/${t.name.toLowerCase()}')}\`}>
+                ${tables.map(t => {
+                    const camelName = toCamelCase(t.name);
+                    return `
+                <Link to="/${camelName}" className={\`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors \${isActive('/${camelName}')}\`}>
                     <Table size={16}/> ${t.name}
-                </Link>`).join('\n                ')}
+                </Link>`
+                }).join('\n                ')}
             </div>
         </div>
 
         <div>
             <div className="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Formulare</div>
             <div className="space-y-1 px-2">
-                ${forms.map(f => `
-                <Link to="/forms/${toPascalCase(f.name).toLowerCase()}Form/new" className={\`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors \${isActive('/forms/${toPascalCase(f.name).toLowerCase()}Form')}\`}>
+                ${forms.map(f => {
+                    const compName = toPascalCase(f.name);
+                    return `
+                <Link to="/forms/${compName.toLowerCase()}Form/new" className={\`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors \${isActive('/forms/${compName.toLowerCase()}Form')}\`}>
                     <Layout size={16}/> ${f.name}
-                </Link>`).join('\n                ')}
+                </Link>`
+                }).join('\n                ')}
             </div>
         </div>
 
         <div>
             <div className="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Berichte</div>
             <div className="space-y-1 px-2">
-                ${reports.map(r => `
-                <Link to="/reports/${toPascalCase(r.name).toLowerCase()}Report" className={\`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors \${isActive('/reports/${toPascalCase(r.name).toLowerCase()}Report')}\`}>
+                ${reports.map(r => {
+                    const compName = toPascalCase(r.name);
+                    return `
+                <Link to="/reports/${compName.toLowerCase()}Report" className={\`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors \${isActive('/reports/${compName.toLowerCase()}Report')}\`}>
                     <FileText size={16}/> ${r.name}
-                </Link>`).join('\n                ')}
+                </Link>`
+                }).join('\n                ')}
             </div>
         </div>
 
@@ -64,18 +73,21 @@ export const Sidebar = () => {
 
   // Routing Logic
   tables.forEach(table => {
-      const listName = `${table.name}List`;
-      imports.push(`import { ${listName} } from './pages/${table.name}/${listName}';`);
-      routes.push(`<Route path="/${table.name.toLowerCase()}" element={<${listName} />} />`);
+      const pascalName = toPascalCase(table.name);
+      const camelName = toCamelCase(table.name);
+      const listName = `${pascalName}List`;
+      imports.push(`import { ${listName} } from './pages/${pascalName}/${listName}';`);
+      routes.push(`<Route path="/${camelName}" element={<${listName} />} />`);
   });
 
   forms.forEach(form => {
       const compName = `${toPascalCase(form.name)}Form`;
       const sourceTable = tables.find(t => t.id === form.sourceId);
       if(sourceTable) {
+          const sourceTableCamel = toCamelCase(sourceTable.name);
           imports.push(`import { ${compName} } from './pages/forms/${compName}';`);
           routes.push(`<Route path="/forms/${compName.toLowerCase()}/:id" element={<${compName} />} />`);
-          routes.push(`<Route path="/${sourceTable.name.toLowerCase()}/:id" element={<${compName} />} />`);
+          routes.push(`<Route path="/${sourceTableCamel}/:id" element={<${compName} />} />`);
       }
   });
 

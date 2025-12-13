@@ -218,6 +218,7 @@ class BaseModel {
   // 4. Models & Controllers per Table
   tables.forEach(table => {
       const modelName = toPascalCase(table.name);
+      const tableName = toPascalCase(table.name);
       
       let modelContent = '';
       if (isNoSql) {
@@ -225,7 +226,7 @@ class BaseModel {
 namespace App\\Models;
 
 class ${modelName} extends BaseModel {
-    protected $collection_name = "${table.name}";
+    protected $collection_name = "${tableName}";
 
     public function create($data) {
         $collection = $this->db->selectCollection($this->collection_name);
@@ -258,7 +259,7 @@ class ${modelName} extends BaseModel {
 namespace App\\Models;
 
 class ${modelName} extends BaseModel {
-    protected $table_name = "${table.name}";
+    protected $table_name = "${tableName}";
     protected $primary_key = "${pkName}";
 
     public function create($data) {

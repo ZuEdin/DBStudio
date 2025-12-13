@@ -1,6 +1,7 @@
 
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
 import { generateSequelizeModels } from './nodejs/models';
+import { toCamelCase, toPascalCase } from './common';
 
 export const generateNodeJs = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -26,12 +27,14 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
 
   let routes = "";
   tables.forEach(t => {
+      const modelName = toPascalCase(t.name);
+      const routeName = toCamelCase(t.name);
       routes += `
-app.get('/api/${t.name.toLowerCase()}', async (req, res) => {
-    try { const items = await db.${t.name}.findAll({ include: { all: true } }); res.json(items); } catch (e) { res.status(500).json({ error: e.message }); }
+app.get('/api/${routeName}', async (req, res) => {
+    try { const items = await db.${modelName}.findAll({ include: { all: true } }); res.json(items); } catch (e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/${t.name.toLowerCase()}', async (req, res) => {
-    try { const item = await db.${t.name}.create(req.body); res.json(item); } catch (e) { res.status(500).json({ error: e.message }); }
+app.post('/api/${routeName}', async (req, res) => {
+    try { const item = await db.${modelName}.create(req.body); res.json(item); } catch (e) { res.status(500).json({ error: e.message }); }
 });`;
   });
 

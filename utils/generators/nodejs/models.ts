@@ -1,6 +1,6 @@
 
 import { Table, Relationship, BackendConfig, DbType } from '../../../types/index';
-import { resolveType, isNullable } from '../common';
+import { resolveType, isNullable, toPascalCase } from '../common';
 
 export const generateSequelizeModels = (tables: Table[], relationships: Relationship[], config: BackendConfig): string => {
   let dialect = 'mssql';
@@ -31,6 +31,7 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
   let content = `const { Sequelize, DataTypes } = require('sequelize');\n${sequelizeConstructor}\nconst db = {};\n`;
 
   tables.forEach(table => {
+    const modelName = toPascalCase(table.name);
     const fields = table.fields.map(f => {
       const type = resolveType(f, 'sequelize');
       const props = [`        type: ${type}`];
@@ -40,7 +41,7 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
       return `    ${f.name}: {\n${props.join(',\n')}\n    }`;
     }).join(',\n');
 
-    content += `\ndb.${table.name} = sequelize.define('${table.name}', {\n${fields}\n});\n`;
+    content += `\ndb.${modelName} = sequelize.define('${modelName}', {\n${fields}\n});\n`;
   });
 
   content += '\n// Relationships\n';
@@ -49,12 +50,14 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
       const child = tables.find(t => t.id === rel.toTableId);
       const childField = child?.fields.find(f => f.id === rel.toFieldId);
       if (parent && child && childField) {
+          const parentModel = toPascalCase(parent.name);
+          const childModel = toPascalCase(child.name);
           if (rel.type === '1:n') {
-              content += `db.${parent.name}.hasMany(db.${child.name}, { foreignKey: '${childField.name}' });\n`;
-              content += `db.${child.name}.belongsTo(db.${parent.name}, { foreignKey: '${childField.name}' });\n`;
+              content += `db.${parentModel}.hasMany(db.${childModel}, { foreignKey: '${childField.name}' });\n`;
+              content += `db.${childModel}.belongsTo(db.${parentModel}, { foreignKey: '${childField.name}' });\n`;
           } else {
-              content += `db.${parent.name}.hasOne(db.${child.name}, { foreignKey: '${childField.name}' });\n`;
-              content += `db.${child.name}.belongsTo(db.${parent.name}, { foreignKey: '${childField.name}' });\n`;
+              content += `db.${parentModel}.hasOne(db.${childModel}, { foreignKey: '${childField.name}' });\n`;
+              content += `db.${childModel}.belongsTo(db.${parentModel}, { foreignKey: '${childField.name}' });\n`;
           }
       }
   });
