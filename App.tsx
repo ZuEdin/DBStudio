@@ -1,31 +1,39 @@
+
 import React, { useState, useEffect } from 'react';
-import { DbType, ViewType, Relationship, TableNode, NODE_WIDTH, Table, Query, Report, Form, SelectQuery } from './types/index';
+import { DbType, ViewType, Relationship, TableNode, NODE_WIDTH, Table, Query, Report, Form, SelectQuery, BackendConfig } from './types/index';
 import { Ribbon } from './components/Ribbon';
 import { Sidebar } from './components/Sidebar';
 import { Workspace } from './components/Workspace';
+import { StatusBar } from './components/StatusBar';
 import { useDatabase } from './hooks/useDatabase';
-import { DatabaseSelector } from './views/DatabaseSelector';
+import { DatabaseSelector } from './views/DatabaseSelector'; // Now actually ProjectSelector
 import { SaveChangesModal } from './components/SaveChangesModal';
 import { ItemContextMenu } from './components/ItemContextMenu';
 import { InputModal } from './components/InputModal';
-import { ReportWizardModal } from './views/report/ReportWizardModal';
-import { FormWizardModal } from './views/form/FormWizardModal';
+import { ReportWizardModal } from './features/reports/ReportWizardModal';
+import { FormWizardModal } from './features/forms/FormWizardModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
+import { DuplicateWizard, InconsistencyWizard } from './features/queries/wizards/QueryWizards';
 
 export default function App() {
   const { 
+    currentProjectId,
+    currentProjectName,
+    loadedBackendConfig,
     dbType, 
     tables, 
     queries, 
-    reports,
+    reports, 
     forms,
     relationships, 
     setRelationships, 
     saveTable, 
-    saveQuery,
-    saveReport,
+    saveQuery, 
+    saveReport, 
     saveForm,
     createNewDatabase,
+    loadProject,
+    persistProject,
     resetDatabase,
     deleteRelationship,
     updateRelationship,
@@ -38,6 +46,7 @@ export default function App() {
     deleteReport,
     deleteForm,
     executeQuery,
+    exportProject
   } = useDatabase();
 
   const [currentView, setCurrentView] = useState<ViewType>({ type: 'welcome' });
@@ -62,17 +71,56 @@ export default function App() {
   } | null>(null);
   const [showReportWizard, setShowReportWizard] = useState(false);
   const [showFormWizard, setShowFormWizard] = useState(false);
+  
+  const [activeWizard, setActiveWizard] = useState<'duplicate' | 'inconsistency' | null>(null);
+
   const [confirmationModal, setConfirmationModal] = useState<{
     title: string;
     message: string;
     onConfirm: () => void;
   } | null>(null);
 
+  // Trigger state for form actions from ribbon
+  const [formActionTrigger, setFormActionTrigger] = useState<{ action: string, timestamp: number } | undefined>(undefined);
+
+  // Backend Configuration State
+  const [backendConfig, setBackendConfig] = useState<BackendConfig>({
+    language: 'dotnet',
+    dbType: DbType.SQL, // Default
+    projectName: 'MyApiProject',
+    port: 5000,
+    dbConnection: 'Server=.;Database=MyDb;Trusted_Connection=True;',
+    useSwagger: true,
+    frontendFramework: 'angular'
+  });
+
+  // Sync loaded project config to local state
+  useEffect(() => {
+      if (loadedBackendConfig) {
+          setBackendConfig(loadedBackendConfig);
+      } else if (dbType) {
+          // Default init if new
+          setBackendConfig(prev => ({
+            ...prev,
+            dbType: dbType,
+            projectName: currentProjectName.replace(/\s+/g, '') || 'MyProject',
+            // Set reasonable default connection strings
+            dbConnection: dbType === DbType.SQLite ? 'Data Source=app.db' 
+                        : dbType === DbType.MySQL ? 'Server=localhost;Database=mydb;User=root;Password=password;'
+                        : 'Server=.;Database=MyDb;Trusted_Connection=True;TrustServerCertificate=True;'
+        }));
+      }
+  }, [loadedBackendConfig, dbType, currentProjectName]);
+
+  // UI State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isRibbonOpen, setIsRibbonOpen] = useState(true);
 
   useEffect(() => {
-    setRelationshipNodes(prevNodes => {
+    setRelationshipNodes((prevNodes: TableNode[]) => {
       const newNodes: TableNode[] = [];
-      const existingNodesMap = new Map(prevNodes.map(n => [n.tableId, n]));
+      const existingNodesMap = new Map<string, TableNode>();
+      prevNodes.forEach(n => existingNodesMap.set(n.tableId, n));
       
       tables.forEach((table, i) => {
         const existingNode = existingNodesMap.get(table.id);
@@ -104,6 +152,8 @@ export default function App() {
       setActiveObject(queries.find(q => q.id === currentView.queryId) || null);
     } else if (currentView.type === 'report_view') {
       setActiveObject(reports.find(r => r.id === currentView.reportId) || null);
+    } else if (currentView.type === 'report_designer') {
+      setActiveObject(reports.find(r => r.id === currentView.reportId) || null);
     } else if (currentView.type === 'form_view') {
       setActiveObject(forms.find(f => f.id === currentView.formId) || null);
     } else if (currentView.type === 'form_designer') {
@@ -112,7 +162,6 @@ export default function App() {
       if (currentView.queryId) {
         setActiveObject(queries.find(q => q.id === currentView.queryId) || null);
       } else {
-        // FIX: Add type: 'SELECT' to create a valid SelectQuery object.
         setActiveObject({ id: '', type: 'SELECT', name: 'NeueAbfrage', nodes: [], columns: [] } as SelectQuery);
         setIsDirty(true);
       }
@@ -138,14 +187,40 @@ export default function App() {
     if (!isDirty) setIsDirty(true);
   };
 
-  const handleSave = (): Promise<{ success: boolean; savedObject?: Table | Query; wasNew?: boolean }> => {
-    return new Promise((resolve) => {
-        if (!activeObject || ('sourceType' in activeObject)) return resolve({ success: false });
+  // Central save logic for open objects
+  const handleSave = (): Promise<{ success: boolean; savedObject?: Table | Query | Report | Form; wasNew?: boolean }> => {
+    return new Promise(async (resolve) => {
+        if (!activeObject) {
+            // If nothing open, clicking save on Ribbon persists the whole project to IndexedDB
+            await persistProject(backendConfig);
+            alert('Projekt gespeichert.');
+            return resolve({ success: true });
+        }
+
+        // Logic for saving specific open objects (Tables, Queries, etc.)
+        // Note: These saves only update React State. 
+        // We trigger a project persist afterwards to be safe.
+
+        if ('sourceType' in activeObject) {
+             if (activeObject && 'layout' in activeObject) {
+                 saveForm(activeObject as Form);
+                 setIsDirty(false);
+                 resolve({ success: true, savedObject: activeObject as Form, wasNew: false });
+                 return;
+             }
+             if (activeObject && ('summaries' in activeObject)) {
+                 saveReport(activeObject as Report);
+                 setIsDirty(false);
+                 resolve({ success: true, savedObject: activeObject as Report, wasNew: false });
+                 return;
+             }
+             return resolve({ success: false });
+        }
 
         const finishSave = (objectToSave: Table | Query, wasNew: boolean) => {
             if ('fields' in objectToSave && !('nodes' in objectToSave)) {
                 saveTable(objectToSave as Table, wasNew ? 'create' : 'edit');
-            } else { // Query
+            } else {
                 saveQuery(objectToSave as Query);
             }
             setIsDirty(false);
@@ -156,7 +231,7 @@ export default function App() {
         let objectToSave = { ...activeObject };
         const wasNew = !objectToSave.id || ('fields' in objectToSave && !('nodes' in objectToSave) && !tables.some(t => t.id === objectToSave.id));
 
-        if (wasNew && 'nodes' in objectToSave) { // New Query needs a name
+        if (wasNew && 'nodes' in objectToSave) {
             setNameInput({
                 title: "Abfrage speichern",
                 label: "Geben Sie einen Namen für die Abfrage ein:",
@@ -181,19 +256,40 @@ export default function App() {
   const handleSaveReport = (report: Report) => {
     saveReport(report);
     setShowReportWizard(false);
-    handleSetView({ type: 'report_view', reportId: report.id });
+    handleSetView({ type: 'report_designer', reportId: report.id });
   };
   
   const handleSaveForm = (form: Form) => {
     saveForm(form);
     setShowFormWizard(false);
-    handleSetView({ type: 'form_view', formId: form.id });
+    handleSetView({ type: 'form_designer', formId: form.id });
+  };
+
+  const handleSaveWizardQuery = (query: SelectQuery) => {
+    saveQuery(query);
+    setActiveWizard(null);
+    handleSetView({ type: 'query_designer', queryId: query.id });
   };
   
-  const handleRibbonAction = (action: string) => {
+  const handleRibbonAction = async (action: string) => {
+    if (action === 'backend_generate' || action === 'backend_export') {
+        if (currentView.type !== 'backend_generator') {
+            handleSetView({ type: 'backend_generator' });
+        }
+        setFormActionTrigger({ action, timestamp: Date.now() });
+        return;
+    }
+
+    if (action.startsWith('form_') || action === 'export_form') {
+        setFormActionTrigger({ action, timestamp: Date.now() });
+        return;
+    }
+
     switch(action) {
       case 'new_db':
-        resetDatabase();
+        if(confirm("Möchten Sie zum Startbildschirm zurückkehren? Ungespeicherte Änderungen gehen verloren.")) {
+            resetDatabase();
+        }
         break;
       case 'create_table_ai':
       case 'create_table':
@@ -201,6 +297,12 @@ export default function App() {
         break;
       case 'create_query':
         handleSetView({ type: 'query_designer' });
+        break;
+      case 'wizard_duplicate':
+        setActiveWizard('duplicate');
+        break;
+      case 'wizard_inconsistency':
+        setActiveWizard('inconsistency');
         break;
       case 'create_report':
         setShowReportWizard(true);
@@ -212,12 +314,17 @@ export default function App() {
         handleSetView({ type: 'relationships' });
         break;
       case 'save':
-        handleSave().then(({ success, savedObject, wasNew }) => {
-            if (success && savedObject && wasNew) {
-                if ('fields' in savedObject && !('nodes' in savedObject)) {
-                    setCurrentView({ type: 'table_edit', tableId: (savedObject as Table).id });
-                } else if ('nodes' in savedObject) {
-                    setCurrentView({ type: 'query_designer', queryId: (savedObject as Query).id });
+        await handleSave().then(async ({ success, savedObject, wasNew }) => {
+            if (success) {
+                // Also persist whole project to IndexedDB when explicitly saving
+                await persistProject(backendConfig); 
+                
+                if (savedObject && wasNew) {
+                    if ('fields' in savedObject && !('nodes' in savedObject)) {
+                        setCurrentView({ type: 'table_edit', tableId: (savedObject as Table).id });
+                    } else if ('nodes' in savedObject) {
+                        setCurrentView({ type: 'query_designer', queryId: (savedObject as Query).id });
+                    }
                 }
             }
         });
@@ -265,11 +372,12 @@ export default function App() {
         if (type === 'table') handleSetView({ type: 'table_data', tableId: id });
         else if (type === 'query') handleSetView({ type: 'query_results', queryId: id });
         else if (type === 'form') handleSetView({ type: 'form_view', formId: id });
+        else if (type === 'report') handleSetView({ type: 'report_view', reportId: id });
         break;
       case 'view':
         if (type === 'table') handleSetView({ type: 'table_edit', tableId: id });
         else if (type === 'query') handleSetView({ type: 'query_designer', queryId: id });
-        else if (type === 'report') handleSetView({ type: 'report_view', reportId: id });
+        else if (type === 'report') handleSetView({ type: 'report_designer', reportId: id });
         else if (type === 'form') handleSetView({ type: 'form_designer', formId: id });
         break;
       
@@ -283,9 +391,9 @@ export default function App() {
             onConfirm: (newName) => {
               if (newName && newName.trim() !== '') {
                 if (type === 'table') renameTable(id, newName.trim());
-                else if (type === 'query') renameQuery(id, newName.trim());
-                else if (type === 'report') renameReport(id, newName.trim());
-                else if (type === 'form') renameForm(id, newName.trim());
+                if (type === 'query') renameQuery(id, newName.trim());
+                if (type === 'report') renameReport(id, newName.trim());
+                if (type === 'form') renameForm(id, newName.trim());
               }
               setNameInput(null);
             },
@@ -295,73 +403,119 @@ export default function App() {
         break;
 
       case 'delete':
-        const objectToDelete = getObject();
-        if (objectToDelete) {
-          showConfirmation(
-            `'${objectToDelete.name}' löschen`,
-            `Möchten Sie das Objekt '${objectToDelete.name}' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
-            () => {
-              if (activeObject?.id === id) {
-                setIsDirty(false);
-                setCurrentView({ type: 'welcome' });
-              }
-              if (type === 'table') deleteTable(id);
-              else if (type === 'query') deleteQuery(id);
-              else if (type === 'report') deleteReport(id);
-              else if (type === 'form') deleteForm(id);
-            }
-          );
-        }
+        showConfirmation(
+          'Löschen bestätigen',
+          'Möchten Sie dieses Objekt wirklich löschen?',
+          () => {
+             if (type === 'table') deleteTable(id);
+             if (type === 'query') deleteQuery(id);
+             if (type === 'report') deleteReport(id);
+             if (type === 'form') deleteForm(id);
+             if (activeObject?.id === id) handleSetView({ type: 'welcome' });
+          }
+        );
         break;
-
+        
       case 'export':
-        const objectToExport = getObject();
-        if (objectToExport) {
-          const dataStr = JSON.stringify(objectToExport, null, 2);
-          const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-          const exportFileDefaultName = `${objectToExport.name}.json`;
-          const linkElement = document.createElement('a');
-          linkElement.setAttribute('href', dataUri);
-          linkElement.setAttribute('download', exportFileDefaultName);
-          linkElement.click();
-        }
+        alert('Export noch nicht implementiert.');
         break;
     }
   };
 
+  // If no project selected (no DB Type), show Project Selector
   if (!dbType) {
-    return <DatabaseSelector onSelectDbType={createNewDatabase} />;
+    return <DatabaseSelector 
+      onSelectProject={loadProject} 
+      onCreateNew={(t, n, d) => createNewDatabase(t, n, d)} 
+    />;
   }
-  
-  const getCanvasNodes = (): TableNode[] => {
-    if (currentView.type === 'relationships') {
-      return relationshipNodes;
-    }
-    if (currentView.type === 'query_designer' && activeObject && 'nodes' in activeObject) {
-      return (activeObject as SelectQuery).nodes;
-    }
-    return [];
-  };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-100 font-sans text-slate-900" onClick={closeItemContextMenu}>
-      {savePrompt.show && activeObject && (
+    <div className="flex flex-col h-screen overflow-hidden text-sm bg-slate-100 font-sans">
+      <div className="bg-slate-800 text-white text-xs px-2 py-1 flex justify-between items-center select-none">
+          <span>DB Studio Pro - {currentProjectName}</span>
+          <button onClick={() => exportProject(backendConfig)} className="hover:text-blue-300">Sicherung erstellen (.dbsp)</button>
+      </div>
+      <Ribbon 
+        onAction={handleRibbonAction} 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
+        currentDbType={dbType}
+        currentView={currentView}
+        isOpen={isRibbonOpen}
+        toggleRibbon={() => setIsRibbonOpen(!isRibbonOpen)}
+        backendConfig={backendConfig}
+        setBackendConfig={setBackendConfig}
+      />
+      
+      <div className="flex flex-1 overflow-hidden relative">
+        <Sidebar 
+          tables={tables} 
+          queries={queries} 
+          reports={reports} 
+          forms={forms}
+          onSelectTable={(id) => handleSetView({ type: 'table_data', tableId: id })}
+          onSelectQuery={(id) => handleSetView({ type: 'query_results', queryId: id })}
+          onSelectReport={(id) => handleSetView({ type: 'report_view', reportId: id })}
+          onSelectForm={(id) => handleSetView({ type: 'form_view', formId: id })}
+          onItemContextMenu={handleItemContextMenu}
+          isOpen={isSidebarOpen}
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
+        
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          <Workspace 
+            currentView={currentView}
+            tables={tables}
+            queries={queries}
+            reports={reports}
+            forms={forms}
+            canvasNodes={relationshipNodes}
+            relationships={relationships}
+            activeObject={activeObject}
+            isDirty={isDirty}
+            onSetView={handleSetView}
+            onActiveObjectChange={handleActiveObjectChange}
+            onSave={handleSave}
+            onDeleteRelationship={deleteRelationship}
+            onUpdateRelationship={updateRelationship}
+            onMoveRelationshipNode={handleMoveRelationshipNode}
+            setRelationships={setRelationships}
+            executeQuery={(q) => executeQuery(q)}
+            saveTable={(t, m) => saveTable(t, m)}
+            saveForm={saveForm}
+            showConfirmation={showConfirmation}
+            formActionTrigger={formActionTrigger}
+            backendConfig={backendConfig}
+          />
+        </div>
+      </div>
+
+      <StatusBar currentView={currentView} activeObject={activeObject} onSetView={handleSetView} />
+      
+      {/* Modals */}
+      {savePrompt.show && (
         <SaveChangesModal 
-          objectType={('fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) ? 'Tabelle' : 'Abfrage'}
-          objectName={activeObject.name}
+          objectType={activeObject && 'fields' in activeObject ? 'Tabelle' : 'Abfrage'}
+          objectName={activeObject?.name || 'Unbenannt'}
           onYes={() => closeSavePrompt('yes')}
           onNo={() => closeSavePrompt('no')}
           onCancel={() => closeSavePrompt('cancel')}
         />
       )}
-       {itemContextMenu && (
-        <ItemContextMenu
-          x={itemContextMenu.x}
-          y={itemContextMenu.y}
-          itemType={itemContextMenu.type}
-          onAction={handleContextMenuAction}
-        />
+      
+      {itemContextMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={closeItemContextMenu}></div>
+          <ItemContextMenu 
+            x={itemContextMenu.x} 
+            y={itemContextMenu.y} 
+            itemType={itemContextMenu.type}
+            onAction={handleContextMenuAction}
+          />
+        </>
       )}
+
       {nameInput && (
         <InputModal 
           title={nameInput.title}
@@ -371,15 +525,17 @@ export default function App() {
           onCancel={nameInput.onCancel}
         />
       )}
+
       {showReportWizard && (
-        <ReportWizardModal
-          tables={tables}
-          queries={queries}
+        <ReportWizardModal 
+          tables={tables} 
+          queries={queries} 
           onSave={handleSaveReport}
-          onClose={() => setShowReportWizard(false)}
+          onClose={() => setShowReportWizard(false)} 
         />
       )}
-       {showFormWizard && (
+      
+      {showFormWizard && (
         <FormWizardModal
           tables={tables}
           queries={queries}
@@ -387,8 +543,12 @@ export default function App() {
           onClose={() => setShowFormWizard(false)}
         />
       )}
+
+      {activeWizard === 'duplicate' && <DuplicateWizard tables={tables} onSave={handleSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
+      {activeWizard === 'inconsistency' && <InconsistencyWizard tables={tables} onSave={handleSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
+
       {confirmationModal && (
-        <ConfirmationModal
+        <ConfirmationModal 
           title={confirmationModal.title}
           message={confirmationModal.message}
           onConfirm={() => {
@@ -398,49 +558,6 @@ export default function App() {
           onCancel={() => setConfirmationModal(null)}
         />
       )}
-      <Ribbon 
-        onAction={handleRibbonAction} 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab}
-        currentDbType={dbType}
-      />
-
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
-          tables={tables} 
-          queries={queries} 
-          reports={reports}
-          forms={forms}
-          onSelectTable={(id) => handleSetView({ type: 'table_data', tableId: id })}
-          onSelectQuery={(id) => handleSetView({ type: 'query_designer', queryId: id })}
-          onSelectReport={(id) => handleSetView({ type: 'report_view', reportId: id })}
-          onSelectForm={(id) => handleSetView({ type: 'form_view', formId: id })}
-          onItemContextMenu={handleItemContextMenu}
-        />
-
-        <Workspace
-          currentView={currentView}
-          tables={tables}
-          queries={queries}
-          reports={reports}
-          forms={forms}
-          canvasNodes={getCanvasNodes()}
-          relationships={relationships}
-          activeObject={activeObject}
-          isDirty={isDirty}
-          onSetView={handleSetView}
-          onActiveObjectChange={handleActiveObjectChange}
-          onSave={handleSave}
-          onDeleteRelationship={deleteRelationship}
-          onUpdateRelationship={updateRelationship}
-          onMoveRelationshipNode={handleMoveRelationshipNode}
-          setRelationships={setRelationships}
-          executeQuery={executeQuery}
-          saveTable={saveTable}
-          saveForm={saveForm}
-          showConfirmation={showConfirmation}
-        />
-      </div>
     </div>
   );
 }

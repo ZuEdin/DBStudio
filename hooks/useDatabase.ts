@@ -1,50 +1,237 @@
-import { useState } from 'react';
-import { DbType, Table, Query, Relationship, Report, Form, SelectQuery } from '../types/index';
+
+import { useState, useEffect } from 'react';
+import { DbType, Table, Query, Relationship, Report, Form, SelectQuery, Project, BackendConfig, FormElement } from '../types/index';
+import { executeSelectQuery } from '../features/queries/utils/queryExecution';
+import { saveProjectToStorage } from '../services/storageService';
 
 export const useDatabase = () => {
+  // Project State
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [currentProjectName, setCurrentProjectName] = useState<string>('');
+
   const [dbType, setDbType] = useState<DbType | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
   const [queries, setQueries] = useState<Query[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
-
-  const createInitialTables = (): Table[] => [
-    { 
-      id: 't1', 
-      name: 'Kunden', 
-      fields: [
-        { id: 'f1', name: 'KundenID', type: 'INTEGER', isPrimaryKey: true },
-        { id: 'f2', name: 'Name', type: 'VARCHAR' },
-        { id: 'f3', name: 'Email', type: 'VARCHAR' }
-      ],
-      data: [
-        { KundenID: 1, Name: 'Anna Schmidt', Email: 'anna.schmidt@example.com' },
-        { KundenID: 2, Name: 'Ben Müller', Email: 'ben.mueller@example.com' },
-        { KundenID: 3, Name: 'Carla Weber', Email: 'carla.weber@example.com' },
-      ]
-    },
-    { 
-      id: 't2', 
-      name: 'Bestellungen', 
-      fields: [
-        { id: 'f4', name: 'BestellID', type: 'INTEGER', isPrimaryKey: true },
-        { id: 'f5', name: 'KundenID', type: 'INTEGER' },
-        { id: 'f6', name: 'Datum', type: 'DATE' },
-        { id: 'f7', name: 'Betrag', type: 'INTEGER' }
-      ],
-       data: [
-        { BestellID: 101, KundenID: 1, Datum: '2023-10-15', Betrag: 150 },
-        { BestellID: 102, KundenID: 2, Datum: '2023-10-16', Betrag: 75 },
-        { BestellID: 103, KundenID: 1, Datum: '2023-11-02', Betrag: 220 },
-        { BestellID: 104, KundenID: 3, Datum: '2023-11-05', Betrag: 45 },
-      ]
-    }
-  ];
   
-  const createInitialRelationships = (): Relationship[] => [
-    { id: 'r1', fromTableId: 't1', fromFieldId: 'f1', toTableId: 't2', toFieldId: 'f5', type: '1:n', referentialIntegrity: true }
-  ];
+  const [loadedBackendConfig, setLoadedBackendConfig] = useState<BackendConfig | null>(null);
+
+  // Define Demo Data Structure (IT Notebook Lending)
+  const getDemoData = () => {
+      // 1. Tables
+      const tables: Table[] = [
+        { 
+          id: 't_ma', 
+          name: 'Mitarbeiter', 
+          fields: [
+            { id: 'f_ma_1', name: 'MitarbeiterID', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+            { id: 'f_ma_2', name: 'Vorname', type: 'VARCHAR', length: 50 },
+            { id: 'f_ma_3', name: 'Nachname', type: 'VARCHAR', length: 50 },
+            { id: 'f_ma_4', name: 'Abteilung', type: 'VARCHAR', length: 50 },
+            { id: 'f_ma_5', name: 'Email', type: 'VARCHAR', length: 100 }
+          ],
+          data: [
+            { MitarbeiterID: 1, Vorname: 'Max', Nachname: 'Mustermann', Abteilung: 'Vertrieb', Email: 'max.mustermann@firma.de' },
+            { MitarbeiterID: 2, Vorname: 'Erika', Nachname: 'Gabler', Abteilung: 'Marketing', Email: 'erika.gabler@firma.de' },
+            { MitarbeiterID: 3, Vorname: 'Klaus', Nachname: 'Kleber', Abteilung: 'IT-Support', Email: 'klaus.kleber@firma.de' },
+            { MitarbeiterID: 4, Vorname: 'Julia', Nachname: 'Sommer', Abteilung: 'HR', Email: 'julia.sommer@firma.de' },
+          ]
+        },
+        { 
+          id: 't_nb', 
+          name: 'Notebooks', 
+          fields: [
+            { id: 'f_nb_1', name: 'GeraeteID', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+            { id: 'f_nb_2', name: 'Modell', type: 'VARCHAR', length: 100 },
+            { id: 'f_nb_3', name: 'Seriennummer', type: 'VARCHAR', length: 50 },
+            { id: 'f_nb_4', name: 'Kaufdatum', type: 'DATE' },
+            { id: 'f_nb_5', name: 'Status', type: 'VARCHAR', length: 20, defaultValue: 'Verfügbar' } 
+          ],
+           data: [
+            { GeraeteID: 101, Modell: 'Dell XPS 13', Seriennummer: 'DX13-998877', Kaufdatum: '2023-01-15', Status: 'Verliehen' },
+            { GeraeteID: 102, Modell: 'MacBook Pro 14', Seriennummer: 'MBP-2023-AA', Kaufdatum: '2023-03-10', Status: 'Verliehen' },
+            { GeraeteID: 103, Modell: 'Lenovo ThinkPad X1', Seriennummer: 'TP-X1-5544', Kaufdatum: '2022-11-05', Status: 'Verfügbar' },
+            { GeraeteID: 104, Modell: 'Dell Latitude 5520', Seriennummer: 'DL-5520-1122', Kaufdatum: '2022-06-20', Status: 'Reparatur' },
+          ]
+        },
+        { 
+          id: 't_vl', 
+          name: 'Verleihliste', 
+          fields: [
+            { id: 'f_vl_1', name: 'VerleihID', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+            { id: 'f_vl_2', name: 'MitarbeiterID', type: 'INTEGER' }, // FK
+            { id: 'f_vl_3', name: 'GeraeteID', type: 'INTEGER' }, // FK
+            { id: 'f_vl_4', name: 'Ausgabedatum', type: 'DATE' },
+            { id: 'f_vl_5', name: 'Rueckgabedatum', type: 'DATE', allowNull: true }
+          ],
+           data: [
+            { VerleihID: 1, MitarbeiterID: 1, GeraeteID: 101, Ausgabedatum: '2023-10-01', Rueckgabedatum: '' },
+            { VerleihID: 2, MitarbeiterID: 2, GeraeteID: 102, Ausgabedatum: '2023-10-15', Rueckgabedatum: '' },
+            { VerleihID: 3, MitarbeiterID: 3, GeraeteID: 103, Ausgabedatum: '2023-09-01', Rueckgabedatum: '2023-09-15' }, 
+          ]
+        }
+      ];
+      
+      // 2. Relationships
+      const relationships: Relationship[] = [
+        { id: 'r1', fromTableId: 't_ma', fromFieldId: 'f_ma_1', toTableId: 't_vl', toFieldId: 'f_vl_2', type: '1:n', referentialIntegrity: true },
+        { id: 'r2', fromTableId: 't_nb', fromFieldId: 'f_nb_1', toTableId: 't_vl', toFieldId: 'f_vl_3', type: '1:n', referentialIntegrity: true }
+      ];
+
+      // 3. Queries
+      const queries: Query[] = [
+          {
+              id: 'q_active',
+              type: 'SELECT',
+              name: 'Aktive Ausleihen',
+              nodes: [
+                  { id: 'n1', tableId: 't_vl', x: 250, y: 50 },
+                  { id: 'n2', tableId: 't_ma', x: 50, y: 50 },
+                  { id: 'n3', tableId: 't_nb', x: 450, y: 50 }
+              ],
+              columns: [
+                  { id: 'qc1', tableId: 't_ma', fieldId: 'f_ma_2', tableName: 'Mitarbeiter', fieldName: 'Vorname', sort: '', show: true, criteria: [''] },
+                  { id: 'qc2', tableId: 't_ma', fieldId: 'f_ma_3', tableName: 'Mitarbeiter', fieldName: 'Nachname', sort: 'ASC', show: true, criteria: [''] },
+                  { id: 'qc3', tableId: 't_nb', fieldId: 'f_nb_2', tableName: 'Notebooks', fieldName: 'Modell', sort: '', show: true, criteria: [''] },
+                  { id: 'qc4', tableId: 't_vl', fieldId: 'f_vl_4', tableName: 'Verleihliste', fieldName: 'Ausgabedatum', sort: '', show: true, criteria: [''] },
+                  { id: 'qc5', tableId: 't_vl', fieldId: 'f_vl_5', tableName: 'Verleihliste', fieldName: 'Rueckgabedatum', sort: '', show: true, criteria: ['IS NULL'] } // Updated Criteria
+              ]
+          }
+      ];
+
+      // 4. Forms
+      const forms: Form[] = [
+          {
+              id: 'frm_ma',
+              name: 'Mitarbeiter verwalten',
+              sourceType: 'table',
+              sourceId: 't_ma',
+              layout: {
+                  id: 'root_ma',
+                  type: 'container',
+                  className: 'p-6 bg-white space-y-4 max-w-2xl mx-auto',
+                  children: [
+                      { id: 'l1', type: 'label', label: 'Stammdaten Mitarbeiter', className: 'text-lg font-bold text-slate-700 border-b pb-2 mb-4' },
+                      { id: 'c1', type: 'container', className: 'grid grid-cols-2 gap-4', children: [
+                          { id: 'f1', type: 'field', fieldId: 'f_ma_2', label: 'Vorname' },
+                          { id: 'f2', type: 'field', fieldId: 'f_ma_3', label: 'Nachname' }
+                      ]},
+                      { id: 'f3', type: 'field', fieldId: 'f_ma_4', label: 'Abteilung' },
+                      { id: 'f4', type: 'field', fieldId: 'f_ma_5', label: 'E-Mail Adresse' },
+                  ]
+              }
+          },
+          {
+              id: 'frm_vl',
+              name: 'Geräteausgabe',
+              sourceType: 'table',
+              sourceId: 't_vl',
+              mode: 'edit',
+              layout: {
+                  id: 'root_vl',
+                  type: 'container',
+                  className: 'p-6 bg-white space-y-4 max-w-xl mx-auto border rounded shadow-sm',
+                  children: [
+                      { id: 'l_vl', type: 'label', label: 'Neuen Verleih erfassen', className: 'text-xl font-bold text-indigo-700 mb-6' },
+                      { 
+                          id: 'f_vl_ma', 
+                          type: 'field', 
+                          fieldId: 'f_vl_2', 
+                          label: 'Mitarbeiter auswählen', 
+                          widgetType: 'select',
+                          lookup: {
+                              tableId: 't_ma',
+                              valueFieldId: 'f_ma_1',
+                              labelFields: ['f_ma_2', 'f_ma_3', 'f_ma_4'] // Vorname, Nachname, Abteilung
+                          }
+                      },
+                      { 
+                          id: 'f_vl_nb', 
+                          type: 'field', 
+                          fieldId: 'f_vl_3', 
+                          label: 'Gerät auswählen', 
+                          widgetType: 'select',
+                          lookup: {
+                              tableId: 't_nb',
+                              valueFieldId: 'f_nb_1',
+                              labelFields: ['f_nb_2', 'f_nb_3'] // Modell, Serial
+                          }
+                      },
+                      { id: 'sep', type: 'container', className: 'border-t my-4' },
+                      { id: 'f_vl_date', type: 'field', fieldId: 'f_vl_4', label: 'Ausgabedatum', widgetType: 'date' },
+                      { id: 'f_vl_ret', type: 'field', fieldId: 'f_vl_5', label: 'Rückgabedatum (Optional)', widgetType: 'date' }
+                  ]
+              }
+          }
+      ];
+
+      // 5. Reports
+      const reports: Report[] = [
+          {
+              id: 'rep_handover',
+              name: 'Übergabeprotokoll (Offen)',
+              sourceType: 'query',
+              sourceId: 'q_active',
+              groupingFieldId: 'qc2', // Nachname
+              summaries: [],
+              columns: [
+                  { fieldId: 'qc1', label: 'Vorname', visible: true, order: 0 },
+                  { fieldId: 'qc2', label: 'Nachname', visible: true, order: 1 },
+                  { fieldId: 'qc3', label: 'Gerät', visible: true, order: 2 },
+                  { fieldId: 'qc4', label: 'Ausgabe am', visible: true, order: 3 }
+              ],
+              settings: {
+                  orientation: 'portrait',
+                  pageBreakAfterGroup: false
+              }
+          }
+      ];
+
+      return { tables, relationships, queries, forms, reports };
+  };
+
+  const loadProject = (project: Project) => {
+      setCurrentProjectId(project.id);
+      setCurrentProjectName(project.name);
+      setTables(project.data.tables);
+      setQueries(project.data.queries);
+      setReports(project.data.reports);
+      setForms(project.data.forms);
+      setRelationships(project.data.relationships);
+      setDbType(project.data.backendConfig.dbType);
+      setLoadedBackendConfig(project.data.backendConfig);
+  };
+
+  const persistProject = async (overrideConfig?: BackendConfig) => {
+      if (!currentProjectId || !dbType) return;
+      
+      const configToSave: BackendConfig = overrideConfig || loadedBackendConfig || {
+          language: 'dotnet',
+          dbType: dbType,
+          projectName: currentProjectName.replace(/\s+/g, ''),
+          port: 5000,
+          dbConnection: '',
+          useSwagger: true,
+          frontendFramework: 'angular'
+      };
+
+      const project: Project = {
+          id: currentProjectId,
+          name: currentProjectName,
+          lastModified: Date.now(),
+          data: {
+              tables,
+              queries,
+              reports,
+              forms,
+              relationships,
+              backendConfig: configToSave
+          }
+      };
+      await saveProjectToStorage(project);
+  };
 
   const saveTable = (newTable: Table, mode: 'create' | 'edit') => {
     if (mode === 'create') {
@@ -57,77 +244,96 @@ export const useDatabase = () => {
   const saveQuery = (newQuery: Query) => {
     setQueries(prev => {
       const exists = prev.some(q => q.id === newQuery.id);
-      if (exists) {
-        return prev.map(q => q.id === newQuery.id ? newQuery : q);
-      }
-      return [...prev, newQuery];
+      return exists ? prev.map(q => q.id === newQuery.id ? newQuery : q) : [...prev, newQuery];
     });
   };
 
   const saveReport = (newReport: Report) => {
     setReports(prev => {
       const exists = prev.some(r => r.id === newReport.id);
-      if (exists) {
-        return prev.map(r => r.id === newReport.id ? newReport : r);
-      }
-      return [...prev, newReport];
+      return exists ? prev.map(r => r.id === newReport.id ? newReport : r) : [...prev, newReport];
     });
   };
   
   const saveForm = (newForm: Form) => {
     setForms(prev => {
       const exists = prev.some(f => f.id === newForm.id);
-      if (exists) {
-        return prev.map(f => f.id === newForm.id ? newForm : f);
-      }
-      return [...prev, newForm];
+      return exists ? prev.map(f => f.id === newForm.id ? newForm : f) : [...prev, newForm];
     });
   };
 
-  const renameTable = (id: string, name: string) => {
-    setTables(prev => prev.map(t => (t.id === id ? { ...t, name } : t)));
-  };
-
-  const renameQuery = (id: string, name: string) => {
-    setQueries(prev => prev.map(q => (q.id === id ? { ...q, name } : q)));
-  };
-
-  const renameReport = (id: string, name: string) => {
-    setReports(prev => prev.map(r => (r.id === id ? { ...r, name } : r)));
-  };
-
-  const renameForm = (id: string, name: string) => {
-    setForms(prev => prev.map(f => (f.id === id ? { ...f, name } : f)));
-  };
-
+  const renameTable = (id: string, name: string) => setTables(prev => prev.map(t => (t.id === id ? { ...t, name } : t)));
+  const renameQuery = (id: string, name: string) => setQueries(prev => prev.map(q => (q.id === id ? { ...q, name } : q)));
+  const renameReport = (id: string, name: string) => setReports(prev => prev.map(r => (r.id === id ? { ...r, name } : r)));
+  const renameForm = (id: string, name: string) => setForms(prev => prev.map(f => (f.id === id ? { ...f, name } : f)));
   const deleteTable = (id: string) => {
     setTables(prev => prev.filter(t => t.id !== id));
     setRelationships(prev => prev.filter(r => r.fromTableId !== id && r.toTableId !== id));
   };
+  const deleteQuery = (id: string) => setQueries(prev => prev.filter(q => q.id !== id));
+  const deleteReport = (id: string) => setReports(prev => prev.filter(r => r.id !== id));
+  const deleteForm = (id: string) => setForms(prev => prev.filter(f => f.id !== id));
+  const deleteRelationship = (id: string) => setRelationships(prev => prev.filter(r => r.id !== id));
+  const updateRelationship = (updatedRel: Relationship) => setRelationships(prev => prev.map(r => r.id === updatedRel.id ? updatedRel : r));
 
-  const deleteQuery = (id: string) => {
-    setQueries(prev => prev.filter(q => q.id !== id));
-  };
-  
-  const deleteReport = (id: string) => {
-    setReports(prev => prev.filter(r => r.id !== id));
-  };
-  
-  const deleteForm = (id: string) => {
-    setForms(prev => prev.filter(f => f.id !== id));
-  };
+  const createNewDatabase = (type: DbType, projectName: string, isDemo: boolean = false) => {
+    const newId = crypto.randomUUID();
+    let newTables: Table[] = [];
+    let newRels: Relationship[] = [];
+    let newQueries: Query[] = [];
+    let newForms: Form[] = [];
+    let newReports: Report[] = [];
 
-  const createNewDatabase = (type: DbType) => {
+    if (isDemo) {
+        const demoData = getDemoData();
+        newTables = demoData.tables;
+        newRels = demoData.relationships;
+        newQueries = demoData.queries;
+        newForms = demoData.forms;
+        newReports = demoData.reports;
+    }
+    
+    // Init State
+    setCurrentProjectId(newId);
+    setCurrentProjectName(projectName);
     setDbType(type);
-    setTables(createInitialTables());
-    setQueries([]);
-    setReports([]);
-    setForms([]);
-    setRelationships(createInitialRelationships());
+    setTables(newTables);
+    setQueries(newQueries);
+    setReports(newReports);
+    setForms(newForms);
+    setRelationships(newRels);
+
+    // Initial Save
+    const initialConfig: BackendConfig = {
+        language: 'dotnet',
+        dbType: type,
+        projectName: projectName.replace(/\s+/g, ''),
+        port: 5000,
+        dbConnection: '',
+        useSwagger: true,
+        frontendFramework: 'angular'
+    };
+    setLoadedBackendConfig(initialConfig);
+
+    const project: Project = {
+        id: newId,
+        name: projectName,
+        lastModified: Date.now(),
+        data: {
+            tables: newTables,
+            queries: newQueries,
+            reports: newReports,
+            forms: newForms,
+            relationships: newRels,
+            backendConfig: initialConfig
+        }
+    };
+    saveProjectToStorage(project);
   };
   
   const resetDatabase = () => {
     setDbType(null);
+    setCurrentProjectId(null);
     setTables([]);
     setQueries([]);
     setReports([]);
@@ -135,123 +341,35 @@ export const useDatabase = () => {
     setRelationships([]);
   };
 
-  const deleteRelationship = (id: string) => {
-    setRelationships(prev => prev.filter(r => r.id !== id));
+  const exportProject = async (config: BackendConfig) => {
+      if (!currentProjectId) return;
+      const projectData: Project = {
+          id: currentProjectId,
+          name: currentProjectName,
+          lastModified: Date.now(),
+          data: {
+              tables, queries, reports, forms, relationships, backendConfig: config
+          }
+      };
+      
+      const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentProjectName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.dbsp`;
+      a.click();
+      URL.revokeObjectURL(url);
   };
 
-  const updateRelationship = (updatedRel: Relationship) => {
-    setRelationships(prev => prev.map(r => r.id === updatedRel.id ? updatedRel : r));
-  };
-  
   const executeQuery = (query: Query): Record<string, any>[] => {
-    // FIX: Add a type guard to ensure this function only processes SELECT queries.
     if (!query || query.type !== 'SELECT') return [];
-
-    if (query.nodes.length === 0 || query.columns.length === 0) return [];
-
-    let workingData: Record<string, any>[] = [];
-    const queryTableIds = new Set(query.nodes.map(n => n.tableId));
-    const initialTableId = query.nodes[0].tableId;
-    const initialTable = tables.find(t => t.id === initialTableId);
-    if (!initialTable || !initialTable.data) return [];
-
-    workingData = initialTable.data.map(row => {
-        const newRow: Record<string, any> = {};
-        for (const key in row) { newRow[`${initialTable.name}.${key}`] = row[key]; }
-        return newRow;
-    });
-    
-    const joinedTables = new Set([initialTableId]);
-    const relevantRels = relationships.filter(r => queryTableIds.has(r.fromTableId) && queryTableIds.has(r.toTableId));
-
-    for (const rel of relevantRels) {
-        const join = (t1Id: string, t2Id: string, f1Id: string, f2Id: string) => {
-            if (joinedTables.has(t1Id) && !joinedTables.has(t2Id)) {
-                const table1 = tables.find(t => t.id === t1Id)!;
-                const table2 = tables.find(t => t.id === t2Id)!;
-                if (!table2.data) return;
-                
-                const field1 = table1.fields.find(f => f.id === f1Id)!;
-                const field2 = table2.fields.find(f => f.id === f2Id)!;
-                
-                const newData: Record<string, any>[] = [];
-                workingData.forEach(row1 => {
-                    table2.data!.forEach(row2 => {
-                        if (row1[`${table1.name}.${field1.name}`] === row2[field2.name]) {
-                            const newRow = {...row1};
-                            for (const key in row2) { newRow[`${table2.name}.${key}`] = row2[key]; }
-                            newData.push(newRow);
-                        }
-                    });
-                });
-                workingData = newData;
-                joinedTables.add(t2Id);
-            }
-        };
-        join(rel.fromTableId, rel.toTableId, rel.fromFieldId, rel.toFieldId);
-        join(rel.toTableId, rel.fromTableId, rel.toFieldId, rel.fromFieldId);
-    }
-
-    const filteredData = workingData.filter(row => {
-        for (const col of query.columns) {
-            const validCriteria = col.criteria.filter(c => c && c.trim() !== '');
-            if (validCriteria.length > 0) {
-                const fieldName = `${col.tableName}.${col.fieldName}`;
-                const cellValue = row[fieldName];
-                const orConditionsMet = validCriteria.some(crit => {
-                    const parts = crit.match(/(^\S*)\s*(.*)/)?.slice(1);
-                    if (!parts || parts.length < 2) return String(cellValue) === crit;
-                    let [operator, valueStr] = parts;
-                    let value: any = valueStr.trim();
-                    if (value.startsWith("'") && value.endsWith("'")) {
-                        value = value.substring(1, value.length - 1);
-                    } else if (value !== '' && !isNaN(Number(value))) {
-                        value = Number(value);
-                    }
-                    
-                    switch(operator) {
-                        case '=': return cellValue == value;
-                        case '!=': return cellValue != value;
-                        case '>': return cellValue > value;
-                        case '<': return cellValue < value;
-                        case '>=': return cellValue >= value;
-                        case '<=': return cellValue <= value;
-                        case 'LIKE': return String(cellValue).toLowerCase().includes(String(value).toLowerCase());
-                        default: return String(cellValue) === crit;
-                    }
-                });
-                if (!orConditionsMet) return false;
-            }
-        }
-        return true;
-    });
-
-    const selectedData = filteredData.map(row => {
-        const newRow: Record<string, any> = {};
-        query.columns.filter(c => c.show).forEach(col => {
-           newRow[col.fieldName] = row[`${col.tableName}.${col.fieldName}`];
-        });
-        return newRow;
-    });
-    
-    if (query.columns.some(c => c.sort)) {
-        selectedData.sort((a, b) => {
-            for (const col of query.columns) {
-                if (col.sort) {
-                    const valA = a[col.fieldName]; const valB = b[col.fieldName];
-                    const direction = col.sort.toUpperCase() === 'DESC' ? -1 : 1;
-                    if (valA < valB) return -1 * direction;
-                    if (valA > valB) return 1 * direction;
-                }
-            }
-            return 0;
-        });
-    }
-    
-    return selectedData;
+    return executeSelectQuery(query as SelectQuery, tables, relationships);
   };
 
   return {
+    currentProjectId,
+    currentProjectName,
+    loadedBackendConfig,
     dbType,
     tables,
     queries,
@@ -264,6 +382,8 @@ export const useDatabase = () => {
     saveReport,
     saveForm,
     createNewDatabase,
+    loadProject,
+    persistProject,
     resetDatabase,
     deleteRelationship,
     updateRelationship,
@@ -276,5 +396,6 @@ export const useDatabase = () => {
     deleteReport,
     deleteForm,
     executeQuery,
+    exportProject
   };
 };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Table, Query, Report, Form } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, ChevronLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 interface SidebarProps {
   tables: Table[];
@@ -12,9 +12,11 @@ interface SidebarProps {
   onSelectReport: (id: string) => void;
   onSelectForm: (id: string) => void;
   onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form', id: string) => void;
+  isOpen: boolean;
+  toggleSidebar: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onItemContextMenu }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onItemContextMenu, isOpen, toggleSidebar }) => {
   const [openGroups, setOpenGroups] = useState({ tables: true, queries: true, reports: true, forms: true });
 
   const toggleGroup = (group: keyof typeof openGroups) => {
@@ -26,11 +28,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  if (!isOpen) {
+    return (
+      <div className="w-8 bg-slate-50 border-r border-slate-300 flex flex-col items-center py-2 select-none">
+        <button onClick={toggleSidebar} title="Seitenleiste einblenden" className="p-1 hover:bg-slate-200 rounded text-slate-600">
+          <PanelLeftOpen size={20} />
+        </button>
+        <div className="mt-4 flex flex-col gap-4 text-slate-400">
+           <Database size={16} />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-64 bg-slate-50 border-r border-slate-300 flex flex-col h-full select-none">
-      <div className="p-2 bg-slate-200 border-b border-slate-300 font-bold text-slate-700 text-sm flex items-center gap-2">
-        <Database size={16} />
-        <span>Alle Objekte</span>
+    <div className="w-64 bg-slate-50 border-r border-slate-300 flex flex-col h-full select-none transition-all duration-300">
+      <div className="p-2 bg-slate-200 border-b border-slate-300 font-bold text-slate-700 text-sm flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Database size={16} />
+          <span>Alle DBObjekte</span>
+        </div>
+        <button onClick={toggleSidebar} className="text-slate-500 hover:text-slate-800 p-0.5 rounded">
+           <PanelLeftClose size={16} />
+        </button>
       </div>
       
       <div className="flex-1 overflow-y-auto p-2 space-y-2">

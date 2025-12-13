@@ -21,7 +21,9 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      const json = e.dataTransfer.getData('application/json');
+      if (!json) return;
+      const data = JSON.parse(json);
       if (data.type === 'form') {
         const subform = allForms.find(f => f.id === data.formId);
         if (subform) {
