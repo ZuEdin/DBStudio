@@ -27,7 +27,7 @@ export const generateBackendCode = (
 
   // Frontend Selection
   if (config.frontendFramework === 'angular') {
-    const angularFiles = generateAngular(tables, relationships, queries, forms, config);
+    const angularFiles = generateAngular(tables, relationships, queries, forms, config, reports);
     files = [...files, ...angularFiles];
   } else if (config.frontendFramework === 'react') {
     // Pass reports to React generator
