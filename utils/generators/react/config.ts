@@ -21,6 +21,25 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   };
   files.push({ name: 'tsconfig.json', path: `${root}/tsconfig.json`, content: JSON.stringify(tsConfig, null, 2), language: 'json' });
 
+  // Missing tsconfig.node.json (Critical for Vite build)
+  const tsConfigNode = {
+    "compilerOptions": {
+      "composite": true,
+      "skipLibCheck": true,
+      "module": "ESNext",
+      "moduleResolution": "bundler",
+      "allowSyntheticDefaultImports": true
+    },
+    "include": ["vite.config.ts"]
+  };
+  files.push({ name: 'tsconfig.node.json', path: `${root}/tsconfig.node.json`, content: JSON.stringify(tsConfigNode, null, 2), language: 'json' });
+
+  // Missing index.css (Critical for Tailwind)
+  files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;`, language: 'css' });
+
+  // Missing vite-env.d.ts (Nice to have)
+  files.push({ name: 'vite-env.d.ts', path: `${root}/src/vite-env.d.ts`, content: `/// <reference types="vite/client" />`, language: 'typescript' });
+
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: 3000 } });`, language: 'typescript' });
   files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `export default { content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"], theme: { extend: {} }, plugins: [] }`, language: 'javascript' });
   files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
