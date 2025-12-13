@@ -1,4 +1,3 @@
-
 import { Table, Form, Report, VirtualFile } from '../../../types/index';
 import { toCamelCase, toPascalCase } from '../common';
 import { generateJsxForLayout, collectLookups } from './layoutHelper';
@@ -16,7 +15,7 @@ export const generateReactPages = (tables: Table[], forms: Form[], reports: Repo
 import { Link } from 'react-router-dom';
 import { ${pascalName} } from '../../types';
 import { get, remove } from '../../services/api';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Edit } from 'lucide-react';
 
 export const ${listName} = () => {
   const [items, setItems] = useState<${pascalName}[]>([]);
@@ -47,6 +46,9 @@ export const ${listName} = () => {
                 <tr key={i.${pk}} className="hover:bg-slate-50">
                     ${table.fields.map(f => `<td className="p-4 text-sm text-slate-800">{i.${toCamelCase(f.name)}}</td>`).join('')}
                     <td className="p-4 flex justify-end gap-2">
+                        <Link to={'/${camelName}/' + i.${pk}} className="text-blue-500 hover:text-blue-700 transition-colors" title="Bearbeiten">
+                            <Edit size={18}/>
+                        </Link>
                         <button onClick={()=>handleDelete(i.${pk})} className="text-red-500 hover:text-red-700 transition-colors"><Trash2 size={18}/></button>
                     </td>
                 </tr>

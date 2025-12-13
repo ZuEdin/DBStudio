@@ -280,25 +280,27 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
         {/* Monaco Editor */}
         <div className="flex-1 relative">
             {selectedFile ? (
-                <Editor
-                    height="100%"
-                    language={selectedFile.language}
-                    value={selectedFile.content}
-                    theme="vs-light"
-                    options={{ 
-                        minimap: { enabled: false }, 
-                        fontSize: 13, 
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true
-                    }}
-                    onChange={(val) => {
-                        if (val && selectedFile) {
-                            const newFiles = generatedFiles.map(f => f.path === selectedFile.path ? { ...f, content: val } : f);
-                            setGeneratedFiles(newFiles);
-                            setSelectedFile({ ...selectedFile, content: val });
-                        }
-                    }}
-                />
+                <div className="absolute inset-0 overflow-hidden">
+                    <Editor
+                        height="100%"
+                        language={selectedFile.language}
+                        value={selectedFile.content}
+                        theme="vs-light"
+                        options={{ 
+                            minimap: { enabled: false }, 
+                            fontSize: 13, 
+                            scrollBeyondLastLine: false,
+                            automaticLayout: true
+                        }}
+                        onChange={(val) => {
+                            if (val && selectedFile) {
+                                const newFiles = generatedFiles.map(f => f.path === selectedFile.path ? { ...f, content: val } : f);
+                                setGeneratedFiles(newFiles);
+                                setSelectedFile({ ...selectedFile, content: val });
+                            }
+                        }}
+                    />
+                </div>
             ) : (
                 <div className="flex h-full items-center justify-center flex-col text-slate-300 gap-2">
                     <FileCode size={48} className="opacity-20" />
