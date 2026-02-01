@@ -6,29 +6,58 @@ export enum DbType {
   NoSQL = 'NoSQL'
 }
 
-// We keep FieldType as a string union for now, but in the future, it could just be string to fully rely on the JSON config
 export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE';
 
 export interface Field {
   id: string;
   name: string;
   type: FieldType;
-  // Extended Attributes
+  isPrimaryKey?: boolean;
+  isAutoIncrement?: boolean;
+  allowNull?: boolean;
+  defaultValue?: string;
   length?: number;
   precision?: number;
   scale?: number;
-  
-  isPrimaryKey?: boolean;
-  isAutoIncrement?: boolean;
-  allowNull?: boolean; 
-  defaultValue?: string; 
+  displayFormat?: string;
+}
+
+export interface ValidationRule {
+  id: string;
+  fieldId: string;
+  operator: ValidationOperator;
+  compareType: 'value' | 'field';
+  compareValue: string;
+  errorMessage?: string;
+}
+
+export type ValidationOperator = 'gt' | 'lt' | 'gte' | 'lte' | 'eq' | 'neq' | 'regex';
+
+export interface ApiQueryParam {
+  id: string;
+  key: string;
+  value: string;
+  type: 'text' | 'select';
+  options?: string[];
+  isActive: boolean;
+}
+
+export interface ApiConfig {
+  url: string;
+  method: string;
+  headers?: string;
+  queryParams?: ApiQueryParam[];
+  refreshOnLoad?: boolean;
 }
 
 export interface Table {
   id: string;
   name: string;
   fields: Field[];
-  data?: Record<string, any>[];
+  data?: any[];
+  isApiImport?: boolean;
+  apiConfig?: ApiConfig;
+  validationRules?: ValidationRule[];
 }
 
 export interface TableNode {
@@ -38,7 +67,7 @@ export interface TableNode {
   y: number;
 }
 
-export type ReferentialAction = 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION';
+export type ReferentialAction = 'NO ACTION' | 'CASCADE' | 'SET NULL' | 'RESTRICT';
 
 export interface Relationship {
   id: string;
@@ -56,87 +85,79 @@ export type AggregateFunction = 'GROUP_BY' | 'SUM' | 'COUNT' | 'AVG' | 'MIN' | '
 
 export interface QueryColumn {
   id: string;
-  tableId: string; // Can be empty if calculated
-  fieldId: string; // Can be 'calculated'
+  tableId: string;
+  fieldId: string;
   tableName: string;
   fieldName: string;
-  alias?: string; // Für "Ausgabe eigener Spaltennamen"
-  sort: '' | 'ASC' | 'DESC';
+  alias?: string;
+  sort?: 'ASC' | 'DESC' | '';
   show: boolean;
   criteria: string[];
-  aggregate?: AggregateFunction | null; // Für Gruppierung
-  isCalculated?: boolean; // Für kombinierte Spalten
-  expression?: string; // z.B. "{{Kunden.Vorname}} & ' ' & {{Kunden.Nachname}}"
+  aggregate?: AggregateFunction | null;
+  isCalculated?: boolean;
+  expression?: string;
 }
 
-// Query structure using discriminated union
-export type QueryType = 'SELECT' | 'APPEND' | 'DELETE';
-
-interface QueryBase {
+export interface SelectQuery {
   id: string;
-  name: string;
-  type: QueryType;
-}
-
-export interface SelectQuery extends QueryBase {
   type: 'SELECT';
+  name: string;
   nodes: TableNode[];
   columns: QueryColumn[];
-  sql?: string;
 }
 
-export interface AppendQuery extends QueryBase {
-  type: 'APPEND';
-  source: {
-    type: 'table' | 'query';
+export interface ActionQuery {
     id: string;
-  };
-  targetTableId: string;
-  fieldMappings: {
-    sourceFieldId: string;
-    targetFieldId: string;
-  }[];
+    type: 'INSERT' | 'UPDATE' | 'DELETE';
+    name: string;
+    // Simplified action query structure if needed
 }
 
-export interface DeleteQuery extends QueryBase {
-  type: 'DELETE';
-  targetTableId: string;
-  criteria: QueryColumn[];
-}
+export type Query = SelectQuery | ActionQuery;
 
-export type Query = SelectQuery | DeleteQuery | AppendQuery;
-
-
-export interface ReportSummary {
-  fieldId: string;
-  fieldName: string;
-  calculation: 'SUM' | 'COUNT';
+export interface TextStyle {
+    fontFamily?: string;
+    fontSize?: number;
+    color?: string;
+    backgroundColor?: string;
+    bold?: boolean;
+    italic?: boolean;
+    align?: 'left' | 'center' | 'right';
+    borderBottom?: boolean;
 }
 
 export interface FormattingRule {
-  operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains';
-  value: string;
-  style: {
-    color?: string;
-    backgroundColor?: string;
-    fontWeight?: 'normal' | 'bold';
-  };
+    operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains';
+    value: string;
+    style: TextStyle;
 }
 
 export interface ReportColumn {
-  fieldId: string;
-  label: string; // Header text
-  width?: number; // percentage or pixels, defaults to auto
-  visible: boolean;
-  order: number;
-  formattingRules?: FormattingRule[];
+    fieldId: string;
+    label: string;
+    visible: boolean;
+    order: number;
+    formattingRules?: FormattingRule[];
+}
+
+export interface ReportSummary {
+    fieldId: string;
+    fieldName: string;
+    calculation: 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX';
+}
+
+export interface ReportStyles {
+    header?: TextStyle;
+    groupHeader?: TextStyle;
+    columnHeader?: TextStyle;
+    detail?: TextStyle;
+    footer?: TextStyle;
 }
 
 export interface ReportSettings {
-  pageBreakAfterGroup?: boolean;
-  groupMethod?: 'full' | 'firstLetter'; // "full" = ganzer Wert, "firstLetter" = A, B, C...
-  paperSize?: 'A4' | 'Letter';
-  orientation?: 'portrait' | 'landscape';
+    orientation?: 'portrait' | 'landscape';
+    pageBreakAfterGroup?: boolean;
+    groupMethod?: 'full' | 'firstLetter';
 }
 
 export interface Report {
@@ -145,71 +166,51 @@ export interface Report {
   sourceType: 'table' | 'query';
   sourceId: string;
   groupingFieldId?: string;
+  columns?: ReportColumn[];
   summaries: ReportSummary[];
-  columns?: ReportColumn[]; // New Layout Config
-  settings?: ReportSettings; // New Settings
+  styles?: ReportStyles;
+  settings?: ReportSettings;
+}
+
+export interface LookupConfig {
+    tableId: string;
+    valueFieldId: string;
+    labelFields: string[];
+    displayFormat?: { fieldId: string, prefix?: string, suffix?: string }[];
+    allowQuickCreate?: boolean;
+    quickCreateFormId?: string;
+    sort?: { fieldId: string, direction: 'ASC' | 'DESC' };
 }
 
 export interface Subform {
-  formId: string;
-  masterLinkFieldId: string;
-  childLinkFieldId: string;
-  // Permissions
-  canAdd?: boolean;
-  canDelete?: boolean;
-  canEdit?: boolean;
+    formId: string;
+    masterLinkFieldId: string;
+    childLinkFieldId: string;
+    canAdd?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
-
-// --- Neue Formular Struktur ---
-
-export type FormElementType = 'container' | 'field' | 'label' | 'subform';
-export type FormWidgetType = 'text' | 'number' | 'date' | 'checkbox' | 'select' | 'textarea';
 
 export interface FormElement {
   id: string;
-  type: FormElementType;
-  // Für Layout
-  className?: string; // Tailwind Klassen z.B. "grid grid-cols-2 gap-4" oder "p-4 bg-gray-100"
-  children?: FormElement[];
-  
-  // Für Fields
+  type: 'container' | 'field' | 'label' | 'subform';
   fieldId?: string;
-  label?: string; // Überschreibt Feldname oder ist Text für Label-Type
-  widgetType?: FormWidgetType; // NEU: Steuert die Anzeige (Select, Checkbox etc.)
-  
-  // Konfiguration für Dropdowns (Select)
-  lookup?: {
-      tableId: string;      // Aus welcher Tabelle kommen die Daten?
-      valueFieldId: string; // Welches Feld wird gespeichert (z.B. ID)?
-      labelFields: string[]; // Deprecated/Simple: NEU: Array von Feld-IDs für die Anzeige
-      displayFormat?: {      // Advanced Configuration
-          fieldId: string;
-          prefix?: string;   // z.B. "("
-          suffix?: string;   // z.B. ") " oder ", "
-      }[];
-      // Quick Create Configuration
-      allowQuickCreate?: boolean; // Zeige (+) Button
-      quickCreateFormId?: string; // Welches Formular soll im Modal geladen werden?
-      
-      // Sorting Configuration
-      sort?: {
-          fieldId: string;
-          direction: 'ASC' | 'DESC';
-      };
-  };
-
-  // Für Subforms (in Container eingebettet oder als eigenes Element)
+  label?: string; 
+  className?: string;
+  children?: FormElement[];
+  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select';
+  lookup?: LookupConfig;
   subform?: Subform;
 }
 
 export interface FormField {
-  fieldId: string;
-  label: string;
+    fieldId: string;
+    label: string;
 }
 
 export interface FormSettings {
-  isFullScreen?: boolean;
-  showEditToggle?: boolean; // NEU: Steuert den Bearbeitungs-Button
+    isFullScreen?: boolean;
+    showEditToggle?: boolean;
 }
 
 export interface Form {
@@ -217,39 +218,172 @@ export interface Form {
   name: string;
   sourceType: 'table' | 'query';
   sourceId: string;
-  // Root Element für Layout (meistens ein Container)
-  layout?: FormElement;
   mode?: 'edit' | 'readonly';
+  layout?: FormElement;
+  fields: FormField[];
+  subform?: Subform;
   settings?: FormSettings;
-  
-  // Legacy Support (wird migriert oder ignoriert, wenn layout existiert)
-  fields?: FormField[]; 
-  subform?: Subform; // Legacy root subform
 }
 
-// --- Backend Configuration ---
+export type ChartType = 'bar' | 'line' | 'area' | 'pie';
 
-export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel';
-export type FrontendFramework = 'none' | 'angular' | 'react' | 'blazor';
+export interface ChartConfig {
+    xAxisFieldId: string;
+    yAxisFieldIds: string[];
+    showGrid?: boolean;
+}
+
+export interface Chart {
+    id: string;
+    name: string;
+    type: ChartType;
+    sourceType: 'table' | 'query';
+    sourceId: string;
+    config: ChartConfig;
+}
+
+export interface WorkflowNode {
+    id: string;
+    type: 'trigger' | 'condition' | 'action';
+    x: number;
+    y: number;
+    label: string;
+    triggerConfig?: {
+        event: 'onCreate' | 'onUpdate' | 'onDelete' | 'schedule';
+        tableId?: string;
+        cronExpression?: string;
+    };
+    conditionConfig?: {
+        fieldId?: string;
+        operator?: string;
+        value?: string;
+    };
+    actionConfig?: {
+        actionType: 'sendEmail' | 'updateRecord' | 'createRecord';
+        emailTo?: string;
+        emailSubject?: string;
+    };
+}
+
+export interface WorkflowEdge {
+    id: string;
+    sourceNodeId: string;
+    targetNodeId: string;
+    label?: string;
+}
+
+export interface Workflow {
+    id: string;
+    name: string;
+    active: boolean;
+    nodes: WorkflowNode[];
+    edges: WorkflowEdge[];
+}
+
+export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron';
+export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'electron' | 'none';
 
 export interface AuthConfig {
-  useWindowsAuth: boolean;
-  useAdGroups: boolean;
-  adGroups?: string; // Comma separated
-  useUserLogin: boolean;
-  devBypass: boolean; // Bypass security in Development mode
+    useWindowsAuth: boolean;
+    useAdGroups: boolean;
+    adGroups?: string;
+    useUserLogin: boolean;
+    devBypass: boolean;
+    isMobileReady: boolean;
+}
+
+export interface ElectronSettings {
+    includeBackend: boolean;
+    bundleFrontend: boolean;
+    targetUrl?: string;
+}
+
+export type DeploymentTarget = 'docker' | 'ftp' | 'azure' | 'aws';
+
+export interface DeploymentConfig {
+    target: DeploymentTarget;
+    dockerImageName?: string;
+    dockerPort?: number;
+    ftpHost?: string;
+    ftpUser?: string;
+    ftpPath?: string;
+}
+
+export interface StorageConfig {
+    provider: 'local' | 's3' | 'azure';
+    bucketName?: string;
+    region?: string;
+    accessKeyId?: string;
+    connectionString?: string;
+}
+
+export interface SsoConfig {
+    provider: 'google' | 'microsoft';
+    clientId: string;
+    clientSecret?: string;
+    tenantId?: string;
+}
+
+export interface WebhookConfig {
+    url: string;
+    events: ('create' | 'update' | 'delete')[];
+    secret?: string; 
+}
+
+export interface IntegrationsConfig {
+    storage: StorageConfig;
+    sso: SsoConfig[];
+    webhooks: WebhookConfig[];
+}
+
+export interface EnvironmentConfig {
+    name: 'Development' | 'Staging' | 'Production';
+    dbConnection: string;
+    apiUrl?: string;
+    vars?: Record<string, string>;
+}
+
+// NEW: Commercialization Types
+export interface WhitelabelConfig {
+    appName: string;
+    companyName: string;
+    logoUrl?: string;
+    primaryColor: string; // Hex
+    secondaryColor: string; // Hex
+    faviconUrl?: string;
+    removeBranding: boolean;
+}
+
+export interface MultiTenancyConfig {
+    enabled: boolean;
+    strategy: 'discriminator' | 'database'; // Discriminator (Column) or Separate DBs
+    tenantField: string; // Default: 'TenantId'
+}
+
+export interface LicensingConfig {
+    enabled: boolean;
+    licenseKey?: string;
+    validateOnline: boolean;
 }
 
 export interface BackendConfig {
   language: BackendLanguage;
-  backendVersion?: string; // e.g., "8.0", "9.0", "10.0"
-  dbType: DbType; // New: Pass the DB Type to the generator
+  backendVersion?: string;
+  dbType: DbType;
   projectName: string;
   port: number;
   dbConnection: string;
   useSwagger: boolean;
   frontendFramework: FrontendFramework;
   authConfig?: AuthConfig;
+  electronSettings?: ElectronSettings;
+  deploymentConfig?: DeploymentConfig;
+  integrations?: IntegrationsConfig;
+  environments?: EnvironmentConfig[];
+  // New Commercial Configs
+  whitelabel?: WhitelabelConfig;
+  multiTenancy?: MultiTenancyConfig;
+  licensing?: LicensingConfig;
 }
 
 export interface ProjectData {
@@ -257,15 +391,37 @@ export interface ProjectData {
   queries: Query[];
   reports: Report[];
   forms: Form[];
+  charts?: Chart[];
+  workflows?: Workflow[];
   relationships: Relationship[];
   backendConfig: BackendConfig;
+  lastSnapshot?: Table[];
+}
+
+export interface GitConfig {
+  repositoryUrl: string;
+  branch: string;
+  username?: string;
+  personalAccessToken?: string; 
 }
 
 export interface Project {
   id: string;
   name: string;
   lastModified: number;
+  isCloud?: boolean;
+  owner?: string;
+  collaborators?: string[];
+  gitConfig?: GitConfig;
   data: ProjectData;
+}
+
+export interface Collaborator {
+  id: string;
+  name: string;
+  color: string;
+  isOnline: boolean;
+  currentAction?: string;
 }
 
 export interface ProjectTemplate {
@@ -284,6 +440,11 @@ export interface VirtualFile {
   path: string;
 }
 
+export interface MessageModalConfig {
+  type: 'info' | 'warning' | 'error' | 'success';
+  title: string;
+  message: string;
+}
 
 export type ViewType = 
   | { type: 'welcome' }
@@ -294,11 +455,15 @@ export type ViewType =
   | { type: 'query_results', queryId: string }
   | { type: 'relationships' }
   | { type: 'report_view', reportId: string }
-  | { type: 'report_designer', reportId: string } // New View
+  | { type: 'report_designer', reportId: string } 
   | { type: 'form_view', formId: string }
   | { type: 'form_designer', formId: string }
-  | { type: 'backend_generator' }; // New Backend View
+  | { type: 'chart_view', chartId: string }
+  | { type: 'workflow_designer', workflowId: string }
+  | { type: 'scheduler' } 
+  | { type: 'backend_generator' }
+  | { type: 'api_import' }; 
 
 export const FIELD_HEIGHT = 28;
 export const HEADER_HEIGHT = 40;
-export const NODE_WIDTH = 192; // w-48
+export const NODE_WIDTH = 192;

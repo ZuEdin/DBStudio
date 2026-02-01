@@ -16,7 +16,7 @@ export const ReportFormattingPanel: React.FC<ReportFormattingPanelProps> = ({ co
       newRules.push({
           operator: 'lt',
           value: '0',
-          style: { color: '#ef4444', fontWeight: 'bold' } 
+          style: { color: '#ef4444', bold: true } 
       });
       onUpdateColumn({ formattingRules: newRules });
   };
@@ -82,8 +82,8 @@ export const ReportFormattingPanel: React.FC<ReportFormattingPanelProps> = ({ co
                               <label className="flex items-center gap-1 text-xs">
                                   <input 
                                     type="checkbox" 
-                                    checked={rule.style.fontWeight === 'bold'}
-                                    onChange={e => updateRule(rIdx, { style: { ...rule.style, fontWeight: e.target.checked ? 'bold' : 'normal' } })}
+                                    checked={rule.style.bold === true}
+                                    onChange={e => updateRule(rIdx, { style: { ...rule.style, bold: e.target.checked } })}
                                   /> Fett
                               </label>
                               <button onClick={() => removeRule(rIdx)} className="ml-auto text-slate-400 hover:text-red-500"><Trash2 size={14}/></button>

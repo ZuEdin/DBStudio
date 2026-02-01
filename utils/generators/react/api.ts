@@ -8,7 +8,24 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
   const apiService = `import axios from 'axios';
 const API_URL = 'http://localhost:${config.port}/api';
 export const api = axios.create({ baseURL: API_URL });
-export const get = async <T>(endpoint: string) => (await api.get<T>(endpoint)).data;
+
+export interface PagedResponse<T> {
+    data: T[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+}
+
+export const get = async <T>(endpoint: string, params?: any) => {
+    const response = await api.get<PagedResponse<T> | T[]>(endpoint, { params });
+    // Normalize response: if backend returns array (old) or paged object (new)
+    if (Array.isArray(response.data)) {
+        return { data: response.data, total: response.data.length, page: 1, pageSize: response.data.length, totalPages: 1 };
+    }
+    return response.data as PagedResponse<T>;
+};
+
 export const post = async <T>(endpoint: string, data: any) => (await api.post<T>(endpoint, data)).data;
 export const put = async <T>(endpoint: string, data: any) => (await api.put<T>(endpoint, data)).data;
 export const remove = async (endpoint: string) => await api.delete(endpoint);`;

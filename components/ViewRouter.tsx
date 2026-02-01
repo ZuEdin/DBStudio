@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { ViewType, Table, Query, Report, Form, Relationship, SelectQuery, BackendConfig, TableNode } from '../types/index';
+import React, { useEffect } from 'react';
+import { ViewType, Table, Query, Report, Form, Relationship, SelectQuery, BackendConfig, TableNode, Chart, Workflow, EnvironmentConfig } from '../types/index';
 import { WelcomeView } from '../views/WelcomeView';
 import { TableDesigner } from '../features/tables/TableDesigner';
 import { TableView } from '../features/tables/TableView';
@@ -12,6 +12,10 @@ import { ReportDesignerView } from '../features/reports/ReportDesignerView';
 import { FormView } from '../features/forms/FormView';
 import { FormDesignerView } from '../features/forms/FormDesignerView';
 import { BackendView } from '../features/backend/BackendView';
+import { ApiImportView } from '../views/ApiImportView';
+import { ChartView } from '../features/charts/ChartView';
+import { WorkflowDesigner } from '../features/workflows/WorkflowDesigner';
+import { SchedulerView } from '../features/scheduler/SchedulerView'; 
 
 interface ViewRouterProps {
   currentView: ViewType;
@@ -19,11 +23,12 @@ interface ViewRouterProps {
   queries: Query[];
   reports: Report[];
   forms: Form[];
+  workflows?: Workflow[]; 
   canvasNodes: TableNode[];
   relationships: Relationship[];
-  activeObject: Table | Query | Report | Form | null;
+  activeObject: Table | Query | Report | Form | Chart | Workflow | null;
   onSetView: (view: ViewType) => void;
-  onActiveObjectChange: (obj: Table | Query | Report | Form) => void;
+  onActiveObjectChange: (obj: Table | Query | Report | Form | Chart | Workflow) => void;
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
   onMoveRelationshipNode: (id: string, x: number, y: number) => void;
@@ -35,6 +40,13 @@ interface ViewRouterProps {
   backendConfig: BackendConfig;
   exportTrigger: number;
   generateTrigger: number;
+  showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
+  onOpenDeployment: () => void;
+  onUpdateWorkflow?: (workflow: Workflow) => void;
+  // NEW Lifecycle props
+  lastSnapshot?: Table[];
+  onSnapshot?: () => void;
+  onUpdateEnvironments?: (envs: EnvironmentConfig[]) => void;
 }
 
 export const ViewRouter: React.FC<ViewRouterProps> = ({
@@ -43,6 +55,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
   queries,
   reports,
   forms,
+  workflows = [],
   canvasNodes,
   relationships,
   activeObject,
@@ -58,8 +71,20 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
   formActionTrigger,
   backendConfig,
   exportTrigger,
-  generateTrigger
+  generateTrigger,
+  showMessage,
+  onOpenDeployment,
+  onUpdateWorkflow,
+  lastSnapshot,
+  onSnapshot,
+  onUpdateEnvironments
 }) => {
+
+  useEffect(() => {
+      if (formActionTrigger?.action === 'open_deployment_modal') {
+          onOpenDeployment();
+      }
+  }, [formActionTrigger]);
 
   const handleConnect = (t1: string, f1: string, t2: string, f2: string) => {
         const fromTable = tables.find(t => t.id === t1);
@@ -69,7 +94,8 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         const toField = toTable.fields.find(f => f.id === f2);
         const type = fromField?.isPrimaryKey && !toField?.isPrimaryKey ? '1:n' : '1:1';
         const newRel: Relationship = { id: crypto.randomUUID(), fromTableId: t1, fromFieldId: f1, toTableId: t2, toFieldId: f2, type: type, referentialIntegrity: true };
-        setRelationships(prev => [...prev, newRel]);
+        const currentRels = Array.isArray(relationships) ? relationships : [];
+        setRelationships([...currentRels, newRel]);
   };
 
   const getSourceFieldsForReport = (report: Report) => {
@@ -103,7 +129,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                     if(type === 'table_create') onSetView({type: 'table_create'});
                     else if(type === 'query_designer') onSetView({type: 'query_designer'});
                     else if(type === 'table_data' && id) onSetView({type: 'table_data', tableId: id});
-                    else alert("Bitte nutzen Sie den 'Erstellen' Tab im Menüband.");
+                    else showMessage("Info", "Bitte nutzen Sie den 'Erstellen' Tab im Menüband.", 'info');
                 }}
             />
         );
@@ -125,7 +151,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         }
         return null;
       case 'report_view':
-         if (activeObject && 'sourceType' in activeObject && !('fields' in activeObject)) {
+         if (activeObject && 'sourceType' in activeObject && !('fields' in activeObject) && !('config' in activeObject)) {
             const report = activeObject as Report;
             let data: Record<string, any>[] = [];
             const sourceFields = getSourceFieldsForReport(report) as any[];
@@ -140,13 +166,20 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         }
         return null;
       case 'report_designer':
-          if (activeObject && 'sourceType' in activeObject && !('fields' in activeObject)) {
-              return <ReportDesignerView report={activeObject as Report} tables={tables} queries={queries} onReportChange={onActiveObjectChange as any} />;
+          if (activeObject && 'sourceType' in activeObject && !('fields' in activeObject) && !('config' in activeObject)) {
+              return <ReportDesignerView report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} onReportChange={onActiveObjectChange as any} />;
           }
           return null;
       case 'form_view':
         if (activeObject && 'sourceType' in activeObject && 'layout' in activeObject) {
-            return <FormView form={activeObject as Form} allForms={forms} allTables={tables} onTableChange={(t) => saveTable(t, 'edit')} showConfirmation={showConfirmation} />;
+            return <FormView 
+                form={activeObject as Form} 
+                allForms={forms} 
+                allTables={tables} 
+                onTableChange={(t) => saveTable(t, 'edit')} 
+                showConfirmation={showConfirmation} 
+                onClose={() => onSetView({ type: 'welcome' })}
+            />;
         }
         return null;
       case 'form_designer':
@@ -154,8 +187,30 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
             return <FormDesignerView form={activeObject as Form} allForms={forms} allTables={tables} relationships={relationships} onFormChange={onActiveObjectChange as any} actionTrigger={formActionTrigger} />;
         }
         return null;
+      case 'chart_view':
+        if (activeObject && 'config' in activeObject) {
+            return <ChartView chart={activeObject as Chart} tables={tables} queries={queries} onChartChange={onActiveObjectChange as any} />;
+        }
+        return null;
+      case 'workflow_designer':
+        if (activeObject && 'nodes' in activeObject && 'active' in activeObject) {
+            return <WorkflowDesigner workflow={activeObject as Workflow} tables={tables} onWorkflowChange={onActiveObjectChange as any} />;
+        }
+        return null;
+      case 'scheduler':
+          return <SchedulerView workflows={workflows} onUpdateWorkflow={onUpdateWorkflow!} />;
       case 'backend_generator':
-          return <BackendView tables={tables} relationships={relationships} queries={queries} forms={forms} reports={reports} exportTrigger={exportTrigger} generateTrigger={generateTrigger} config={backendConfig} />;
+          return (
+            <BackendView 
+                tables={tables} relationships={relationships} queries={queries} forms={forms} reports={reports} 
+                exportTrigger={exportTrigger} generateTrigger={generateTrigger} config={backendConfig} 
+                showMessage={showMessage} 
+                onOpenDeployment={() => { /* via hook */ }}
+                lastSnapshot={lastSnapshot}
+                onSnapshot={onSnapshot}
+                onUpdateEnvironments={onUpdateEnvironments}
+            />
+          );
       case 'relationships':
         return <RelationshipsView nodes={canvasNodes} tables={tables} relationships={relationships} onMoveNode={onMoveRelationshipNode} onConnect={handleConnect} onDeleteRelationship={onDeleteRelationship} onUpdateRelationship={onUpdateRelationship} />;
       case 'query_designer':
@@ -163,6 +218,8 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
            return <QueryDesignerView query={activeObject as SelectQuery} onQueryChange={onActiveObjectChange as any} tables={tables} relationships={relationships} dbType={backendConfig.dbType} />;
         }
        return null;
+      case 'api_import':
+        return <ApiImportView onSaveTable={(t) => saveTable(t, 'create')} showMessage={showMessage} />;
       default:
         return null;
     }

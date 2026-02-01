@@ -122,10 +122,14 @@ export const Canvas: React.FC<CanvasProps> = ({
   
   const getFieldPos = (node: TableNode, table: Table, fieldId: string, side: 'left' | 'right') => {
     const fieldIndex = table.fields.findIndex(f => f.id === fieldId);
-    const y = node.y + HEADER_HEIGHT + (fieldIndex * FIELD_HEIGHT) + (FIELD_HEIGHT / 2);
+    // Adjusted calculation: Shifted up by 7px (-7) instead of -2 to correct visual alignment
+    const y = node.y + HEADER_HEIGHT + (fieldIndex * FIELD_HEIGHT) + (FIELD_HEIGHT / 2) - 7;
     const x = side === 'left' ? node.x : node.x + NODE_WIDTH;
     return { x, y };
   };
+
+  // Safe relationships array
+  const safeRelationships = Array.isArray(relationships) ? relationships : [];
 
   return (
     <div 
@@ -147,7 +151,7 @@ export const Canvas: React.FC<CanvasProps> = ({
               <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
             </marker>
           </defs>
-          {relationships.map(rel => {
+          {safeRelationships.map(rel => {
             const fromNode = nodes.find(n => n.tableId === rel.fromTableId);
             const toNode = nodes.find(n => n.tableId === rel.toTableId);
             const fromTable = tables.find(t => t.id === rel.fromTableId);
@@ -232,7 +236,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                   </div>
                 )}
                 {table.fields.map(field => {
-                  const isForeignKey = relationships.some(r => r.toTableId === table.id && r.toFieldId === field.id);
+                  const isForeignKey = safeRelationships.some(r => r.toTableId === table.id && r.toFieldId === field.id);
                   return (
                     <div 
                       key={field.id} 

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Database, Save, Undo, Redo } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
+import { useTranslation } from 'react-i18next';
 
 interface FileTabProps {
   onAction: (action: string) => void;
@@ -12,16 +13,17 @@ export const FileTab: React.FC<FileTabProps> = ({ onAction, currentDbType }) => 
   const undo = useProjectStore(state => state.undo);
   const redo = useProjectStore(state => state.redo);
   const history = useProjectStore(state => (state as any).history);
+  const { t } = useTranslation();
 
   return (
     <div className="flex gap-4 h-full items-center">
       <div className="flex flex-col items-center group cursor-pointer p-2 hover:bg-slate-200 rounded" onClick={() => onAction('new_db')}>
         <Database className="w-8 h-8 text-blue-600 mb-1" />
-        <span className="text-xs">Neue DB</span>
+        <span className="text-xs">{t('ribbon.actions.new_db')}</span>
       </div>
       <div className="flex flex-col items-center group cursor-pointer p-2 hover:bg-slate-200 rounded" onClick={() => onAction('save')}>
         <Save className="w-8 h-8 text-green-600 mb-1" />
-        <span className="text-xs">Speichern</span>
+        <span className="text-xs">{t('ribbon.actions.save')}</span>
       </div>
       
       <div className="flex gap-1 border-l border-r border-slate-300 px-2 h-12 items-center">
@@ -29,7 +31,7 @@ export const FileTab: React.FC<FileTabProps> = ({ onAction, currentDbType }) => 
             onClick={undo} 
             disabled={history?.past.length === 0}
             className="p-2 hover:bg-slate-200 rounded disabled:text-slate-300 text-slate-700" 
-            title="Rückgängig (Strg+Z)"
+            title="Undo (Ctrl+Z)"
           >
               <Undo size={20} />
           </button>
@@ -37,7 +39,7 @@ export const FileTab: React.FC<FileTabProps> = ({ onAction, currentDbType }) => 
             onClick={redo} 
             disabled={history?.future.length === 0}
             className="p-2 hover:bg-slate-200 rounded disabled:text-slate-300 text-slate-700" 
-            title="Wiederherstellen (Strg+Y)"
+            title="Redo (Ctrl+Y)"
           >
               <Redo size={20} />
           </button>

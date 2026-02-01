@@ -1,24 +1,37 @@
 
 import React, { useState, useEffect } from 'react';
-import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report } from '../../types/index';
+import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report, IntegrationsConfig, EnvironmentConfig, DbType, WhitelabelConfig, MultiTenancyConfig, LicensingConfig } from '../../types/index';
 import Editor from '@monaco-editor/react';
-import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
+import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw, UploadCloud, GitBranch, CloudLightning, Globe, GitCommit, Briefcase } from 'lucide-react';
 import { generateBackendCode } from '../../utils/backendGenerators';
+import { generateDeploymentScripts } from '../../utils/generators/deploymentGenerator';
 import JSZip from 'jszip';
 import { GoogleGenAI } from '@google/genai';
+import { GitPushModal } from '../versioning/GitPushModal';
+import { IntegrationsModal } from './IntegrationsModal';
+import { EnvironmentManagerModal } from './EnvironmentManagerModal';
+import { MigrationManagerModal } from './MigrationManagerModal';
+import { WhitelabelModal } from './WhitelabelModal';
 
 interface BackendViewProps {
   tables: Table[];
   relationships: Relationship[];
   queries: Query[];
   forms?: Form[]; 
-  reports?: Report[]; // Add reports prop
+  reports?: Report[]; 
   exportTrigger: number;
   generateTrigger: number;
   config: BackendConfig;
+  showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
+  onOpenDeployment: () => void;
+  // New props passed down (implicitly available via config/store in real app, explicitly here)
+  lastSnapshot?: Table[];
+  onSnapshot?: () => void;
+  onUpdateEnvironments?: (envs: EnvironmentConfig[]) => void;
+  onUpdateCommercial?: (w: WhitelabelConfig, m: MultiTenancyConfig, l: LicensingConfig) => void; // NEW
 }
 
-// Helper types for tree structure
+// ... existing TreeNode interfaces ...
 interface TreeNode {
   name: string;
   path: string;
@@ -29,18 +42,13 @@ interface TreeNode {
 
 const buildFileTree = (files: VirtualFile[]): TreeNode[] => {
   const root: TreeNode[] = [];
-  
   files.forEach(file => {
-    // Standardize path separators
     const parts = file.path.replace(/\\/g, '/').split('/');
     let currentLevel = root;
-    
     parts.forEach((part, index) => {
       const isFile = index === parts.length - 1;
       const path = parts.slice(0, index + 1).join('/');
-      
       let existingNode = currentLevel.find(n => n.name === part);
-      
       if (!existingNode) {
         existingNode = {
           name: part,
@@ -51,12 +59,9 @@ const buildFileTree = (files: VirtualFile[]): TreeNode[] => {
         };
         currentLevel.push(existingNode);
       }
-      
       currentLevel = existingNode.children;
     });
   });
-
-  // Recursive sort: Folders first, then files, alphabetically
   const sortNodes = (nodes: TreeNode[]) => {
       nodes.sort((a, b) => {
           if (a.type === b.type) return a.name.localeCompare(b.name);
@@ -64,12 +69,10 @@ const buildFileTree = (files: VirtualFile[]): TreeNode[] => {
       });
       nodes.forEach(n => sortNodes(n.children));
   };
-  
   sortNodes(root);
   return root;
 };
 
-// Recursive Component for rendering Tree
 const FileTreeItem: React.FC<{ 
   node: TreeNode, 
   level: number, 
@@ -91,7 +94,6 @@ const FileTreeItem: React.FC<{
         if (node.type === 'folder') {
             return isOpen ? <FolderOpen size={14} className="text-amber-400" /> : <Folder size={14} className="text-amber-400" />;
         }
-        // File Icons
         if (node.name.endsWith('.cs')) return <FileCode size={14} className="text-green-600" />;
         if (node.name.endsWith('.ts')) return <FileCode size={14} className="text-blue-500" />;
         if (node.name.endsWith('.js')) return <FileCode size={14} className="text-yellow-500" />;
@@ -99,6 +101,7 @@ const FileTreeItem: React.FC<{
         if (node.name.endsWith('.html')) return <FileCode size={14} className="text-red-500" />;
         if (node.name.endsWith('.css')) return <FileCode size={14} className="text-sky-400" />;
         if (node.name.endsWith('.php')) return <FileCode size={14} className="text-purple-500" />;
+        if (node.name === 'Dockerfile') return <FileCode size={14} className="text-blue-700" />;
         return <FileCode size={14} className="text-slate-500" />;
     };
 
@@ -135,17 +138,30 @@ const FileTreeItem: React.FC<{
     );
 };
 
-export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], reports = [], exportTrigger, generateTrigger, config }) => {
+export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], reports = [], exportTrigger, generateTrigger, config, showMessage, onOpenDeployment, lastSnapshot, onSnapshot, onUpdateEnvironments, onUpdateCommercial }) => {
   const [generatedFiles, setGeneratedFiles] = useState<VirtualFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<VirtualFile | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
+  
+  // Modals
+  const [showGitModal, setShowGitModal] = useState(false);
+  const [showIntegrationsModal, setShowIntegrationsModal] = useState(false);
+  const [showEnvModal, setShowEnvModal] = useState(false);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [showWhitelabelModal, setShowWhitelabelModal] = useState(false);
+  
+  const [localConfig, setLocalConfig] = useState(config);
 
-  // Regenerate when ANY data changes or trigger happens
+  useEffect(() => {
+    // If config prop updates (e.g. from App Controller saving), update local
+    setLocalConfig(config);
+  }, [config]);
+
   useEffect(() => {
     handleGenerate();
-  }, [generateTrigger, tables, relationships, queries, config]); 
+  }, [generateTrigger, tables, relationships, queries, localConfig]); 
 
   useEffect(() => {
       if(exportTrigger > 0) {
@@ -159,11 +175,16 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
 
   const handleGenerate = () => {
     try {
-        // Pass forms AND reports to generator
-        const files = generateBackendCode(tables, relationships, queries, config, forms, reports);
+        let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports);
+        
+        // Append Deployment Files if config exists
+        if (localConfig.deploymentConfig) {
+            const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);
+            files = [...files, ...deployFiles];
+        }
+
         setGeneratedFiles(files);
         
-        // Keep selection if file still exists, else select first reasonable entry point
         if (!selectedFile || !files.find(f => f.path === selectedFile.path)) {
             const entry = files.find(f => f.name === 'Program.cs' || f.name === 'server.js' || f.name === 'index.php') || files[0];
             setSelectedFile(entry || null);
@@ -173,14 +194,15 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
                 setSelectedFile(updated);
             }
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Code Generation Error:", error);
+        showMessage("Generierungsfehler", error.message, 'error');
     }
   };
 
   const handleExportZip = async () => {
     if (generatedFiles.length === 0) {
-        alert("Keine Dateien zum Exportieren vorhanden. Bitte generieren Sie zuerst den Code.");
+        showMessage("Export fehlgeschlagen", "Keine Dateien zum Exportieren vorhanden. Bitte generieren Sie zuerst den Code.", 'warning');
         return;
     }
     const zip = new JSZip();
@@ -193,7 +215,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
     const url = window.URL.createObjectURL(content);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${config.projectName}_FullStack.zip`;
+    a.download = `${localConfig.projectName}_FullStack.zip`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -207,7 +229,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
           const response = await ai.models.generateContent({
               model: "gemini-2.5-flash",
               contents: `Du bist ein Senior Developer. Hier ist der Code der Datei '${selectedFile.name}' (${selectedFile.language}).
-              Projekt-Kontext: ${config.language}, ${config.projectName}.
+              Projekt-Kontext: ${localConfig.language}, ${localConfig.projectName}.
               
               Code:
               ${selectedFile.content}
@@ -218,17 +240,16 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
           });
           
           const newCode = response.text?.trim() || selectedFile.content;
-          
-          // Remove Markdown block if AI adds it
           const cleanCode = newCode.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '');
 
           const newFiles = generatedFiles.map(f => f.path === selectedFile.path ? { ...f, content: cleanCode } : f);
           setGeneratedFiles(newFiles);
           setSelectedFile({ ...selectedFile, content: cleanCode });
           setAiPrompt('');
-      } catch (error) {
+          showMessage("AI Refactoring", "Code wurde erfolgreich aktualisiert.", 'success');
+      } catch (error: any) {
           console.error("AI Error", error);
-          alert("Fehler bei der AI-Anfrage.");
+          showMessage("AI Fehler", error.message || "Fehler bei der AI-Anfrage.", 'error');
       }
       setIsAiProcessing(false);
   };
@@ -262,6 +283,54 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
                     Keine Dateien generiert. Klicken Sie auf "Generieren" im Menüband.
                 </div>
             )}
+        </div>
+        
+        {/* Operations Section */}
+        <div className="p-3 border-t border-slate-200 bg-slate-100 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+                <button 
+                    onClick={() => setShowEnvModal(true)}
+                    className="flex items-center justify-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-teal-100 transition-all"
+                >
+                    <Globe size={14} /> Envs
+                </button>
+                <button 
+                    onClick={() => setShowMigrationModal(true)}
+                    className="flex items-center justify-center gap-1 bg-orange-50 text-orange-800 border border-orange-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-orange-100 transition-all"
+                >
+                    <GitCommit size={14} /> Migrations
+                </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+                <button 
+                    onClick={() => setShowIntegrationsModal(true)}
+                    className="flex items-center justify-center gap-2 bg-yellow-100 text-yellow-800 border border-yellow-200 p-2 rounded shadow text-xs font-bold hover:bg-yellow-200 transition-all"
+                >
+                    <CloudLightning size={14} /> Integration
+                </button>
+                <button 
+                    onClick={() => setShowWhitelabelModal(true)}
+                    className="flex items-center justify-center gap-2 bg-indigo-100 text-indigo-900 border border-indigo-200 p-2 rounded shadow text-xs font-bold hover:bg-indigo-200 transition-all"
+                >
+                    <Briefcase size={14} /> Business
+                </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+                <button 
+                    onClick={() => setShowGitModal(true)}
+                    className="flex items-center justify-center gap-1 bg-slate-800 text-white p-2 rounded shadow text-xs font-bold hover:bg-slate-900 transition-all"
+                >
+                    <GitBranch size={14} className="text-orange-400"/> Push Git
+                </button>
+                <button 
+                    onClick={onOpenDeployment}
+                    className="flex items-center justify-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-2 rounded shadow text-xs font-bold hover:from-blue-700 hover:to-indigo-700 transition-all"
+                >
+                    <UploadCloud size={14} /> Deploy
+                </button>
+            </div>
         </div>
       </div>
 
@@ -333,6 +402,66 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             </div>
         </div>
       </div>
+
+      {showGitModal && (
+          <GitPushModal 
+            files={generatedFiles} 
+            onClose={() => setShowGitModal(false)}
+            onSuccess={() => showMessage("Git Push Erfolgreich", "Der Code wurde erfolgreich in das Repository übertragen.", 'success')}
+          />
+      )}
+
+      {showIntegrationsModal && (
+          <IntegrationsModal
+            config={localConfig.integrations}
+            onSave={(newIntegrations) => {
+                const newConfig = { ...localConfig, integrations: newIntegrations };
+                setLocalConfig(newConfig);
+                showMessage("Integrationen gespeichert", "Klicken Sie auf 'Generieren', um den Code zu aktualisieren.", 'success');
+            }}
+            onClose={() => setShowIntegrationsModal(false)}
+          />
+      )}
+
+      {showEnvModal && onUpdateEnvironments && (
+          <EnvironmentManagerModal
+            initialEnvs={localConfig.environments}
+            dbType={localConfig.dbType}
+            onSave={(envs) => {
+                const newConfig = { ...localConfig, environments: envs };
+                setLocalConfig(newConfig);
+                onUpdateEnvironments(envs);
+                showMessage("Umgebungen gespeichert", "Konfigurationen für Dev, Stage und Prod wurden aktualisiert.", 'success');
+            }}
+            onClose={() => setShowEnvModal(false)}
+          />
+      )}
+
+      {showWhitelabelModal && onUpdateCommercial && (
+          <WhitelabelModal
+            whitelabel={localConfig.whitelabel}
+            multiTenancy={localConfig.multiTenancy}
+            licensing={localConfig.licensing}
+            onSave={(w, m, l) => {
+                onUpdateCommercial(w, m, l);
+                showMessage("Einstellungen gespeichert", "Whitelabeling und Enterprise-Features wurden aktualisiert. Bitte generieren Sie den Code neu.", 'success');
+            }}
+            onClose={() => setShowWhitelabelModal(false)}
+          />
+      )}
+
+      {showMigrationModal && onSnapshot && (
+          <MigrationManagerModal
+            currentTables={tables}
+            lastSnapshot={lastSnapshot}
+            dbType={config.dbType}
+            onSnapshot={() => {
+                onSnapshot();
+                showMessage("Snapshot erstellt", "Der aktuelle Schema-Status wurde als Basis für zukünftige Migrationen gespeichert.", 'success');
+            }}
+            onClose={() => setShowMigrationModal(false)}
+          />
+      )}
     </div>
   );
 };

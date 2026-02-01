@@ -14,8 +14,6 @@ export default function App() {
   const app = useAppController();
   const { db } = app;
 
-  // Use projectId to determine if a project is loaded. 
-  // backendConfig.dbType has a default value now, so checking it is not sufficient.
   if (!db.projectId) {
     return <DatabaseSelector 
       onSelectProject={db.loadProject} 
@@ -49,10 +47,13 @@ export default function App() {
           queries={db.queries} 
           reports={db.reports} 
           forms={db.forms}
+          workflows={db.workflows}
           onSelectTable={(id) => app.handleSetView({ type: 'table_data', tableId: id })}
           onSelectQuery={(id) => app.handleSetView({ type: 'query_results', queryId: id })}
           onSelectReport={(id) => app.handleSetView({ type: 'report_view', reportId: id })}
           onSelectForm={(id) => app.handleSetView({ type: 'form_view', formId: id })}
+          onSelectWorkflow={(id) => app.handleSetView({ type: 'workflow_designer', workflowId: id })}
+          onSelectScheduler={() => app.handleSetView({ type: 'scheduler' })}
           onItemContextMenu={(e, type, id) => { e.preventDefault(); app.setItemContextMenu({ type, id, x: e.clientX, y: e.clientY }); }}
           isOpen={app.isSidebarOpen}
           toggleSidebar={() => app.setIsSidebarOpen(!app.isSidebarOpen)}
@@ -65,6 +66,7 @@ export default function App() {
             queries={db.queries}
             reports={db.reports}
             forms={db.forms}
+            workflows={db.workflows}
             canvasNodes={app.relationshipNodes}
             relationships={db.relationships}
             activeObject={app.activeObject}
@@ -79,9 +81,11 @@ export default function App() {
             executeQuery={db.executeQuery}
             saveTable={db.saveTable}
             saveForm={db.saveForm}
+            saveWorkflow={db.saveWorkflow}
             showConfirmation={(t, m, c) => app.setConfirmationModal({ title: t, message: m, onConfirm: c })}
             formActionTrigger={app.formActionTrigger}
             backendConfig={app.backendConfig}
+            showMessage={app.showMessage}
           />
         </div>
       </div>
@@ -113,6 +117,40 @@ export default function App() {
         setConfirmationModal={app.setConfirmationModal}
         tables={db.tables}
         queries={db.queries}
+        showElectronSettings={app.showElectronSettings}
+        electronSettings={app.electronSettings}
+        onSaveElectronSettings={app.onSaveElectronSettings}
+        onCloseElectronSettings={app.onCloseElectronSettings}
+        
+        showDeploymentModal={app.showDeploymentModal}
+        deploymentConfig={app.backendConfig.deploymentConfig}
+        onSaveDeploymentConfig={app.onSaveDeploymentConfig}
+        onDeploy={app.onDeploy}
+        onCloseDeploymentModal={() => app.setShowDeploymentModal(false)}
+
+        messageModal={app.messageModal}
+        onCloseMessage={app.closeMessage}
+        showSecurityManager={app.showSecurityManager}
+        setShowSecurityManager={app.setShowSecurityManager}
+        onUpdateTable={app.onUpdateTable}
+        forms={db.forms}
+        reports={db.reports}
+        
+        // Pass Commercial Props
+        showWhitelabelModal={app.showWhitelabelModal}
+        setShowWhitelabelModal={app.setShowWhitelabelModal}
+        onUpdateCommercial={app.onUpdateCommercial}
+        
+        showEnvModal={app.showEnvModal}
+        setShowEnvModal={app.setShowEnvModal}
+        onUpdateEnvironments={app.onUpdateEnvironments}
+        
+        showMigrationModal={app.showMigrationModal}
+        setShowMigrationModal={app.setShowMigrationModal}
+        onSnapshot={app.onSnapshot}
+        lastSnapshot={app.lastSnapshot}
+        
+        backendConfig={app.backendConfig}
       />
 
       <ToastContainer toasts={app.toasts} onDismiss={app.removeToast} />

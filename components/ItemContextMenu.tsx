@@ -1,10 +1,11 @@
+
 import React from 'react';
-import { Eye, Download, Edit3, Trash2, Sheet, FileText, Layout } from 'lucide-react';
+import { Eye, Download, Edit3, Trash2, Sheet, FileText, Layout, PieChart, GitFork } from 'lucide-react';
 
 interface ItemContextMenuProps {
   x: number;
   y: number;
-  itemType: 'table' | 'query' | 'report' | 'form';
+  itemType: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow';
   onAction: (action: 'view' | 'view_data' | 'export' | 'rename' | 'delete') => void;
 }
 
@@ -28,6 +29,14 @@ export const ItemContextMenu: React.FC<ItemContextMenuProps> = ({ x, y, itemType
             <Eye size={14} /><span>Entwurfsansicht</span>
           </button>
         </>
+      ) : itemType === 'chart' ? (
+        <button onClick={() => onAction('view')} className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800">
+          <PieChart size={14} /><span>Öffnen</span>
+        </button>
+      ) : itemType === 'workflow' ? (
+        <button onClick={() => onAction('view')} className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800">
+          <GitFork size={14} /><span>Öffnen</span>
+        </button>
       ) : (
         <>
           <button onClick={() => onAction('view_data')} className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800">

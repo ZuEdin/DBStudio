@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ViewType, Table, TableNode, Relationship, Query, Report, Form, SelectQuery, BackendConfig } from '../types/index';
+import { ViewType, Table, TableNode, Relationship, Query, Report, Form, SelectQuery, BackendConfig, Chart, Workflow } from '../types/index';
 import { X, Command } from 'lucide-react';
 import { CommandPalette } from './CommandPalette';
 import { ViewRouter } from './ViewRouter';
@@ -11,12 +11,13 @@ interface WorkspaceProps {
   queries: Query[];
   reports: Report[];
   forms: Form[];
+  workflows?: Workflow[]; // NEW
   canvasNodes: TableNode[];
   relationships: Relationship[];
-  activeObject: Table | Query | Report | Form | null;
+  activeObject: Table | Query | Report | Form | Chart | Workflow | null;
   isDirty: boolean;
   onSetView: (view: ViewType) => void;
-  onActiveObjectChange: (obj: Table | Query | Report | Form) => void;
+  onActiveObjectChange: (obj: Table | Query | Report | Form | Chart | Workflow) => void;
   onSave: () => Promise<any>;
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
@@ -25,9 +26,11 @@ interface WorkspaceProps {
   executeQuery: (query: Query) => Record<string, any>[];
   saveTable: (table: Table, mode: 'create' | 'edit') => void;
   saveForm: (form: Form) => void;
+  saveWorkflow?: (workflow: Workflow) => void; // NEW
   showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
   formActionTrigger?: { action: string, timestamp: number };
   backendConfig: BackendConfig;
+  showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
@@ -36,6 +39,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   queries,
   reports,
   forms,
+  workflows = [],
   canvasNodes,
   relationships,
   activeObject,
@@ -50,13 +54,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   executeQuery,
   saveTable,
   saveForm,
+  saveWorkflow,
   showConfirmation,
   formActionTrigger,
-  backendConfig
+  backendConfig,
+  showMessage
 }) => {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [exportTrigger, setExportTrigger] = useState(0);
   const [generateTrigger, setGenerateTrigger] = useState(0);
+  const [openDeploymentTrigger, setOpenDeploymentTrigger] = useState(0);
 
   // Keyboard shortcut for Command Palette (Ctrl+K)
   useEffect(() => {
@@ -78,6 +85,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       if (formActionTrigger?.action === 'backend_generate') {
           setGenerateTrigger(Date.now());
       }
+      if (formActionTrigger?.action === 'open_deployment_modal') {
+          setOpenDeploymentTrigger(Date.now());
+      }
   }, [formActionTrigger]);
 
   const handleCommandNavigate = (type: string, id: string) => {
@@ -92,6 +102,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       switch (currentView.type) {
          case 'relationships': return 'Beziehungen';
          case 'backend_generator': return 'App Generator';
+         case 'scheduler': return 'Zeitplaner';
          default: return '';
       }
     }
@@ -141,6 +152,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             queries={queries}
             reports={reports}
             forms={forms}
+            workflows={workflows}
             canvasNodes={canvasNodes}
             relationships={relationships}
             activeObject={activeObject}
@@ -157,6 +169,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             backendConfig={backendConfig}
             exportTrigger={exportTrigger}
             generateTrigger={generateTrigger}
+            showMessage={showMessage}
+            onOpenDeployment={() => { /* Handled via effect in AppController usually, but passed here for direct view access if needed */ }}
+            onUpdateWorkflow={saveWorkflow}
         />
       </div>
     </div>

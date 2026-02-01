@@ -7,6 +7,9 @@ export const generateBlazor = (tables: Table[], relationships: Relationship[], q
   const files: VirtualFile[] = [];
   const root = `Frontend/${config.projectName}.Client`;
   const namespace = `${config.projectName}.Client`;
+  
+  // Define Client Port (Backend Port + 2 to avoid conflicts)
+  const clientPort = config.port + 2;
 
   // 1. CSPROJ
   const csprojContent = `<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
@@ -25,6 +28,23 @@ export const generateBlazor = (tables: Table[], relationships: Relationship[], q
 </Project>
 `;
   files.push({ name: `${namespace}.csproj`, path: `${root}/${namespace}.csproj`, content: csprojContent, language: 'xml' });
+
+  // launchSettings.json for Frontend
+  const launchSettings = {
+    "profiles": {
+      "http": {
+        "commandName": "Project",
+        "dotnetRunMessages": true,
+        "launchBrowser": true,
+        "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
+        "applicationUrl": `http://localhost:${clientPort}`,
+        "environmentVariables": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      }
+    }
+  };
+  files.push({ name: 'launchSettings.json', path: `${root}/Properties/launchSettings.json`, content: JSON.stringify(launchSettings, null, 2), language: 'json' });
 
   // 2. _Imports.razor
   const importsContent = `@using System.Net.Http
@@ -69,17 +89,15 @@ await builder.Build().RunAsync();
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${config.projectName}</title>
     <base href="/" />
-    <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="css/app.css" rel="stylesheet" />
     <link href="${namespace}.styles.css" rel="stylesheet" />
 </head>
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
         <div class="loading-progress-text">Loading...</div>
     </div>
 
@@ -89,6 +107,7 @@ await builder.Build().RunAsync();
         <a class="dismiss">🗙</a>
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>`;
@@ -97,29 +116,11 @@ await builder.Build().RunAsync();
   // 5. CSS
   files.push({ name: 'app.css', path: `${root}/wwwroot/css/app.css`, content: `
 html, body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-h1:focus { outline: none; }
-a, .btn-link { color: #0071c1; }
 .btn-primary { color: #fff; background-color: #1b6ec2; border-color: #1861ac; }
-.loading-progress { position: relative; display: block; width: 8rem; height: 8rem; margin: 20vh auto 1rem auto; }
-.loading-progress circle { fill: none; stroke: #e0e0e0; stroke-width: 0.6rem; transform-origin: 50% 50%; transform: rotate(-90deg); }
-.loading-progress circle:last-child { stroke: #1b6ec2; stroke-dasharray: calc(3.141 * 100% * 0.75), 500%; transition: stroke-dasharray 0.3s ease-in-out; }
-.loading-progress-text { position: relative; text-align: center; font-weight: bold; top: -1rem; }
-.top-row { height: 3.5rem; background-color: #f7f7f7; border-bottom: 1px solid #d6d5d5; justify-content: flex-end; }
-.top-row a, .top-row .btn-link { white-space: nowrap; margin-left: 1.5rem; text-decoration: none; }
-.top-row a:hover, .top-row .btn-link:hover { text-decoration: underline; }
-.top-row a:first-child { overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 640.98px) {
-    .top-row { display: none; }
-}
-@media (min-width: 641px) {
-    .page { flex-direction: row; }
-    .sidebar { width: 250px; height: 100vh; position: sticky; top: 0; }
-    .top-row { position: sticky; top: 0; z-index: 1; }
-    .top-row, article { padding-left: 2rem !important; padding-right: 1.5rem !important; }
-}
+.loading-progress-text { position: relative; text-align: center; font-weight: bold; top: 50vh; }
 `, language: 'css' });
 
-  // 6. Layouts
+  // 6. Layouts & Routing
   files.push({ name: 'App.razor', path: `${root}/App.razor`, content: `<Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
@@ -151,18 +152,10 @@ a, .btn-link { color: #0071c1; }
     </main>
 </div>`, language: 'razor' });
 
-  // Generate NavLinks for Tables and Reports
   const tableLinks = tables.map(t => `
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="${toCamelCase(t.name)}">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> ${t.name}
-            </NavLink>
-        </div>`).join('');
-
-  const reportLinks = reports.map(r => `
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="report/${toCamelCase(r.name)}">
-                <span class="bi bi-file-earmark-text" aria-hidden="true"></span> ${r.name}
+                <span class="bi bi-table" aria-hidden="true"></span> ${t.name}
             </NavLink>
         </div>`).join('');
 
@@ -179,13 +172,10 @@ a, .btn-link { color: #0071c1; }
     <nav class="flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
             </NavLink>
         </div>
-        <div class="nav-item px-3"><span class="text-white text-uppercase small font-weight-bold pl-3">Data</span></div>
         ${tableLinks}
-        <div class="nav-item px-3"><span class="text-white text-uppercase small font-weight-bold pl-3">Reports</span></div>
-        ${reportLinks}
     </nav>
 </div>
 
@@ -199,10 +189,7 @@ a, .btn-link { color: #0071c1; }
 .top-row { height: 3.5rem; background-color: rgba(0,0,0,0.4); }
 .navbar-brand { font-size: 1.1rem; }
 .bi { display: inline-block; position: relative; width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; top: -1px; background-size: cover; }
-.bi-house-door-fill-nav-menu { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-house-door-fill' viewBox='0 0 16 16'%3E%3Cpath d='M6.5 14.5v-3.505c0-.245.25-.495.5-.495h2c.25 0 .5.25.5.5v3.5a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5Z'/%3E%3C/svg%3E"); }
 .nav-item { font-size: 0.9rem; padding-bottom: 0.5rem; }
-.nav-item:first-of-type { padding-top: 1rem; }
-.nav-item:last-of-type { padding-bottom: 1rem; }
 .nav-item ::deep a { color: #d7d7d7; border-radius: 4px; height: 3rem; display: flex; align-items: center; line-height: 3rem; }
 .nav-item ::deep a.active { background-color: rgba(255,255,255,0.37); color: white; }
 .nav-item ::deep a:hover { background-color: rgba(255,255,255,0.1); color: white; }
@@ -214,13 +201,13 @@ a, .btn-link { color: #0071c1; }
 }
 `, language: 'css' });
 
-  // 7. Models (POCOs)
+  // 7. Models
   tables.forEach(table => {
       const className = toPascalCase(table.name);
       const props = table.fields.map(f => {
           let type = resolveType(f, 'csharp');
           let nullable = isNullable(f) ? '?' : '';
-          if (type === 'string') nullable = '?'; // Strings are ref types
+          if (type === 'string') nullable = '?'; 
           return `    public ${type}${nullable} ${toPascalCase(f.name)} { get; set; }`;
       }).join('\n');
 
@@ -233,70 +220,71 @@ ${props}
 }`, language: 'csharp' });
   });
 
-  // 7b. Models for Queries (Read Only)
-  queries.filter(q => q.type === 'SELECT').forEach(q => {
-      const selectQ = q as SelectQuery;
-      const className = toPascalCase(q.name);
-      const props = selectQ.columns.filter(c => c.show).map(c => {
-          // Simplistic type guessing for query columns
-          const table = tables.find(t => t.id === c.tableId);
-          const field = table?.fields.find(f => f.id === c.fieldId);
-          let type = field ? resolveType(field, 'csharp') : 'string';
-          if(c.aggregate === 'COUNT' || c.aggregate === 'SUM') type = 'long';
-          return `    public ${type}? ${toPascalCase(c.alias || c.fieldName)} { get; set; }`;
-      }).join('\n');
-
-      files.push({ name: `${className}.cs`, path: `${root}/Models/${className}.cs`, content: `namespace ${namespace}.Models
-{
-    public class ${className}
-    {
-${props}
-    }
-}`, language: 'csharp' });
-  });
-
-  // 8. ApiService
+  // 8. ApiService - ROBUST VERSION
   files.push({ name: 'ApiService.cs', path: `${root}/Services/ApiService.cs`, content: `using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace ${namespace}.Services
 {
     public class ApiService
     {
         private readonly HttpClient _http;
+        private readonly JsonSerializerOptions _options;
 
         public ApiService(HttpClient http)
         {
             _http = http;
+            // Config for correct Case Handling (Server=CamelCase, Client=PascalCase)
+            _options = new JsonSerializerOptions 
+            { 
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+            };
+        }
+
+        // Helper to throw on non-success, showing the real server error
+        private async Task EnsureSuccess(HttpResponseMessage response)
+        {
+            if (response.IsSuccessStatusCode) return;
+            var body = await response.Content.ReadAsStringAsync();
+            throw new HttpRequestException($"API Error {response.StatusCode}: {body}");
         }
 
         public async Task<List<T>> Get<T>(string endpoint)
         {
-            return await _http.GetFromJsonAsync<List<T>>(endpoint) ?? new List<T>();
+            var response = await _http.GetAsync(endpoint);
+            await EnsureSuccess(response);
+            return await response.Content.ReadFromJsonAsync<List<T>>(_options) ?? new List<T>();
         }
 
         public async Task<T?> GetById<T>(string endpoint, object id)
         {
-            return await _http.GetFromJsonAsync<T>($"{(endpoint)}/{id}");
+            var response = await _http.GetAsync($"{(endpoint)}/{id}");
+            await EnsureSuccess(response);
+            return await response.Content.ReadFromJsonAsync<T>(_options);
         }
 
         public async Task Create<T>(string endpoint, T item)
         {
-            await _http.PostAsJsonAsync(endpoint, item);
+            var response = await _http.PostAsJsonAsync(endpoint, item, _options);
+            await EnsureSuccess(response);
         }
 
         public async Task Update<T>(string endpoint, object id, T item)
         {
-            await _http.PutAsJsonAsync($"{(endpoint)}/{id}", item);
+            var response = await _http.PutAsJsonAsync($"{(endpoint)}/{id}", item, _options);
+            await EnsureSuccess(response);
         }
 
         public async Task Delete(string endpoint, object id)
         {
-            await _http.DeleteAsync($"{(endpoint)}/{id}");
+            var response = await _http.DeleteAsync($"{(endpoint)}/{id}");
+            await EnsureSuccess(response);
         }
     }
 }`, language: 'csharp' });
 
-  // 9. Pages (Lists & Forms)
+  // 9. Pages
   tables.forEach(table => {
       const className = toPascalCase(table.name);
       const routeBase = toCamelCase(table.name);
@@ -307,12 +295,18 @@ namespace ${namespace}.Services
       const listContent = `@page "/${routeBase}"
 @inject ApiService Api
 @inject NavigationManager Nav
+@inject IJSRuntime JsRuntime
 
 <h3>${table.name}</h3>
 
 <div class="mb-3">
     <button class="btn btn-primary" @onclick="Create">New Item</button>
 </div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
 
 @if (items == null)
 {
@@ -344,6 +338,7 @@ ${table.fields.map(f => `                    <td>@item.${toPascalCase(f.name)}</
 
 @code {
     private List<${className}>? items;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -352,7 +347,15 @@ ${table.fields.map(f => `                    <td>@item.${toPascalCase(f.name)}</
 
     private async Task LoadData()
     {
-        items = await Api.Get<${className}>("${className}");
+        try 
+        {
+            items = await Api.Get<${className}>("${className}");
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
     }
 
     private void Create()
@@ -369,20 +372,97 @@ ${table.fields.map(f => `                    <td>@item.${toPascalCase(f.name)}</
     {
         if (await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure?"))
         {
-            await Api.Delete("${className}", id);
-            await LoadData();
+            try
+            {
+                await Api.Delete("${className}", id);
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                await JsRuntime.InvokeVoidAsync("alert", "Delete failed: " + ex.Message);
+            }
         }
     }
-    
-    [Inject] IJSRuntime JsRuntime { get; set; } = default!;
 }`;
       files.push({ name: `${className}List.razor`, path: `${root}/Pages/${className}/${className}List.razor`, content: listContent, language: 'razor' });
 
-      // Edit/Create Page
+      // --- EDIT PAGE with Dropdowns and Default Value Init ---
+      
+      // 1. Identify Relationships
+      const parentRels = relationships.filter(r => r.toTableId === table.id);
+      
+      // 2. Prepare Code Block injections
+      const parentListsDefs = parentRels.map(r => {
+          const parentTable = tables.find(t => t.id === r.fromTableId);
+          if(!parentTable) return '';
+          return `    private List<${toPascalCase(parentTable.name)}> ${toCamelCase(parentTable.name)}List = new();`;
+      }).join('\n');
+
+      const parentLoadCalls = parentRels.map(r => {
+          const parentTable = tables.find(t => t.id === r.fromTableId);
+          if(!parentTable) return '';
+          return `            ${toCamelCase(parentTable.name)}List = await Api.Get<${toPascalCase(parentTable.name)}>("${toPascalCase(parentTable.name)}");`;
+      }).join('\n');
+
+      // 3. Generate Default Value assignments
+      const defaultAssignments = table.fields
+        .filter(f => f.defaultValue !== undefined && f.defaultValue !== '')
+        .map(f => {
+            const prop = toPascalCase(f.name);
+            const val = f.defaultValue;
+            // Check type to quote strings
+            const isString = f.type.includes('VARCHAR') || f.type.includes('TEXT');
+            return `                model.${prop} = ${isString ? `"${val}"` : val};`;
+        }).join('\n');
+
+      // 4. Generate Fields (Auto-detect FKs)
+      const formFields = table.fields.filter(f => !f.isPrimaryKey).map(f => {
+          const prop = toPascalCase(f.name);
+          
+          // Check if this field is an FK
+          const rel = parentRels.find(r => r.toFieldId === f.id);
+          
+          if (rel) {
+              const parentTable = tables.find(t => t.id === rel.fromTableId);
+              if (parentTable) {
+                  // Found an FK relationship! Generate Dropdown.
+                  const listName = `${toCamelCase(parentTable.name)}List`;
+                  // Heuristic: Find the first string field for display, or ID
+                  const displayField = parentTable.fields.find(pf => pf.type === 'VARCHAR') || parentTable.fields[0];
+                  const displayProp = toPascalCase(displayField.name);
+                  const pkPropParent = toPascalCase(parentTable.fields.find(pf => pf.isPrimaryKey)?.name || 'Id');
+
+                  return `        <div class="mb-3">
+            <label for="${f.name}" class="form-label">${f.name} (FK)</label>
+            <InputSelect id="${f.name}" class="form-select" @bind-Value="model.${prop}">
+                <option value="">-- Select --</option>
+                @foreach (var parent in ${listName})
+                {
+                    <option value="@parent.${pkPropParent}">@parent.${displayProp}</option>
+                }
+            </InputSelect>
+        </div>`;
+              }
+          }
+
+          // Default inputs
+          let inputControl = `<InputText id="${f.name}" class="form-control" @bind-Value="model.${prop}" />`;
+          if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') inputControl = `<InputNumber id="${f.name}" class="form-control" @bind-Value="model.${prop}" />`;
+          if (f.type === 'BOOLEAN') inputControl = `<InputCheckbox id="${f.name}" class="form-check-input" @bind-Value="model.${prop}" />`;
+          if (f.type === 'DATE') inputControl = `<InputDate id="${f.name}" class="form-control" @bind-Value="model.${prop}" />`;
+          if (f.type === 'DATETIME') inputControl = `<InputDate id="${f.name}" class="form-control" @bind-Value="model.${prop}" Type="InputDateType.DateTimeLocal" />`;
+
+          return `        <div class="mb-3">
+            <label for="${f.name}" class="form-label">${f.name}</label>
+            ${inputControl}
+        </div>`;
+      }).join('\n');
+
       const editContent = `@page "/${routeBase}/{Id}"
 @page "/${routeBase}/new"
 @inject ApiService Api
 @inject NavigationManager Nav
+@inject IJSRuntime JsRuntime
 
 <h3>@(IsNew ? "Create" : "Edit") ${table.name}</h3>
 
@@ -396,20 +476,7 @@ else
         <DataAnnotationsValidator />
         <ValidationSummary />
 
-${table.fields.filter(f => !f.isPrimaryKey).map(f => {
-    const prop = toPascalCase(f.name);
-    let inputControl = `<InputText id="${f.name}" class="form-control" @bind-Value="model.${prop}" />`;
-    if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') inputControl = `<InputNumber id="${f.name}" class="form-control" @bind-Value="model.${prop}" />`;
-    if (f.type === 'BOOLEAN') inputControl = `<InputCheckbox id="${f.name}" class="form-check-input" @bind-Value="model.${prop}" />`;
-    // Fix for DateTime error: use InputDate for DATE and DATETIME
-    if (f.type === 'DATE') inputControl = `<InputDate id="${f.name}" class="form-control" @bind-Value="model.${prop}" />`;
-    if (f.type === 'DATETIME') inputControl = `<InputDate id="${f.name}" class="form-control" @bind-Value="model.${prop}" Type="InputDateType.DateTimeLocal" />`;
-
-    return `        <div class="mb-3">
-            <label for="${f.name}" class="form-label">${f.name}</label>
-            ${inputControl}
-        </div>`;
-}).join('\n')}
+${formFields}
 
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
@@ -420,16 +487,28 @@ ${table.fields.filter(f => !f.isPrimaryKey).map(f => {
     [Parameter] public string? Id { get; set; }
     private ${className}? model;
     private bool IsNew => Id == "new" || string.IsNullOrEmpty(Id);
+${parentListsDefs}
 
     protected override async Task OnInitializedAsync()
     {
-        if (IsNew)
+        try
         {
-            model = new ${className}();
+            // Load FK Data
+${parentLoadCalls}
+
+            if (IsNew)
+            {
+                model = new ${className}();
+${defaultAssignments}
+            }
+            else
+            {
+                model = await Api.GetById<${className}>("${className}", Id!);
+            }
         }
-        else
+        catch(Exception ex)
         {
-            model = await Api.GetById<${className}>("${className}", Id!);
+            await JsRuntime.InvokeVoidAsync("alert", "Error loading data: " + ex.Message);
         }
     }
 
@@ -437,18 +516,24 @@ ${table.fields.filter(f => !f.isPrimaryKey).map(f => {
     {
         if (model == null) return;
 
-        if (IsNew)
+        try
         {
-            await Api.Create("${className}", model);
+            if (IsNew)
+            {
+                await Api.Create("${className}", model);
+            }
+            else
+            {
+                var pkVal = model.GetType().GetProperty("${pkProp}")?.GetValue(model);
+                if(pkVal != null)
+                    await Api.Update("${className}", pkVal, model);
+            }
+            Nav.NavigateTo("/${routeBase}");
         }
-        else
+        catch(Exception ex)
         {
-            // Assuming PK is named Id or similar and is available in model
-            var pkVal = model.GetType().GetProperty("${pkProp}")?.GetValue(model);
-            if(pkVal != null)
-                await Api.Update("${className}", pkVal, model);
+            await JsRuntime.InvokeVoidAsync("alert", "Save failed: " + ex.Message);
         }
-        Nav.NavigateTo("/${routeBase}");
     }
 
     private void Cancel()
@@ -459,25 +544,10 @@ ${table.fields.filter(f => !f.isPrimaryKey).map(f => {
       files.push({ name: `${className}Form.razor`, path: `${root}/Pages/${className}/${className}Form.razor`, content: editContent, language: 'razor' });
   });
 
-  // Docs
   const readmeContent = `# ${config.projectName} (Blazor Client)
-
-## Voraussetzungen
-- .NET SDK (Version 9.0 oder höher)
-
-## Starten
-Öffnen Sie ein Terminal im Ordner \`Frontend/${config.projectName}.Client\` und führen Sie aus:
-
-\`\`\`bash
-dotnet run
-\`\`\`
-
-Die Anwendung läuft standardmäßig unter \`http://localhost:5000\` (oder einem zufälligen Port, siehe Console-Output).
-Stellen Sie sicher, dass das Backend läuft und CORS-Anfragen erlaubt.
-`;
-
-  files.push({ name: 'README.md', path: `Frontend/README.md`, content: readmeContent, language: 'markdown' });
-  // Add to project root as well just in case
+  
+  Code generiert. ApiService ist konfiguriert für Case-Insensitive JSON und Fehlerbehandlung. FK-Dropdowns sind aktiviert.
+  `;
   files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });
 
   return files;

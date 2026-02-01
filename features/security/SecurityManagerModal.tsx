@@ -1,0 +1,292 @@
+
+import React, { useState, useMemo } from 'react';
+import { Table, Form, Report } from '../../types/index';
+import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type } from 'lucide-react';
+
+interface SecurityManagerModalProps {
+  tables: Table[];
+  forms: Form[];
+  reports: Report[];
+  onUpdateTable: (table: Table) => void;
+  onClose: () => void;
+}
+
+export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tables, forms, reports, onUpdateTable, onClose }) => {
+  // Find system tables
+  const rolesTable = tables.find(t => t.name === 'sys_roles');
+  const permTable = tables.find(t => t.name === 'sys_permissions');
+
+  const [activeTab, setActiveTab] = useState<'matrix' | 'roles'>('matrix');
+  const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
+
+  // If system tables don't exist, show warning
+  if (!rolesTable || !permTable) {
+      return (
+          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center">
+              <div className="bg-white rounded-lg p-6 max-w-md text-center">
+                  <div className="flex justify-center mb-4 text-orange-500"><AlertTriangle size={48}/></div>
+                  <h2 className="text-xl font-bold mb-2">Sicherheitssystem nicht aktiv</h2>
+                  <p className="text-slate-600 mb-4">
+                      Das Rollensystem (RBAC) ist in diesem Projekt nicht aktiviert. 
+                      Bitte erstellen Sie ein neues Projekt mit "Benutzer-Login", um diese Funktion zu nutzen.
+                  </p>
+                  <button onClick={onClose} className="bg-slate-800 text-white px-4 py-2 rounded">Schließen</button>
+              </div>
+          </div>
+      );
+  }
+
+  const roles = rolesTable.data || [];
+  const permissions = permTable.data || [];
+
+  // Helper to update permission
+  const togglePermission = (roleId: any, objectType: string, objectId: string, permType: 'CanRead' | 'CanWrite' | 'CanDelete') => {
+      // Find existing permission row
+      const existingIdx = permissions.findIndex(p => 
+          String(p.RoleId) === String(roleId) && 
+          p.ObjectType === objectType && 
+          p.ObjectId === objectId
+      );
+
+      const newPermissions = [...permissions];
+
+      if (existingIdx > -1) {
+          // Update
+          const row = { ...newPermissions[existingIdx] };
+          row[permType] = !row[permType];
+          newPermissions[existingIdx] = row;
+      } else {
+          // Insert new rule
+          const newRow: any = {
+              Id: (permissions.length > 0 ? Math.max(...permissions.map(p => Number(p.Id))) : 0) + 1,
+              RoleId: roleId,
+              ObjectType: objectType,
+              ObjectId: objectId,
+              CanRead: true, // Default read true if creating entry
+              CanWrite: false,
+              CanDelete: false
+          };
+          // If we are toggling Write/Delete, ensure Read is true? 
+          if (permType !== 'CanRead') newRow[permType] = true;
+          else newRow.CanRead = true; // Was toggled to true implicitly by creating
+
+          newPermissions.push(newRow);
+      }
+
+      onUpdateTable({ ...permTable, data: newPermissions });
+  };
+
+  const getPerm = (roleId: any, objectType: string, objectId: string) => {
+      return permissions.find(p => String(p.RoleId) === String(roleId) && p.ObjectType === objectType && p.ObjectId === objectId) 
+             || { CanRead: true, CanWrite: true, CanDelete: true }; // Default ALLOW (Optimistic)
+  };
+
+  const toggleTableExpand = (tableId: string) => {
+      setExpandedTables(prev => ({ ...prev, [tableId]: !prev[tableId] }));
+  };
+
+  const businessTables = tables.filter(t => !t.name.startsWith('sys_'));
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[90vw] h-[90vh] flex flex-col border border-slate-300 overflow-hidden">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 bg-slate-800 text-white shrink-0">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+               <Shield className="text-emerald-400"/> Sicherheits-Manager (RBAC)
+            </h2>
+            <p className="text-slate-300 text-sm mt-1">Granulare Rechteverwaltung für Tabellen und Felder.</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex bg-slate-100 border-b border-slate-200 px-4 pt-4 gap-4 shrink-0">
+            <button 
+                onClick={() => setActiveTab('matrix')}
+                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'matrix' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+                Berechtigungs-Matrix
+            </button>
+            <button 
+                onClick={() => setActiveTab('roles')}
+                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'roles' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+                Rollen definieren
+            </button>
+        </div>
+
+        <div className="flex-1 overflow-hidden bg-slate-50 p-0">
+            {activeTab === 'matrix' ? (
+                <div className="bg-white h-full flex flex-col overflow-hidden">
+                    <div className="overflow-auto flex-1 pb-20">
+                        <table className="w-full text-sm border-collapse">
+                            <thead className="bg-slate-100 sticky top-0 z-20 shadow-sm">
+                                <tr>
+                                    <th className="p-3 text-left font-bold text-slate-700 border-b w-80 bg-slate-100 z-30 sticky left-0 border-r">Objekt / Feld</th>
+                                    {roles.map((role: any) => (
+                                        <th key={role.Id} className="p-3 text-center border-b border-r border-slate-200 min-w-[140px]">
+                                            <div className="flex flex-col items-center">
+                                                <span className="font-bold text-slate-800">{role.Name}</span>
+                                                <span className="text-[10px] text-slate-500 font-normal">{role.Description}</span>
+                                            </div>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {/* TABLES & FIELDS */}
+                                {businessTables.map((table) => {
+                                    const isExpanded = expandedTables[table.id];
+                                    return (
+                                        <React.Fragment key={table.id}>
+                                            {/* Table Row */}
+                                            <tr className="hover:bg-slate-50 border-b border-slate-200 bg-slate-50/30">
+                                                <td className="p-2 pl-3 border-r border-slate-200 bg-white sticky left-0 font-bold text-slate-800 flex items-center gap-2 z-10">
+                                                    <button onClick={() => toggleTableExpand(table.id)} className="text-slate-400 hover:text-slate-700">
+                                                        {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <TableIcon size={14} className="text-orange-600"/>
+                                                        {table.name}
+                                                    </div>
+                                                </td>
+                                                {roles.map((role: any) => {
+                                                    const p = getPerm(role.Id, 'Table', table.id);
+                                                    return (
+                                                        <PermissionCell 
+                                                            key={role.Id} 
+                                                            roleId={role.Id} 
+                                                            objectType="Table" 
+                                                            objectId={table.id} 
+                                                            perm={p} 
+                                                            onToggle={togglePermission} 
+                                                        />
+                                                    );
+                                                })}
+                                            </tr>
+
+                                            {/* Field Rows (Granular) */}
+                                            {isExpanded && table.fields.map(field => (
+                                                <tr key={field.id} className="hover:bg-slate-50 border-b border-slate-100">
+                                                    <td className="p-2 pl-12 border-r border-slate-200 bg-slate-50/50 sticky left-0 text-slate-600 flex items-center gap-2 text-xs z-10">
+                                                        {field.type === 'INTEGER' ? <Hash size={12} className="text-slate-400"/> : <Type size={12} className="text-slate-400"/>}
+                                                        {field.name}
+                                                    </td>
+                                                    {roles.map((role: any) => {
+                                                        const p = getPerm(role.Id, 'Field', field.id);
+                                                        return (
+                                                            <PermissionCell 
+                                                                key={role.Id} 
+                                                                roleId={role.Id} 
+                                                                objectType="Field" 
+                                                                objectId={field.id} 
+                                                                perm={p} 
+                                                                onToggle={togglePermission}
+                                                                isField={true}
+                                                            />
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="p-3 bg-slate-100 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center shrink-0 h-12">
+                        <span>Rechte werden in <code>sys_permissions</code> gespeichert.</span>
+                        <div className="flex gap-4">
+                            <span className="flex items-center gap-1"><Eye size={12}/> Lesen</span>
+                            <span className="flex items-center gap-1"><Edit2 size={12}/> Schreiben</span>
+                            <span className="flex items-center gap-1"><Trash2 size={12}/> Löschen</span>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto">
+                    <h3 className="font-bold text-lg mb-4">Vorhandene Rollen</h3>
+                    <table className="w-full max-w-2xl text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-100 border-b border-slate-300">
+                                <th className="p-3 w-16">ID</th>
+                                <th className="p-3">Rollenname</th>
+                                <th className="p-3">Beschreibung</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {roles.map((r: any) => (
+                                <tr key={r.Id} className="border-b border-slate-100">
+                                    <td className="p-3 font-mono text-slate-500">{r.Id}</td>
+                                    <td className="p-3 font-bold text-slate-800">{r.Name}</td>
+                                    <td className="p-3 text-slate-600">{r.Description}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <p className="mt-4 text-sm text-slate-500 italic">
+                        Hinweis: Um Rollen hinzuzufügen oder zu löschen, bearbeiten Sie bitte direkt die Tabelle <strong>sys_roles</strong> in der Datenblatt-Ansicht.
+                    </p>
+                </div>
+            )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 bg-white border-t border-slate-200 flex justify-end shrink-0">
+            <button onClick={onClose} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded font-semibold shadow-sm flex items-center gap-2">
+                <Check size={18}/> Fertig
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Sub-component for individual permission cells
+const PermissionCell: React.FC<{
+    roleId: any, 
+    objectType: string, 
+    objectId: string, 
+    perm: any, 
+    onToggle: any,
+    isField?: boolean
+}> = ({ roleId, objectType, objectId, perm, onToggle, isField }) => {
+    const isRead = !!perm.CanRead;
+    const isWrite = !!perm.CanWrite;
+    const isDelete = !!perm.CanDelete;
+
+    return (
+        <td className="p-2 border-r border-slate-200 text-center bg-white hover:bg-slate-50 transition-colors">
+            <div className="flex justify-center gap-1.5">
+                <button 
+                    onClick={() => onToggle(roleId, objectType, objectId, 'CanRead')}
+                    className={`p-1 rounded transition-all border ${isRead ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-300 opacity-60'}`}
+                    title="Lesen"
+                >
+                    <Eye size={14} />
+                </button>
+                <button 
+                    onClick={() => onToggle(roleId, objectType, objectId, 'CanWrite')}
+                    className={`p-1 rounded transition-all border ${isWrite ? 'bg-orange-100 border-orange-300 text-orange-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-300 opacity-60'}`}
+                    title="Schreiben"
+                >
+                    <Edit2 size={14} />
+                </button>
+                {!isField && (
+                    <button 
+                        onClick={() => onToggle(roleId, objectType, objectId, 'CanDelete')}
+                        className={`p-1 rounded transition-all border ${isDelete ? 'bg-red-100 border-red-300 text-red-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-300 opacity-60'}`}
+                        title="Löschen"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                )}
+            </div>
+        </td>
+    );
+};

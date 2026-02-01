@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Settings, Play, Download } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Globe, GitCommit, UploadCloud, Server } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
+import { useTranslation } from 'react-i18next';
 
 interface BackendTabProps {
   onAction: (action: string) => void;
@@ -13,13 +14,30 @@ interface BackendTabProps {
 }
 
 export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig, setBackendConfig, onOpenSettings }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex gap-4 items-start h-full">
         {/* Settings Group */}
         <div className="flex flex-col px-2 border-r border-slate-300 pr-4 h-full justify-between py-1">
            <div className="flex gap-2">
-             <div className="w-36">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Backend Stack</label>
+             {/* 1. Database (Foundation) */}
+             <div className="w-24">
+                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Datenbank</label>
+                <select 
+                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
+                    value={backendConfig.dbType}
+                    onChange={e => setBackendConfig({ ...backendConfig, dbType: e.target.value as DbType })}
+                >
+                    <option value="SQL">SQL Server</option>
+                    <option value="MySQL">MySQL</option>
+                    <option value="SQLite">SQLite</option>
+                    <option value="NoSQL">NoSQL (Mongo)</option>
+                </select>
+             </div>
+
+             {/* 2. Backend (Logic) */}
+             <div className="w-28">
+                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Backend</label>
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
                     value={backendConfig.language === 'dotnet' ? `dotnet-${backendConfig.backendVersion || '9.0'}` : backendConfig.language}
@@ -33,92 +51,64 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                         }
                     }}
                 >
-                    <option value="dotnet-9.0">.NET 9 (Standard)</option>
-                    <option value="dotnet-8.0">.NET 8 (LTS)</option>
-                    <option value="dotnet-10.0">.NET 10 (Preview)</option>
-                    <option value="nodejs">Node.js (Express)</option>
-                    <option value="laravel">PHP (Laravel)</option>
-                    <option value="php">PHP (Native)</option>
+                    <option value="dotnet-9.0">.NET 9 API</option>
+                    <option value="nodejs">Node.js</option>
+                    <option value="php">PHP</option>
+                    <option value="laravel">Laravel</option>
+                    <option value="electron">Electron</option>
                 </select>
              </div>
-             <div className="w-20">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Port</label>
-                 <input 
-                    type="number" 
-                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs"
-                    value={backendConfig.port}
-                    onChange={e => setBackendConfig({ ...backendConfig, port: parseInt(e.target.value) })}
-                />
-             </div>
-           </div>
-           <div className="w-full">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Projekt Name</label>
-                <input 
-                    type="text" 
-                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs"
-                    value={backendConfig.projectName}
-                    onChange={e => setBackendConfig({ ...backendConfig, projectName: e.target.value })}
-                />
-           </div>
-           <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">Einstellungen</span>
-        </div>
 
-        {/* Database Config Group */}
-        <div className="flex flex-col px-2 border-r border-slate-300 pr-4 h-full py-1 w-40">
-            <div className="mb-2">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Datenbank</label>
+             {/* 3. Frontend (UI) */}
+             <div className="w-24">
+                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Frontend</label>
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                    value={backendConfig.dbType}
-                    onChange={e => setBackendConfig({ ...backendConfig, dbType: e.target.value as DbType })}
+                    value={backendConfig.frontendFramework}
+                    onChange={e => setBackendConfig({ ...backendConfig, frontendFramework: e.target.value as FrontendFramework })}
                 >
-                    <option value="SQL">SQL Server</option>
-                    <option value="MySQL">MySQL</option>
-                    <option value="SQLite">SQLite</option>
-                    <option value="NoSQL">NoSQL</option>
+                    <option value="react">React</option>
+                    <option value="angular">Angular</option>
+                    <option value="blazor">Blazor (WASM)</option>
+                    <option value="none">Keins (Nur API)</option>
                 </select>
-            </div>
-            <button 
-                onClick={onOpenSettings}
-                className="flex items-center justify-center gap-1 w-full bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded px-2 py-1 text-xs"
-            >
-                <Settings size={12} />
-                Konfigurieren
-            </button>
-            <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">Datenbank</span>
-        </div>
-        
-        {/* Features Group */}
-        <div className="flex flex-col px-2 border-r border-slate-300 pr-4 h-full py-1 w-32">
-            <div className="flex flex-col gap-1 mb-1">
-                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                    <input type="checkbox" checked={backendConfig.useSwagger} onChange={e => setBackendConfig({...backendConfig, useSwagger: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500 h-3 w-3" />
-                    Swagger
-                </label>
-                <div className="mt-1">
-                    <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Frontend</label>
-                    <select 
-                        className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                        value={backendConfig.frontendFramework}
-                        onChange={e => setBackendConfig({ ...backendConfig, frontendFramework: e.target.value as FrontendFramework })}
+             </div>
+           </div>
+           
+           <div className="flex gap-2 mt-1">
+               <button 
+                    onClick={onOpenSettings}
+                    className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded px-2 py-0.5 text-xs flex items-center justify-center gap-1"
+                >
+                    <Settings size={12} /> Connection String
+                </button>
+               {backendConfig.language === 'electron' && (
+                    <button 
+                        onClick={() => onAction('electron_settings')}
+                        className="flex-1 bg-teal-100 hover:bg-teal-200 text-teal-800 border border-teal-300 rounded px-2 py-0.5 text-xs flex items-center justify-center gap-1"
                     >
-                        <option value="none">Keines</option>
-                        <option value="blazor">Blazor (WASM)</option>
-                        <option value="angular">Angular</option>
-                        <option value="react">React (Vite)</option>
-                    </select>
-                </div>
-            </div>
-            <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">Features</span>
+                        <AppWindow size={12} /> Config
+                    </button>
+               )}
+           </div>
+           <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">{t('ribbon.groups.settings')}</span>
         </div>
 
+        {/* Lifecycle Group (NEW) */}
+        <RibbonGroup label={t('ribbon.groups.lifecycle')}>
+            <RibbonButton icon={<Globe className="text-teal-600" />} label={t('ribbon.actions.envs')} onClick={() => onAction('open_envs')} />
+            <RibbonButton icon={<GitCommit className="text-orange-600" />} label={t('ribbon.actions.migrations')} onClick={() => onAction('open_migrations')} />
+        </RibbonGroup>
+
         {/* Actions Group */}
-        <RibbonGroup label="Ausführen">
-            <RibbonButton icon={<Play className="text-green-600"/>} label="Generieren" onClick={() => onAction('backend_generate')} size="large" />
+        <RibbonGroup label={t('ribbon.groups.actions')}>
+            <RibbonButton icon={<Play className="text-green-600"/>} label={t('ribbon.actions.generate')} onClick={() => onAction('backend_generate')} size="large" />
         </RibbonGroup>
         
-        <RibbonGroup label="Export" isLast>
-            <RibbonButton icon={<Download />} label="Download ZIP" onClick={() => onAction('backend_export')} />
+        {/* Deployment Group */}
+        <RibbonGroup label={t('ribbon.groups.deploy')} isLast>
+            <RibbonButton icon={<UploadCloud className="text-blue-600"/>} label={t('ribbon.actions.publish')} onClick={() => onAction('open_deployment_modal')} />
+            <RibbonButton icon={<Download />} label={t('ribbon.actions.download_zip')} onClick={() => onAction('backend_export')} />
         </RibbonGroup>
     </div>
   );

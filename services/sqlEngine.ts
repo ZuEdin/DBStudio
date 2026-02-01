@@ -11,14 +11,14 @@ export const initSqlEngine = async () => {
   if (db) return;
   try {
     // Check if SQL is loaded from script tag
-    if (window.initSqlJs) {
+    if (typeof window !== 'undefined' && window.initSqlJs) {
       SQL = await window.initSqlJs({
         locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
       });
       db = new SQL.Database();
       console.log("SQL Engine Initialized (WASM)");
     } else {
-        console.error("SQL.js not loaded");
+        console.error("SQL.js not loaded. Verify the script tag in index.html");
     }
   } catch (e) {
     console.error("Failed to init SQL Engine", e);
@@ -34,10 +34,11 @@ const mapTypeToSql = (type: string): string => {
 };
 
 export const syncTablesToSql = (tables: Table[]) => {
-    if (!db) return;
+    if (!db) {
+        console.warn("SQL Engine not ready. Cannot sync tables.");
+        return;
+    }
     
-    // Clear existing
-    // Note: In a real app we might want to be smarter, but dropping all is safe for sync state
     try {
         const existing = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
         if (existing.length > 0 && existing[0].values) {
@@ -73,7 +74,10 @@ export const syncTablesToSql = (tables: Table[]) => {
 };
 
 export const executeRawSql = (sql: string): any[] => {
-    if (!db) return [];
+    if (!db) {
+        console.warn("SQL Engine not ready. Call initSqlEngine() first.");
+        return [];
+    }
     try {
         const res = db.exec(sql);
         if (res.length === 0) return [];
@@ -90,6 +94,6 @@ export const executeRawSql = (sql: string): any[] => {
         });
     } catch (e: any) {
         console.warn("SQL Execution Error:", e);
-        return []; // Or throw to show in UI
+        return []; 
     }
 };

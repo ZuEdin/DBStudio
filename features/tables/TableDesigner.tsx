@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { Table, Field, FieldType } from '../../types/index';
-import { Plus, Trash2, Key, Wand2, Hash } from 'lucide-react';
+import { Table, Field, FieldType, ValidationRule, ValidationOperator } from '../../types/index';
+import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
 
@@ -10,11 +11,12 @@ interface TableDesignerProps {
 }
 
 export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange }) => {
+  const [activeTab, setActiveTab] = useState<'fields' | 'validation'>('fields');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAi, setShowAi] = useState(false);
   
-  const { name: tableName, fields } = table;
+  const { name: tableName, fields, validationRules = [] } = table;
 
   const setTableName = (name: string) => {
     onTableChange({ ...table, name });
@@ -46,7 +48,8 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                 ...updates,
                 length: config.hasLength ? (config.defaultLength || 255) : undefined,
                 precision: config.hasPrecision ? config.defaultPrecision : undefined,
-                scale: config.hasPrecision ? config.defaultScale : undefined
+                scale: config.hasPrecision ? config.defaultScale : undefined,
+                defaultValue: undefined // Reset default value on type change
             };
         }
         
@@ -56,6 +59,28 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
 
   const removeField = (id: string) => {
     setFields(fields.filter(f => f.id !== id));
+  };
+
+  // --- Validation Logic ---
+  const addValidationRule = () => {
+      const newRule: ValidationRule = {
+          id: crypto.randomUUID(),
+          fieldId: fields[0]?.id || '',
+          operator: 'gt',
+          compareType: 'value',
+          compareValue: '0',
+          errorMessage: 'Ungültiger Wert'
+      };
+      onTableChange({ ...table, validationRules: [...validationRules, newRule] });
+  };
+
+  const updateValidationRule = (id: string, updates: Partial<ValidationRule>) => {
+      const newRules = validationRules.map(r => r.id === id ? { ...r, ...updates } : r);
+      onTableChange({ ...table, validationRules: newRules });
+  };
+
+  const removeValidationRule = (id: string) => {
+      onTableChange({ ...table, validationRules: validationRules.filter(r => r.id !== id) });
   };
 
   const handleAiGenerate = async () => {
@@ -83,18 +108,87 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
     setShowAi(false);
   };
 
+  const renderDefaultValueInput = (field: Field) => {
+      if (field.isAutoIncrement) return <span className="text-slate-400 text-xs italic">-</span>;
+
+      if (field.type === 'BOOLEAN') {
+          return (
+              <select 
+                  value={field.defaultValue || ''} 
+                  onChange={e => updateField(field.id, { defaultValue: e.target.value })}
+                  className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
+              >
+                  <option value="">(Kein Standard)</option>
+                  <option value="true">True (Ja)</option>
+                  <option value="false">False (Nein)</option>
+              </select>
+          );
+      }
+
+      if (field.type === 'DATE' || field.type === 'DATETIME') {
+          return (
+            <div className="relative group">
+                <input 
+                    type="text" 
+                    value={field.defaultValue || ''}
+                    onChange={(e) => updateField(field.id, { defaultValue: e.target.value })}
+                    placeholder="NULL"
+                    className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm placeholder:text-slate-300"
+                />
+                <div className="absolute right-1 top-1 hidden group-hover:block">
+                    <button 
+                        onClick={() => updateField(field.id, { defaultValue: 'NOW' })} 
+                        className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1 rounded text-slate-600"
+                        title="Aktuelles Datum (NOW)"
+                    >
+                        NOW
+                    </button>
+                </div>
+            </div>
+          );
+      }
+
+      return (
+        <input 
+            type="text" 
+            value={field.defaultValue || ''}
+            onChange={(e) => updateField(field.id, { defaultValue: e.target.value })}
+            placeholder="NULL"
+            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm placeholder:text-slate-300"
+        />
+      );
+  };
+
   return (
     <div className="p-8 h-full bg-slate-50 overflow-y-auto">
-      <div className="max-w-[90%] mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden">
-        <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">Tabellenentwurf</h2>
+      <div className="max-w-[95%] mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
+        {/* Header */}
+        <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center shrink-0">
+          <div className="flex gap-4 items-center">
+              <h2 className="text-xl font-bold">Tabellenentwurf</h2>
+              <div className="flex bg-slate-700 rounded p-1">
+                  <button 
+                    onClick={() => setActiveTab('fields')} 
+                    className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'fields' ? 'bg-white text-slate-900 font-bold' : 'text-slate-300 hover:text-white'}`}
+                  >
+                      Felder
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('validation')} 
+                    className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${activeTab === 'validation' ? 'bg-white text-slate-900 font-bold' : 'text-slate-300 hover:text-white'}`}
+                  >
+                      <ShieldAlert size={14}/> Validierung
+                  </button>
+              </div>
+          </div>
           <button onClick={() => setShowAi(!showAi)} className="flex items-center gap-1 bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm">
             <Wand2 size={14} /> AI-Entwurf
           </button>
         </div>
 
+        {/* AI Assistant */}
         {showAi && (
-          <div className="p-4 bg-purple-50 border-b border-purple-100 animate-in slide-in-from-top-2">
+          <div className="p-4 bg-purple-50 border-b border-purple-100 animate-in slide-in-from-top-2 shrink-0">
             <label className="block text-sm font-medium text-purple-900 mb-1">Beschreibe deine Tabelle:</label>
             <div className="flex gap-2">
               <input 
@@ -116,7 +210,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
           </div>
         )}
 
-        <div className="p-6">
+        <div className="p-6 flex-1 overflow-auto">
           <div className="mb-6">
             <label className="block text-sm font-bold text-slate-700 mb-1">Tabellenname</label>
             <input 
@@ -127,131 +221,235 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
             />
           </div>
 
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                <th className="p-2 w-10 text-center" title="Primärschlüssel">PK</th>
-                <th className="p-2 w-1/5">Feldname</th>
-                <th className="p-2 w-48">Datentyp</th>
-                <th className="p-2 w-20">Länge/Size</th>
-                <th className="p-2 w-24 text-center" title="Erlaubt NULL-Werte">Null</th>
-                <th className="p-2 w-16 text-center" title="Automatisch hochzählen (nur Integer)">Auto</th>
-                <th className="p-2 flex-1">Standardwert</th>
-                <th className="p-2 w-10"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {fields.map((field) => {
-                const typeConfig = DATA_TYPES[field.type];
-                return (
-                <tr key={field.id} className="hover:bg-slate-50">
-                  <td className="p-2 text-center">
-                    <button 
-                      onClick={() => updateField(field.id, { isPrimaryKey: !field.isPrimaryKey, allowNull: field.isPrimaryKey })} // PK usually not null
-                      className={`hover:bg-slate-200 p-1 rounded ${field.isPrimaryKey ? 'text-yellow-600' : 'text-slate-300'}`}
-                    >
-                      <Key size={16} />
-                    </button>
-                  </td>
-                  <td className="p-2">
-                    <input 
-                      type="text" 
-                      value={field.name}
-                      onChange={(e) => updateField(field.id, { name: e.target.value })}
-                      className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
-                    />
-                  </td>
-                  <td className="p-2">
-                    <select 
-                      value={field.type}
-                      onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
-                      className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
-                    >
-                      {Object.entries(DATA_TYPES).map(([key, config]) => (
-                          <option key={key} value={key}>{config.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-2 flex gap-1">
-                    {typeConfig?.hasLength && (
-                        <input 
-                            type="number" 
-                            placeholder="Len"
-                            value={field.length || ''} 
-                            onChange={e => updateField(field.id, { length: parseInt(e.target.value) })}
-                            className="w-16 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
-                        />
-                    )}
-                    {typeConfig?.hasPrecision && (
-                        <>
+          {activeTab === 'fields' ? (
+              <>
+                <table className="w-full border-collapse">
+                    <thead>
+                    <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                        <th className="p-2 w-10 text-center" title="Primärschlüssel">PK</th>
+                        <th className="p-2 w-1/5">Feldname</th>
+                        <th className="p-2 w-40">Datentyp</th>
+                        <th className="p-2 w-20">Size/Attr</th>
+                        <th className="p-2 w-24">Formatierung</th>
+                        <th className="p-2 w-16 text-center" title="Erlaubt NULL-Werte">Null</th>
+                        <th className="p-2 w-16 text-center" title="Automatisch hochzählen (nur Integer)">Auto</th>
+                        <th className="p-2 flex-1">Standardwert</th>
+                        <th className="p-2 w-10"></th>
+                    </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                    {fields.map((field) => {
+                        const typeConfig = DATA_TYPES[field.type];
+                        const isDate = field.type === 'DATE' || field.type === 'DATETIME';
+                        return (
+                        <tr key={field.id} className="hover:bg-slate-50">
+                        <td className="p-2 text-center">
+                            <button 
+                            onClick={() => updateField(field.id, { isPrimaryKey: !field.isPrimaryKey, allowNull: field.isPrimaryKey })} // PK usually not null
+                            className={`hover:bg-slate-200 p-1 rounded ${field.isPrimaryKey ? 'text-yellow-600' : 'text-slate-300'}`}
+                            >
+                            <Key size={16} />
+                            </button>
+                        </td>
+                        <td className="p-2">
                             <input 
-                                type="number" 
-                                placeholder="Prec"
-                                value={field.precision || ''} 
-                                onChange={e => updateField(field.id, { precision: parseInt(e.target.value) })}
-                                className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
-                                title="Precision (Gesamtstellen)"
+                            type="text" 
+                            value={field.name}
+                            onChange={(e) => updateField(field.id, { name: e.target.value })}
+                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
                             />
-                            <span className="text-slate-400">,</span>
+                        </td>
+                        <td className="p-2">
+                            <select 
+                            value={field.type}
+                            onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
+                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
+                            >
+                            {Object.entries(DATA_TYPES).map(([key, config]) => (
+                                <option key={key} value={key}>{config.label}</option>
+                            ))}
+                            </select>
+                        </td>
+                        <td className="p-2 flex gap-1">
+                            {typeConfig?.hasLength && (
+                                <input 
+                                    type="number" 
+                                    placeholder="Len"
+                                    value={field.length || ''} 
+                                    onChange={e => updateField(field.id, { length: parseInt(e.target.value) })}
+                                    className="w-16 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
+                                />
+                            )}
+                            {typeConfig?.hasPrecision && (
+                                <>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Prec"
+                                        value={field.precision || ''} 
+                                        onChange={e => updateField(field.id, { precision: parseInt(e.target.value) })}
+                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
+                                        title="Precision (Gesamtstellen)"
+                                    />
+                                    <span className="text-slate-400">,</span>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Scale"
+                                        value={field.scale || ''} 
+                                        onChange={e => updateField(field.id, { scale: parseInt(e.target.value) })}
+                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
+                                        title="Scale (Nachkommastellen)"
+                                    />
+                                </>
+                            )}
+                        </td>
+                        <td className="p-2">
+                            {isDate && (
+                                <select 
+                                    value={field.displayFormat || ''}
+                                    onChange={e => updateField(field.id, { displayFormat: e.target.value })}
+                                    className="w-full border border-slate-200 rounded px-1 py-0.5 text-xs"
+                                    title="Anzeigeformat"
+                                >
+                                    <option value="">(Standard)</option>
+                                    <option value="dd.MM.yyyy">dd.MM.yyyy (31.12.2024)</option>
+                                    <option value="dd.MM.yyyy HH:mm">dd.MM.yyyy HH:mm</option>
+                                    <option value="MM/dd/yyyy">MM/dd/yyyy (US)</option>
+                                    <option value="yyyy-MM-dd">yyyy-MM-dd (ISO)</option>
+                                    <option value="HH:mm">HH:mm (Zeit)</option>
+                                </select>
+                            )}
+                        </td>
+                        <td className="p-2 text-center">
                             <input 
-                                type="number" 
-                                placeholder="Scale"
-                                value={field.scale || ''} 
-                                onChange={e => updateField(field.id, { scale: parseInt(e.target.value) })}
-                                className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
-                                title="Scale (Nachkommastellen)"
+                                type="checkbox" 
+                                checked={field.allowNull !== false} // Default is true if undefined
+                                disabled={field.isPrimaryKey}
+                                onChange={(e) => updateField(field.id, { allowNull: e.target.checked })}
                             />
-                        </>
-                    )}
-                  </td>
-                  <td className="p-2 text-center">
-                      <input 
-                        type="checkbox" 
-                        checked={field.allowNull !== false} // Default is true if undefined
-                        disabled={field.isPrimaryKey}
-                        onChange={(e) => updateField(field.id, { allowNull: e.target.checked })}
-                      />
-                  </td>
-                  <td className="p-2 text-center">
-                    {field.type === 'INTEGER' && (
-                        <button 
-                        onClick={() => updateField(field.id, { isAutoIncrement: !field.isAutoIncrement })}
-                        className={`hover:bg-slate-200 p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-200'}`}
-                        title="Auto Increment aktivieren"
-                        >
-                        <Hash size={16} />
-                        </button>
-                    )}
-                  </td>
-                  <td className="p-2">
-                    <input 
-                      type="text" 
-                      value={field.defaultValue || ''}
-                      onChange={(e) => updateField(field.id, { defaultValue: e.target.value })}
-                      placeholder="NULL"
-                      className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm placeholder:text-slate-300"
-                    />
-                  </td>
-                  <td className="p-2">
-                    <button 
-                      onClick={() => removeField(field.id)}
-                      className="text-slate-400 hover:text-red-600 p-1"
-                      title="Feld löschen"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              )})}
-            </tbody>
-          </table>
+                        </td>
+                        <td className="p-2 text-center">
+                            {field.type === 'INTEGER' && (
+                                <button 
+                                onClick={() => updateField(field.id, { isAutoIncrement: !field.isAutoIncrement })}
+                                className={`hover:bg-slate-200 p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-200'}`}
+                                title="Auto Increment aktivieren"
+                                >
+                                <Hash size={16} />
+                                </button>
+                            )}
+                        </td>
+                        <td className="p-2">
+                            {renderDefaultValueInput(field)}
+                        </td>
+                        <td className="p-2">
+                            <button 
+                            onClick={() => removeField(field.id)}
+                            className="text-slate-400 hover:text-red-600 p-1"
+                            title="Feld löschen"
+                            >
+                            <Trash2 size={16} />
+                            </button>
+                        </td>
+                        </tr>
+                    )})}
+                    </tbody>
+                </table>
 
-          <button 
-            onClick={addField}
-            className="mt-4 flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold"
-          >
-            <Plus size={16} /> Feld hinzufügen
-          </button>
+                <button 
+                    onClick={addField}
+                    className="mt-4 flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                >
+                    <Plus size={16} /> Feld hinzufügen
+                </button>
+              </>
+          ) : (
+              <div className="max-w-4xl animate-in fade-in slide-in-from-right-4">
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                      <p className="text-sm text-blue-700">
+                          Definieren Sie hier Geschäftsregeln, die beim Speichern (Backend) validiert werden.
+                      </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                      {validationRules.map((rule) => (
+                          <div key={rule.id} className="flex gap-2 items-center bg-slate-50 border border-slate-200 p-2 rounded shadow-sm">
+                              <div className="w-1/4">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase">Feld</label>
+                                  <select 
+                                    className="w-full border rounded p-1 text-sm"
+                                    value={rule.fieldId}
+                                    onChange={e => updateValidationRule(rule.id, { fieldId: e.target.value })}
+                                  >
+                                      {fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                  </select>
+                              </div>
+                              <div className="w-24">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase">Operator</label>
+                                  <select 
+                                    className="w-full border rounded p-1 text-sm"
+                                    value={rule.operator}
+                                    onChange={e => updateValidationRule(rule.id, { operator: e.target.value as ValidationOperator })}
+                                  >
+                                      <option value="gt">Größer (&gt;)</option>
+                                      <option value="lt">Kleiner (&lt;)</option>
+                                      <option value="gte">Min (&gt;=)</option>
+                                      <option value="lte">Max (&lt;=)</option>
+                                      <option value="eq">Gleich (=)</option>
+                                      <option value="neq">Ungleich (!=)</option>
+                                      <option value="regex">Regex Pattern</option>
+                                  </select>
+                              </div>
+                              <div className="w-1/3">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase">Vergleichswert / Feld</label>
+                                  <div className="flex gap-1">
+                                      <select 
+                                        className="border rounded p-1 text-xs w-16 bg-slate-100"
+                                        value={rule.compareType}
+                                        onChange={e => updateValidationRule(rule.id, { compareType: e.target.value as any })}
+                                      >
+                                          <option value="value">Wert</option>
+                                          <option value="field">Feld</option>
+                                      </select>
+                                      {rule.compareType === 'field' ? (
+                                          <select 
+                                            className="flex-1 border rounded p-1 text-sm"
+                                            value={rule.compareValue}
+                                            onChange={e => updateValidationRule(rule.id, { compareValue: e.target.value })}
+                                          >
+                                              <option value="">(Wählen)</option>
+                                              {fields.filter(f => f.id !== rule.fieldId).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                          </select>
+                                      ) : (
+                                          <input 
+                                            type="text" 
+                                            className="flex-1 border rounded p-1 text-sm"
+                                            placeholder={rule.operator === 'regex' ? '^Pattern$' : 'Wert'}
+                                            value={rule.compareValue}
+                                            onChange={e => updateValidationRule(rule.id, { compareValue: e.target.value })}
+                                          />
+                                      )}
+                                  </div>
+                              </div>
+                              <div className="flex-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase">Fehlermeldung</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full border rounded p-1 text-sm"
+                                    placeholder="z.B. Startdatum muss vor Enddatum liegen"
+                                    value={rule.errorMessage}
+                                    onChange={e => updateValidationRule(rule.id, { errorMessage: e.target.value })}
+                                  />
+                              </div>
+                              <button onClick={() => removeValidationRule(rule.id)} className="mt-4 text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>
+                          </div>
+                      ))}
+                      
+                      <button onClick={addValidationRule} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold mt-4">
+                          <Plus size={16} /> Regel hinzufügen
+                      </button>
+                  </div>
+              </div>
+          )}
         </div>
       </div>
     </div>

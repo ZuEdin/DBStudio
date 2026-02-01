@@ -76,7 +76,8 @@ export const FormWizardModal: React.FC<FormWizardModalProps> = ({
       name: formName,
       sourceType: sourceType as 'table' | 'query',
       sourceId,
-      layout: rootLayout
+      layout: rootLayout,
+      fields: sourceFields.map(f => ({ fieldId: f.id, label: f.name }))
     };
     onSave(newForm);
   };

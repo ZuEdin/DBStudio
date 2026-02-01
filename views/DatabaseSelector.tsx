@@ -1,9 +1,12 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Database, Plus, Upload, FolderOpen, Clock, Trash2, Laptop, PlayCircle, Shield, Code, Settings, Briefcase, Package, Layout, Monitor } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Database, Plus, Upload, FolderOpen, Clock, Trash2, Shield, Code, Briefcase, Package, Layout, Monitor, PlayCircle, Smartphone, Users, Cloud, HardDrive, Wifi } from 'lucide-react';
 import { DbType, Project, BackendLanguage, AuthConfig, BackendConfig, ProjectData } from '../types/index';
 import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage } from '../services/storageService';
-import { TEMPLATES } from '../data/templates/index';
+import { cloudService } from '../services/cloudService';
+import { getTemplates } from '../data/templates/index';
+import { LanguageSelector } from '../components/LanguageSelector';
+import { useTranslation } from 'react-i18next';
 
 interface ProjectSelectionViewProps {
   onSelectProject: (project: Project) => void;
@@ -11,9 +14,14 @@ interface ProjectSelectionViewProps {
 }
 
 export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelectProject, onCreateNew }) => {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [localProjects, setLocalProjects] = useState<Project[]>([]);
+  const [cloudProjects, setCloudProjects] = useState<Project[]>([]);
+  const [activeSource, setActiveSource] = useState<'local' | 'cloud'>('local');
   const [activeTab, setActiveTab] = useState<'create' | 'templates'>('create');
   
+  const { t, i18n } = useTranslation();
+  const templates = useMemo(() => getTemplates(i18n.language), [i18n.language]);
+
   // New Project Form State
   const [newProjectName, setNewProjectName] = useState('');
   const [newDbType, setNewDbType] = useState<DbType>(DbType.SQL);
@@ -25,6 +33,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
       useAdGroups: false,
       adGroups: '',
       useUserLogin: false,
+      isMobileReady: false,
       devBypass: true
   });
 
@@ -35,13 +44,17 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   }, []);
 
   const loadProjects = async () => {
-    const list = await getAllProjects();
-    setProjects(list);
+    const local = await getAllProjects();
+    setLocalProjects(local);
+    
+    // Simulate fetching cloud projects
+    const cloud = await cloudService.getProjects();
+    setCloudProjects(cloud);
   };
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm('Möchten Sie dieses Projekt wirklich unwiderruflich löschen?')) {
+    if (confirm(t('start.msg_delete'))) {
       await deleteProjectFromStorage(id);
       loadProjects();
     }
@@ -67,10 +80,8 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   };
 
   const handleTemplateSelect = (templateId: string) => {
-      const tmpl = TEMPLATES.find(t => t.id === templateId);
+      const tmpl = templates.find(t => t.id === templateId);
       if (tmpl) {
-          // Use template config but allow override of name if needed later (currently auto-named)
-          // We set isDemo=true implicitly by passing data
           const config = tmpl.data.backendConfig!;
           onCreateNew(config.dbType, tmpl.name, config, tmpl.data);
       }
@@ -90,42 +101,65 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
             throw new Error("Ungültiges Dateiformat");
         }
 
-        const existing = projects.find(p => p.id === project.id);
+        const existing = localProjects.find(p => p.id === project.id);
         if (existing) {
-            if(!confirm(`Das Projekt "${project.name}" existiert bereits. Überschreiben?`)) {
+            if(!confirm(t('start.msg_overwrite', { name: project.name }))) {
                 project.id = crypto.randomUUID();
-                project.name = project.name + " (Importiert)";
+                project.name = project.name + " (Import)";
             }
         }
         
         project.lastModified = Date.now();
         await saveProjectToStorage(project);
         await loadProjects();
-        alert('Projekt erfolgreich importiert!');
+        alert(t('start.msg_import_success'));
       } catch (err) {
-        alert('Fehler beim Importieren: ' + err);
+        alert(`${t('start.msg_import_error')}: ${err}`);
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
   };
 
+  const projects = activeSource === 'local' ? localProjects : cloudProjects;
+
   return (
     <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
       
+      {/* Language Selector Top Right */}
+      <div className="absolute top-4 right-4 z-50">
+          <LanguageSelector />
+      </div>
+
       {/* Left Panel: Recent / Open */}
       <div className="w-5/12 p-8 flex flex-col border-r border-slate-200 bg-white">
         <h1 className="text-2xl font-bold text-slate-800 mb-2 flex items-center gap-2">
-            <Database className="text-blue-600" /> DB Studio Pro
+            <Database className="text-blue-600" /> {t('app.name')}
         </h1>
-        <p className="text-slate-500 mb-6 text-sm">Professionelles Datenbank-Design & Prototyping.</p>
+        <p className="text-slate-500 mb-6 text-sm">{t('app.description')}</p>
+
+        {/* Source Toggle */}
+        <div className="flex bg-slate-100 p-1 rounded-lg mb-6 self-start">
+            <button 
+                onClick={() => setActiveSource('local')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeSource === 'local' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                <HardDrive size={16}/> Lokal
+            </button>
+            <button 
+                onClick={() => setActiveSource('cloud')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeSource === 'cloud' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                <Cloud size={16}/> Team Cloud
+            </button>
+        </div>
 
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-                <FolderOpen size={16} /> Ihre Projekte
+                <FolderOpen size={16} /> {activeSource === 'local' ? 'Lokale Projekte' : 'Team Projekte'}
             </h2>
             <label className="cursor-pointer text-xs text-blue-600 hover:underline flex items-center gap-1">
-                <Upload size={12}/> Importieren (.dbsp)
+                <Upload size={12}/> {t('start.import')}
                 <input type="file" ref={fileInputRef} accept=".dbsp" className="hidden" onChange={handleImport} />
             </label>
         </div>
@@ -134,8 +168,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
             {projects.length === 0 ? (
                 <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
                     <FolderOpen size={48} className="mx-auto mb-2 opacity-20" />
-                    <p>Keine Projekte gefunden.</p>
-                    <p className="text-xs">Erstellen Sie rechts ein neues Projekt.</p>
+                    <p>{t('start.no_projects')}</p>
                 </div>
             ) : (
                 projects.map(p => (
@@ -146,10 +179,14 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                     >
                         <div className="flex justify-between items-start">
                             <div>
-                                <h3 className="font-bold text-slate-800 text-sm group-hover:text-blue-600">{p.name}</h3>
+                                <h3 className="font-bold text-slate-800 text-sm group-hover:text-blue-600 flex items-center gap-2">
+                                    {p.name}
+                                    {p.isCloud && <Cloud size={12} className="text-blue-400" />}
+                                </h3>
                                 <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-3">
                                     <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-mono">{p.data.backendConfig.dbType} / {p.data.backendConfig.language}</span>
                                     <span className="flex items-center gap-1"><Clock size={10}/> {new Date(p.lastModified).toLocaleDateString()}</span>
+                                    {p.owner && <span className="flex items-center gap-1 text-blue-500"><Users size={10}/> {p.owner}</span>}
                                 </div>
                             </div>
                             <button 
@@ -176,13 +213,13 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                     onClick={() => setActiveTab('create')}
                     className={`pb-2 px-4 font-bold text-sm ${activeTab === 'create' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                  >
-                     Leeres Projekt
+                     {t('start.empty_project')}
                  </button>
                  <button 
                     onClick={() => setActiveTab('templates')}
                     className={`pb-2 px-4 font-bold text-sm ${activeTab === 'templates' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                  >
-                     Beispiele & Vorlagen
+                     {t('start.templates')}
                  </button>
              </div>
 
@@ -192,16 +229,16 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-2">
                             <Plus size={24} />
                         </div>
-                        <h2 className="text-xl font-bold text-slate-800">Neues Projekt starten</h2>
+                        <h2 className="text-xl font-bold text-slate-800">{t('start.title')}</h2>
                      </div>
 
                      {/* 1. Basic Info */}
                      <div>
-                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Projektname</label>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('start.project_name')}</label>
                          <input 
                             type="text" 
                             className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
-                            placeholder="MeinSuperProjekt"
+                            placeholder="MyProject"
                             value={newProjectName}
                             onChange={e => setNewProjectName(e.target.value)}
                             autoFocus
@@ -211,7 +248,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                      <div className="grid grid-cols-2 gap-6">
                          {/* 2. Database */}
                          <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Database size={12}/> Datenbank</label>
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Database size={12}/> {t('start.database')}</label>
                              <div className="space-y-2">
                                  {[
                                      { id: DbType.SQL, label: 'SQL Server' },
@@ -233,7 +270,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
 
                          {/* 3. Backend */}
                          <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Code size={12}/> Backend Technologie</label>
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Code size={12}/> {t('start.backend')}</label>
                              <div className="space-y-2">
                                  {[
                                      { id: 'dotnet', label: '.NET (C#)' },
@@ -256,30 +293,77 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
 
                      {/* 4. Security / Auth */}
                      <div className="border-t border-slate-100 pt-4">
-                         <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield size={12}/> Sicherheit & Login</label>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield size={12}/> {t('start.security')}</label>
                          
                          <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-sm space-y-3">
                             {newLanguage === 'dotnet' && (
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={authConfig.useWindowsAuth} 
+                                            onChange={e => setAuthConfig({...authConfig, useWindowsAuth: e.target.checked, useAdGroups: false})}
+                                            className="rounded text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span>{t('start.auth_windows')}</span>
+                                    </label>
+                                    
+                                    {authConfig.useWindowsAuth && (
+                                        <div className="ml-6 pl-3 border-l-2 border-slate-200 space-y-2 animate-in slide-in-from-top-1">
+                                            <p className="text-[10px] text-slate-500 mb-2">{t('start.auth_domain_hint')}</p>
+                                            
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={authConfig.useAdGroups} 
+                                                    onChange={e => setAuthConfig({...authConfig, useAdGroups: e.target.checked})}
+                                                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                <span className="flex items-center gap-1 text-xs">
+                                                    <Users size={12}/> Zugriff auf AD-Gruppe beschränken
+                                                </span>
+                                            </label>
+
+                                            {authConfig.useAdGroups && (
+                                                <div className="animate-in fade-in">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Erlaubte AD-Gruppe(n)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="w-full border border-slate-300 rounded p-1.5 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                        placeholder="z.B. DOMAIN\Gruppe, DOMAIN\Admins"
+                                                        value={authConfig.adGroups || ''}
+                                                        onChange={e => setAuthConfig({...authConfig, adGroups: e.target.value})}
+                                                    />
+                                                    <p className="text-[10px] text-slate-400 mt-0.5">Kommagetrennt für mehrere Gruppen.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div>
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input 
                                         type="checkbox" 
-                                        checked={authConfig.useWindowsAuth} 
-                                        onChange={e => setAuthConfig({...authConfig, useWindowsAuth: e.target.checked})}
+                                        checked={authConfig.useUserLogin} 
+                                        onChange={e => setAuthConfig({...authConfig, useUserLogin: e.target.checked})}
                                         className="rounded text-indigo-600 focus:ring-indigo-500"
                                     />
-                                    <span>Windows Authentifizierung (Domain)</span>
+                                    <span>{t('start.auth_user')}</span>
                                 </label>
-                            )}
-
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input 
-                                    type="checkbox" 
-                                    checked={authConfig.useUserLogin} 
-                                    onChange={e => setAuthConfig({...authConfig, useUserLogin: e.target.checked})}
-                                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span>Benutzer-Login (Tabelle 'Users')</span>
-                            </label>
+                                {authConfig.useUserLogin && (
+                                    <label className="flex items-center gap-2 cursor-pointer mt-2 ml-5">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={authConfig.isMobileReady} 
+                                            onChange={e => setAuthConfig({...authConfig, isMobileReady: e.target.checked})}
+                                            className="rounded text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span className="flex items-center gap-1"><Smartphone size={12}/> {t('start.auth_mobile')}</span>
+                                    </label>
+                                )}
+                            </div>
                          </div>
                      </div>
 
@@ -288,15 +372,15 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                         disabled={!newProjectName.trim()}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                      >
-                         Projekt erstellen
+                         {t('start.create_btn')}
                      </button>
                  </div>
              ) : (
                  <div className="space-y-4 animate-in fade-in slide-in-from-right-2">
-                     <p className="text-center text-slate-500 text-sm mb-4">Starten Sie mit einem vollständigen Datenschema.</p>
+                     <p className="text-center text-slate-500 text-sm mb-4">{t('start.start_schema')}</p>
                      
                      <div className="grid grid-cols-1 gap-4">
-                         {TEMPLATES.map(tmpl => {
+                         {templates.map(tmpl => {
                              const Icon = tmpl.icon === 'Briefcase' ? Briefcase : tmpl.icon === 'Package' ? Package : tmpl.icon === 'Kanban' ? Layout : tmpl.icon === 'Monitor' ? Monitor : Database;
                              return (
                                  <div 

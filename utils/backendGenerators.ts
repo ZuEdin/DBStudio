@@ -7,6 +7,7 @@ import { generateReact } from './generators/reactGenerator';
 import { generatePhp } from './generators/phpGenerator';
 import { generateLaravel } from './generators/laravelGenerator';
 import { generateBlazor } from './generators/blazorGenerator';
+import { generateElectron } from './generators/electronGenerator';
 import { generateDatabaseScripts } from './generators/databaseGenerator';
 
 // Main Generator Function
@@ -23,7 +24,8 @@ export const generateBackendCode = (
   // 1. Generate Backend Language Code
   if (config.language === 'dotnet') {
     files = generateDotNet(tables, relationships, queries, config);
-  } else if (config.language === 'nodejs') {
+  } else if (config.language === 'nodejs' || config.language === 'electron') {
+    // Treat 'electron' as 'nodejs' for the backend API structure
     files = generateNodeJs(tables, relationships, queries, config);
   } else if (config.language === 'php') {
     files = generatePhp(tables, relationships, queries, config);
@@ -45,6 +47,9 @@ export const generateBackendCode = (
   } else if (config.frontendFramework === 'blazor') {
     const blazorFiles = generateBlazor(tables, relationships, queries, config, forms, reports);
     files = [...files, ...blazorFiles];
+  } else if (config.frontendFramework === 'electron') {
+    const electronFiles = generateElectron(tables, relationships, queries, config, forms, reports);
+    files = [...files, ...electronFiles];
   }
 
   return files;

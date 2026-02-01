@@ -1,18 +1,24 @@
 
 import React, { useState, useMemo } from 'react';
-import { Table, Query, Report, Form } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen } from 'lucide-react';
+import { Table, Query, Report, Form, Chart, Workflow } from '../types/index';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface SidebarProps {
   tables: Table[];
   queries: Query[];
   reports: Report[];
   forms: Form[];
+  charts?: Chart[];
+  workflows?: Workflow[]; // NEW
   onSelectTable: (id: string) => void;
   onSelectQuery: (id: string) => void;
   onSelectReport: (id: string) => void;
   onSelectForm: (id: string) => void;
-  onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form', id: string) => void;
+  onSelectChart?: (id: string) => void;
+  onSelectWorkflow?: (id: string) => void; // NEW
+  onSelectScheduler?: () => void; // NEW
+  onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow', id: string) => void;
   isOpen: boolean;
   toggleSidebar: () => void;
 }
@@ -25,15 +31,15 @@ interface GroupedItem<T> {
 
 interface Group<T> {
   id: string;
-  name: string; // The prefix/group name
+  name: string; 
   items: GroupedItem<T>[];
-  isVirtual: boolean; // True if multiple items, false if single item (no group needed)
+  isVirtual: boolean; 
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onItemContextMenu, isOpen, toggleSidebar }) => {
-  const [openGroups, setOpenGroups] = useState({ tables: true, queries: true, reports: true, forms: true });
-  // Track open states of dynamic folders (e.g. "Users")
+export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, charts = [], workflows = [], onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onSelectChart, onSelectWorkflow, onSelectScheduler, onItemContextMenu, isOpen, toggleSidebar }) => {
+  const [openGroups, setOpenGroups] = useState({ tables: true, queries: true, reports: true, forms: true, charts: true, workflows: true });
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
+  const { t } = useTranslation();
 
   const toggleGroup = (group: keyof typeof openGroups) => {
     setOpenGroups({ ...openGroups, [group]: !openGroups[group] });
@@ -48,110 +54,75 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
     e.dataTransfer.effectAllowed = 'copy';
   };
 
-  // Helper to group items based on prefix (e.g. "Users", "UsersRoles" -> Group "Users")
   const groupItems = <T extends { id: string; name: string }>(items: T[]): Group<T>[] => {
-    const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name));
+    if (!Array.isArray(items)) return [];
+    const sorted = [...items].sort((a, b) => (a?.name || '').localeCompare(b?.name || ''));
     const groups: Group<T>[] = [];
-
-    // Map to track which items are processed
     const processed = new Set<string>();
 
     sorted.forEach((item) => {
-      if (processed.has(item.id)) return;
-
-      // Check if this item acts as a prefix for subsequent items
-      // Example: item="Users" matches "UsersRoles", "UsersLog"
+      if (!item || !item.id || processed.has(item.id)) return;
       const related = sorted.filter(candidate => 
-        candidate.id !== item.id && 
+        candidate && candidate.id !== item.id && 
         candidate.name.startsWith(item.name) &&
-        // Ensure it's a valid semantic child (CamelCase or Separator)
-        // e.g. "Users" matches "UsersRoles" (R is upper) or "Users_Roles"
         (candidate.name.length > item.name.length)
       );
 
       if (related.length > 0) {
-        // It's a group!
         const groupItems: GroupedItem<T>[] = [];
-        
-        // Add Parent (Self)
-        groupItems.push({
-          id: item.id,
-          original: item,
-          displayName: item.name // Or "(Haupttabelle)" / "(Basis)"
-        });
+        groupItems.push({ id: item.id, original: item, displayName: item.name });
         processed.add(item.id);
-
-        // Add Children
         related.forEach(child => {
-          if (processed.has(child.id)) return; // Already in another subgroup? (Nested not fully supported yet)
-          
+          if (processed.has(child.id)) return; 
           let shortName = child.name.slice(item.name.length);
-          // Remove potential separators like underscore
           if (shortName.startsWith('_')) shortName = shortName.substring(1);
-          // If perfectly empty (shouldn't happen due to length check), keep original
           if (!shortName) shortName = child.name;
-
-          groupItems.push({
-            id: child.id,
-            original: child,
-            displayName: shortName
-          });
+          groupItems.push({ id: child.id, original: child, displayName: shortName });
           processed.add(child.id);
         });
-
-        groups.push({
-          id: `grp_${item.id}`,
-          name: item.name,
-          items: groupItems,
-          isVirtual: true
-        });
+        groups.push({ id: `grp_${item.id}`, name: item.name, items: groupItems, isVirtual: true });
       } else {
-        // Standalone item
-        groups.push({
-          id: item.id,
-          name: item.name,
-          items: [{ id: item.id, original: item, displayName: item.name }],
-          isVirtual: false
-        });
+        groups.push({ id: item.id, name: item.name, items: [{ id: item.id, original: item, displayName: item.name }], isVirtual: false });
         processed.add(item.id);
       }
     });
-
     return groups;
   };
 
-  const groupedTables = useMemo(() => groupItems(tables), [tables]);
-  const groupedQueries = useMemo(() => groupItems(queries), [queries]);
-  const groupedReports = useMemo(() => groupItems(reports), [reports]);
-  const groupedForms = useMemo(() => groupItems(forms), [forms]);
+  const groupedTables = useMemo(() => groupItems(tables || []), [tables]);
+  const groupedQueries = useMemo(() => groupItems(queries || []), [queries]);
+  const groupedReports = useMemo(() => groupItems(reports || []), [reports]);
+  const groupedForms = useMemo(() => groupItems(forms || []), [forms]);
+  const groupedCharts = useMemo(() => groupItems(charts || []), [charts]);
+  const groupedWorkflows = useMemo(() => groupItems(workflows || []), [workflows]);
 
-  const RenderGroup = ({ 
-    group, 
-    icon: Icon, 
-    colorClass, 
-    bgClass,
-    onSelect, 
-    type 
-  }: { 
-    group: Group<any>, 
-    icon: any, 
-    colorClass: string, 
-    bgClass: string,
-    onSelect: (id: string) => void, 
-    type: 'table' | 'query' | 'report' | 'form' 
-  }) => {
-    // If singular, render as normal item
+  const RenderGroup: React.FC<{ 
+    group: Group<any>; 
+    icon: any; 
+    colorClass: string; 
+    bgClass: string;
+    onSelect: ((id: string) => void) | undefined; 
+    type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow'; 
+  }> = ({ group, icon: DefaultIcon, colorClass, bgClass, onSelect, type }) => {
+    const getIcon = (item: GroupedItem<any>) => {
+        if (type === 'table' && (item.original as Table).isApiImport) return Globe;
+        return DefaultIcon;
+    };
+
     if (!group.isVirtual || group.items.length === 1) {
       const item = group.items[0];
+      const ItemIcon = getIcon(item);
+      const specificColorClass = type === 'table' && (item.original as Table).isApiImport ? 'text-blue-600' : colorClass;
+
       return (
         <div className={`flex items-center justify-between px-2 py-1 ${bgClass} rounded text-sm text-slate-700 group relative`}>
           <div
             className="flex items-center gap-2 flex-grow cursor-pointer truncate"
-            onClick={() => onSelect(item.id)}
+            onClick={() => onSelect && onSelect(item.id)}
             draggable={type === 'table' || type === 'query'}
             onDragStart={(e) => (type === 'table' || type === 'query') && handleDragStart(e, type, item.id)}
           >
-            <Icon size={14} className={`${colorClass} flex-shrink-0`} />
+            <ItemIcon size={14} className={`${specificColorClass} flex-shrink-0`} />
             <span className="truncate" title={item.original.name}>{item.displayName}</span>
           </div>
           <button onClick={(e) => onItemContextMenu(e, type, item.id)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-800 p-0.5 rounded flex-shrink-0">
@@ -161,9 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
       );
     }
 
-    // If Group
-    const isOpen = openFolders[group.id] !== false; // Default open
-    
+    const isOpen = openFolders[group.id] !== false; 
     return (
       <div className="mb-1">
         <div 
@@ -174,25 +143,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
           <span>{group.name}</span>
           <span className="ml-auto text-[9px] bg-slate-200 px-1 rounded-full text-slate-500">{group.items.length}</span>
         </div>
-        
         {isOpen && (
           <div className="ml-3 pl-2 border-l border-slate-300 space-y-0.5 mt-0.5">
-            {group.items.map(item => (
-              <div key={item.id} className={`flex items-center justify-between px-2 py-1 ${bgClass} rounded text-sm text-slate-700 group relative`}>
-                <div
-                  className="flex items-center gap-2 flex-grow cursor-pointer truncate"
-                  onClick={() => onSelect(item.id)}
-                  draggable={type === 'table' || type === 'query'}
-                  onDragStart={(e) => (type === 'table' || type === 'query') && handleDragStart(e, type, item.id)}
-                >
-                  <Icon size={14} className={`${colorClass} flex-shrink-0`} />
-                  <span className="truncate" title={item.original.name}>{item.displayName}</span>
+            {group.items.map(item => {
+              const ItemIcon = getIcon(item);
+              const specificColorClass = type === 'table' && (item.original as Table).isApiImport ? 'text-blue-600' : colorClass;
+              return (
+                <div key={item.id} className={`flex items-center justify-between px-2 py-1 ${bgClass} rounded text-sm text-slate-700 group relative`}>
+                    <div
+                    className="flex items-center gap-2 flex-grow cursor-pointer truncate"
+                    onClick={() => onSelect && onSelect(item.id)}
+                    draggable={type === 'table' || type === 'query'}
+                    onDragStart={(e) => (type === 'table' || type === 'query') && handleDragStart(e, type, item.id)}
+                    >
+                    <ItemIcon size={14} className={`${specificColorClass} flex-shrink-0`} />
+                    <span className="truncate" title={item.original.name}>{item.displayName}</span>
+                    </div>
+                    <button onClick={(e) => onItemContextMenu(e, type, item.id)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-800 p-0.5 rounded flex-shrink-0">
+                    <MoreHorizontal size={16} />
+                    </button>
                 </div>
-                <button onClick={(e) => onItemContextMenu(e, type, item.id)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-800 p-0.5 rounded flex-shrink-0">
-                  <MoreHorizontal size={16} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -217,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
       <div className="p-2 bg-slate-200 border-b border-slate-300 font-bold text-slate-700 text-sm flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Database size={16} />
-          <span>Alle DBObjekte</span>
+          <span>{t('sidebar.all_objects')}</span>
         </div>
         <button onClick={toggleSidebar} className="text-slate-500 hover:text-slate-800 p-0.5 rounded">
            <PanelLeftClose size={16} />
@@ -225,111 +197,82 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
       </div>
       
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
-        
-        {/* Tables Group */}
+        {/* Tables */}
         <div>
-          <button 
-            onClick={() => toggleGroup('tables')}
-            className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded"
-          >
-            {openGroups.tables ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            Tabellen
+          <button onClick={() => toggleGroup('tables')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+            {openGroups.tables ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.tables')}
           </button>
           {openGroups.tables && (
             <div className="ml-2 mt-1 space-y-1">
-              {groupedTables.map(group => (
-                <RenderGroup 
-                  key={group.id} 
-                  group={group} 
-                  icon={TableIcon} 
-                  colorClass="text-orange-600" 
-                  bgClass="hover:bg-orange-100 hover:text-orange-900"
-                  onSelect={onSelectTable}
-                  type="table"
-                />
-              ))}
-              {tables.length === 0 && <span className="text-xs text-slate-400 italic px-2">Keine Tabellen</span>}
+              {groupedTables.map(g => <RenderGroup key={g.id} group={g} icon={TableIcon} colorClass="text-orange-600" bgClass="hover:bg-orange-100 hover:text-orange-900" onSelect={onSelectTable} type="table" />)}
             </div>
           )}
         </div>
 
-        {/* Queries Group */}
+        {/* Queries */}
         <div>
-          <button 
-            onClick={() => toggleGroup('queries')}
-            className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded"
-          >
-            {openGroups.queries ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            Abfragen
+          <button onClick={() => toggleGroup('queries')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+            {openGroups.queries ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.queries')}
           </button>
           {openGroups.queries && (
             <div className="ml-2 mt-1 space-y-1">
-              {groupedQueries.map(group => (
-                <RenderGroup 
-                  key={group.id} 
-                  group={group} 
-                  icon={Search} 
-                  colorClass="text-blue-600" 
-                  bgClass="hover:bg-blue-100 hover:text-blue-900"
-                  onSelect={onSelectQuery}
-                  type="query"
-                />
-              ))}
-               {queries.length === 0 && <span className="text-xs text-slate-400 italic px-2">Keine Abfragen</span>}
+              {groupedQueries.map(g => <RenderGroup key={g.id} group={g} icon={Search} colorClass="text-blue-600" bgClass="hover:bg-blue-100 hover:text-blue-900" onSelect={onSelectQuery} type="query" />)}
             </div>
           )}
         </div>
         
-        {/* Reports Group */}
+        {/* Reports */}
         <div>
-           <button 
-            onClick={() => toggleGroup('reports')}
-            className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded"
-          >
-            {openGroups.reports ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            Berichte
+           <button onClick={() => toggleGroup('reports')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+            {openGroups.reports ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.reports')}
           </button>
           {openGroups.reports && (
              <div className="ml-2 mt-1 space-y-1">
-              {groupedReports.map(group => (
-                <RenderGroup 
-                  key={group.id} 
-                  group={group} 
-                  icon={FileText} 
-                  colorClass="text-green-600" 
-                  bgClass="hover:bg-green-100 hover:text-green-900"
-                  onSelect={onSelectReport}
-                  type="report"
-                />
-              ))}
-               {reports.length === 0 && <span className="text-xs text-slate-400 italic px-2">Keine Berichte</span>}
+              {groupedReports.map(g => <RenderGroup key={g.id} group={g} icon={FileText} colorClass="text-green-600" bgClass="hover:bg-green-100 hover:text-green-900" onSelect={onSelectReport} type="report" />)}
              </div>
           )}
         </div>
         
-        {/* Forms Group */}
+        {/* Forms */}
          <div>
-           <button 
-            onClick={() => toggleGroup('forms')}
-            className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded"
-          >
-            {openGroups.forms ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            Formulare
+           <button onClick={() => toggleGroup('forms')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+            {openGroups.forms ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.forms')}
           </button>
           {openGroups.forms && (
              <div className="ml-2 mt-1 space-y-1">
-                {groupedForms.map(group => (
-                  <RenderGroup 
-                    key={group.id} 
-                    group={group} 
-                    icon={Layout} 
-                    colorClass="text-indigo-600" 
-                    bgClass="hover:bg-indigo-100 hover:text-indigo-900"
-                    onSelect={onSelectForm}
-                    type="form"
-                  />
-                ))}
-               {forms.length === 0 && <span className="text-xs text-slate-400 italic px-2">Keine Formulare</span>}
+                {groupedForms.map(g => <RenderGroup key={g.id} group={g} icon={Layout} colorClass="text-indigo-600" bgClass="hover:bg-indigo-100 hover:text-indigo-900" onSelect={onSelectForm} type="form" />)}
+             </div>
+          )}
+        </div>
+
+        {/* Charts */}
+        <div>
+           <button onClick={() => toggleGroup('charts')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+            {openGroups.charts ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.charts')}
+          </button>
+          {openGroups.charts && (
+             <div className="ml-2 mt-1 space-y-1">
+                {groupedCharts.map(g => <RenderGroup key={g.id} group={g} icon={BarChart2} colorClass="text-pink-600" bgClass="hover:bg-pink-100 hover:text-pink-900" onSelect={onSelectChart!} type="chart" />)}
+             </div>
+          )}
+        </div>
+
+        {/* Workflows & Scheduler (NEW) */}
+        <div>
+           <button onClick={() => toggleGroup('workflows')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+            {openGroups.workflows ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Logik & Jobs
+          </button>
+          {openGroups.workflows && (
+             <div className="ml-2 mt-1 space-y-1">
+                {/* Scheduler Item */}
+                <div className={`flex items-center justify-between px-2 py-1 hover:bg-teal-100 hover:text-teal-900 rounded text-sm text-slate-700 cursor-pointer`} onClick={onSelectScheduler}>
+                    <div className="flex items-center gap-2">
+                        <CalendarClock size={14} className="text-teal-600" />
+                        <span>Zeitplaner (Jobs)</span>
+                    </div>
+                </div>
+                
+                {groupedWorkflows.map(g => <RenderGroup key={g.id} group={g} icon={GitFork} colorClass="text-purple-600" bgClass="hover:bg-purple-100 hover:text-purple-900" onSelect={onSelectWorkflow} type="workflow" />)}
              </div>
           )}
         </div>

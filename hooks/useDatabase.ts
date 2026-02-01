@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { DbType, Table, Query, Relationship, Report, Form, SelectQuery, Project, BackendConfig, FormElement } from '../types/index';
+import { DbType, Table, Query, Relationship, Report, Form, SelectQuery, Project, BackendConfig, FormElement, Workflow } from '../types/index';
 import { executeSelectQuery } from '../features/queries/utils/queryExecution';
 import { saveProjectToStorage } from '../services/storageService';
 
@@ -14,6 +14,7 @@ export const useDatabase = () => {
   const [queries, setQueries] = useState<Query[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]); // NEW
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   
   const [loadedBackendConfig, setLoadedBackendConfig] = useState<BackendConfig | null>(null);
@@ -103,8 +104,9 @@ export const useDatabase = () => {
 
       const reports: Report[] = [];
       const forms: Form[] = [];
+      const workflows: Workflow[] = [];
       
-      return { tables, relationships, queries, reports, forms };
+      return { tables, relationships, queries, reports, forms, workflows };
   };
 
   const createNewDatabase = (type: DbType, name: string, config?: BackendConfig, isDemo: boolean = false) => {
@@ -120,6 +122,7 @@ export const useDatabase = () => {
           setQueries(demoData.queries);
           setForms(demoData.forms);
           setReports(demoData.reports);
+          setWorkflows(demoData.workflows);
       } else {
           // Initialize empty lists
           let initialTables: Table[] = [];
@@ -145,6 +148,7 @@ export const useDatabase = () => {
           setQueries([]);
           setForms([]);
           setReports([]);
+          setWorkflows([]);
       }
       
       // Store the config passed from Selector
@@ -160,6 +164,7 @@ export const useDatabase = () => {
       setRelationships(project.data.relationships);
       setForms(project.data.forms || []);
       setReports(project.data.reports || []);
+      setWorkflows(project.data.workflows || []);
       setLoadedBackendConfig(project.data.backendConfig);
   };
 
@@ -174,6 +179,7 @@ export const useDatabase = () => {
               queries,
               reports,
               forms,
+              workflows,
               relationships,
               backendConfig
           }
@@ -187,7 +193,7 @@ export const useDatabase = () => {
           id: currentProjectId,
           name: currentProjectName,
           lastModified: Date.now(),
-          data: { tables, queries, reports, forms, relationships, backendConfig }
+          data: { tables, queries, reports, forms, workflows, relationships, backendConfig }
       };
     const dataStr = JSON.stringify(project, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
@@ -207,6 +213,7 @@ export const useDatabase = () => {
     setRelationships([]);
     setForms([]);
     setReports([]);
+    setWorkflows([]);
   };
 
   // Table operations
@@ -263,6 +270,13 @@ export const useDatabase = () => {
   const renameForm = (id: string, newName: string) => setForms(prev => prev.map(f => f.id === id ? {...f, name: newName} : f));
   const deleteForm = (id: string) => setForms(prev => prev.filter(f => f.id !== id));
 
+  // Workflow Operations
+  const saveWorkflow = (workflow: Workflow) => {
+      const exists = workflows.some(w => w.id === workflow.id);
+      if(exists) setWorkflows(prev => prev.map(w => w.id === workflow.id ? workflow : w));
+      else setWorkflows(prev => [...prev, workflow]);
+  }
+
   const executeQuery = (query: Query): Record<string, any>[] => {
       if (query.type === 'SELECT') {
           return executeSelectQuery(query as SelectQuery, tables, relationships);
@@ -287,12 +301,14 @@ export const useDatabase = () => {
     queries,
     reports,
     forms,
+    workflows,
     relationships,
     setRelationships,
     saveTable,
     saveQuery,
     saveReport,
     saveForm,
+    saveWorkflow,
     createNewDatabase,
     loadProject,
     persistProject,

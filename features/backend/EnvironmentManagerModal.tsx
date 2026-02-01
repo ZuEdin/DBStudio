@@ -1,0 +1,92 @@
+
+import React, { useState } from 'react';
+import { EnvironmentConfig, DbType } from '../../types/index';
+import { X, Server, Database, Save, Globe } from 'lucide-react';
+
+interface EnvironmentManagerModalProps {
+  initialEnvs: EnvironmentConfig[] | undefined;
+  dbType: DbType;
+  onSave: (envs: EnvironmentConfig[]) => void;
+  onClose: () => void;
+}
+
+export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = ({ initialEnvs, dbType, onSave, onClose }) => {
+  const [envs, setEnvs] = useState<EnvironmentConfig[]>(initialEnvs || [
+      { name: 'Development', dbConnection: '' },
+      { name: 'Staging', dbConnection: '' },
+      { name: 'Production', dbConnection: '' }
+  ]);
+
+  const updateEnv = (index: number, key: keyof EnvironmentConfig, value: string) => {
+      const newEnvs = [...envs];
+      (newEnvs[index] as any)[key] = value;
+      setEnvs(newEnvs);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl border border-slate-300 overflow-hidden flex flex-col h-[600px]">
+        <div className="bg-slate-800 text-white p-5 flex justify-between items-center">
+            <h2 className="text-xl font-bold flex items-center gap-2"><Globe className="text-teal-400"/> Umgebungskonfiguration</h2>
+            <button onClick={onClose}><X size={20}/></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 space-y-6">
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded text-sm text-blue-800">
+                Definieren Sie hier unterschiedliche Datenbank-Verbindungen für Ihre Umgebungen. 
+                Der App Generator erstellt automatisch passende Konfigurationsdateien (z.B. <code>appsettings.Production.json</code> oder <code>.env.production</code>).
+            </div>
+
+            {envs.map((env, idx) => (
+                <div key={env.name} className="bg-white border border-slate-200 rounded-lg shadow-sm p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className={`w-3 h-3 rounded-full ${env.name === 'Production' ? 'bg-red-500' : env.name === 'Staging' ? 'bg-orange-500' : 'bg-green-500'}`}></div>
+                        <h3 className="font-bold text-slate-700">{env.name}</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                Connection String ({dbType})
+                            </label>
+                            <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                <Database size={16} className="text-slate-400" />
+                                <input 
+                                    type="text" 
+                                    className="flex-1 bg-transparent outline-none text-sm font-mono"
+                                    placeholder={dbType === 'SQL' ? "Server=prod-sql;Database=mydb;..." : "mongodb://prod-mongo:27017/..."}
+                                    value={env.dbConnection}
+                                    onChange={e => updateEnv(idx, 'dbConnection', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                API Base URL (Frontend)
+                            </label>
+                            <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                <Server size={16} className="text-slate-400" />
+                                <input 
+                                    type="text" 
+                                    className="flex-1 bg-transparent outline-none text-sm font-mono"
+                                    placeholder="https://api.mydomain.com"
+                                    value={env.apiUrl || ''}
+                                    onChange={e => updateEnv(idx, 'apiUrl', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        <div className="p-4 bg-white border-t flex justify-end gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded text-sm">Abbrechen</button>
+            <button onClick={() => onSave(envs)} className="px-4 py-2 bg-slate-900 text-white hover:bg-black rounded text-sm font-bold flex items-center gap-2">
+                <Save size={16}/> Konfiguration speichern
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};

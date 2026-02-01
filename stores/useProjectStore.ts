@@ -1,103 +1,105 @@
 
 import { create } from 'zustand';
 import { produce } from 'immer';
-import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData } from '../types/index';
+import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow } from '../types/index';
 import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEngine';
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
 
-// --- Types ---
-interface HistoryState {
-    past: ProjectData[];
-    future: ProjectData[];
-}
-
 interface ProjectStore extends ProjectData {
-    // Meta
     projectId: string | null;
     projectName: string;
-    
-    // Actions
     init: () => Promise<void>;
     loadProject: (project: Project) => void;
     createNew: (type: DbType, name: string, config: BackendConfig, initialData?: Partial<ProjectData>) => void;
-    
-    // History Actions
     undo: () => void;
     redo: () => void;
-    pushHistory: () => void; // Call before destructive changes
-
-    // Data Actions
+    pushHistory: () => void;
     setTables: (tables: Table[]) => void;
     updateTable: (table: Table) => void;
     setQueries: (queries: Query[]) => void;
     setReports: (reports: Report[]) => void;
     setForms: (forms: Form[]) => void;
+    setCharts: (charts: Chart[]) => void;
+    setWorkflows: (workflows: Workflow[]) => void;
     setRelationships: (relationships: Relationship[]) => void;
     setBackendConfig: (config: BackendConfig) => void;
-    
-    // Helpers
+    snapshot: () => void;
     executeQuery: (query: Query) => Record<string, any>[];
 }
 
 const initialData: ProjectData = {
-    tables: [], queries: [], reports: [], forms: [], relationships: [],
+    tables: [], queries: [], reports: [], forms: [], charts: [], workflows: [], relationships: [],
     backendConfig: { 
         language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, 
         dbConnection: '', useSwagger: true, frontendFramework: 'react' 
-    }
+    },
+    lastSnapshot: []
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
     ...initialData,
     projectId: null,
     projectName: '',
-    
-    // History
-    history: { past: [], future: [] } as any, // "any" to hide from store interface, handled internally
+    history: { past: [], future: [] } as any,
 
-    init: async () => {
-        await initSqlEngine();
-    },
+    init: async () => { await initSqlEngine(); },
 
     loadProject: (project) => {
         set({
             projectId: project.id,
             projectName: project.name,
-            tables: project.data.tables,
-            queries: project.data.queries,
-            reports: project.data.reports,
-            forms: project.data.forms,
-            relationships: project.data.relationships,
+            tables: project.data.tables || [],
+            queries: project.data.queries || [],
+            reports: project.data.reports || [],
+            forms: project.data.forms || [],
+            charts: project.data.charts || [],
+            workflows: project.data.workflows || [],
+            relationships: project.data.relationships || [],
             backendConfig: project.data.backendConfig,
+            lastSnapshot: project.data.lastSnapshot || [], // Restore snapshot
             history: { past: [], future: [] }
         } as any);
-        syncTablesToSql(project.data.tables);
+        syncTablesToSql(project.data.tables || []);
     },
 
     createNew: (type, name, config, initialData) => {
         const id = crypto.randomUUID();
+        // Clone to ensure mutability
+        let tables = [...(initialData?.tables || [])];
+        let relationships = [...(initialData?.relationships || [])];
         
-        let tables = initialData?.tables || [];
-        let queries = initialData?.queries || [];
-        let forms = initialData?.forms || [];
-        let reports = initialData?.reports || [];
-        let relationships = initialData?.relationships || [];
+        // Auto-create Auth Tables
+        if (config.authConfig?.useUserLogin && !tables.some(t => t.name.toLowerCase() === 'sys_users')) {
+             const roleTableId = 'sys_roles';
+             const rolePkId = crypto.randomUUID();
+             const roleFields: Field[] = [
+                 { id: rolePkId, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, 
+                 { id: crypto.randomUUID(), name: 'Name', type: 'VARCHAR', length: 50 }
+             ];
+             
+             const userTableId = 'sys_users';
+             const userPkId = crypto.randomUUID();
+             const roleFkId = crypto.randomUUID();
+             const userFields: Field[] = [
+                 { id: userPkId, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, 
+                 { id: crypto.randomUUID(), name: 'Username', type: 'VARCHAR', length: 50 }, 
+                 { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255 }, // In real app, stored securely
+                 { id: roleFkId, name: 'RoleId', type: 'INTEGER' }
+             ];
 
-        // Auto-create users table if needed and not present
-        if (config.authConfig?.useUserLogin && !tables.some(t => t.name.toLowerCase() === 'users')) {
-             tables.push({
-                  id: 'sys_users',
-                  name: 'Users',
-                  fields: [
-                      { id: 'u1', name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
-                      { id: 'u2', name: 'Username', type: 'VARCHAR', length: 50, allowNull: false },
-                      { id: 'u3', name: 'PasswordHash', type: 'VARCHAR', length: 255, allowNull: false },
-                      { id: 'u4', name: 'Email', type: 'VARCHAR', length: 100, allowNull: true },
-                      { id: 'u5', name: 'Role', type: 'VARCHAR', length: 20, defaultValue: 'User' }
-                  ],
-                  data: []
-              });
+             // Multi-Tenancy Logic: Add TenantId to Users/Roles if using Discriminator
+             if (config.multiTenancy?.enabled && config.multiTenancy.strategy === 'discriminator') {
+                 const tenantField = config.multiTenancy.tenantField || 'TenantId';
+                 userFields.push({ id: crypto.randomUUID(), name: tenantField, type: 'VARCHAR', length: 50 });
+                 roleFields.push({ id: crypto.randomUUID(), name: tenantField, type: 'VARCHAR', length: 50 });
+             }
+
+             tables.push({ id: roleTableId, name: 'sys_roles', fields: roleFields, data: [{Id:1, Name:'Admin'},{Id:2, Name:'User'}] });
+             tables.push({ id: userTableId, name: 'sys_users', fields: userFields, data: [{Id:1, Username:'admin', RoleId:1}] });
+
+             const permTableId = 'sys_permissions';
+             tables.push({ id: permTableId, name: 'sys_permissions', fields: [{ id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true }, { id: crypto.randomUUID(), name: 'RoleId', type: 'INTEGER' }, { id: crypto.randomUUID(), name: 'ObjectType', type: 'VARCHAR' }, { id: crypto.randomUUID(), name: 'CanRead', type: 'BOOLEAN' }] });
         }
 
         set({ 
@@ -105,21 +107,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             projectId: id, 
             projectName: name, 
             backendConfig: config,
-            tables, queries, forms, reports, relationships,
+            tables,
+            relationships,
+            charts: [],
+            workflows: [],
+            lastSnapshot: [], // Init empty snapshot
             history: { past: [], future: [] }
         } as any);
         
         syncTablesToSql(tables);
     },
 
-    // --- History Logic ---
     pushHistory: () => {
         set(produce((state: any) => {
             const current: ProjectData = {
                 tables: state.tables, queries: state.queries, reports: state.reports,
-                forms: state.forms, relationships: state.relationships, backendConfig: state.backendConfig
+                forms: state.forms, charts: state.charts, workflows: state.workflows, relationships: state.relationships, backendConfig: state.backendConfig,
+                lastSnapshot: state.lastSnapshot
             };
-            // Limit history to 20 steps
             const newPast = [...state.history.past, current].slice(-20);
             state.history.past = newPast;
             state.history.future = [];
@@ -134,19 +139,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             
             const current: ProjectData = {
                 tables: state.tables, queries: state.queries, reports: state.reports,
-                forms: state.forms, relationships: state.relationships, backendConfig: state.backendConfig
+                forms: state.forms, charts: state.charts, workflows: state.workflows, relationships: state.relationships, backendConfig: state.backendConfig,
+                lastSnapshot: state.lastSnapshot
             };
 
             state.history.future.push(current);
             state.history.past = newPast;
             
-            // Restore
-            state.tables = previous.tables;
-            state.queries = previous.queries;
-            state.reports = previous.reports;
-            state.forms = previous.forms;
-            state.relationships = previous.relationships;
+            state.tables = previous.tables || [];
+            state.queries = previous.queries || [];
+            state.reports = previous.reports || [];
+            state.forms = previous.forms || [];
+            state.charts = previous.charts || [];
+            state.workflows = previous.workflows || [];
+            state.relationships = previous.relationships || [];
             state.backendConfig = previous.backendConfig;
+            state.lastSnapshot = previous.lastSnapshot;
         }));
         syncTablesToSql(get().tables);
     },
@@ -155,55 +163,49 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set(produce((state: any) => {
             if (state.history.future.length === 0) return;
             const next = state.history.future.pop();
-            
             const current: ProjectData = {
                 tables: state.tables, queries: state.queries, reports: state.reports,
-                forms: state.forms, relationships: state.relationships, backendConfig: state.backendConfig
+                forms: state.forms, charts: state.charts, workflows: state.workflows, relationships: state.relationships, backendConfig: state.backendConfig,
+                lastSnapshot: state.lastSnapshot
             };
-
             state.history.past.push(current);
-            
-            // Restore
-            state.tables = next.tables;
-            state.queries = next.queries;
-            state.reports = next.reports;
-            state.forms = next.forms;
-            state.relationships = next.relationships;
+            state.tables = next.tables || [];
+            state.queries = next.queries || [];
+            state.reports = next.reports || [];
+            state.forms = next.forms || [];
+            state.charts = next.charts || [];
+            state.workflows = next.workflows || [];
+            state.relationships = next.relationships || [];
             state.backendConfig = next.backendConfig;
+            state.lastSnapshot = next.lastSnapshot;
         }));
         syncTablesToSql(get().tables);
     },
 
-    // --- Setters (with auto history push) ---
-    setTables: (tables) => {
-        get().pushHistory();
-        set({ tables });
-        syncTablesToSql(tables);
-    },
-    updateTable: (table) => {
-        get().pushHistory();
-        set(state => ({ tables: state.tables.map(t => t.id === table.id ? table : t) }));
-        syncTablesToSql(get().tables);
-    },
+    setTables: (tables) => { get().pushHistory(); set({ tables }); syncTablesToSql(tables); },
+    updateTable: (table) => { get().pushHistory(); set(state => ({ tables: state.tables.map(t => t.id === table.id ? table : t) })); syncTablesToSql(get().tables); },
     setQueries: (queries) => { get().pushHistory(); set({ queries }); },
     setReports: (reports) => { get().pushHistory(); set({ reports }); },
     setForms: (forms) => { get().pushHistory(); set({ forms }); },
+    setCharts: (charts) => { get().pushHistory(); set({ charts }); },
+    setWorkflows: (workflows) => { get().pushHistory(); set({ workflows }); },
     setRelationships: (relationships) => { get().pushHistory(); set({ relationships }); },
     setBackendConfig: (config) => { get().pushHistory(); set({ backendConfig: config }); },
+    
+    // Create a deep copy of current tables as the new snapshot
+    snapshot: () => {
+        get().pushHistory();
+        set(state => ({ lastSnapshot: JSON.parse(JSON.stringify(state.tables)) }));
+    },
 
     executeQuery: (query) => {
         if (query.type !== 'SELECT') return [];
-        
-        // Try SQL Engine first
         try {
             const sql = generateSqlSelect(query.nodes, query.columns, get().tables, get().relationships, DbType.SQLite);
             if (!sql) return [];
-            
-            const results = executeRawSql(sql);
-            return results;
+            return executeRawSql(sql);
         } catch (e) {
             console.warn("SQL Engine failed, falling back to JS", e);
-            // Fallback to JS Engine
             return executeJsQuery(query, get().tables, get().relationships);
         }
     }

@@ -3,12 +3,74 @@ import { Query, Table, Relationship, SelectQuery, QueryColumn } from '../../type
 
 // Helper to evaluate criteria
 const matchesCriteria = (value: any, criteria: string): boolean => {
-  if (!criteria) return true; // Empty criteria implies "match all" usually, but filtered out before calling this if strictly empty string
+  if (!criteria) return true; 
   const crit = criteria.trim().toLowerCase();
   if (crit === '') return true;
 
   const strValue = String(value !== null && value !== undefined ? value : '').toLowerCase();
   
+  // DATE LOGIC
+  // Resolve Keywords
+  let targetDate = new Date();
+  let isDateComparison = false;
+  let operator = '=';
+  let compareVal = crit;
+
+  // Check for keywords
+  if (crit.includes('today') || crit.includes('heute')) {
+      isDateComparison = true;
+      targetDate.setHours(0,0,0,0);
+  } else if (crit.includes('yesterday') || crit.includes('gestern')) {
+      isDateComparison = true;
+      targetDate.setDate(targetDate.getDate() - 1);
+      targetDate.setHours(0,0,0,0);
+  } else if (crit.includes('tomorrow') || crit.includes('morgen')) {
+      isDateComparison = true;
+      targetDate.setDate(targetDate.getDate() + 1);
+      targetDate.setHours(0,0,0,0);
+  } else {
+      // Check for explicit date strings (basic ISO or german)
+      // Remove operators to parse date
+      const cleanDateStr = crit.replace(/(>=|<=|>|<|=)/, '').trim();
+      if (cleanDateStr.match(/^\d{4}-\d{2}-\d{2}$/) || cleanDateStr.match(/^\d{2}\.\d{2}\.\d{4}$/)) {
+          isDateComparison = true;
+          // Normalize german to iso for parsing
+          const iso = cleanDateStr.includes('.') ? cleanDateStr.split('.').reverse().join('-') : cleanDateStr;
+          targetDate = new Date(iso);
+          targetDate.setHours(0,0,0,0);
+      }
+  }
+
+  if (isDateComparison) {
+      // Determine operator
+      if (crit.startsWith('>=')) operator = '>=';
+      else if (crit.startsWith('<=')) operator = '<=';
+      else if (crit.startsWith('>')) operator = '>';
+      else if (crit.startsWith('<')) operator = '<';
+      
+      // Parse Value (Handle Timestamp or String)
+      let valDate = new Date();
+      if (typeof value === 'number') {
+          valDate = new Date(value > 10000000000 ? value : value * 1000);
+      } else {
+          valDate = new Date(value);
+      }
+      
+      if (isNaN(valDate.getTime())) return false; // Invalid date value
+      valDate.setHours(0,0,0,0); // Compare dates only
+
+      const t1 = valDate.getTime();
+      const t2 = targetDate.getTime();
+
+      switch(operator) {
+          case '>': return t1 > t2;
+          case '<': return t1 < t2;
+          case '>=': return t1 >= t2;
+          case '<=': return t1 <= t2;
+          default: return t1 === t2;
+      }
+  }
+
   // Handle IS NULL / IS NOT NULL
   if (crit === 'is null') {
       return value === null || value === undefined || value === '' || String(value).trim() === '';
@@ -28,14 +90,13 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
     }
   }
 
-  // Operators
+  // Standard Operators
   if (crit.startsWith('>=')) return parseFloat(value) >= parseFloat(crit.substring(2).trim());
   if (crit.startsWith('<=')) return parseFloat(value) <= parseFloat(crit.substring(2).trim());
   if (crit.startsWith('>')) return parseFloat(value) > parseFloat(crit.substring(1).trim());
   if (crit.startsWith('<')) return parseFloat(value) < parseFloat(crit.substring(1).trim());
   if (crit.startsWith('!=')) return String(value) != crit.substring(2).trim();
   if (crit.startsWith('=')) {
-      // Handle explicit empty string check like: = ""
       const target = crit.substring(1).trim();
       if (target === '""' || target === "''") return strValue === '';
       return strValue == target.replace(/^["']|["']$/g, '').toLowerCase();
@@ -47,11 +108,10 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
     try {
       const regex = new RegExp(`^${pattern}$`, 'i');
       return regex.test(strValue);
-    } catch (e) { return false; } // Invalid regex
+    } catch (e) { return false; } 
   }
 
   // Exact match (default)
-  // Check if string literal
   if ((crit.startsWith('"') && crit.endsWith('"')) || (crit.startsWith("'") && crit.endsWith("'"))) {
     return strValue === crit.substring(1, crit.length - 1).toLowerCase();
   }
@@ -67,12 +127,8 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
 // Helper to resolve calculated fields
 const resolveExpression = (row: Record<string, any>, expression: string): any => {
   if (!expression) return null;
-  
-  // Simple regex to replace {{Table.Field}} with values
-  // Warning: This is a basic implementation. A real parser is safer and more robust.
   let result = expression;
   const matches = expression.match(/\{\{([^}]+)\}\}/g);
-  
   if (matches) {
     matches.forEach(match => {
       const key = match.substring(2, match.length - 2).trim(); // remove {{ }}
@@ -80,8 +136,6 @@ const resolveExpression = (row: Record<string, any>, expression: string): any =>
       result = result.replace(match, String(val));
     });
   }
-
-  // Basic JS evaluation for string concat ( & ) or math
   try {
       if (result.includes('&')) {
           const parts = result.split('&').map(p => {
@@ -89,7 +143,7 @@ const resolveExpression = (row: Record<string, any>, expression: string): any =>
               if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) {
                   return p.substring(1, p.length - 1);
               }
-              return p; // Was already replaced value
+              return p; 
           });
           return parts.join('');
       }
@@ -102,7 +156,6 @@ const resolveExpression = (row: Record<string, any>, expression: string): any =>
 export const executeSelectQuery = (query: SelectQuery, tables: Table[], relationships: Relationship[]): Record<string, any>[] => {
     if (query.nodes.length === 0 || query.columns.length === 0) return [];
 
-    // 1. JOIN Logic
     let workingData: Record<string, any>[] = [];
     const queryTableIds = new Set(query.nodes.map(n => n.tableId));
     const initialTableId = query.nodes[0].tableId;
@@ -110,7 +163,6 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
     
     if (!initialTable || !initialTable.data) return [];
 
-    // Flatten initial data with Table.Field keys
     workingData = initialTable.data.map(row => {
         const newRow: Record<string, any> = {};
         for (const key in row) { newRow[`${initialTable.name}.${key}`] = row[key]; }
@@ -120,7 +172,6 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
     const joinedTables = new Set([initialTableId]);
     const relevantRels = relationships.filter(r => queryTableIds.has(r.fromTableId) && queryTableIds.has(r.toTableId));
 
-    // Simple Iterative Join
     let progress = true;
     while(progress) {
         progress = false;
@@ -136,7 +187,6 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
                     
                     const newData: Record<string, any>[] = [];
                     workingData.forEach(row1 => {
-                        // INNER JOIN logic
                         table2.data!.forEach(row2 => {
                             if (String(row1[`${table1.name}.${field1.name}`]) === String(row2[field2.name])) {
                                 const newRow = {...row1};
@@ -155,14 +205,12 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         }
     }
 
-    // 2. Add Calculated Fields to working data
     query.columns.filter(c => c.isCalculated && c.expression).forEach(col => {
         workingData.forEach(row => {
             row[`CALC_${col.id}`] = resolveExpression(row, col.expression!);
         });
     });
 
-    // 3. Filter
     let filteredData = workingData.filter(row => {
         for (const col of query.columns) {
             const validCriteria = col.criteria.filter(c => c && c.trim() !== '');
@@ -181,7 +229,6 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         return true;
     });
 
-    // 4. Aggregation / Grouping
     const hasAggregation = query.columns.some(c => c.aggregate && c.aggregate !== 'EXPRESSION');
     if (hasAggregation) {
         const groups: Record<string, any[]> = {};
@@ -190,7 +237,7 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         filteredData.forEach(row => {
             const groupKey = groupByCols.map(c => {
                  return c.isCalculated ? row[`CALC_${c.id}`] : row[`${c.tableName}.${c.fieldName}`];
-            }).join('|||'); // Delimiter
+            }).join('|||');
             
             if (!groups[groupKey]) groups[groupKey] = [];
             groups[groupKey].push(row);
@@ -222,7 +269,6 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         });
     }
 
-    // 5. Projection & Sorting
     if (query.columns.some(c => c.sort)) {
         filteredData.sort((a, b) => {
             for (const col of query.columns) {
@@ -239,7 +285,6 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         });
     }
 
-    // Map to final structure with Aliases
     const finalData = filteredData.map(row => {
         const newRow: Record<string, any> = {};
         query.columns.filter(c => c.show).forEach(col => {

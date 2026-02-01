@@ -1,13 +1,13 @@
 
 import { ProjectTemplate } from '../../types/index';
-import { crmSuite } from './business/crmSuite';
-import { inventoryApp } from './business/inventoryApp';
-import { agilePm } from './it/agilePm';
-import { deviceRental } from './education/deviceRental';
+import { getCrmSuite } from './business/crmSuite';
+import { getInventoryApp } from './business/inventoryApp';
+import { getAgilePm } from './it/agilePm';
+import { getDeviceRental } from './education/deviceRental';
 
-export const TEMPLATES: ProjectTemplate[] = [
-    crmSuite,
-    deviceRental,
-    agilePm,
-    inventoryApp
+export const getTemplates = (lang: string): ProjectTemplate[] => [
+    getCrmSuite(lang),
+    getDeviceRental(lang),
+    getAgilePm(lang),
+    getInventoryApp(lang)
 ];

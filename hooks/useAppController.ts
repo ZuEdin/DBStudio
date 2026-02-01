@@ -1,70 +1,67 @@
 
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
-import { ViewType, Table, Query, Report, Form, SelectQuery, BackendConfig, TableNode, NODE_WIDTH, DbType, Relationship } from '../types/index';
+import { ViewType, Table, Query, Report, Form, SelectQuery, BackendConfig, TableNode, NODE_WIDTH, DbType, Relationship, Chart, ElectronSettings, MessageModalConfig, DeploymentConfig, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig } from '../types/index';
 import { ToastInfo } from '../components/Toast';
 import { saveProjectToStorage, getAllProjects } from '../services/storageService';
 
 export const useAppController = () => {
-  // Use Zustand Store
   const store = useProjectStore();
   
-  // UI State
   const [currentView, setCurrentView] = useState<ViewType>({ type: 'welcome' });
   const [activeTab, setActiveTab] = useState('create');
-  const [activeObject, setActiveObject] = useState<Table | Query | Report | Form | null>(null);
+  const [activeObject, setActiveObject] = useState<Table | Query | Report | Form | Chart | Workflow | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [savePrompt, setSavePrompt] = useState<{show: boolean, targetView?: ViewType}>({show: false});
   const [relationshipNodes, setRelationshipNodes] = useState<TableNode[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRibbonOpen, setIsRibbonOpen] = useState(true);
   
-  // Feedback State
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
-  // Modals State
+  // New Global Message Modal State
+  const [messageModal, setMessageModal] = useState<MessageModalConfig | null>(null);
+
   const [itemContextMenu, setItemContextMenu] = useState<{
-    type: 'table' | 'query' | 'report' | 'form';
+    type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow';
     id: string;
     x: number;
     y: number;
   } | null>(null);
+  
   const [nameInput, setNameInput] = useState<{
     title: string; label: string; initialValue: string; onConfirm: (name: string) => void; onCancel: () => void;
   } | null>(null);
+  
   const [showReportWizard, setShowReportWizard] = useState(false);
   const [showFormWizard, setShowFormWizard] = useState(false);
+  const [showElectronSettings, setShowElectronSettings] = useState(false);
+  const [showSecurityManager, setShowSecurityManager] = useState(false);
+  const [showWhitelabelModal, setShowWhitelabelModal] = useState(false); // NEW
+  const [showEnvModal, setShowEnvModal] = useState(false); // NEW
+  const [showMigrationModal, setShowMigrationModal] = useState(false); // NEW
+  
+  // NEW: Deployment Modal
+  const [showDeploymentModal, setShowDeploymentModal] = useState(false);
+
   const [activeWizard, setActiveWizard] = useState<'duplicate' | 'inconsistency' | null>(null);
   const [confirmationModal, setConfirmationModal] = useState<{
     title: string; message: string; onConfirm: () => void;
   } | null>(null);
 
-  // Triggers
   const [formActionTrigger, setFormActionTrigger] = useState<{ action: string, timestamp: number } | undefined>(undefined);
 
-  // Initialize Store Engine
-  useEffect(() => {
-      store.init();
-  }, []);
+  useEffect(() => { store.init(); }, []);
 
-  // Keyboard Shortcuts (Undo/Redo)
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-          if (e.ctrlKey && e.key === 'z') {
-              e.preventDefault();
-              store.undo();
-              addToast("Rückgängig gemacht");
-          } else if (e.ctrlKey && e.key === 'y') {
-              e.preventDefault();
-              store.redo();
-              addToast("Wiederhergestellt");
-          }
+          if (e.ctrlKey && e.key === 'z') { e.preventDefault(); store.undo(); addToast("Rückgängig gemacht"); } 
+          else if (e.ctrlKey && e.key === 'y') { e.preventDefault(); store.redo(); addToast("Wiederhergestellt"); }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sync Relationship Nodes
   useEffect(() => {
     setRelationshipNodes((prevNodes) => {
       const newNodes: TableNode[] = [];
@@ -80,7 +77,6 @@ export const useAppController = () => {
     });
   }, [store.tables]);
 
-  // Sync Active Object with View
   useEffect(() => {
     setIsDirty(false);
     if (currentView.type === 'table_create') {
@@ -90,14 +86,14 @@ export const useAppController = () => {
       setActiveObject(store.tables.find(t => t.id === currentView.tableId) || null);
     } else if (currentView.type === 'query_results') {
       setActiveObject(store.queries.find(q => q.id === currentView.queryId) || null);
-    } else if (currentView.type === 'report_view') {
+    } else if (currentView.type === 'report_view' || currentView.type === 'report_designer') {
       setActiveObject(store.reports.find(r => r.id === currentView.reportId) || null);
-    } else if (currentView.type === 'report_designer') {
-      setActiveObject(store.reports.find(r => r.id === currentView.reportId) || null);
-    } else if (currentView.type === 'form_view') {
+    } else if (currentView.type === 'form_view' || currentView.type === 'form_designer') {
       setActiveObject(store.forms.find(f => f.id === currentView.formId) || null);
-    } else if (currentView.type === 'form_designer') {
-      setActiveObject(store.forms.find(f => f.id === currentView.formId) || null);
+    } else if (currentView.type === 'chart_view') {
+      setActiveObject(store.charts?.find(c => c.id === currentView.chartId) || null);
+    } else if (currentView.type === 'workflow_designer') {
+      setActiveObject(store.workflows?.find(w => w.id === currentView.workflowId) || null);
     } else if (currentView.type === 'query_designer') {
       if (currentView.queryId) {
         setActiveObject(store.queries.find(q => q.id === currentView.queryId) || null);
@@ -108,17 +104,17 @@ export const useAppController = () => {
     } else {
       setActiveObject(null);
     }
-  }, [currentView, store.tables, store.queries, store.reports, store.forms]);
-
-  // --- Actions ---
+  }, [currentView, store.tables, store.queries, store.reports, store.forms, store.charts, store.workflows]);
 
   const addToast = (message: string, type: 'success' | 'error' = 'success') => {
       const id = Date.now();
       setToasts(prev => [...prev, { id, message, type }]);
   };
 
-  const removeToast = (id: number) => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+  const removeToast = (id: number) => { setToasts(prev => prev.filter(t => t.id !== id)); };
+
+  const showMessage = (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success' = 'info') => {
+      setMessageModal({ title, message, type });
   };
 
   const handleSetView = (view: ViewType) => {
@@ -126,15 +122,15 @@ export const useAppController = () => {
     else setCurrentView(view);
   };
 
-  const handleActiveObjectChange = (newObjectState: Table | Query | Report | Form) => {
+  const handleActiveObjectChange = (newObjectState: Table | Query | Report | Form | Chart | Workflow) => {
     setActiveObject(newObjectState);
     if (!isDirty) setIsDirty(true);
   };
 
-  const handleSave = (): Promise<{ success: boolean; savedObject?: Table | Query | Report | Form; wasNew?: boolean }> => {
+  const handleSave = (): Promise<{ success: boolean; savedObject?: Table | Query | Report | Form | Chart | Workflow; wasNew?: boolean }> => {
     return new Promise(async (resolve) => {
+      try {
         if (!activeObject) {
-            // Persist to IndexedDB
             if (store.projectId) {
                 await saveProjectToStorage({
                     id: store.projectId,
@@ -142,33 +138,59 @@ export const useAppController = () => {
                     lastModified: Date.now(),
                     data: {
                         tables: store.tables, queries: store.queries, reports: store.reports,
-                        forms: store.forms, relationships: store.relationships, backendConfig: store.backendConfig
+                        forms: store.forms, charts: store.charts, workflows: store.workflows, relationships: store.relationships, backendConfig: store.backendConfig,
+                        lastSnapshot: store.lastSnapshot
                     }
                 });
-                addToast('Gesamtes Projekt erfolgreich gespeichert.');
+                addToast('Projekt gespeichert.');
             }
             return resolve({ success: true });
+        }
+
+        // Charts
+        if ('config' in activeObject && 'xAxisFieldId' in activeObject.config) {
+            const chart = activeObject as Chart;
+            if(!chart.id) chart.id = crypto.randomUUID(); 
+            const existing = store.charts?.find(c => c.id === chart.id);
+            if (existing) store.setCharts(store.charts?.map(c => c.id === chart.id ? chart : c) || [chart]);
+            else store.setCharts([...(store.charts || []), chart]);
+            setIsDirty(false); addToast(`Diagramm "${chart.name}" gespeichert.`);
+            resolve({ success: true, savedObject: chart, wasNew: !existing });
+            return;
+        }
+
+        // Workflow
+        if ('nodes' in activeObject && 'edges' in activeObject) {
+            const wf = activeObject as Workflow;
+            if(!wf.id) wf.id = crypto.randomUUID();
+            const existing = store.workflows?.find(w => w.id === wf.id);
+            if (existing) store.setWorkflows(store.workflows?.map(w => w.id === wf.id ? wf : w) || [wf]);
+            else store.setWorkflows([...(store.workflows || []), wf]);
+            setIsDirty(false); addToast(`Workflow "${wf.name}" gespeichert.`);
+            resolve({ success: true, savedObject: wf, wasNew: !existing });
+            return;
         }
 
         // Form or Report
         if ('sourceType' in activeObject) {
              if ('layout' in activeObject) {
-                 store.setForms(store.forms.map(f => f.id === activeObject.id ? activeObject as Form : f));
-                 if(!store.forms.some(f => f.id === activeObject.id)) store.setForms([...store.forms, activeObject as Form]);
-                 
-                 setIsDirty(false);
-                 addToast(`Formular "${activeObject.name}" gespeichert.`);
-                 resolve({ success: true, savedObject: activeObject as Form, wasNew: false });
+                 const form = activeObject as Form;
+                 const exists = store.forms.some(f => f.id === form.id);
+                 if(exists) store.setForms(store.forms.map(f => f.id === form.id ? form : f));
+                 else store.setForms([...store.forms, form]);
+                 setIsDirty(false); addToast(`Formular "${form.name}" gespeichert.`);
+                 resolve({ success: true, savedObject: form, wasNew: !exists });
                  return;
              }
              if ('summaries' in activeObject) {
-                 store.setReports(store.reports.map(r => r.id === activeObject.id ? activeObject as Report : r));
-                 setIsDirty(false);
-                 addToast(`Bericht "${activeObject.name}" gespeichert.`);
-                 resolve({ success: true, savedObject: activeObject as Report, wasNew: false });
+                 const report = activeObject as Report;
+                 const exists = store.reports.some(r => r.id === report.id);
+                 if(exists) store.setReports(store.reports.map(r => r.id === report.id ? report : r));
+                 else store.setReports([...store.reports, report]);
+                 setIsDirty(false); addToast(`Bericht "${report.name}" gespeichert.`);
+                 resolve({ success: true, savedObject: report, wasNew: !exists });
                  return;
              }
-             return resolve({ success: false });
         }
 
         const finishSave = (objectToSave: Table | Query, wasNew: boolean) => {
@@ -194,7 +216,7 @@ export const useAppController = () => {
         if (wasNew && 'nodes' in objectToSave) {
             setNameInput({
                 title: "Abfrage speichern",
-                label: "Geben Sie einen Namen für die Abfrage ein:",
+                label: "Name:",
                 initialValue: objectToSave.name,
                 onConfirm: (name) => {
                     objectToSave.name = name;
@@ -202,64 +224,78 @@ export const useAppController = () => {
                     setNameInput(null);
                     finishSave(objectToSave as Query, true);
                 },
-                onCancel: () => {
-                    setNameInput(null);
-                    resolve({ success: false });
-                }
+                onCancel: () => { setNameInput(null); resolve({ success: false }); }
             });
         } else {
             finishSave(objectToSave as Table | Query, wasNew);
         }
+      } catch (error: any) {
+        showMessage("Speichern fehlgeschlagen", error.message, 'error');
+        resolve({ success: false });
+      }
     });
   };
 
-  const handleRibbonAction = async (action: string) => {
-    if (action === 'backend_generate') {
-        if (currentView.type !== 'backend_generator') handleSetView({ type: 'backend_generator' });
-        setFormActionTrigger({ action, timestamp: Date.now() });
-        addToast('Backend-Code wird generiert...', 'success');
-        return;
-    }
-    if (action === 'backend_export') {
-        setFormActionTrigger({ action, timestamp: Date.now() });
-        return;
-    }
-    if (action.startsWith('form_') || action === 'export_form') {
-        setFormActionTrigger({ action, timestamp: Date.now() });
-        return;
-    }
+  const handleRibbonAction = async (action: string, payload?: any) => {
+    try {
+      if (action === 'backend_generate' || action === 'backend_export' || action.startsWith('form_') || action === 'export_form') {
+          setFormActionTrigger({ action, timestamp: Date.now() });
+          if(action === 'backend_generate' && currentView.type !== 'backend_generator') handleSetView({ type: 'backend_generator' });
+          return;
+      }
+      
+      if (action === 'report_update_style' && activeObject && 'styles' in activeObject) {
+          const report = activeObject as Report;
+          const section = payload.section as keyof typeof report.styles;
+          handleActiveObjectChange({ ...report, styles: { ...report.styles, [section]: { ...report.styles?.[section], ...payload.style } } });
+          return;
+      }
 
-    switch(action) {
-      case 'new_db':
-        if(confirm("Möchten Sie zum Startbildschirm zurückkehren?")) {
-            store.projectId = null; // Clear to trigger selector
-            setCurrentView({ type: 'welcome' });
-        }
-        break;
-      case 'create_table_ai':
-      case 'create_table': handleSetView({ type: 'table_create' }); break;
-      case 'create_query': handleSetView({ type: 'query_designer' }); break;
-      case 'wizard_duplicate': setActiveWizard('duplicate'); break;
-      case 'wizard_inconsistency': setActiveWizard('inconsistency'); break;
-      case 'create_report': setShowReportWizard(true); break;
-      case 'create_form': setShowFormWizard(true); break;
-      case 'relationships': handleSetView({ type: 'relationships' }); break;
-      case 'save':
-        await handleSave();
-        break;
-    }
+      switch(action) {
+        case 'new_db': if(confirm("Zum Startbildschirm?")) { store.projectId = null; setCurrentView({ type: 'welcome' }); } break;
+        case 'create_table_ai':
+        case 'create_table': handleSetView({ type: 'table_create' }); break;
+        case 'create_query': handleSetView({ type: 'query_designer' }); break;
+        case 'wizard_duplicate': setActiveWizard('duplicate'); break;
+        case 'wizard_inconsistency': setActiveWizard('inconsistency'); break;
+        case 'create_report': setShowReportWizard(true); break;
+        case 'create_form': setShowFormWizard(true); break;
+        case 'create_chart': 
+            if (store.tables.length === 0) { showMessage("Fehler", "Bitte erstellen Sie zuerst Tabellen.", 'error'); return; }
+            const newChart: Chart = {
+                id: crypto.randomUUID(), name: 'Neues Diagramm', type: 'bar', sourceType: 'table', sourceId: store.tables[0].id,
+                config: { xAxisFieldId: store.tables[0].fields[0].name, yAxisFieldIds: [] }
+            };
+            store.setCharts([...(store.charts || []), newChart]);
+            handleSetView({ type: 'chart_view', chartId: newChart.id });
+            break;
+        case 'create_workflow':
+            const newWorkflow: Workflow = {
+                id: crypto.randomUUID(), name: 'Neuer Workflow', active: true, nodes: [], edges: []
+            };
+            store.setWorkflows([...(store.workflows || []), newWorkflow]);
+            handleSetView({ type: 'workflow_designer', workflowId: newWorkflow.id });
+            break;
+        case 'relationships': handleSetView({ type: 'relationships' }); break;
+        case 'api_import': handleSetView({ type: 'api_import' }); break;
+        case 'save': await handleSave(); break;
+        case 'electron_settings': setShowElectronSettings(true); break;
+        case 'security_manager': setShowSecurityManager(true); break;
+        
+        // NEW ACTIONS
+        case 'open_whitelabel': setShowWhitelabelModal(true); break;
+        case 'open_envs': setShowEnvModal(true); break;
+        case 'open_migrations': setShowMigrationModal(true); break;
+        case 'open_deployment_modal': setShowDeploymentModal(true); break;
+      }
+    } catch (error: any) { showMessage("Systemfehler", error.message, 'error'); }
   };
 
   const closeSavePrompt = async (action: 'yes' | 'no' | 'cancel') => {
     const targetView = savePrompt.targetView || { type: 'welcome' };
     setSavePrompt({ show: false });
-    if (action === 'yes') {
-      const { success } = await handleSave();
-      if (success) setCurrentView(targetView);
-    } else if (action === 'no') {
-      setIsDirty(false);
-      setCurrentView(targetView);
-    }
+    if (action === 'yes') { const { success } = await handleSave(); if (success) setCurrentView(targetView); } 
+    else if (action === 'no') { setIsDirty(false); setCurrentView(targetView); }
   };
 
   const handleContextMenuAction = (action: 'view' | 'view_data' | 'export' | 'rename' | 'delete') => {
@@ -267,7 +303,7 @@ export const useAppController = () => {
     const { type, id } = itemContextMenu;
     setItemContextMenu(null);
 
-    const allObjects = [...store.tables, ...store.queries, ...store.reports, ...store.forms];
+    const allObjects = [...store.tables, ...store.queries, ...store.reports, ...store.forms, ...(store.charts || []), ...(store.workflows || [])];
     const getObject = () => allObjects.find(o => o.id === id);
 
     switch (action) {
@@ -276,26 +312,29 @@ export const useAppController = () => {
         else if (type === 'query') handleSetView({ type: 'query_results', queryId: id });
         else if (type === 'form') handleSetView({ type: 'form_view', formId: id });
         else if (type === 'report') handleSetView({ type: 'report_view', reportId: id });
+        else if (type === 'chart') handleSetView({ type: 'chart_view', chartId: id });
         break;
       case 'view':
         if (type === 'table') handleSetView({ type: 'table_edit', tableId: id });
         else if (type === 'query') handleSetView({ type: 'query_designer', queryId: id });
         else if (type === 'report') handleSetView({ type: 'report_designer', reportId: id });
         else if (type === 'form') handleSetView({ type: 'form_designer', formId: id });
+        else if (type === 'chart') handleSetView({ type: 'chart_view', chartId: id });
+        else if (type === 'workflow') handleSetView({ type: 'workflow_designer', workflowId: id });
         break;
       case 'rename':
-        const currentObject = getObject();
-        if (currentObject) {
+        const obj = getObject();
+        if (obj) {
           setNameInput({
-            title: `"${currentObject.name}" umbenennen`,
-            label: 'Neuer Name:',
-            initialValue: currentObject.name,
+            title: `"${obj.name}" umbenennen`, label: 'Neuer Name:', initialValue: obj.name,
             onConfirm: (newName) => {
               if (newName?.trim()) {
-                if (type === 'table') store.updateTable({ ...getObject() as Table, name: newName });
+                if (type === 'table') store.updateTable({ ...obj as Table, name: newName });
                 if (type === 'query') store.setQueries(store.queries.map(q => q.id === id ? { ...q, name: newName } : q));
                 if (type === 'report') store.setReports(store.reports.map(r => r.id === id ? { ...r, name: newName } : r));
                 if (type === 'form') store.setForms(store.forms.map(f => f.id === id ? { ...f, name: newName } : f));
+                if (type === 'chart') store.setCharts(store.charts!.map(c => c.id === id ? { ...c, name: newName } : c));
+                if (type === 'workflow') store.setWorkflows(store.workflows!.map(w => w.id === id ? { ...w, name: newName } : w));
                 addToast('Umbennung erfolgreich.');
               }
               setNameInput(null);
@@ -306,67 +345,118 @@ export const useAppController = () => {
         break;
       case 'delete':
         setConfirmationModal({
-          title: 'Löschen bestätigen',
-          message: 'Möchten Sie dieses Objekt wirklich löschen?',
+          title: 'Löschen bestätigen', message: 'Möchten Sie dieses Objekt wirklich löschen?',
           onConfirm: () => {
-             if (type === 'table') {
-                 store.setTables(store.tables.filter(t => t.id !== id));
-                 store.setRelationships(store.relationships.filter(r => r.fromTableId !== id && r.toTableId !== id));
-             }
+             if (type === 'table') { store.setTables(store.tables.filter(t => t.id !== id)); store.setRelationships(store.relationships.filter(r => r.fromTableId !== id && r.toTableId !== id)); }
              if (type === 'query') store.setQueries(store.queries.filter(q => q.id !== id));
              if (type === 'report') store.setReports(store.reports.filter(r => r.id !== id));
              if (type === 'form') store.setForms(store.forms.filter(f => f.id !== id));
-             
+             if (type === 'chart') store.setCharts(store.charts!.filter(c => c.id !== id));
+             if (type === 'workflow') store.setWorkflows(store.workflows!.filter(w => w.id !== id));
              if (activeObject?.id === id) handleSetView({ type: 'welcome' });
              addToast('Objekt gelöscht.');
           }
         });
         break;
-      case 'export': alert('Export noch nicht implementiert.'); break;
     }
   };
 
-  // Bridge for old DB interface parts
+  const handleSaveDeploymentConfig = (config: DeploymentConfig) => {
+      if (store.backendConfig) {
+          store.setBackendConfig({ ...store.backendConfig, deploymentConfig: config });
+          addToast("Deployment Konfiguration gespeichert.");
+      }
+  };
+
+  const handleDeploy = () => {
+      setShowDeploymentModal(false);
+      setFormActionTrigger({ action: 'backend_generate', timestamp: Date.now() });
+      setTimeout(() => {
+          showMessage("Deployment Vorbereitet", "Die Deployment-Skripte wurden generiert (Dockerfile/FTP). Sie finden diese im 'App Generator' Tab unter 'Projekt Explorer'.", 'success');
+      }, 500);
+  };
+
+  const handleSnapshot = () => {
+      store.snapshot();
+  };
+
+  const handleUpdateEnvironments = (envs: EnvironmentConfig[]) => {
+      if (store.backendConfig) {
+          store.setBackendConfig({ ...store.backendConfig, environments: envs });
+      }
+  };
+
+  const handleUpdateCommercial = (whitelabel: WhitelabelConfig, multiTenancy: MultiTenancyConfig, licensing: LicensingConfig) => {
+      if (store.backendConfig) {
+          store.setBackendConfig({
+              ...store.backendConfig,
+              whitelabel,
+              multiTenancy,
+              licensing
+          });
+      }
+  };
+
   const db = {
       ...store,
       currentProjectName: store.projectName,
-      dbType: store.backendConfig?.dbType || DbType.SQL, // Fallback
+      dbType: store.backendConfig?.dbType || DbType.SQL,
       deleteRelationship: (id: string) => store.setRelationships(store.relationships.filter(r => r.id !== id)),
       updateRelationship: (rel: Relationship) => store.setRelationships(store.relationships.map(r => r.id === rel.id ? rel : r)),
       saveTable: (t: Table, m: any) => m === 'create' ? store.setTables([...store.tables, t]) : store.updateTable(t),
       saveForm: (f: Form) => store.setForms([...store.forms.filter(o => o.id !== f.id), f]),
       saveReport: (r: Report) => store.setReports([...store.reports.filter(o => o.id !== r.id), r]),
       saveQuery: (q: Query) => store.setQueries([...store.queries.filter(o => o.id !== q.id), q]),
+      saveWorkflow: (w: Workflow) => store.setWorkflows([...(store.workflows || []).filter(o => o.id !== w.id), w]),
       loadProject: store.loadProject,
       createNewDatabase: store.createNew,
       exportProject: async (conf: BackendConfig) => {
-          // Export Logic (Keep existing file download logic)
           const dataStr = JSON.stringify({
               id: store.projectId, name: store.projectName, lastModified: Date.now(),
-              data: { tables: store.tables, queries: store.queries, reports: store.reports, forms: store.forms, relationships: store.relationships, backendConfig: conf }
+              data: { tables: store.tables, queries: store.queries, reports: store.reports, forms: store.forms, charts: store.charts, workflows: store.workflows, relationships: store.relationships, backendConfig: conf, lastSnapshot: store.lastSnapshot }
           }, null, 2);
-          const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
           const linkElement = document.createElement('a');
-          linkElement.setAttribute('href', dataUri);
+          linkElement.setAttribute('href', 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr));
           linkElement.setAttribute('download', `${store.projectName}.dbsp`);
           linkElement.click();
       }
   };
 
+  const handleSaveElectronSettings = (newSettings: ElectronSettings) => {
+      if (store.backendConfig) {
+          store.setBackendConfig({ ...store.backendConfig, electronSettings: newSettings });
+          addToast("Electron Konfiguration gespeichert.");
+      }
+  };
+
   return {
     db, 
-    // State
     currentView, activeTab, setActiveTab, activeObject, isDirty, 
     relationshipNodes, isSidebarOpen, setIsSidebarOpen, isRibbonOpen, setIsRibbonOpen,
     backendConfig: store.backendConfig, setBackendConfig: store.setBackendConfig, formActionTrigger,
-    // Feedback
     toasts, addToast, removeToast,
-    // Modals
     savePrompt, itemContextMenu, setItemContextMenu, nameInput, setNameInput,
     showReportWizard, setShowReportWizard, showFormWizard, setShowFormWizard,
+    showSecurityManager, setShowSecurityManager, onUpdateTable: store.updateTable,
+    showElectronSettings, electronSettings: store.backendConfig?.electronSettings || { includeBackend: true, bundleFrontend: true },
+    onSaveElectronSettings: handleSaveElectronSettings, onCloseElectronSettings: () => setShowElectronSettings(false),
+    
+    showDeploymentModal, setShowDeploymentModal, 
+    onSaveDeploymentConfig: handleSaveDeploymentConfig, onDeploy: handleDeploy,
+    
+    // Pass new modal states
+    showWhitelabelModal, setShowWhitelabelModal,
+    showEnvModal, setShowEnvModal,
+    showMigrationModal, setShowMigrationModal,
+
     activeWizard, setActiveWizard, confirmationModal, setConfirmationModal,
-    // Handlers
     handleSetView, handleActiveObjectChange, handleSave, handleRibbonAction,
-    closeSavePrompt, handleContextMenuAction, setRelationshipNodes
+    closeSavePrompt, handleContextMenuAction, setRelationshipNodes,
+    messageModal, showMessage, closeMessage: () => setMessageModal(null),
+    
+    onSnapshot: handleSnapshot,
+    onUpdateEnvironments: handleUpdateEnvironments,
+    onUpdateCommercial: handleUpdateCommercial,
+    lastSnapshot: store.lastSnapshot
   };
 };

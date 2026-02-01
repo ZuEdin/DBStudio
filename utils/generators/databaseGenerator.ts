@@ -7,10 +7,13 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
     const root = `Backend/${config.projectName}/database`;
     const files: VirtualFile[] = [];
 
+    // Clone tables to avoid mutation of frozen store array
+    const processingTables = [...tables];
+
     // Inject Users table if Auth is requested AND it's missing (Fallback)
     if (config.authConfig?.useUserLogin) {
-        if (!tables.some(t => t.name.toLowerCase() === 'users')) {
-            tables.push({
+        if (!processingTables.some(t => t.name.toLowerCase() === 'users' || t.name.toLowerCase() === 'sys_users')) {
+            processingTables.push({
                 id: 'sys_users',
                 name: 'Users',
                 fields: [
@@ -25,14 +28,15 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
     }
 
     if (config.dbType === DbType.NoSQL) {
-        const schema = tables.reduce((acc, t) => {
+        const schema = processingTables.reduce((acc, t) => {
             acc[t.name] = {
                 description: `Collection for ${t.name}`,
                 fields: t.fields.map(f => ({
                     name: f.name,
                     type: f.type,
                     isPrimaryKey: f.isPrimaryKey,
-                    required: !f.allowNull
+                    required: !f.allowNull,
+                    default: f.defaultValue
                 }))
             };
             return acc;
@@ -43,7 +47,7 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
         let sql = `-- Database Script for ${config.dbType}\n-- Project: ${config.projectName}\n\n`;
         
         // 1. Tables
-        tables.forEach(table => {
+        processingTables.forEach(table => {
             const fields = table.fields.map(f => {
                 let type = resolveType(f, 'sql');
                 if (config.dbType === DbType.SQLite) {
@@ -55,9 +59,27 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
                     // SQL Server
                     if (f.isPrimaryKey && f.type === 'INTEGER' && f.isAutoIncrement) type += ' IDENTITY(1,1)';
                 }
+                
                 let line = `  ${quoteIdentifier(f.name, config.dbType)} ${type}`;
                 if (config.dbType !== DbType.SQLite && f.isPrimaryKey) line += ' PRIMARY KEY';
                 if (!f.allowNull && !f.isPrimaryKey) line += ' NOT NULL';
+                
+                // Add DEFAULT Constraint
+                if (f.defaultValue !== undefined && f.defaultValue !== '') {
+                    let defVal = f.defaultValue;
+                    const isKeyword = ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase());
+                    
+                    if (['INTEGER', 'BOOLEAN', 'DECIMAL', 'DOUBLE'].includes(f.type) || isKeyword) {
+                        if (isKeyword) {
+                            defVal = config.dbType === DbType.SQL ? 'GETDATE()' : 'CURRENT_TIMESTAMP';
+                        }
+                    } else {
+                        // String literal
+                        defVal = `'${defVal.replace(/'/g, "''")}'`;
+                    }
+                    line += ` DEFAULT ${defVal}`;
+                }
+
                 return line;
             }).join(',\n');
             sql += `CREATE TABLE ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (\n${fields}\n);\n\n`;
@@ -66,8 +88,8 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
         // 2. Foreign Keys
         if (config.dbType !== DbType.SQLite) {
             relationships.forEach(rel => {
-                const parent = tables.find(t => t.id === rel.fromTableId);
-                const child = tables.find(t => t.id === rel.toTableId);
+                const parent = processingTables.find(t => t.id === rel.fromTableId);
+                const child = processingTables.find(t => t.id === rel.toTableId);
                 const childField = child?.fields.find(f => f.id === rel.toFieldId);
                 const parentField = parent?.fields.find(f => f.id === rel.fromFieldId);
                 
@@ -91,7 +113,7 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
         sql += `\n-- Views\n`;
         queries.forEach(q => {
             if (q.type === 'SELECT') {
-                const selectSql = generateSqlSelect((q as SelectQuery).nodes, (q as SelectQuery).columns, tables, relationships, config.dbType);
+                const selectSql = generateSqlSelect((q as SelectQuery).nodes, (q as SelectQuery).columns, processingTables, relationships, config.dbType);
                 if (selectSql) {
                     sql += `CREATE VIEW ${quoteIdentifier(toPascalCase(q.name), config.dbType)} AS\n${selectSql};\n\n`;
                 }

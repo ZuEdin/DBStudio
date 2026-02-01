@@ -6,15 +6,22 @@ import { InputModal } from './InputModal';
 import { ReportWizardModal } from '../features/reports/ReportWizardModal';
 import { FormWizardModal } from '../features/forms/FormWizardModal';
 import { ConfirmationModal } from './ConfirmationModal';
+import { ElectronSettingsModal } from '../features/backend/ElectronSettingsModal';
+import { SecurityManagerModal } from '../features/security/SecurityManagerModal';
+import { DeploymentModal } from '../features/backend/components/DeploymentModal';
+import { WhitelabelModal } from '../features/backend/WhitelabelModal';
+import { EnvironmentManagerModal } from '../features/backend/EnvironmentManagerModal';
+import { MigrationManagerModal } from '../features/backend/MigrationManagerModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
-import { Table, Query, Report, Form, SelectQuery, ViewType } from '../types/index';
+import { MessageModal } from './MessageModal';
+import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig } from '../types/index';
 
 interface ModalLayerProps {
   savePrompt: { show: boolean; targetView?: ViewType };
-  activeObject: Table | Query | Report | Form | null;
+  activeObject: Table | Query | Report | Form | Chart | Workflow | null;
   onCloseSavePrompt: (action: 'yes' | 'no' | 'cancel') => void;
   
-  itemContextMenu: { type: 'table' | 'query' | 'report' | 'form'; id: string; x: number; y: number } | null;
+  itemContextMenu: { type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow'; id: string; x: number; y: number } | null;
   onCloseContextMenu: () => void;
   onContextMenuAction: (action: 'view' | 'view_data' | 'export' | 'rename' | 'delete') => void;
 
@@ -28,6 +35,10 @@ interface ModalLayerProps {
   setShowFormWizard: (show: boolean) => void;
   onSaveForm: (form: Form) => void;
   
+  showSecurityManager: boolean;
+  setShowSecurityManager: (show: boolean) => void;
+  onUpdateTable: (table: Table) => void;
+
   activeWizard: 'duplicate' | 'inconsistency' | null;
   setActiveWizard: (wizard: 'duplicate' | 'inconsistency' | null) => void;
   onSaveWizardQuery: (query: SelectQuery) => void;
@@ -35,8 +46,42 @@ interface ModalLayerProps {
   confirmationModal: { title: string; message: string; onConfirm: () => void } | null;
   setConfirmationModal: (modal: null) => void;
 
+  // Electron
+  showElectronSettings: boolean;
+  electronSettings: ElectronSettings;
+  onSaveElectronSettings: (settings: ElectronSettings) => void;
+  onCloseElectronSettings: () => void;
+
+  // Deployment
+  showDeploymentModal?: boolean;
+  deploymentConfig?: DeploymentConfig;
+  onSaveDeploymentConfig?: (config: DeploymentConfig) => void;
+  onDeploy?: () => void;
+  onCloseDeploymentModal?: () => void;
+
+  // Commercial / Lifecycle Modals (NEW)
+  showWhitelabelModal?: boolean;
+  setShowWhitelabelModal?: (show: boolean) => void;
+  onUpdateCommercial?: (w: WhitelabelConfig, m: MultiTenancyConfig, l: LicensingConfig) => void;
+  
+  showEnvModal?: boolean;
+  setShowEnvModal?: (show: boolean) => void;
+  onUpdateEnvironments?: (envs: EnvironmentConfig[]) => void;
+  
+  showMigrationModal?: boolean;
+  setShowMigrationModal?: (show: boolean) => void;
+  onSnapshot?: () => void;
+  lastSnapshot?: Table[];
+
+  // Global Message Modal
+  messageModal: MessageModalConfig | null;
+  onCloseMessage: () => void;
+
   tables: Table[];
   queries: Query[];
+  forms: Form[];
+  reports: Report[];
+  backendConfig?: any; // To access commercial configs for init state
 }
 
 export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
@@ -46,16 +91,33 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     nameInput,
     showReportWizard, setShowReportWizard, onSaveReport,
     showFormWizard, setShowFormWizard, onSaveForm,
+    showSecurityManager, setShowSecurityManager, onUpdateTable,
     activeWizard, setActiveWizard, onSaveWizardQuery,
     confirmationModal, setConfirmationModal,
-    tables, queries
+    showElectronSettings, electronSettings, onSaveElectronSettings, onCloseElectronSettings,
+    showDeploymentModal, deploymentConfig, onSaveDeploymentConfig, onDeploy, onCloseDeploymentModal,
+    
+    // New Props
+    showWhitelabelModal, setShowWhitelabelModal, onUpdateCommercial,
+    showEnvModal, setShowEnvModal, onUpdateEnvironments,
+    showMigrationModal, setShowMigrationModal, onSnapshot, lastSnapshot,
+    
+    messageModal, onCloseMessage,
+    tables, queries, forms, reports, backendConfig
   } = props;
 
   return (
     <>
       {savePrompt.show && (
         <SaveChangesModal 
-          objectType={activeObject && 'fields' in activeObject ? 'Tabelle' : 'Abfrage'}
+          objectType={
+            activeObject && 'fields' in activeObject ? 'Tabelle' : 
+            activeObject && 'nodes' in activeObject && 'columns' in activeObject ? 'Abfrage' : 
+            activeObject && 'layout' in activeObject ? 'Formular' :
+            activeObject && 'summaries' in activeObject ? 'Bericht' :
+            activeObject && 'config' in activeObject ? 'Diagramm' :
+            activeObject && 'nodes' in activeObject ? 'Workflow' : 'Objekt'
+          }
           objectName={activeObject?.name || 'Unbenannt'}
           onYes={() => onCloseSavePrompt('yes')}
           onNo={() => onCloseSavePrompt('no')}
@@ -103,6 +165,62 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         />
       )}
 
+      {showSecurityManager && (
+          <SecurityManagerModal 
+            tables={tables}
+            forms={forms}
+            reports={reports}
+            onUpdateTable={onUpdateTable}
+            onClose={() => setShowSecurityManager(false)}
+          />
+      )}
+
+      {showElectronSettings && (
+          <ElectronSettingsModal
+            settings={electronSettings}
+            onSave={onSaveElectronSettings}
+            onClose={onCloseElectronSettings}
+          />
+      )}
+
+      {showDeploymentModal && onSaveDeploymentConfig && onCloseDeploymentModal && onDeploy && (
+          <DeploymentModal
+            config={deploymentConfig}
+            onSave={onSaveDeploymentConfig}
+            onClose={onCloseDeploymentModal}
+            onDeploy={onDeploy}
+          />
+      )}
+
+      {showWhitelabelModal && onUpdateCommercial && setShowWhitelabelModal && (
+          <WhitelabelModal
+            whitelabel={backendConfig?.whitelabel}
+            multiTenancy={backendConfig?.multiTenancy}
+            licensing={backendConfig?.licensing}
+            onSave={onUpdateCommercial}
+            onClose={() => setShowWhitelabelModal(false)}
+          />
+      )}
+
+      {showEnvModal && onUpdateEnvironments && setShowEnvModal && (
+          <EnvironmentManagerModal
+            initialEnvs={backendConfig?.environments}
+            dbType={backendConfig?.dbType || 'SQL'}
+            onSave={onUpdateEnvironments}
+            onClose={() => setShowEnvModal(false)}
+          />
+      )}
+
+      {showMigrationModal && onSnapshot && setShowMigrationModal && (
+          <MigrationManagerModal
+            currentTables={tables}
+            lastSnapshot={lastSnapshot}
+            dbType={backendConfig?.dbType || 'SQL'}
+            onSnapshot={onSnapshot}
+            onClose={() => setShowMigrationModal(false)}
+          />
+      )}
+
       {activeWizard === 'duplicate' && <DuplicateWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
       {activeWizard === 'inconsistency' && <InconsistencyWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
 
@@ -115,6 +233,15 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             setConfirmationModal(null);
           }}
           onCancel={() => setConfirmationModal(null)}
+        />
+      )}
+
+      {messageModal && (
+        <MessageModal 
+          type={messageModal.type}
+          title={messageModal.title}
+          message={messageModal.message}
+          onClose={onCloseMessage}
         />
       )}
     </>

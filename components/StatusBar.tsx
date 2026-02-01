@@ -1,10 +1,11 @@
+
 import React from 'react';
-import { ViewType, Table, Query, Report, Form } from '../types/index';
+import { ViewType, Table, Query, Report, Form, Chart, Workflow } from '../types/index';
 import { PencilRuler, Eye, Database, Layout, FileText, Table as TableIcon } from 'lucide-react';
 
 interface StatusBarProps {
   currentView: ViewType;
-  activeObject: Table | Query | Report | Form | null;
+  activeObject: Table | Query | Report | Form | Chart | Workflow | null;
   onSetView: (view: ViewType) => void;
 }
 
@@ -20,6 +21,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentView, activeObject,
     if (currentView.type === 'form_view') return `Formularansicht: "${activeObject.name}"`;
     if (currentView.type === 'report_view') return `Berichtsansicht: "${activeObject.name}"`;
     if (currentView.type === 'report_designer') return `Entwurf: Bericht "${activeObject.name}"`;
+    if (currentView.type === 'chart_view') return `Diagramm: "${activeObject.name}"`;
+    if (currentView.type === 'workflow_designer') return `Workflow: "${activeObject.name}"`;
     return "Bereit";
   };
 
@@ -29,7 +32,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentView, activeObject,
     if ('fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
         // Table
         onSetView({ type: mode === 'design' ? 'table_edit' : 'table_data', tableId: activeObject.id });
-    } else if ('nodes' in activeObject) {
+    } else if ('nodes' in activeObject && 'columns' in activeObject) { // Query has columns
         // Query
         onSetView({ type: mode === 'design' ? 'query_designer' : 'query_results', queryId: activeObject.id });
     } else if ('layout' in activeObject) {
@@ -43,7 +46,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentView, activeObject,
 
   const isDesignActive = ['table_edit', 'query_designer', 'form_designer', 'report_designer'].includes(currentView.type);
   const isViewActive = ['table_data', 'query_results', 'form_view', 'report_view'].includes(currentView.type);
-  const canSwitch = activeObject !== null && currentView.type !== 'relationships' && currentView.type !== 'welcome' && currentView.type !== 'table_create';
+  const canSwitch = activeObject !== null 
+    && currentView.type !== 'relationships' 
+    && currentView.type !== 'welcome' 
+    && currentView.type !== 'table_create'
+    && !currentView.type.includes('chart')
+    && !currentView.type.includes('workflow');
 
   return (
     <div className="bg-slate-200 border-t border-slate-300 h-6 px-2 flex justify-between items-center text-xs select-none print:hidden">

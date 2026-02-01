@@ -1,7 +1,10 @@
 
-import React, { useRef } from 'react';
-import { Table } from '../../types/index';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Table, ApiQueryParam, Field } from '../../types/index';
+import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X } from 'lucide-react';
+import { VirtualTable } from '../../components/VirtualTable';
+import { fetchApiData } from '../../utils/apiImportHelper';
+import { useDataFilter } from '../../hooks/useDataFilter';
 
 interface TableViewProps {
   table: Table;
@@ -9,213 +12,353 @@ interface TableViewProps {
   showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
 }
 
+const formatDateValue = (val: any, format?: string) => {
+    if (!val) return '';
+    
+    let date: Date;
+    // Handle Numeric Timestamps
+    if (typeof val === 'number') {
+        // Assume seconds if small, ms if large (naive check > 10 digits)
+        date = new Date(val > 10000000000 ? val : val * 1000);
+    } else {
+        date = new Date(val);
+    }
+    
+    if (isNaN(date.getTime())) return String(val); // Fallback if parsing fails
+
+    if (!format) return date.toLocaleString();
+
+    // Simple formatter implementation
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const y = date.getFullYear();
+    const H = date.getHours().toString().padStart(2, '0');
+    const M = date.getMinutes().toString().padStart(2, '0');
+    const S = date.getSeconds().toString().padStart(2, '0');
+
+    return format
+        .replace('dd', d)
+        .replace('MM', m)
+        .replace('yyyy', String(y))
+        .replace('HH', H)
+        .replace('mm', M)
+        .replace('ss', S);
+};
+
 export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, showConfirmation }) => {
   const headers = table.fields.map(field => field.name);
-  const data = table.data || [];
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const rawData = table.data || [];
+  
+  // Use Filter Hook
+  const { filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats } = useDataFilter(rawData);
 
-  const handleDataChange = (rowIndex: number, header: string, value: string) => {
-    const newData = data.map((row, i) => 
-      i === rowIndex ? { ...row, [header]: value } : row
-    );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showParams, setShowParams] = useState(false);
+
+  const queryParams = table.apiConfig?.queryParams || [];
+
+  // Auto-Refresh Logic
+  useEffect(() => {
+      if (table.apiConfig?.refreshOnLoad) {
+          handleApiRefresh();
+      }
+  }, [table.id]);
+
+  const updateParamValue = (id: string, newVal: string) => {
+      if (!table.apiConfig || !table.apiConfig.queryParams) return;
+      const newParams = table.apiConfig.queryParams.map(p => p.id === id ? { ...p, value: newVal } : p);
+      onTableChange({ ...table, apiConfig: { ...table.apiConfig, queryParams: newParams } });
+  };
+
+  const handleDataChange = (rowToUpdate: any, header: string, value: string) => {
+    // We must find the index in the ORIGINAL rawData array, not the filtered array
+    const originalIndex = rawData.indexOf(rowToUpdate);
+    if (originalIndex === -1) return;
+
+    const newData = [...rawData];
+    newData[originalIndex] = { ...newData[originalIndex], [header]: value };
     onTableChange({ ...table, data: newData });
   };
 
   const addRow = () => {
-    // Logic to calculate Auto-Increment values
     const newRow = headers.reduce((acc, header) => {
       const field = table.fields.find(f => f.name === header);
       
       if (field?.isAutoIncrement && field.type === 'INTEGER') {
-          // Find max value in this column
-          const maxVal = data.reduce((max, row) => {
+          const maxVal = rawData.reduce((max, row) => {
               const val = parseInt(row[header], 10);
               return !isNaN(val) && val > max ? val : max;
           }, 0);
           acc[header] = maxVal + 1;
+      } else if (field?.defaultValue !== undefined && field?.defaultValue !== '') {
+          // Default Value Handling
+          if (field.type === 'BOOLEAN') {
+              acc[header] = field.defaultValue === 'true';
+          } else if ((field.type === 'DATE' || field.type === 'DATETIME') && field.defaultValue.toUpperCase() === 'NOW') {
+              acc[header] = new Date().toISOString();
+          } else {
+              acc[header] = field.defaultValue;
+          }
       } else {
           acc[header] = '';
       }
       return acc;
     }, {} as Record<string, any>);
 
-    const newData = [...data, newRow];
+    const newData = [...rawData, newRow];
     onTableChange({ ...table, data: newData });
   };
 
-  const deleteRow = (rowIndex: number) => {
-    showConfirmation(
-      'Zeile löschen',
-      'Möchten Sie diese Zeile wirklich löschen?',
-      () => {
-        const newData = data.filter((_, index) => index !== rowIndex);
+  const deleteRow = (rowToDelete: any) => {
+    showConfirmation('Zeile löschen', 'Möchten Sie diese Zeile wirklich löschen?', () => {
+        // Filter out by object reference
+        const newData = rawData.filter(r => r !== rowToDelete);
         onTableChange({ ...table, data: newData });
+    });
+  };
+
+  const handleApiRefresh = async () => {
+      if (!table.apiConfig) return;
+      setIsRefreshing(true);
+      const result = await fetchApiData(table.apiConfig.url, table.apiConfig.method, table.apiConfig.headers, table.apiConfig.queryParams);
+      if (result.error) {
+          alert('Fehler beim Aktualisieren: ' + result.error);
+      } else {
+          onTableChange({ ...table, data: result.data });
       }
-    );
+      setIsRefreshing(false);
   };
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ... CSV logic unchanged ...
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
       if (!text) return;
-
       const lines = text.split('\n');
       const csvHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      
-      // Identify Auto Increment Fields and their current max values
       const autoIncFields = table.fields.filter(f => f.isAutoIncrement && f.type === 'INTEGER');
       const nextAutoIncValues: Record<string, number> = {};
-
       autoIncFields.forEach(f => {
-          const maxVal = data.reduce((max, row) => {
+          const maxVal = rawData.reduce((max, row) => {
               const val = parseInt(row[f.name], 10);
               return !isNaN(val) && val > max ? val : max;
           }, 0);
           nextAutoIncValues[f.name] = maxVal + 1;
       });
-      
       const newRows: Record<string, any>[] = [];
-      
-      // Simple CSV parser
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        
         if (values.length === csvHeaders.length) {
           const row: Record<string, any> = {};
-          
-          // Try to map CSV headers to Table fields (case insensitive)
           table.fields.forEach(field => {
              const index = csvHeaders.findIndex(h => h.toLowerCase() === field.name.toLowerCase());
-             if (index !== -1) {
-               row[field.name] = values[index];
-             } else {
-               row[field.name] = ''; // Default for missing column
-             }
+             row[field.name] = index !== -1 ? values[index] : '';
           });
-
-          // Handle Auto Increment for imported rows
           autoIncFields.forEach(f => {
-              const val = row[f.name];
-              // Apply auto-increment if value is missing, empty string, or undefined
-              if (val === '' || val === undefined || val === null) {
-                  row[f.name] = nextAutoIncValues[f.name];
-                  nextAutoIncValues[f.name]++;
-              } else {
-                  // If CSV provided a value, update our tracker if it's higher
-                  const numVal = parseInt(val, 10);
-                  if (!isNaN(numVal) && numVal >= nextAutoIncValues[f.name]) {
-                      nextAutoIncValues[f.name] = numVal + 1;
-                  }
-              }
+              if (!row[f.name]) { row[f.name] = nextAutoIncValues[f.name]; nextAutoIncValues[f.name]++; }
           });
-
           newRows.push(row);
         }
       }
-
       if (newRows.length > 0) {
-        onTableChange({ ...table, data: [...data, ...newRows] });
+        onTableChange({ ...table, data: [...rawData, ...newRows] });
         alert(`${newRows.length} Zeilen erfolgreich importiert.`);
-      } else {
-        alert('Keine gültigen Daten gefunden oder Header stimmen nicht überein.');
       }
-      
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
   };
 
+  const renderRow = (row: any, rowIndex: number) => (
+      <div className="flex border-b border-slate-100 hover:bg-sky-50 group h-full items-center text-sm text-slate-700">
+          {headers.map(header => {
+            const field = table.fields.find(f => f.name === header);
+            const isAutoInc = field?.isAutoIncrement;
+            const isDate = field?.type === 'DATE' || field?.type === 'DATETIME';
+            
+            const rawVal = row[header] ?? '';
+            const displayVal = isDate ? formatDateValue(rawVal, field?.displayFormat) : rawVal;
+
+            return (
+                <div key={`${rowIndex}-${header}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''}`}>
+                    <input
+                        type="text"
+                        value={displayVal} 
+                        title={String(rawVal)} 
+                        onChange={(e) => {
+                            handleDataChange(row, header, e.target.value)
+                        }}
+                        readOnly={isAutoInc}
+                        className={`w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''}`}
+                    />
+                </div>
+            )
+          })}
+          <div className="w-10 shrink-0 flex justify-center">
+              <button onClick={() => deleteRow(row)} className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Trash2 size={14} />
+              </button>
+          </div>
+      </div>
+  );
+
   return (
     <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-auto">
       <div className="max-w-full mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
         <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center shrink-0">
-          <h2 className="text-xl font-bold">Datenblattansicht: {table.name}</h2>
+          <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold">Datenblatt: {table.name}</h2>
+              <div className="flex items-center gap-1 ml-4">
+                  <button 
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
+                    title="Filter anzeigen"
+                  >
+                      <Filter size={14} /> Filter {Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : ''}
+                  </button>
+
+                  {table.apiConfig && (
+                    <div className="flex items-center bg-slate-700 rounded ml-2 p-1">
+                        {queryParams.length > 0 && (
+                            <button 
+                                onClick={() => setShowParams(!showParams)}
+                                className={`p-1 px-2 rounded text-xs flex items-center gap-1 ${showParams ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-white'}`}
+                                title="API Parameter"
+                            >
+                                <Sliders size={14} /> {queryParams.length}
+                            </button>
+                        )}
+                        <button 
+                            onClick={handleApiRefresh} 
+                            disabled={isRefreshing}
+                            className={`flex items-center gap-1 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs ml-1 disabled:opacity-50 ${isRefreshing ? 'bg-blue-500' : 'bg-blue-600'}`}
+                        >
+                            {isRefreshing ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14} />}
+                            {isRefreshing ? 'Lädt...' : 'Refresh'}
+                        </button>
+                    </div>
+                  )}
+              </div>
+          </div>
           <div className="flex gap-2">
-            <input 
-              type="file" 
-              accept=".csv" 
-              ref={fileInputRef} 
-              style={{ display: 'none' }} 
-              onChange={handleImportCSV} 
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm border border-slate-600"
-              title="CSV-Datei importieren (Header müssen Feldnamen entsprechen)"
-            >
-              <Upload size={16} /> CSV Import
+            <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportCSV} />
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm border border-slate-600">
+              <Upload size={16} /> CSV
             </button>
-            <button
-              onClick={addRow}
-              className="flex items-center gap-1 bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm font-semibold"
-            >
-              <Plus size={16} /> Zeile hinzufügen
+            <button onClick={addRow} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm font-semibold">
+              <Plus size={16} /> Neu
             </button>
           </div>
         </div>
-        <div className="overflow-auto flex-1">
-          {headers.length > 0 ? (
-            <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-10 shadow-sm">
-                <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  {headers.map(header => (
-                    <th key={header} className="p-3 bg-slate-100">{header}</th>
-                  ))}
-                  <th className="p-3 w-10 bg-slate-100"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {data.map((row, rowIndex) => (
-                  <tr key={rowIndex} className="hover:bg-slate-50 group">
-                    {headers.map(header => {
-                      const field = table.fields.find(f => f.name === header);
-                      const isAutoInc = field?.isAutoIncrement;
-                      
-                      return (
-                      <td key={`${rowIndex}-${header}`} className={`p-0 text-slate-700 whitespace-nowrap ${isAutoInc ? 'bg-slate-50' : ''}`}>
-                        <input
-                          type="text"
-                          value={row[header] ?? ''}
-                          onChange={(e) => handleDataChange(rowIndex, header, e.target.value)}
-                          readOnly={isAutoInc}
-                          className={`w-full h-full p-3 border border-transparent hover:border-slate-200 focus:border-blue-500 bg-transparent focus:outline-none focus:bg-white ${isAutoInc ? 'text-slate-400 cursor-not-allowed italic' : ''}`}
-                        />
-                      </td>
-                    )})}
-                    <td className="p-1 text-center">
-                      <button 
-                        onClick={() => deleteRow(rowIndex)}
-                        className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100"
-                        title="Zeile löschen"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
+
+        {/* API Parameters Toolbar */}
+        {showParams && queryParams.length > 0 && (
+            <div className="bg-slate-100 border-b border-slate-200 p-2 flex flex-wrap gap-4 items-center animate-in slide-in-from-top-1">
+                <span className="text-xs font-bold text-slate-500 uppercase">API Parameter:</span>
+                {queryParams.map(p => (
+                    <div key={p.id} className="flex items-center gap-1">
+                        <label className="text-xs font-semibold text-slate-700">{p.key}:</label>
+                        {p.type === 'select' ? (
+                            <select 
+                                value={p.value} 
+                                onChange={e => updateParamValue(p.id, e.target.value)}
+                                className="border border-slate-300 rounded text-xs py-1 px-2"
+                            >
+                                <option value="">(Alle/Keine)</option>
+                                {p.options?.map(opt => <option key={opt} value={opt.trim()}>{opt.trim()}</option>)}
+                            </select>
+                        ) : (
+                            <input 
+                                type="text" 
+                                value={p.value} 
+                                onChange={e => updateParamValue(p.id, e.target.value)}
+                                className="border border-slate-300 rounded text-xs py-1 px-2 w-24" 
+                            />
+                        )}
+                    </div>
                 ))}
-              </tbody>
-            </table>
+            </div>
+        )}
+
+        {/* DATA FILTER BAR */}
+        {showFilters && (
+            <div className="bg-orange-50 border-b border-orange-200 p-2 flex overflow-x-auto gap-2 items-center animate-in slide-in-from-top-2 shadow-inner">
+                <div className="flex items-center gap-2 pr-4 border-r border-orange-200 mr-2">
+                    <span className="text-xs font-bold text-orange-800 uppercase flex items-center gap-1">
+                        <Filter size={12}/> Filter
+                    </span>
+                    <button onClick={clearFilters} className="text-orange-600 hover:text-orange-800 text-xs underline">
+                        Alle löschen
+                    </button>
+                </div>
+                {headers.map(h => {
+                    const stats = columnStats[h];
+                    const hasFilter = !!filters[h];
+                    const field = table.fields.find(f => f.name === h);
+                    const isDate = field?.type === 'DATE' || field?.type === 'DATETIME';
+
+                    return (
+                        <div key={h} className={`flex flex-col min-w-[120px] max-w-[200px] ${hasFilter ? 'bg-white rounded shadow-sm' : ''} p-1`}>
+                            <label className="text-[10px] font-bold text-orange-700 mb-0.5 truncate px-1">{h}</label>
+                            {stats?.isLowCardinality && !isDate ? (
+                                <select 
+                                    value={filters[h] || ''}
+                                    onChange={e => setFilter(h, e.target.value)}
+                                    className={`w-full border rounded px-1 py-0.5 text-xs outline-none ${hasFilter ? 'border-orange-400 bg-orange-50' : 'border-orange-200 bg-white'}`}
+                                >
+                                    <option value="">(Alle)</option>
+                                    {stats.uniqueValues.map(val => <option key={val} value={val}>{val}</option>)}
+                                </select>
+                            ) : (
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        value={filters[h] || ''}
+                                        onChange={e => setFilter(h, e.target.value)}
+                                        placeholder={isDate ? "z.B. 2024-01-01 oder TODAY" : "Suchen..."}
+                                        className={`w-full border rounded px-1 py-0.5 text-xs outline-none pr-4 ${hasFilter ? 'border-orange-400 bg-orange-50' : 'border-orange-200'}`}
+                                    />
+                                    {filters[h] && <button onClick={() => setFilter(h, '')} className="absolute right-1 top-0.5 text-orange-400 hover:text-orange-600"><X size={10}/></button>}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        )}
+
+        <div className="overflow-auto flex-1 relative">
+          {isRefreshing && (
+              <div className="absolute inset-0 bg-white/50 z-20 flex items-center justify-center backdrop-blur-sm">
+                  <div className="bg-white p-4 rounded shadow-lg flex items-center gap-3 border border-slate-200">
+                      <Loader2 className="animate-spin text-blue-600" size={24} />
+                      <span className="text-sm font-semibold text-slate-700">Lade Live-Daten...</span>
+                  </div>
+              </div>
+          )}
+          {headers.length > 0 ? (
+              <VirtualTable 
+                data={filteredData} 
+                headers={headers}
+                renderRow={renderRow}
+                rowHeight={35}
+              />
           ) : (
              <div className="p-6 text-center text-slate-500">
-              {headers.length > 0 ? (
-                <>
-                  <p>Die Tabelle "{table.name}" enthält keine Daten.</p>
-                  <button onClick={addRow} className="mt-2 text-blue-600 hover:underline text-sm">Klicken Sie hier, um eine neue Zeile hinzuzufügen.</button>
-                </>
-              ) : (
-                <p>Bitte fügen Sie zuerst Felder im Tabellenentwurf hinzu, um Daten eingeben zu können.</p>
-              )}
+                <p>Die Tabelle "{table.name}" enthält keine Daten.</p>
             </div>
           )}
         </div>
-        <div className="bg-slate-50 border-t border-slate-200 p-2 text-xs text-slate-500 text-right">
-           {data.length} Datensätze
+        <div className="bg-slate-50 border-t border-slate-200 p-2 text-xs text-slate-500 text-right flex justify-between">
+           <span>
+               {Object.keys(filters).length > 0 ? `${filteredData.length} gefiltert von ${rawData.length}` : `${rawData.length} Datensätze`}
+           </span>
+           <span>{table.apiConfig?.refreshOnLoad ? '(Live API)' : '(Lokal)'}</span>
         </div>
       </div>
     </div>

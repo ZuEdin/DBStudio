@@ -3,16 +3,19 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { ViewType, BackendConfig } from '../types/index';
 import { ConnectionSettingsModal } from './ConnectionSettingsModal';
+import { useTranslation } from 'react-i18next';
 
 // Tabs
 import { FileTab } from './ribbon/tabs/FileTab';
 import { CreateTab } from './ribbon/tabs/CreateTab';
+import { ProjectTab } from './ribbon/tabs/ProjectTab'; // NEW
 import { ToolsTab } from './ribbon/tabs/ToolsTab';
 import { BackendTab } from './ribbon/tabs/BackendTab';
 import { FormDesignTab } from './ribbon/tabs/FormDesignTab';
+import { ReportDesignTab } from './ribbon/tabs/ReportDesignTab';
 
 interface RibbonProps {
-  onAction: (action: string) => void;
+  onAction: (action: string, payload?: any) => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   currentDbType: string;
@@ -35,11 +38,14 @@ export const Ribbon: React.FC<RibbonProps> = ({
   setBackendConfig 
 }) => {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const { t } = useTranslation();
 
-  // Automatisch zum Kontext-Tab wechseln, wenn im Formular-Designer
+  // Automatisch zum Kontext-Tab wechseln
   useEffect(() => {
     if (currentView.type === 'form_designer') {
       setActiveTab('form_design');
+    } else if (currentView.type === 'report_designer') {
+      setActiveTab('report_design');
     }
   }, [currentView.type, setActiveTab]);
 
@@ -49,6 +55,8 @@ export const Ribbon: React.FC<RibbonProps> = ({
         return <FileTab onAction={onAction} currentDbType={currentDbType} />;
       case 'create':
         return <CreateTab onAction={onAction} />;
+      case 'project': // NEW
+        return <ProjectTab onAction={onAction} />;
       case 'tools':
         return <ToolsTab onAction={onAction} />;
       case 'backend':
@@ -63,6 +71,8 @@ export const Ribbon: React.FC<RibbonProps> = ({
         );
       case 'form_design':
         return <FormDesignTab onAction={onAction} />;
+      case 'report_design':
+        return <ReportDesignTab onAction={onAction} />;
       default:
         return null;
     }
@@ -77,34 +87,48 @@ export const Ribbon: React.FC<RibbonProps> = ({
             onClick={() => setActiveTab('file')}
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'file' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
-            Datei
+            {t('ribbon.file')}
             </button>
             <button 
             onClick={() => setActiveTab('create')}
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'create' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
-            Erstellen
+            {t('ribbon.create')}
+            </button>
+            <button 
+            onClick={() => setActiveTab('project')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'project' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            >
+            {t('ribbon.project')}
             </button>
             <button 
             onClick={() => setActiveTab('tools')}
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'tools' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
-            Datenbanktools
+            {t('ribbon.tools')}
             </button>
             <button 
             onClick={() => setActiveTab('backend')}
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-green-500 ${activeTab === 'backend' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
-            App Generator
+            {t('ribbon.generator')}
             </button>
             
-            {/* Context Tab: Form Design */}
+            {/* Context Tabs */}
             {currentView.type === 'form_designer' && (
             <button 
                 onClick={() => setActiveTab('form_design')}
                 className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-indigo-500 ${activeTab === 'form_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-indigo-900 hover:bg-indigo-800'}`}
             >
-                Formular-Entwurf
+                {t('ribbon.form_design')}
+            </button>
+            )}
+            {currentView.type === 'report_designer' && (
+            <button 
+                onClick={() => setActiveTab('report_design')}
+                className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-purple-500 ${activeTab === 'report_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-purple-900 hover:bg-purple-800'}`}
+            >
+                {t('ribbon.report_design')}
             </button>
             )}
         </div>
