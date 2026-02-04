@@ -35,11 +35,10 @@ export const generateDbContext = (tables: Table[], queries: Query[], config: Bac
       
       // DISCRIMINATOR STRATEGY: Global Filters
       if (config.multiTenancy.strategy === 'discriminator') {
-          // IMPORTANT: Only apply filter to tables that actually have the TenantId field
           const tenantField = config.multiTenancy?.tenantField || 'TenantId';
           
           tenantFilters = tables
-            .filter(t => t.fields.some(f => f.name === tenantField)) // Check if table has the tenant field
+            .filter(t => t.fields.some(f => f.name === tenantField)) 
             .map(t => `            modelBuilder.Entity<${toPascalCase(t.name)}>().HasQueryFilter(a => a.${tenantField} == _tenantService.GetTenantId());`)
             .join('\n');
       }
@@ -104,9 +103,7 @@ ${tenantFilters}
   return { name: 'AppDbContext.cs', path: `${root}/Data/AppDbContext.cs`, content: content, language: 'csharp' };
 };
 
-// ... Rest of the file (generateModels) is unchanged ...
 const generateValidationLogic = (rules: ValidationRule[], table: Table): string => {
-    // ... existing logic ...
     if (!rules || rules.length === 0) return '';
 
     const checks = rules.map(rule => {
@@ -193,11 +190,6 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       return `${attrBlock}${indent}public ${type} ${f.name} { get; set; }${initializer}`;
     }).join('\n\n');
 
-    // Tenant ID Injection (ONLY for Discriminator Strategy)
-    // NOTE: In the store, we now manually add the field to sys_users if strategy is discriminator.
-    // So we only need to inject here if the field is NOT already in the fields list.
-    // But generating it twice is safe if it's identical, or better, skip injection if present.
-    
     let tenantProp = '';
     const isDiscriminator = config.multiTenancy?.enabled && config.multiTenancy?.strategy === 'discriminator';
     const tenantField = config.multiTenancy?.tenantField || 'TenantId';

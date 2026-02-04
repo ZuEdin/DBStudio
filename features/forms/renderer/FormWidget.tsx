@@ -74,10 +74,10 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                 {element.lookup.allowQuickCreate && onOpenLookupModal && !isReadOnly && (
                     <button 
                         onClick={() => element.lookup && onOpenLookupModal(element.lookup.tableId, fieldName, element.lookup.quickCreateFormId)}
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 rounded px-3 flex items-center justify-center"
-                        title="Neu"
+                        className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-300 rounded px-3 flex items-center justify-center transition-colors"
+                        title="Neuen Eintrag erstellen (+)"
                     >
-                        <Plus size={18} />
+                        <Plus size={18} strokeWidth={3} />
                     </button>
                 )}
               </div>

@@ -37,7 +37,6 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
 
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: 3000 } });`, language: 'typescript' });
   
-  // Enabled Dark Mode 'class' strategy
   files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `export default { 
   darkMode: 'class',
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"], 

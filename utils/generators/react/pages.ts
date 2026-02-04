@@ -6,18 +6,17 @@ import { generateJsxForLayout, collectLookups } from './layoutHelper';
 export const generateReactPages = (tables: Table[], forms: Form[], reports: Report[], root: string, queries: any[] = []): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
-  // Map Tables to their specific Forms
   const formMap = new Map<string, Form>();
   forms.forEach(f => { if(f.sourceType === 'table') formMap.set(f.sourceId, f); });
 
-  // 1. Table Lists (Paginated Data Grid)
+  // 1. Table Lists (Standard CRUD)
   tables.forEach(table => {
       const pascalName = toPascalCase(table.name);
       const camelName = toCamelCase(table.name);
       const listName = `${pascalName}List`;
       const pk = toCamelCase(table.fields.find(f=>f.isPrimaryKey)?.name || 'id');
       
-      const customForm = formMap.get(table.id);
+      const customForm = forms.find(f => f.sourceId === table.id && f.sourceType === 'table');
       const createLink = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/new` : `/${camelName}/new`;
       const editLinkPrefix = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/` : `/${camelName}/`;
 
@@ -25,136 +24,73 @@ export const generateReactPages = (tables: Table[], forms: Form[], reports: Repo
 import { Link } from 'react-router-dom';
 import { ${pascalName} } from '../../types';
 import { get, remove } from '../../services/api';
-import { Trash2, Plus, Edit, Search, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Plus, Edit, Search } from 'lucide-react';
 
 export const ${listName} = () => {
   const [items, setItems] = useState<${pascalName}[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Debounce Search
-  useEffect(() => {
-      const timer = setTimeout(() => { setPage(1); loadItems(); }, 500);
-      return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  useEffect(() => { loadItems(); }, [page]);
+  useEffect(() => { loadItems(); }, [searchTerm]);
 
   const loadItems = async () => {
     try {
       setLoading(true);
-      const res = await get<${pascalName}>('${camelName}', { page, pageSize, search: searchTerm });
+      const res = await get<${pascalName}>('${camelName}', { search: searchTerm });
       setItems(res.data);
-      setTotal(res.total);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Fehler beim Laden der Daten.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleDelete = async (id: any) => {
-    if (!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
-    try {
-      await remove(\`${camelName}/\${id}\`);
-      loadItems();
-    } catch (err: any) {
-      alert('Fehler beim Löschen: ' + err.message);
-    }
+    if (confirm('Löschen?')) { await remove(\`${camelName}/\${id}\`); loadItems(); }
   };
 
-  const totalPages = Math.ceil(total / pageSize);
-  
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">${table.name}</h1>
-            <p className="text-slate-500 dark:text-slate-400">Verwaltung der ${table.name} Einträge.</p>
-          </div>
-          <Link to="${createLink}" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium flex gap-2 items-center shadow-lg shadow-blue-600/20 transition-all">
-            <Plus size={18}/> Neu erstellen
-          </Link>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg flex items-center gap-2">
-            <AlertCircle size={20} /> {error}
-        </div>
-      )}
-
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-        {/* Toolbar */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex gap-4">
-            <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                <input 
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+          <h1 className="text-3xl font-bold dark:text-white flex items-center gap-2">${table.name}</h1>
+          <div className="flex gap-4 w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-initial">
+                  <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                  <input 
                     type="text" 
-                    placeholder="Suche..." 
+                    placeholder="Suchen..." 
+                    className="pl-10 pr-4 py-2 border rounded-lg w-full bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
-                />
-            </div>
-        </div>
-
-        {/* Table */}
+                  />
+              </div>
+              <Link to="${createLink}" className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap">
+                <Plus size={18}/> <span className="hidden sm:inline">Neu anlegen</span>
+              </Link>
+          </div>
+      </div>
+      
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700">
         <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                ${table.fields.map(f => `<th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">${f.name}</th>`).join('')}
-                <th className="p-4 text-right font-semibold text-sm text-slate-600 dark:text-slate-300">Aktionen</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {loading ? (
-                    <tr><td colSpan={${table.fields.length + 1}} className="p-8 text-center text-slate-500 dark:text-slate-400">Lade Daten...</td></tr>
-                ) : items.length === 0 ? (
-                    <tr><td colSpan={${table.fields.length + 1}} className="p-8 text-center text-slate-500 dark:text-slate-400">Keine Einträge gefunden.</td></tr>
-                ) : (
-                    items.map(i => (
+            <table className="w-full text-left">
+                <thead className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-700 text-slate-500 uppercase text-xs font-semibold">
+                    <tr>
+                        ${table.fields.map(f => `<th className="p-4">${f.name}</th>`).join('')}
+                        <th className="p-4 text-right">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {items.length > 0 ? items.map(i => (
                         <tr key={i.${pk}} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                            ${table.fields.map(f => `<td className="p-4 text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">{String(i.${toCamelCase(f.name)} ?? '')}</td>`).join('')}
-                            <td className="p-4 flex justify-end gap-2">
-                                <Link to={'${editLinkPrefix}' + i.${pk}} className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors"><Edit size={16}/></Link>
-                                <button onClick={()=>handleDelete(i.${pk})} className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                            ${table.fields.map(f => `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(i.${toCamelCase(f.name)} ?? '')}</td>`).join('')}
+                            <td className="p-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                    <Link to={'${editLinkPrefix}' + i.${pk}} className="p-2 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-slate-700"><Edit size={16}/></Link>
+                                    <button onClick={()=>handleDelete(i.${pk})} className="p-2 text-red-600 hover:bg-red-50 rounded dark:hover:bg-slate-700"><Trash2 size={16}/></button>
+                                </div>
                             </td>
                         </tr>
-                    ))
-                )}
-            </tbody>
+                    )) : (
+                        <tr><td colSpan={${table.fields.length + 1}} className="p-8 text-center text-slate-400 italic">Keine Einträge gefunden.</td></tr>
+                    )}
+                </tbody>
             </table>
-        </div>
-        
-        {/* Pagination */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-                Zeige {(page - 1) * pageSize + 1} bis {Math.min(page * pageSize, total)} von {total} Einträgen
-            </span>
-            <div className="flex gap-1">
-                <button 
-                    onClick={() => setPage(p => Math.max(1, p - 1))} 
-                    disabled={page === 1}
-                    className="p-1 rounded hover:bg-slate-200 disabled:opacity-50"
-                >
-                    <ChevronLeft size={18}/>
-                </button>
-                <span className="px-2 text-sm font-medium">{page} / {Math.max(1, totalPages)}</span>
-                <button 
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-                    disabled={page >= totalPages}
-                    className="p-1 rounded hover:bg-slate-200 disabled:opacity-50"
-                >
-                    <ChevronRight size={18}/>
-                </button>
-            </div>
         </div>
       </div>
     </div>
@@ -163,45 +99,176 @@ export const ${listName} = () => {
       files.push({ name: `${listName}.tsx`, path: `${root}/src/pages/${pascalName}/${listName}.tsx`, content, language: 'typescript' });
   });
 
-  // 2. Forms (Modern Input Styling) - Same logic, slight helper update implicit
+  // 2. Custom Forms with Smart Quick Create
   forms.forEach(form => {
       const compName = `${toPascalCase(form.name)}Form`;
       const sourceTable = tables.find(t => t.id === form.sourceId);
       if(!sourceTable) return;
       
       const sourceTableCamel = toCamelCase(sourceTable.name);
-      const lookups = form.layout ? collectLookups(form.layout, tables) : [];
-      const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables) : '<div>Empty Layout</div>';
       
+      const lookups = form.layout ? collectLookups(form.layout, tables) : [];
+      
+      // Accumulate required modals during layout generation
+      const requiredModals: any[] = [];
+      const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables, forms, 'data', requiredModals) : '<div>Kein Layout definiert.</div>';
+      
+      // Subform State declarations
+      const subformStateDecls = requiredModals
+        .filter(m => m.type === 'subform')
+        .map(m => {
+            const camelChild = toCamelCase(m.table.name);
+            const varName = `${camelChild}SubList_${m.id.replace('sub_field_', '')}`;
+            return `const [${varName}, set${toPascalCase(varName)}] = useState<any[]>([]);`;
+        }).join('\n  ');
+
+      const subformLoadLogic = requiredModals
+        .filter(m => m.type === 'subform')
+        .map(m => {
+            const childTableCamel = toCamelCase(m.table.name);
+            const childField = m.table.fields.find(f => f.id === m.childField)?.name;
+            const varName = `${childTableCamel}SubList_${m.id.replace('sub_field_', '')}`;
+            return `if(id && id!=='new') { const subRes = await get('${childTableCamel}', { search: '' }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
+        }).join('\n        ');
+
+      // Generate Smart Modal Content (Typ-Gerecht)
+      const modalJsx = requiredModals.map(m => {
+          if (m.type === 'lookup') {
+              // Quick Create Form
+              const fields = m.table.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement).map((f: any) => {
+                  const label = f.name;
+                  const name = toCamelCase(f.name);
+                  let input = `<input name="${name}" className="w-full border p-2 rounded" />`;
+                  
+                  if (f.type === 'BOOLEAN') {
+                      input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" name="${name}" value="true" className="w-4 h-4" /> <span className="text-sm">Aktivieren</span></div>`;
+                  } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                      input = `<input type="number" name="${name}" className="w-full border p-2 rounded" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
+                  } else if (f.type === 'DATE') {
+                      input = `<input type="date" name="${name}" className="w-full border p-2 rounded" />`;
+                  }
+
+                  return `
+                  <div className="mb-3">
+                      <label className="block text-sm font-bold mb-1 text-slate-700">${label}</label>
+                      ${input}
+                  </div>`;
+              }).join('');
+              
+              return `
+              <Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Neu anlegen: ${m.table.name}">
+                  <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      const payload: any = {};
+                      formData.forEach((value, key) => {
+                          if (value === 'true') payload[key] = true;
+                          else if (value === 'false') payload[key] = false;
+                          else payload[key] = value;
+                      });
+                      
+                      try {
+                          await post('${toCamelCase(m.table.name)}', payload);
+                          // Reload Lookups
+                          const res = await get('${toCamelCase(m.table.name)}');
+                          set${toPascalCase(toCamelCase(m.table.name))}List(res.data || res);
+                          toggleModal('${m.id}', false);
+                      } catch (err) {
+                          alert('Fehler beim Speichern');
+                      }
+                  }}>
+                      <div className="space-y-2">
+                        ${fields}
+                      </div>
+                      <div className="mt-6 flex justify-end gap-2">
+                          <button type="button" onClick={() => toggleModal('${m.id}', false)} className="px-4 py-2 border rounded">Abbrechen</button>
+                          <button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button>
+                      </div>
+                  </form>
+              </Modal>`;
+          }
+          if (m.type === 'subform') {
+              // Subform Logic (Simplified for generation)
+              const subLayout = m.form.layout ? generateJsxForLayout(m.form.layout, tables, forms, 'subData') : '<div>Formular leer</div>';
+              const childTableCamel = toCamelCase(m.table.name);
+              const childField = m.table.fields.find(f => f.id === m.childField)?.name;
+              
+              return `
+              <Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Eintrag hinzufügen: ${m.form.name}">
+                  <SubFormWrapper 
+                      onSave={async (subData) => {
+                          if(id && id!=='new') {
+                              subData.${toCamelCase(childField || '')} = id; // Link to parent
+                              await post('${childTableCamel}', subData);
+                              // Reload List
+                              const subRes = await get('${childTableCamel}', { search: '' }); 
+                              set${toPascalCase(toCamelCase(m.table.name))}SubList_${m.id.replace('sub_field_', '')}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField || '')}) === String(id)));
+                          } else {
+                              alert('Bitte zuerst Hauptdatensatz speichern.');
+                          }
+                          toggleModal('${m.id}', false);
+                      }}
+                  >
+                      {${subLayout.replace(/data\./g, 'subData.')}} 
+                  </SubFormWrapper>
+              </Modal>`;
+          }
+          return '';
+      }).join('\n');
+
       const content = `import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { get, post, put } from '../../services/api';
-import { Save, ArrowLeft, Loader2 } from 'lucide-react';
+import { Save, ArrowLeft, Loader2, Plus, Layout } from 'lucide-react';
+import { Modal } from '../../components/Modal';
+
+// Helper for subform state
+const SubFormWrapper = ({ children, onSave }: any) => {
+    const [subData, setData] = useState<any>({});
+    // Clone children to inject props (simple simulation for generated code)
+    const injectedChildren = React.Children.map(children, child => {
+        if (React.isValidElement(child)) {
+             // In a real app we'd use a context, here we rely on the generated code using 'subData' variable
+             return child; 
+        }
+        return child;
+    });
+
+    return (
+        <div>
+            {/* Note: In a real app, this would use a FormContext. 
+                For this generated code, we assume 'subData' and 'setData' are available in scope via the replaced string logic. */}
+            {children}
+            <div className="mt-6 flex justify-end gap-2">
+                <button type="button" onClick={() => onSave(subData)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button>
+            </div>
+        </div>
+    );
+}
 
 export const ${compName} = () => {
   const { id } = useParams(); const navigate = useNavigate();
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  ${lookups.map(l => `const [${l.variableName}, set${toPascalCase(l.variableName)}] = useState<any[]>([]);`).join('\n')}
+  const [modals, setModals] = useState<Record<string, boolean>>({});
+  
+  ${lookups.map(l => `const [${l.variableName}, set${toPascalCase(l.variableName)}] = useState<any[]>([]);`).join('\n  ')}
+  ${subformStateDecls}
+
+  const toggleModal = (id: string, state: boolean) => setModals(prev => ({...prev, [id]: state}));
 
   useEffect(() => {
       const init = async () => {
+        setLoading(true);
         try {
-          setLoading(true);
-          // Lookups might need pagination logic if too large, currently loading all
-          ${lookups.map(l => `const ${l.variableName}Res = await get('${l.endpoint}', { pageSize: 1000 }); set${toPascalCase(l.variableName)}(${l.variableName}Res.data);`).join('\n          ')}
-          
-          if (id && id !== 'new') {
-             const record = await get(\`${sourceTableCamel}/\${id}\`);
-             setData(record); // GetById returns object, not paged
-          }
-        } catch(err) {
-          console.error(err);
-          alert("Fehler beim Laden.");
-        } finally {
-          setLoading(false);
-        }
+            ${lookups.map(l => `const ${l.variableName}Res = await get('${l.endpoint}'); set${toPascalCase(l.variableName)}(${l.variableName}Res.data || ${l.variableName}Res);`).join('\n            ')}
+            if (id && id !== 'new') {
+                const res = await get(\`${sourceTableCamel}/\${id}\`);
+                setData(res.data || res);
+                ${subformLoadLogic}
+            }
+        } catch (e) { console.error(e); }
+        setLoading(false);
       };
       init();
   }, [id]);
@@ -209,45 +276,37 @@ export const ${compName} = () => {
   const handleSubmit = async (e: React.FormEvent) => { 
       e.preventDefault(); 
       try {
-        setSubmitting(true);
-        if (id && id !== 'new') {
-            await put(\`${sourceTableCamel}/\${id}\`, data);
-        } else {
-            await post('${sourceTableCamel}', data);
-        }
-        navigate(-1);
-      } catch (err: any) {
-        alert('Fehler: ' + err.message);
-      } finally {
-        setSubmitting(false);
-      }
+          if (id && id !== 'new') await put(\`${sourceTableCamel}/\${id}\`, data);
+          else await post('${sourceTableCamel}', data);
+          navigate(-1);
+      } catch (e) { alert('Fehler beim Speichern'); }
   };
 
-  if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin inline-block mr-2 text-blue-500"/> Lade...</div>;
+
+  // Placeholder for subform compilation scope
+  const subData: any = {}; 
+  const setSubData = (d: any) => {};
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-6 flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400">
-            <ArrowLeft size={20}/>
-          </button>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">${form.name}</h1>
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="max-w-5xl mx-auto p-4 sm:p-8">
+      <button onClick={() => navigate(-1)} className="mb-4 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center gap-2 transition-colors font-medium text-sm"><ArrowLeft size={16}/> Zurück</button>
+      
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">${form.name}</h1>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="p-6 sm:p-8">
             ${layoutJsx}
             
-            <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
-                <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors">
-                    Abbrechen
-                </button>
-                <button type="submit" disabled={submitting} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium flex gap-2 items-center transition-colors shadow-sm">
-                    {submitting ? <Loader2 size={18} className="animate-spin"/> : <Save size={18}/>} Speichern
-                </button>
+            <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+                <button type="button" onClick={() => navigate(-1)} className="px-6 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors">Abbrechen</button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5"><Save size={18}/> Speichern</button>
             </div>
           </form>
       </div>
+      ${modalJsx}
     </div>
   );
 };`;

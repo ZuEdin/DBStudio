@@ -2,7 +2,6 @@
 import { BackendConfig, VirtualFile } from '../../../types/index';
 
 export const generatePermissionService = (config: BackendConfig, root: string): VirtualFile => {
-  // Check if we need connection switching logic
   const isDbPerTenant = config.multiTenancy?.enabled && config.multiTenancy.strategy === 'database';
 
   let tenantInterface = `    public interface ITenantService
@@ -30,13 +29,11 @@ export const generatePermissionService = (config: BackendConfig, root: string): 
             var context = _httpContextAccessor.HttpContext;
             if (context == null) return null;
 
-            // Header priority
             if (context.Request.Headers.TryGetValue("X-Tenant-ID", out var tenantId))
             {
                 return Sanitize(tenantId.ToString());
             }
             
-            // Query param fallback
             if (context.Request.Query.TryGetValue("tenantId", out var qTenantId))
             {
                 return Sanitize(qTenantId.ToString());
@@ -48,29 +45,21 @@ export const generatePermissionService = (config: BackendConfig, root: string): 
         public string GetConnectionString(string originalConnectionString)
         {
             var tenantId = GetTenantId();
-            
-            // If no tenant or not using DB-per-tenant, return default
             if (string.IsNullOrEmpty(tenantId) || !IsDatabasePerTenant()) 
                 return originalConnectionString;
 
-            // STRATEGY: Database Name Replacement
-            // We assume connection string has "Database=MyDb" or "Initial Catalog=MyDb"
-            // We replace it with "Database=MyDb_{TenantId}"
-            
             var builder = new System.Data.Common.DbConnectionStringBuilder();
             builder.ConnectionString = originalConnectionString;
 
-            string[] dbKeys = new[] { "Database", "Initial Catalog", "Data Source" }; // SQLite uses Data Source sometimes as path
+            string[] dbKeys = new[] { "Database", "Initial Catalog", "Data Source" };
             
             foreach(var key in dbKeys)
             {
                 if(builder.ContainsKey(key))
                 {
                     var dbName = builder[key].ToString();
-                    // Avoid double suffix if already present (naive check)
                     if(!dbName!.EndsWith($"_{tenantId}"))
                     {
-                        // For SQLite, it's a file path potentially
                         if(key == "Data Source" && dbName.EndsWith(".db"))
                         {
                              builder[key] = dbName.Replace(".db", $"_{tenantId}.db");
@@ -80,7 +69,7 @@ export const generatePermissionService = (config: BackendConfig, root: string): 
                              builder[key] = $"{dbName}_{tenantId}";
                         }
                     }
-                    break; // Replace only the first main DB key found
+                    break;
                 }
             }
 
@@ -89,12 +78,10 @@ export const generatePermissionService = (config: BackendConfig, root: string): 
 
         private string Sanitize(string input)
         {
-            // Prevent SQL Injection or File Path traversal via Tenant ID
             return System.Text.RegularExpressions.Regex.Replace(input, "[^a-zA-Z0-9_-]", "");
         }
     }`;
 
-  // ... (PermissionService logic remains similar) ...
   const permissionContent = `using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ${config.projectName}.Data;

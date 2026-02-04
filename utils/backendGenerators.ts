@@ -8,6 +8,7 @@ import { generatePhp } from './generators/phpGenerator';
 import { generateLaravel } from './generators/laravelGenerator';
 import { generateBlazor } from './generators/blazorGenerator';
 import { generateElectron } from './generators/electronGenerator';
+import { generateVue } from './generators/vueGenerator';
 import { generateDatabaseScripts } from './generators/databaseGenerator';
 
 // Main Generator Function
@@ -47,6 +48,9 @@ export const generateBackendCode = (
   } else if (config.frontendFramework === 'blazor') {
     const blazorFiles = generateBlazor(tables, relationships, queries, config, forms, reports);
     files = [...files, ...blazorFiles];
+  } else if (config.frontendFramework === 'vue') {
+    const vueFiles = generateVue(tables, relationships, queries, config);
+    files = [...files, ...vueFiles];
   } else if (config.frontendFramework === 'electron') {
     const electronFiles = generateElectron(tables, relationships, queries, config, forms, reports);
     files = [...files, ...electronFiles];

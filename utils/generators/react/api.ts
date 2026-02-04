@@ -4,10 +4,21 @@ import { toCamelCase, toPascalCase, isNullable, resolveType } from '../common';
 
 export const generateReactApi = (tables: Table[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
+  const useAuth = config.authConfig?.useUserLogin;
   
   const apiService = `import axios from 'axios';
 const API_URL = 'http://localhost:${config.port}/api';
+
 export const api = axios.create({ baseURL: API_URL });
+
+// Auth Interceptor
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+        config.headers.Authorization = \`Bearer \${token}\`;
+    }
+    return config;
+});
 
 export interface PagedResponse<T> {
     data: T[];
@@ -28,7 +39,31 @@ export const get = async <T>(endpoint: string, params?: any) => {
 
 export const post = async <T>(endpoint: string, data: any) => (await api.post<T>(endpoint, data)).data;
 export const put = async <T>(endpoint: string, data: any) => (await api.put<T>(endpoint, data)).data;
-export const remove = async (endpoint: string) => await api.delete(endpoint);`;
+export const remove = async (endpoint: string) => await api.delete(endpoint);
+
+${useAuth ? `
+// Auth API
+export const loginUser = async (credentials: any) => {
+    const { data } = await api.post('/auth/login', credentials);
+    if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+    }
+    return data;
+};
+
+export const registerUser = async (userData: any) => {
+    return await api.post('/auth/register', userData);
+};
+
+export const changePassword = async (data: any) => {
+    return await api.post('/auth/change-password', data);
+};
+
+export const logoutUser = () => {
+    localStorage.removeItem('auth_token');
+    window.location.href = '/login';
+};
+` : ''}`;
   
   files.push({ name: 'api.ts', path: `${root}/src/services/api.ts`, content: apiService, language: 'typescript' });
 

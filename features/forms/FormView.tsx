@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Form, Table, FormElement } from '../../types/index';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FormWidget } from './renderer/FormWidget';
 
@@ -25,7 +25,9 @@ export const FormView: React.FC<FormViewProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [tempRecord, setTempRecord] = useState<Record<string, any>>({});
   
+  // Modals state
   const [lookupModal, setLookupModal] = useState<{ isOpen: boolean; targetTableId: string; sourceFieldName: string; formId?: string } | null>(null);
+  const [subformModal, setSubformModal] = useState<{ isOpen: boolean; formId: string; parentField: string; childField: string; linkValue: any } | null>(null);
 
   const sourceTable = allTables.find(t => t.id === form.sourceId);
   const isReadOnly = form.mode === 'readonly' || form.sourceType === 'query' || !sourceTable;
@@ -68,11 +70,9 @@ export const FormView: React.FC<FormViewProps> = ({
       return '';
   };
 
-  const startCreate = () => {
-      if (isReadOnly || !sourceTable) return;
-      
-      // Initialize defaults with type conversion
-      let initialData = sourceTable.fields.reduce((acc, field) => {
+  // Generic Create Logic (Used by Inline New and Modal New)
+  const prepareNewRecord = (table: Table, masterFieldId?: string, childFieldId?: string, parentVal?: any) => {
+      let initialData = table.fields.reduce((acc, field) => {
         if (field.defaultValue !== undefined && field.defaultValue !== '') {
             if (field.type === 'BOOLEAN') {
                 acc[field.name] = field.defaultValue === 'true';
@@ -87,38 +87,38 @@ export const FormView: React.FC<FormViewProps> = ({
         return acc;
       }, {} as Record<string, any>);
 
-      // Pre-fill Foreign Keys if Subform using Link Config
+      if(masterFieldId && childFieldId && parentVal !== undefined) {
+          const childFieldName = table.fields.find(f => f.id === childFieldId)?.name;
+          if (childFieldName) {
+              initialData[childFieldName] = parentVal;
+          }
+      }
+      return initialData;
+  };
+
+  const startCreate = () => {
+      if (isReadOnly || !sourceTable) return;
+      
+      let initialData = prepareNewRecord(sourceTable);
+
+      // Pre-fill Foreign Keys if Subform
       if(isSubform && parentRecord && linkConfig) {
           const masterFieldName = getFieldName(linkConfig.masterFieldId);
-          const childFieldName = sourceTable.fields.find(f => f.id === linkConfig.childFieldId)?.name;
-
-          if (masterFieldName && childFieldName && parentRecord[masterFieldName] !== undefined) {
-              initialData[childFieldName] = parentRecord[masterFieldName];
+          if (masterFieldName && parentRecord[masterFieldName] !== undefined) {
+              // Re-run prepare with link info
+              initialData = prepareNewRecord(sourceTable, linkConfig.masterFieldId, linkConfig.childFieldId, parentRecord[masterFieldName]);
           }
       } 
-      // Fallback for older configurations (Robustness)
-      else if(isSubform && parentRecord) {
-        const parentForm = allForms.find(f => f.subform?.formId === form.id);
-        if(parentForm && parentForm.subform) {
-            const parentSourceTable = allTables.find(t => t.id === parentForm.sourceId);
-            const masterLinkField = parentSourceTable?.fields.find(f => f.id === parentForm.subform!.masterLinkFieldId);
-            const childLinkField = sourceTable.fields.find(f => f.id === parentForm.subform!.childLinkFieldId);
-
-            if(masterLinkField && childLinkField) {
-                initialData[childLinkField.name] = parentRecord[masterLinkField.name];
-            }
-        }
-      }
-
+      
       setTempRecord(initialData);
       setIsCreating(true);
   };
 
   const saveNewRecord = () => {
       if (!sourceTable) return;
-
-      // Handle Auto Increment for ID if missing in tempRecord
       const recordToSave = { ...tempRecord };
+      
+      // Auto Increment ID
       sourceTable.fields.forEach(f => {
           if (f.isAutoIncrement && f.type === 'INTEGER' && !recordToSave[f.name]) {
                const maxVal = (sourceTable.data || []).reduce((max, row) => {
@@ -178,6 +178,27 @@ export const FormView: React.FC<FormViewProps> = ({
       return table.data.map(row => ({ value: row.id || Object.values(row)[0], label: Object.values(row).slice(0, 2).join(' ') }));
   };
 
+  // --- Subform Modal Logic ---
+  const handleOpenSubformModal = (formId: string, masterFieldId: string, childFieldId: string) => {
+      if (!sourceTable || !currentRecord) return;
+      const masterFieldName = getFieldName(masterFieldId);
+      const linkValue = currentRecord[masterFieldName];
+      
+      setSubformModal({
+          isOpen: true,
+          formId,
+          parentField: masterFieldId,
+          childField: childFieldId,
+          linkValue
+      });
+  };
+
+  const handleSubformSaveFromModal = (updatedTable: Table) => {
+      onTableChange(updatedTable);
+      // Close modal
+      setSubformModal(null);
+  };
+
   const renderElement = (el: FormElement) => {
       if (el.type === 'container') return <div key={el.id} className={el.className}>{el.children?.map(renderElement)}</div>;
       if (el.type === 'label') return <div key={el.id} className={el.className}>{el.label}</div>;
@@ -189,39 +210,51 @@ export const FormView: React.FC<FormViewProps> = ({
           />;
       }
       if (el.type === 'subform' && el.subform) {
-          if (isCreating) return <div key={el.id} className="p-4 text-center text-slate-400 border border-dashed rounded">Bitte speichern Sie den Datensatz, um Unterformulare zu bearbeiten.</div>;
+          if (isCreating) return <div key={el.id} className="p-4 text-center text-slate-400 border border-dashed rounded bg-slate-50">Bitte speichern Sie den Datensatz, um Unterformulare zu bearbeiten.</div>;
 
           const subDef = allForms.find(f => f.id === el.subform!.formId);
-          if (!subDef) return null;
-          const subTable = allTables.find(t => t.id === subDef.sourceId);
+          if (!subDef) return <div key={el.id} className="text-red-500">Subform nicht gefunden.</div>;
           
+          const subTable = allTables.find(t => t.id === subDef.sourceId);
           let subformData: Record<string, any>[] = [];
+          
           if (sourceTable && subTable && currentRecord) {
              const masterLinkField = sourceTable.fields.find(f => f.id === el.subform!.masterLinkFieldId);
              const childLinkField = subTable.fields.find(f => f.id === el.subform!.childLinkFieldId);
              if (masterLinkField && childLinkField) {
                  const linkValue = currentRecord[masterLinkField.name];
-                 // Use loose equality for ID matching (string vs number)
                  subformData = (subTable.data || []).filter(row => row[childLinkField.name] == linkValue);
              }
           }
 
           return (
-            <div key={el.id} className={el.className}>
-                <FormView 
-                    form={subDef}
-                    allForms={allForms}
-                    allTables={allTables}
-                    onTableChange={onTableChange}
-                    showConfirmation={showConfirmation}
-                    isSubform={true}
-                    filteredData={subformData}
-                    parentRecord={currentRecord}
-                    linkConfig={{ // Pass the link config explicitly
-                        masterFieldId: el.subform!.masterLinkFieldId,
-                        childFieldId: el.subform!.childLinkFieldId
-                    }}
-                />
+            <div key={el.id} className={`border border-slate-300 rounded-md overflow-hidden mt-4 ${el.className || ''}`}>
+                <div className="bg-slate-100 p-2 flex justify-between items-center border-b border-slate-200">
+                    <span className="font-bold text-sm text-slate-700 flex items-center gap-2">
+                        <Layout size={14}/> {el.label || subDef.name}
+                    </span>
+                    {!isReadOnly && el.subform.canAdd && (
+                        <button 
+                            onClick={() => handleOpenSubformModal(el.subform!.formId, el.subform!.masterLinkFieldId, el.subform!.childLinkFieldId)}
+                            className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 rounded px-2 py-1 text-xs font-semibold flex items-center gap-1 shadow-sm transition-colors"
+                        >
+                            <Plus size={12} strokeWidth={3}/> Eintrag hinzufügen
+                        </button>
+                    )}
+                </div>
+                <div className="p-2 bg-slate-50/50">
+                    <FormView 
+                        form={subDef}
+                        allForms={allForms}
+                        allTables={allTables}
+                        onTableChange={onTableChange}
+                        showConfirmation={showConfirmation}
+                        isSubform={true}
+                        filteredData={subformData}
+                        parentRecord={currentRecord}
+                        linkConfig={{ masterFieldId: el.subform!.masterLinkFieldId, childFieldId: el.subform!.childLinkFieldId }}
+                    />
+                </div>
             </div>
           );
       }
@@ -241,6 +274,7 @@ export const FormView: React.FC<FormViewProps> = ({
       setLookupModal(null);
   };
 
+  // --- Modals Render ---
   const renderLookupModal = () => {
       if (!lookupModal || !lookupModal.isOpen) return null;
       const targetTable = allTables.find(t => t.id === lookupModal.targetTableId);
@@ -286,9 +320,58 @@ export const FormView: React.FC<FormViewProps> = ({
       );
   };
 
+  const renderSubformModal = () => {
+      if (!subformModal || !subformModal.isOpen) return null;
+      const targetForm = allForms.find(f => f.id === subformModal.formId);
+      if (!targetForm) return null;
+      const targetTable = allTables.find(t => t.id === targetForm.sourceId);
+      if (!targetTable) return null;
+
+      // We need to initialize the form in "Create Mode"
+      // Since FormView controls its own state, we pass a special linkConfig and maybe force a "New" mode visually?
+      // A trick is to use a wrapper component that auto-clicks "New" or pass an initial state.
+      // For now, we reuse FormView but we need it to start in Create mode for the subform modal to make sense.
+      // We can use the existing `startCreate` logic if we modify FormView to accept an `autoCreate` prop.
+      // OR we just mount it and let user click New.
+      // Better: We pre-fill the parent record info.
+
+      return (
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in zoom-in-95 duration-200">
+              <div className="bg-white w-full max-w-4xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden relative border border-slate-300">
+                  <div className="flex justify-between items-center bg-indigo-50 p-3 px-4 border-b border-indigo-100 shrink-0">
+                      <span className="text-sm font-bold text-indigo-800 flex items-center gap-2"><Layout size={14}/> Eintrag hinzufügen: {targetForm.name}</span>
+                      <button onClick={() => setSubformModal(null)} className="p-1 hover:bg-indigo-100 rounded text-indigo-400"><X size={18}/></button>
+                  </div>
+                  <div className="flex-1 overflow-hidden relative">
+                    {/* We pass a parentRecord prop so the child form knows how to link */}
+                    <FormView 
+                        form={targetForm}
+                        allForms={allForms}
+                        allTables={allTables}
+                        onTableChange={handleSubformSaveFromModal}
+                        showConfirmation={showConfirmation}
+                        isSubform={false} // It's a modal top-level view now
+                        parentRecord={currentRecord} // Pass current parent record
+                        linkConfig={{ masterFieldId: subformModal.parentField, childFieldId: subformModal.childField }}
+                        onClose={() => setSubformModal(null)}
+                    />
+                  </div>
+              </div>
+          </div>
+      );
+  };
+
   const headerColorClass = isCreating 
     ? 'bg-emerald-600 text-white' 
     : (isSubform ? 'bg-indigo-100 text-indigo-900 border-b border-indigo-200' : 'bg-slate-800 text-white');
+
+  // Trigger Auto-Create for Modal instances if needed
+  useEffect(() => {
+      if (linkConfig && parentRecord && !isSubform && !isCreating && data.length === 0 && !isReadOnly) {
+          // If opened in modal with link config and empty, auto-start create
+          startCreate();
+      }
+  }, [linkConfig]);
 
   return (
     <div className={`h-full flex flex-col ${isSubform || form.settings?.isFullScreen ? '' : 'p-4 bg-slate-100'}`}>
@@ -302,7 +385,7 @@ export const FormView: React.FC<FormViewProps> = ({
                 </div>
                 <div className="flex items-center gap-3">
                     {!isCreating && <span className="text-xs bg-white/20 px-2 py-0.5 rounded">{data.length > 0 ? `${currentIndex + 1} / ${data.length}` : '0 / 0'}</span>}
-                    {form.settings?.isFullScreen && (
+                    {(form.settings?.isFullScreen || onClose) && (
                         <button onClick={onClose} className="text-white/70 hover:text-white p-1 rounded transition-colors" title="Schließen"><X size={18} /></button>
                     )}
                 </div>
@@ -338,7 +421,7 @@ export const FormView: React.FC<FormViewProps> = ({
                         <div className="flex gap-2">
                             {!isReadOnly && (
                                 <>
-                                    <button className="p-2 hover:bg-slate-200 rounded text-blue-600" onClick={startCreate} title="Neuer Datensatz">
+                                    <button className="p-2 hover:bg-slate-200 rounded text-blue-600" onClick={startCreate} title="Neuer Datensatz (Inline)">
                                         <Plus size={20}/>
                                     </button>
                                     <button className="p-2 hover:bg-slate-200 rounded text-red-500 disabled:opacity-50" onClick={deleteCurrentRecord} disabled={data.length === 0} title="Löschen">
@@ -358,6 +441,7 @@ export const FormView: React.FC<FormViewProps> = ({
             </div>
         </div>
         {renderLookupModal()}
+        {renderSubformModal()}
     </div>
   );
 };

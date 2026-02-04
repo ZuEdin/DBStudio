@@ -101,11 +101,9 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
 
         validateBlock = `, {\n    validate: {\n        customValidators() {\n${checks}\n        }\n    }\n}`;
     } else {
-        validateBlock = ''; // Close define options if needed, but here simple layout
+        validateBlock = '';
     }
 
-    // Closing define properly
-    // Default options empty, if validate exists, merge
     if (validateBlock) {
         content += `\ndb.${modelName} = sequelize.define('${modelName}', {\n${fields}\n}${validateBlock});\n`;
     } else {

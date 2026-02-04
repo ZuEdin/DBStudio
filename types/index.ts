@@ -281,7 +281,7 @@ export interface Workflow {
 }
 
 export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron';
-export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'electron' | 'none';
+export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'vue' | 'electron' | 'none';
 
 export interface AuthConfig {
     useWindowsAuth: boolean;

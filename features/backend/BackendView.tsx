@@ -24,14 +24,13 @@ interface BackendViewProps {
   config: BackendConfig;
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
   onOpenDeployment: () => void;
-  // New props passed down (implicitly available via config/store in real app, explicitly here)
+  // New props passed down
   lastSnapshot?: Table[];
   onSnapshot?: () => void;
   onUpdateEnvironments?: (envs: EnvironmentConfig[]) => void;
-  onUpdateCommercial?: (w: WhitelabelConfig, m: MultiTenancyConfig, l: LicensingConfig) => void; // NEW
+  onUpdateCommercial?: (w: WhitelabelConfig, m: MultiTenancyConfig, l: LicensingConfig) => void;
 }
 
-// ... existing TreeNode interfaces ...
 interface TreeNode {
   name: string;
   path: string;
@@ -99,9 +98,7 @@ const FileTreeItem: React.FC<{
         if (node.name.endsWith('.js')) return <FileCode size={14} className="text-yellow-500" />;
         if (node.name.endsWith('.json')) return <FileCode size={14} className="text-orange-500" />;
         if (node.name.endsWith('.html')) return <FileCode size={14} className="text-red-500" />;
-        if (node.name.endsWith('.css')) return <FileCode size={14} className="text-sky-400" />;
-        if (node.name.endsWith('.php')) return <FileCode size={14} className="text-purple-500" />;
-        if (node.name === 'Dockerfile') return <FileCode size={14} className="text-blue-700" />;
+        if (node.name.endsWith('.vue')) return <FileCode size={14} className="text-emerald-500" />;
         return <FileCode size={14} className="text-slate-500" />;
     };
 
@@ -155,7 +152,6 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
   const [localConfig, setLocalConfig] = useState(config);
 
   useEffect(() => {
-    // If config prop updates (e.g. from App Controller saving), update local
     setLocalConfig(config);
   }, [config]);
 
@@ -177,7 +173,6 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
     try {
         let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports);
         
-        // Append Deployment Files if config exists
         if (localConfig.deploymentConfig) {
             const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);
             files = [...files, ...deployFiles];
@@ -202,14 +197,11 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
 
   const handleExportZip = async () => {
     if (generatedFiles.length === 0) {
-        showMessage("Export fehlgeschlagen", "Keine Dateien zum Exportieren vorhanden. Bitte generieren Sie zuerst den Code.", 'warning');
+        showMessage("Export fehlgeschlagen", "Keine Dateien zum Exportieren vorhanden.", 'warning');
         return;
     }
     const zip = new JSZip();
-    
-    generatedFiles.forEach(file => {
-      zip.file(file.path, file.content);
-    });
+    generatedFiles.forEach(file => zip.file(file.path, file.content));
 
     const content = await zip.generateAsync({ type: 'blob' });
     const url = window.URL.createObjectURL(content);
@@ -226,17 +218,17 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
       
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          
+          // Use string concatenation for the content to avoid nested template literal issues
+          const contentPrompt = "Du bist ein Senior Developer. Hier ist der Code der Datei '" + selectedFile.name + "' (" + selectedFile.language + ").\n" +
+              "Projekt-Kontext: " + localConfig.language + ", " + localConfig.projectName + ".\n\n" +
+              "Code:\n" + selectedFile.content + "\n\n" +
+              "Aufgabe: " + aiPrompt + "\n\n" +
+              "Gib NUR den kompletten, neuen Code zurück, ohne Markdown-Formatierung.";
+
           const response = await ai.models.generateContent({
               model: "gemini-2.5-flash",
-              contents: `Du bist ein Senior Developer. Hier ist der Code der Datei '${selectedFile.name}' (${selectedFile.language}).
-              Projekt-Kontext: ${localConfig.language}, ${localConfig.projectName}.
-              
-              Code:
-              ${selectedFile.content}
-              
-              Aufgabe: ${aiPrompt}
-              
-              Gib NUR den kompletten, neuen Code zurück, ohne Markdown-Formatierung.`
+              contents: contentPrompt
           });
           
           const newCode = response.text?.trim() || selectedFile.content;
@@ -280,7 +272,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
                 ))
             ) : (
                 <div className="p-4 text-center text-slate-400 text-sm">
-                    Keine Dateien generiert. Klicken Sie auf "Generieren" im Menüband.
+                    Keine Dateien generiert.
                 </div>
             )}
         </div>
@@ -290,13 +282,13 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             <div className="grid grid-cols-2 gap-2">
                 <button 
                     onClick={() => setShowEnvModal(true)}
-                    className="flex items-center justify-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-teal-100 transition-all"
+                    className="flex items-center justify-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-teal-100"
                 >
                     <Globe size={14} /> Envs
                 </button>
                 <button 
                     onClick={() => setShowMigrationModal(true)}
-                    className="flex items-center justify-center gap-1 bg-orange-50 text-orange-800 border border-orange-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-orange-100 transition-all"
+                    className="flex items-center justify-center gap-1 bg-orange-50 text-orange-800 border border-orange-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-orange-100"
                 >
                     <GitCommit size={14} /> Migrations
                 </button>
@@ -305,13 +297,13 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             <div className="grid grid-cols-2 gap-2">
                 <button 
                     onClick={() => setShowIntegrationsModal(true)}
-                    className="flex items-center justify-center gap-2 bg-yellow-100 text-yellow-800 border border-yellow-200 p-2 rounded shadow text-xs font-bold hover:bg-yellow-200 transition-all"
+                    className="flex items-center justify-center gap-2 bg-yellow-100 text-yellow-800 border border-yellow-200 p-2 rounded shadow text-xs font-bold hover:bg-yellow-200"
                 >
                     <CloudLightning size={14} /> Integration
                 </button>
                 <button 
                     onClick={() => setShowWhitelabelModal(true)}
-                    className="flex items-center justify-center gap-2 bg-indigo-100 text-indigo-900 border border-indigo-200 p-2 rounded shadow text-xs font-bold hover:bg-indigo-200 transition-all"
+                    className="flex items-center justify-center gap-2 bg-indigo-100 text-indigo-900 border border-indigo-200 p-2 rounded shadow text-xs font-bold hover:bg-indigo-200"
                 >
                     <Briefcase size={14} /> Business
                 </button>
@@ -320,13 +312,13 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             <div className="grid grid-cols-2 gap-2">
                 <button 
                     onClick={() => setShowGitModal(true)}
-                    className="flex items-center justify-center gap-1 bg-slate-800 text-white p-2 rounded shadow text-xs font-bold hover:bg-slate-900 transition-all"
+                    className="flex items-center justify-center gap-1 bg-slate-800 text-white p-2 rounded shadow text-xs font-bold hover:bg-slate-900"
                 >
                     <GitBranch size={14} className="text-orange-400"/> Push Git
                 </button>
                 <button 
                     onClick={onOpenDeployment}
-                    className="flex items-center justify-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-2 rounded shadow text-xs font-bold hover:from-blue-700 hover:to-indigo-700 transition-all"
+                    className="flex items-center justify-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-2 rounded shadow text-xs font-bold hover:from-blue-700 hover:to-indigo-700"
                 >
                     <UploadCloud size={14} /> Deploy
                 </button>
@@ -341,12 +333,11 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
                 <FileCode size={14} className="text-slate-400" />
                 <span className="font-mono text-sm text-slate-700 font-medium">{selectedFile?.path}</span>
             </div>
-            <button onClick={handleExportZip} className="text-slate-400 hover:text-blue-600 text-xs flex items-center gap-1 transition-colors">
+            <button onClick={handleExportZip} className="text-slate-400 hover:text-blue-600 text-xs flex items-center gap-1">
                 <Download size={14}/> Download
             </button>
         </div>
         
-        {/* Monaco Editor */}
         <div className="flex-1 relative">
             {selectedFile ? (
                 <div className="absolute inset-0 overflow-hidden">
@@ -395,7 +386,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
                 <button 
                     onClick={handleAiRefactor}
                     disabled={isAiProcessing || !selectedFile}
-                    className="bg-purple-600 text-white px-4 py-1.5 rounded text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                    className="bg-purple-600 text-white px-4 py-1.5 rounded text-sm hover:bg-purple-700 disabled:opacity-50 font-medium"
                 >
                     {isAiProcessing ? 'Generiere...' : 'Ausführen'}
                 </button>
@@ -407,7 +398,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
           <GitPushModal 
             files={generatedFiles} 
             onClose={() => setShowGitModal(false)}
-            onSuccess={() => showMessage("Git Push Erfolgreich", "Der Code wurde erfolgreich in das Repository übertragen.", 'success')}
+            onSuccess={() => showMessage("Git Push Erfolgreich", "Code übertragen.", 'success')}
           />
       )}
 
@@ -415,9 +406,8 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
           <IntegrationsModal
             config={localConfig.integrations}
             onSave={(newIntegrations) => {
-                const newConfig = { ...localConfig, integrations: newIntegrations };
-                setLocalConfig(newConfig);
-                showMessage("Integrationen gespeichert", "Klicken Sie auf 'Generieren', um den Code zu aktualisieren.", 'success');
+                setLocalConfig({ ...localConfig, integrations: newIntegrations });
+                showMessage("Gespeichert", "Generieren Sie den Code neu.", 'success');
             }}
             onClose={() => setShowIntegrationsModal(false)}
           />
@@ -428,10 +418,9 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             initialEnvs={localConfig.environments}
             dbType={localConfig.dbType}
             onSave={(envs) => {
-                const newConfig = { ...localConfig, environments: envs };
-                setLocalConfig(newConfig);
+                setLocalConfig({ ...localConfig, environments: envs });
                 onUpdateEnvironments(envs);
-                showMessage("Umgebungen gespeichert", "Konfigurationen für Dev, Stage und Prod wurden aktualisiert.", 'success');
+                showMessage("Gespeichert", "Umgebungen aktualisiert.", 'success');
             }}
             onClose={() => setShowEnvModal(false)}
           />
@@ -444,7 +433,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             licensing={localConfig.licensing}
             onSave={(w, m, l) => {
                 onUpdateCommercial(w, m, l);
-                showMessage("Einstellungen gespeichert", "Whitelabeling und Enterprise-Features wurden aktualisiert. Bitte generieren Sie den Code neu.", 'success');
+                showMessage("Gespeichert", "Bitte Code neu generieren.", 'success');
             }}
             onClose={() => setShowWhitelabelModal(false)}
           />
@@ -457,7 +446,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             dbType={config.dbType}
             onSnapshot={() => {
                 onSnapshot();
-                showMessage("Snapshot erstellt", "Der aktuelle Schema-Status wurde als Basis für zukünftige Migrationen gespeichert.", 'success');
+                showMessage("Snapshot erstellt", "Status gespeichert.", 'success');
             }}
             onClose={() => setShowMigrationModal(false)}
           />

@@ -5,7 +5,6 @@ import { toPascalCase } from '../common';
 
 export const generateProgram = (config: BackendConfig, tables: Table[], relationships: Relationship[], queries: Query[], root: string): VirtualFile => {
   let dbConfigCode = '';
-  // Note: If Database Per Tenant is active, the Connection String is determined dynamically in OnConfiguring.
   
   if (config.dbType === DbType.MySQL) {
       dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options =>

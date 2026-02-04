@@ -42,7 +42,6 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
   const generateEnvContent = (conn: string) => {
       let dbName = 'my_db', user = 'user', pass = 'pass', host = 'localhost';
       if (config.dbType === DbType.SQLite) {
-          // For SQLite, typically file path
           return `DB_DIALECT=sqlite\nDB_STORAGE=${conn.replace('Data Source=', '')}\nPORT=${config.port}`;
       }
       
@@ -61,7 +60,7 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
       return `DB_HOST=${host}\nDB_USER=${user}\nDB_PASS=${pass}\nDB_NAME=${dbName}\nDB_DIALECT=${config.dbType === DbType.MySQL ? 'mysql' : 'mssql'}\nPORT=${config.port}`;
   };
 
-  // Base .env (Development by default)
+  // Base .env
   files.push({ name: '.env', path: `${root}/.env`, content: generateEnvContent(config.dbConnection), language: 'text' });
 
   if (config.environments) {
@@ -84,10 +83,7 @@ const db = require('./models');
 
 const initJobs = () => {
     console.log("Initializing Scheduler...");
-    
-    // Example: A job running every minute to check connection
     cron.schedule('* * * * *', async () => {
-        // console.log("System Health Check: OK");
     });
 };
 
@@ -147,7 +143,7 @@ module.exports = upload;`;
   }
   files.push({ name: 'storageService.js', path: `${root}/services/storageService.js`, content: storageJs, language: 'javascript' });
 
-  // --- CRUD Routes with Webhooks ---
+  // --- CRUD Routes ---
   let routes = "";
   tables.forEach(t => {
       const modelName = toPascalCase(t.name);
@@ -275,8 +271,6 @@ app.use(express.json());
 // Auth Setup
 ${integrations.sso.length > 0 ? `
 app.use(passport.initialize());
-// Configure strategies here (Placeholder)
-// passport.use(new GoogleStrategy(...));
 ` : ""}
 
 // Routes
