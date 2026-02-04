@@ -8,26 +8,26 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
   const root = `Backend/${config.projectName}`;
   const integrations = config.integrations || { storage: { provider: 'local' }, sso: [], webhooks: [] };
 
-  let dbDriverInfo = '"tedious": "^16.0.0"';
-  if (config.dbType === DbType.MySQL) dbDriverInfo = '"mysql2": "^3.0.0"';
-  else if (config.dbType === DbType.SQLite) dbDriverInfo = '"sqlite3": "^5.1.6"';
+  let dbDriverInfo = '"tedious": "^18.6.1"';
+  if (config.dbType === DbType.MySQL) dbDriverInfo = '"mysql2": "^3.11.0"';
+  else if (config.dbType === DbType.SQLite) dbDriverInfo = '"sqlite3": "^5.1.7"';
 
   // --- Dependencies ---
   let dependencies = `
-    "express": "^4.18.2",
-    "sequelize": "^6.32.1",
+    "express": "^4.21.2",
+    "sequelize": "^6.37.5",
     "cors": "^2.8.5",
     "node-cron": "^3.0.3",
-    "axios": "^1.6.2",
+    "axios": "^1.7.9",
     "multer": "^1.4.5-lts.1",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.4.7",
     ${dbDriverInfo}`;
 
   if (integrations.sso.length > 0) {
-      dependencies += `,\n    "passport": "^0.6.0",\n    "passport-google-oauth20": "^2.0.0"`; 
+      dependencies += `,\n    "passport": "^0.7.0",\n    "passport-google-oauth20": "^2.0.0"`; 
   }
   if (integrations.storage.provider === 's3') {
-      dependencies += `,\n    "aws-sdk": "^2.1495.0",\n    "multer-s3": "^3.0.1"`;
+      dependencies += `,\n    "aws-sdk": "^2.1692.0",\n    "multer-s3": "^3.0.1"`;
   }
 
   files.push({ name: 'package.json', path: `${root}/package.json`, content: `{
@@ -35,6 +35,10 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
   "version": "1.0.0",
   "main": "server.js",
   "dependencies": {${dependencies}
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   }
 }`, language: 'json' });
 
@@ -298,21 +302,36 @@ db.sequelize.sync({ alter: true })
 
   const readmeContent = `# ${config.projectName} (Node.js / Express)
 
-## Integrations
-- **Webhooks:** ${integrations.webhooks.length} configured.
-- **Storage:** ${integrations.storage.provider}
-- **SSO:** ${integrations.sso.map(s => s.provider).join(', ') || 'None'}
+Dieses Backend basiert auf **Node.js, Express und Sequelize**.
 
-## Environments
-Env files wurden generiert:
-- .env (default)
-${config.environments?.map(e => `- .env.${e.name === 'Production' ? 'production' : e.name === 'Staging' ? 'staging' : 'development'}`).join('\n') || ''}
+## 🚀 Schnellstart
 
-## Start
+### 1. Voraussetzungen
+* **Node.js** (LTS v20+).
+* Laufende Datenbank (${config.dbType}).
+
+### 2. Installation
 \`\`\`bash
 npm install
-node server.js
 \`\`\`
+
+### 3. Konfiguration (.env)
+Prüfen Sie die Datei \`.env\`.
+${config.dbType === DbType.SQLite ? 'Für SQLite wird die Datei automatisch erstellt.' : 'Stellen Sie sicher, dass Host, User und Passwort stimmen.'}
+
+### 4. Starten
+\`\`\`bash
+# Startet den Server (Node 20+ mit --watch Support)
+npm run dev
+\`\`\`
+
+Die API läuft unter **http://localhost:${config.port}/api**.
+
+## 🧩 Features
+* **ORM:** Sequelize (Auto-Sync beim Start).
+* **Uploads:** ${integrations.storage.provider}.
+* **Webhooks:** ${integrations.webhooks.length} konfiguriert.
+* **SSO:** ${integrations.sso.map(s => s.provider).join(', ') || 'Keine'}.
 `;
 
   files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });

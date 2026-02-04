@@ -133,6 +133,7 @@ export default function App() {
         showSecurityManager={app.showSecurityManager}
         setShowSecurityManager={app.setShowSecurityManager}
         onUpdateTable={app.onUpdateTable}
+        onCreateTable={(t) => db.saveTable(t, 'create')} // Add create table handler
         forms={db.forms}
         reports={db.reports}
         
@@ -151,6 +152,7 @@ export default function App() {
         lastSnapshot={app.lastSnapshot}
         
         backendConfig={app.backendConfig}
+        onUpdateBackendConfig={app.setBackendConfig}
       />
 
       <ToastContainer toasts={app.toasts} onDismiss={app.removeToast} />

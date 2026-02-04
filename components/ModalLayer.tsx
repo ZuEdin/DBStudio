@@ -14,7 +14,7 @@ import { EnvironmentManagerModal } from '../features/backend/EnvironmentManagerM
 import { MigrationManagerModal } from '../features/backend/MigrationManagerModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
 import { MessageModal } from './MessageModal';
-import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig } from '../types/index';
+import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig } from '../types/index';
 
 interface ModalLayerProps {
   savePrompt: { show: boolean; targetView?: ViewType };
@@ -38,6 +38,7 @@ interface ModalLayerProps {
   showSecurityManager: boolean;
   setShowSecurityManager: (show: boolean) => void;
   onUpdateTable: (table: Table) => void;
+  onCreateTable: (table: Table) => void; // Added for initialization
 
   activeWizard: 'duplicate' | 'inconsistency' | null;
   setActiveWizard: (wizard: 'duplicate' | 'inconsistency' | null) => void;
@@ -81,7 +82,8 @@ interface ModalLayerProps {
   queries: Query[];
   forms: Form[];
   reports: Report[];
-  backendConfig?: any; // To access commercial configs for init state
+  backendConfig?: BackendConfig;
+  onUpdateBackendConfig?: (config: BackendConfig) => void;
 }
 
 export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
@@ -91,7 +93,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     nameInput,
     showReportWizard, setShowReportWizard, onSaveReport,
     showFormWizard, setShowFormWizard, onSaveForm,
-    showSecurityManager, setShowSecurityManager, onUpdateTable,
+    showSecurityManager, setShowSecurityManager, onUpdateTable, onCreateTable,
     activeWizard, setActiveWizard, onSaveWizardQuery,
     confirmationModal, setConfirmationModal,
     showElectronSettings, electronSettings, onSaveElectronSettings, onCloseElectronSettings,
@@ -103,7 +105,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showMigrationModal, setShowMigrationModal, onSnapshot, lastSnapshot,
     
     messageModal, onCloseMessage,
-    tables, queries, forms, reports, backendConfig
+    tables, queries, forms, reports, backendConfig, onUpdateBackendConfig
   } = props;
 
   return (
@@ -171,7 +173,10 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             forms={forms}
             reports={reports}
             onUpdateTable={onUpdateTable}
+            onCreateTable={onCreateTable}
             onClose={() => setShowSecurityManager(false)}
+            backendConfig={backendConfig}
+            onUpdateBackendConfig={onUpdateBackendConfig}
           />
       )}
 

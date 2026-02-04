@@ -3,6 +3,7 @@ import { VirtualFile, BackendConfig } from '../../../types/index';
 
 export const generateReactConfigs = (config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
+  const fePort = config.frontendPort || 3000;
   
   // Build Scripts based on Environments
   const scripts: Record<string, string> = { 
@@ -26,8 +27,25 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
     "version": "0.0.0",
     "type": "module",
     "scripts": scripts,
-    "dependencies": { "axios": "^1.6.2", "react": "^18.2.0", "react-dom": "^18.2.0", "react-router-dom": "^6.20.0", "lucide-react": "^0.294.0", "clsx": "^2.0.0", "tailwind-merge": "^2.0.0" },
-    "devDependencies": { "@types/react": "^18.2.37", "@types/react-dom": "^18.2.15", "@vitejs/plugin-react": "^4.2.0", "autoprefixer": "^10.4.16", "postcss": "^8.4.31", "tailwindcss": "^3.3.5", "typescript": "^5.2.2", "vite": "^5.0.0" }
+    "dependencies": { 
+        "axios": "^1.7.9", 
+        "react": "^18.3.1", 
+        "react-dom": "^18.3.1", 
+        "react-router-dom": "^6.28.0", 
+        "lucide-react": "^0.460.0", 
+        "clsx": "^2.1.1", 
+        "tailwind-merge": "^2.3.0" 
+    },
+    "devDependencies": { 
+        "@types/react": "^18.3.3", 
+        "@types/react-dom": "^18.3.0", 
+        "@vitejs/plugin-react": "^4.3.4", 
+        "autoprefixer": "^10.4.19", 
+        "postcss": "^8.4.38", 
+        "tailwindcss": "^3.4.4", 
+        "typescript": "^5.4.5", 
+        "vite": "^5.4.14" 
+    }
   };
   files.push({ name: 'package.json', path: `${root}/package.json`, content: JSON.stringify(packageJson, null, 2), language: 'json' });
 
@@ -51,7 +69,7 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
 
   files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  @apply bg-gray-50 text-slate-900 dark:bg-gray-900 dark:text-slate-100;\n}`, language: 'css' });
 
-  files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: 3000 } });`, language: 'typescript' });
+  files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: ${fePort} } });`, language: 'typescript' });
   
   files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `export default { 
   darkMode: 'class',

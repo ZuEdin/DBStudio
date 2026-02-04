@@ -1,15 +1,19 @@
 
-import React, { useMemo } from 'react';
-import { Report, Field, ReportColumn, TextStyle } from '../../types/index';
-import { FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Report, Field, ReportColumn, TextStyle, Table, Relationship } from '../../types/index';
+import { FileText, FileSpreadsheet, ChevronDown, ExternalLink } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { RecordDetailModal } from '../../components/RecordDetailModal';
 
 interface ReportViewProps {
   report: Report;
   data: Record<string, any>[];
   sourceFields: Field[];
+  // Props for Linking
+  allTables: Table[];
+  relationships: Relationship[];
 }
 
 interface GroupedData {
@@ -32,23 +36,40 @@ const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
     };
 };
 
-export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFields }) => {
+export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFields, allTables, relationships }) => {
+  const [detailView, setDetailView] = useState<{ targetTableId: string, recordId: any } | null>(null);
   const groupingField = sourceFields.find(f => f.id === report.groupingFieldId);
 
   // Determine Columns to Display
-  const displayColumns = useMemo((): { id: string, label: string, fieldName: string }[] => {
+  const displayColumns = useMemo((): { id: string, label: string, fieldName: string, isFK?: boolean, targetTableId?: string }[] => {
       let cols = [];
+      
+      const mapCol = (fieldId: string, label: string, fieldName: string) => {
+          // Check for relationship
+          // We need to know which table this field belongs to. Report sourceId tells us the main source.
+          // If source is a table, simple. If query, we might lose context unless we map it back.
+          // Simplified approach: Check relationships where sourceTable matches report source
+          let isFK = false;
+          let targetTableId = undefined;
+
+          if (report.sourceType === 'table') {
+              const rel = relationships.find(r => r.fromTableId === report.sourceId && r.fromFieldId === fieldId);
+              if (rel) {
+                  isFK = true;
+                  targetTableId = rel.toTableId;
+              }
+          }
+          // Query logic would be more complex to trace back field origin, skipped for simple v1
+          return { id: fieldId, label, fieldName, isFK, targetTableId };
+      };
+
       if (report.columns && report.columns.length > 0) {
           cols = report.columns
             .filter(c => c.visible)
             .sort((a, b) => a.order - b.order)
-            .map(c => ({ 
-                id: c.fieldId, 
-                label: c.label, 
-                fieldName: sourceFields.find(f => f.id === c.fieldId)?.name || '' 
-            }));
+            .map(c => mapCol(c.fieldId, c.label, sourceFields.find(f => f.id === c.fieldId)?.name || ''));
       } else {
-          cols = sourceFields.map(f => ({ id: f.id, label: f.name, fieldName: f.name }));
+          cols = sourceFields.map(f => mapCol(f.id, f.name, f.name));
       }
 
       // Hide grouping field from the detail table
@@ -56,7 +77,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
           return cols.filter(c => c.id !== groupingField.id);
       }
       return cols;
-  }, [report.columns, sourceFields, groupingField]);
+  }, [report.columns, sourceFields, groupingField, relationships, report.sourceId]);
 
   const processedData = useMemo((): GroupedData[] => {
     const calculateSummaries = (items: Record<string, any>[]): Record<string, number> => {
@@ -238,6 +259,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
       return style;
   };
 
+  const targetTable = detailView ? allTables.find(t => t.id === detailView.targetTableId) : null;
+
   return (
     <div className="bg-slate-200 h-full overflow-hidden flex flex-col">
       {/* Sticky Toolbar */}
@@ -305,8 +328,19 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
                                 {group.items.map((item, itemIndex) => (
                                     <tr key={itemIndex} className="border-b border-slate-100 hover:bg-slate-50 last:border-0 transition-colors">
                                         {displayColumns.map(col => (
-                                            <td key={col.id} className="py-2 pr-4 whitespace-nowrap" style={getCellStyle(item[col.fieldName], { ...col } as any)}>
-                                                {String(item[col.fieldName] ?? '')}
+                                            <td key={col.id} className="py-2 pr-4 whitespace-nowrap group" style={getCellStyle(item[col.fieldName], { ...col } as any)}>
+                                                <div className="flex items-center gap-2">
+                                                    <span>{String(item[col.fieldName] ?? '')}</span>
+                                                    {col.isFK && col.targetTableId && item[col.fieldName] && (
+                                                        <button 
+                                                            onClick={() => setDetailView({ targetTableId: col.targetTableId!, recordId: item[col.fieldName] })}
+                                                            className="text-blue-400 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Details"
+                                                        >
+                                                            <ExternalLink size={12}/>
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         ))}
                                     </tr>
@@ -340,6 +374,14 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
             </main>
         </div>
       </div>
+
+      {detailView && targetTable && (
+          <RecordDetailModal 
+            table={targetTable} 
+            recordId={detailView.recordId} 
+            onClose={() => setDetailView(null)} 
+          />
+      )}
     </div>
   );
 };

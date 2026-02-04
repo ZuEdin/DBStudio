@@ -12,10 +12,12 @@ interface ProjectStore extends ProjectData {
     init: () => Promise<void>;
     loadProject: (project: Project) => void;
     createNew: (type: DbType, name: string, config: BackendConfig, initialData?: Partial<ProjectData>) => void;
+    closeProject: () => void;
     undo: () => void;
     redo: () => void;
     pushHistory: () => void;
     setTables: (tables: Table[]) => void;
+    addTable: (table: Table) => void; // New Action
     updateTable: (table: Table) => void;
     setQueries: (queries: Query[]) => void;
     setReports: (reports: Report[]) => void;
@@ -118,6 +120,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         syncTablesToSql(tables);
     },
 
+    closeProject: () => {
+        set({
+            ...initialData,
+            projectId: null,
+            projectName: '',
+            history: { past: [], future: [] }
+        } as any);
+    },
+
     pushHistory: () => {
         set(produce((state: any) => {
             const current: ProjectData = {
@@ -183,6 +194,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
 
     setTables: (tables) => { get().pushHistory(); set({ tables }); syncTablesToSql(tables); },
+    
+    // SAFE ADD: Uses get() to ensure we have latest tables
+    addTable: (table) => { 
+        const currentTables = get().tables;
+        // Avoid duplicates by Name or ID
+        if (currentTables.some(t => t.id === table.id || t.name === table.name)) return;
+        
+        const newTables = [...currentTables, table];
+        get().pushHistory(); 
+        set({ tables: newTables }); 
+        syncTablesToSql(newTables); 
+    },
+
     updateTable: (table) => { get().pushHistory(); set(state => ({ tables: state.tables.map(t => t.id === table.id ? table : t) })); syncTablesToSql(get().tables); },
     setQueries: (queries) => { get().pushHistory(); set({ queries }); },
     setReports: (reports) => { get().pushHistory(); set({ reports }); },
@@ -192,7 +216,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setRelationships: (relationships) => { get().pushHistory(); set({ relationships }); },
     setBackendConfig: (config) => { get().pushHistory(); set({ backendConfig: config }); },
     
-    // Create a deep copy of current tables as the new snapshot
     snapshot: () => {
         get().pushHistory();
         set(state => ({ lastSnapshot: JSON.parse(JSON.stringify(state.tables)) }));

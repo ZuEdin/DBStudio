@@ -66,8 +66,41 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
   // Program.cs
   files.push(generateProgram(config, tables, relationships, queries, root));
   
+  // AD Role Transformer Service
+  if (config.authConfig?.useWindowsAuth && config.authConfig?.useAdGroups && config.authConfig?.adMapping) {
+      const mappingLogic = config.authConfig.adMapping.map(m => `
+            if (principal.IsInRole(@"${m.groupName}"))
+            {
+                identity.AddClaim(new Claim(ClaimTypes.Role, "${m.roleName}"));
+            }`).join('\n');
+
+      files.push({
+          name: 'AdRoleTransformer.cs',
+          path: `${root}/Services/AdRoleTransformer.cs`,
+          content: `using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+
+namespace ${config.projectName}.Services
+{
+    public class AdRoleTransformer : IClaimsTransformation
+    {
+        public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
+        {
+            var identity = (ClaimsIdentity)principal.Identity!;
+            
+            // Map AD Groups to Internal Roles
+${mappingLogic}
+
+            return Task.FromResult(principal);
+        }
+    }
+}`,
+          language: 'csharp'
+      });
+  }
+
   // Services (Permission + MultiTenancy + License)
-  if (config.authConfig?.useUserLogin) {
+  if (config.authConfig?.useUserLogin || config.authConfig?.useWindowsAuth) {
       files.push(generatePermissionService(config, root));
   }
 
@@ -145,22 +178,59 @@ namespace ${config.projectName}
   // Docs
   const readmeContent = `# ${config.projectName} (.NET Web API)
 
-## Voraussetzungen
-1. Installieren Sie das **.NET SDK** (Version ${config.backendVersion || '9.0'} oder höher).
-2. Stellen Sie sicher, dass Ihre Datenbank (${config.dbType}) läuft.
+Dieses Projekt wurde automatisch von **DB Studio Pro** generiert.
 
-## Environments
-Das Projekt enthält Konfigurationen für:
-${config.environments?.map(e => `- ${e.name} (appsettings.${e.name === 'Production' ? 'Production' : e.name === 'Staging' ? 'Staging' : 'Development'}.json)`).join('\n') || '- Default'}
+## 🚀 Schnellstart
 
-## Multi-Tenancy
-${config.multiTenancy?.enabled ? 'Aktiviert. Requests müssen den Header `X-Tenant-ID` senden.' : 'Deaktiviert.'}
+### 1. Voraussetzungen
+* **.NET SDK** (Version ${config.backendVersion || '9.0'} oder höher).
+* Laufende Datenbank: **${config.dbType}**.
 
-## Starten
-\`\`\`bash
-dotnet restore
-dotnet run --environment Development
+### 2. Konfiguration
+Öffnen Sie \`appsettings.json\` und prüfen Sie den Connection String.
+Aktueller Connection String:
 \`\`\`
+${connectionString}
+\`\`\`
+
+${config.authConfig?.useWindowsAuth ? `
+**⚠️ Wichtig: Windows Authentifizierung**
+Dieses Projekt ist für IIS oder HttpSys konfiguriert. 
+${config.authConfig.adMapping && config.authConfig.adMapping.length > 0 ? `
+Es werden folgende AD-Gruppen auf interne Rollen gemappt:
+${config.authConfig.adMapping.map(m => `* ${m.groupName} -> ${m.roleName}`).join('\n')}
+` : ''}
+` : ''}
+
+### 3. Starten (Development)
+Öffnen Sie ein Terminal im Ordner \`${config.projectName}\`:
+
+\`\`\`bash
+# Abhängigkeiten wiederherstellen
+dotnet restore
+
+# Starten im Dev-Modus (Hot Reload)
+dotnet watch run
+\`\`\`
+
+Die API ist unter **http://localhost:${config.port}** erreichbar.
+Swagger UI finden Sie unter **http://localhost:${config.port}/swagger**.
+
+### 4. Build (Production)
+Für die Veröffentlichung auf einem Server (IIS oder Linux/Docker):
+
+\`\`\`bash
+dotnet publish -c Release -o ./publish
+\`\`\`
+
+Der Ordner \`./publish\` enthält nun die ausführbare Anwendung.
+
+## 🔑 Authentifizierung
+* Methode: ${config.authConfig?.useWindowsAuth ? 'Windows (AD)' : config.authConfig?.useUserLogin ? 'JWT (Login)' : 'Keine / Anonymous'}
+${config.authConfig?.devBypass ? '* **Dev Bypass aktiv:** Im Entwicklungsmodus wird ein Admin-User simuliert.*' : ''}
+
+## 📦 Multi-Tenancy
+${config.multiTenancy?.enabled ? `Aktiviert (${config.multiTenancy.strategy}). Requests müssen den Header \`X-Tenant-ID\` senden oder den Query-Parameter \`?tenantId=...\`.` : 'Deaktiviert.'}
 `;
 
   files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });

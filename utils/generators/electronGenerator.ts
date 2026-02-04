@@ -18,6 +18,8 @@ export const generateElectron = (tables: Table[], relationships: Relationship[],
   // Default Settings
   const settings = config.electronSettings || { includeBackend: true, bundleFrontend: true };
   const { includeBackend, bundleFrontend, targetUrl } = settings;
+  const bePort = config.port || 3001;
+  const fePort = config.frontendPort || 3000;
 
   // --- 1. Frontend Generation (Folder: Projektname_Frontend) ---
   if (bundleFrontend) {
@@ -43,7 +45,7 @@ export default defineConfig({
     emptyOutDir: true
   },
   server: {
-    port: 3000
+    port: ${fePort}
   },
   resolve: {
     alias: {
@@ -53,11 +55,11 @@ export default defineConfig({
 });`;
               }
 
-              // API Config: Auf fixen Port 3001 zeigen (da Backend lokal läuft)
+              // API Config: Auf fixen Port des integrierten Backends zeigen
               if (f.name === 'api.ts' && includeBackend) {
                   f.content = f.content.replace(
                       /const API_URL = .*/, 
-                      "const API_URL = 'http://localhost:3001/api';" 
+                      `const API_URL = 'http://localhost:${bePort}/api';` 
                   );
               }
 
@@ -106,7 +108,7 @@ export default defineConfig({
   }
 
   // Electron start script needs to wait for ports if in dev mode
-  scripts["electron"] = "wait-on tcp:3000 tcp:3001 && electron .";
+  scripts["electron"] = `wait-on tcp:${fePort} tcp:${bePort} && electron .`;
 
   const packageJson = {
     name: `${config.projectName.toLowerCase()}-desktop`,
@@ -115,11 +117,11 @@ export default defineConfig({
     main: "main.js",
     scripts: scripts,
     devDependencies: {
-      "electron": "^28.0.0",
-      "electron-builder": "^24.9.1",
-      "concurrently": "^8.2.0",
-      "wait-on": "^7.2.0",
-      "electron-is-dev": "^2.0.0"
+      "electron": "^33.3.0",
+      "electron-builder": "^25.1.8",
+      "concurrently": "^9.1.0",
+      "wait-on": "^8.0.1",
+      "electron-is-dev": "^3.0.1"
     },
     build: {
       "appId": `com.example.${config.projectName.toLowerCase()}`,
@@ -162,7 +164,7 @@ function startApiServer() {
   apiProcess = fork(apiPath, [], {
     env: { 
       ...process.env, 
-      PORT: 3001, // Fixer Port für interne Kommunikation
+      PORT: ${bePort}, // Fixer Port für interne Kommunikation
       NODE_ENV: isDev ? 'development' : 'production'
     },
     stdio: 'inherit'
@@ -184,7 +186,7 @@ app.on('will-quit', () => {
       frontendLoadLogic = `
   if (isDev) {
     // Dev: Lade von Vite Dev Server
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL('http://localhost:${fePort}');
     mainWindow.webContents.openDevTools();
   } else {
     // Prod: Lade gebautes HTML aus Frontend/dist
@@ -298,8 +300,8 @@ goto MENU
 :DEV
 cls
 echo Starte Development Environment...
-echo Backend Port: 3001
-echo Frontend Port: 3000
+echo Backend Port: ${bePort}
+echo Frontend Port: ${fePort}
 npm run dev
 pause
 goto MENU

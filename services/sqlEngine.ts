@@ -47,7 +47,13 @@ export const syncTablesToSql = (tables: Table[]) => {
             });
         }
 
-        tables.forEach(table => {
+        // Deduplicate tables by name to prevent "table already exists" error
+        const uniqueTablesMap = new Map<string, Table>();
+        tables.forEach(t => uniqueTablesMap.set(t.name, t));
+        
+        const uniqueTables = Array.from(uniqueTablesMap.values());
+
+        uniqueTables.forEach(table => {
             const fields = table.fields.map(f => `"${f.name}" ${mapTypeToSql(f.type)}`).join(', ');
             // Handle empty tables (no fields) to avoid SQL errors
             if (!fields) return;

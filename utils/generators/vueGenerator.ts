@@ -56,6 +56,12 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
   });
 
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite';\nimport vue from '@vitejs/plugin-vue';\nimport path from 'path';\n\nexport default defineConfig({\n  plugins: [vue()],\n  resolve: { alias: { '@': path.resolve(__dirname, './src') } },\n  server: { port: 3000 }\n});`, language: 'typescript' });
+  
+  // Tailwind & PostCSS Configs
+  files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
+  files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
+
+  // Clean Index HTML (No CDN)
   files.push({ name: 'index.html', path: `${root}/index.html`, content: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>${wl.appName}</title></head><body><div id="app"></div><script type="module" src="/src/main.ts"></script></body></html>`, language: 'html' });
   
   // Router Setup

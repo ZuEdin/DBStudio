@@ -141,7 +141,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         return null;
       case 'table_data':
         if (activeObject && 'fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
-          return <TableView table={activeObject as Table} onTableChange={onActiveObjectChange as any} showConfirmation={showConfirmation} />;
+          return <TableView table={activeObject as Table} allTables={tables} relationships={relationships} onTableChange={onActiveObjectChange as any} showConfirmation={showConfirmation} />;
         }
         return null;
       case 'query_results':
@@ -162,7 +162,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 const query = queries.find(q => q.id === report.sourceId);
                 if (query) data = executeQuery(query);
             }
-            return <ReportView report={report} data={data} sourceFields={sourceFields} />;
+            return <ReportView report={report} data={data} sourceFields={sourceFields} allTables={tables} relationships={relationships} />;
         }
         return null;
       case 'report_designer':

@@ -1,13 +1,16 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Table, ApiQueryParam, Field } from '../../types/index';
-import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X } from 'lucide-react';
+import { Table, ApiQueryParam, Field, Relationship } from '../../types/index';
+import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
+import { RecordDetailModal } from '../../components/RecordDetailModal';
 
 interface TableViewProps {
   table: Table;
+  allTables: Table[];
+  relationships: Relationship[];
   onTableChange: (table: Table) => void;
   showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
 }
@@ -45,7 +48,7 @@ const formatDateValue = (val: any, format?: string) => {
         .replace('ss', S);
 };
 
-export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, showConfirmation }) => {
+export const TableView: React.FC<TableViewProps> = ({ table, allTables, relationships, onTableChange, showConfirmation }) => {
   const headers = table.fields.map(field => field.name);
   const rawData = table.data || [];
   
@@ -55,6 +58,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, show
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showParams, setShowParams] = useState(false);
+  const [detailView, setDetailView] = useState<{ targetTableId: string, recordId: any } | null>(null);
 
   const queryParams = table.apiConfig?.queryParams || [];
 
@@ -184,8 +188,12 @@ export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, show
             const rawVal = row[header] ?? '';
             const displayVal = isDate ? formatDateValue(rawVal, field?.displayFormat) : rawVal;
 
+            // Check Relationship for FK Link
+            const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
+            const isFK = !!rel;
+
             return (
-                <div key={`${rowIndex}-${header}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''}`}>
+                <div key={`${rowIndex}-${header}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''} flex items-center`}>
                     <input
                         type="text"
                         value={displayVal} 
@@ -194,8 +202,17 @@ export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, show
                             handleDataChange(row, header, e.target.value)
                         }}
                         readOnly={isAutoInc}
-                        className={`w-full h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''}`}
+                        className={`flex-1 h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''}`}
                     />
+                    {isFK && rawVal && (
+                        <button 
+                            onClick={() => setDetailView({ targetTableId: rel.toTableId, recordId: rawVal })}
+                            className="p-1 mr-1 text-blue-400 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors"
+                            title="Datensatz anzeigen"
+                        >
+                            <ExternalLink size={12} />
+                        </button>
+                    )}
                 </div>
             )
           })}
@@ -206,6 +223,8 @@ export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, show
           </div>
       </div>
   );
+
+  const targetTable = detailView ? allTables.find(t => t.id === detailView.targetTableId) : null;
 
   return (
     <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-auto">
@@ -361,6 +380,14 @@ export const TableView: React.FC<TableViewProps> = ({ table, onTableChange, show
            <span>{table.apiConfig?.refreshOnLoad ? '(Live API)' : '(Lokal)'}</span>
         </div>
       </div>
+
+      {detailView && targetTable && (
+          <RecordDetailModal 
+            table={targetTable} 
+            recordId={detailView.recordId} 
+            onClose={() => setDetailView(null)} 
+          />
+      )}
     </div>
   );
 };

@@ -286,7 +286,8 @@ export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'vue' | 'electr
 export interface AuthConfig {
     useWindowsAuth: boolean;
     useAdGroups: boolean;
-    adGroups?: string;
+    adGroups?: string; // Legacy string format
+    adMapping?: { groupName: string; roleName: string }[]; // New Mapping
     useUserLogin: boolean;
     devBypass: boolean;
     isMobileReady: boolean;
@@ -372,7 +373,8 @@ export interface BackendConfig {
   backendVersion?: string;
   dbType: DbType;
   projectName: string;
-  port: number;
+  port: number; // Backend API Port
+  frontendPort?: number; // Frontend Dev Port
   dbConnection: string;
   useSwagger: boolean;
   frontendFramework: FrontendFramework;

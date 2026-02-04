@@ -31,7 +31,7 @@ if (app.Environment.IsDevelopment())
   // Auth Logic
   let authServices = '';
   let authAppUse = '';
-  let namespaces = 'using System.Security.Claims;\nusing Quartz;';
+  let namespaces = 'using System.Security.Claims;\nusing Quartz;\nusing Microsoft.AspNetCore.Authentication;';
 
   const authConfig = config.authConfig;
 
@@ -41,37 +41,34 @@ if (app.Environment.IsDevelopment())
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 `;
+      
+      // Inject Transformer if mappings exist
+      if (authConfig.adMapping && authConfig.adMapping.length > 0) {
+          namespaces += `\nusing ${config.projectName}.Services;`;
+          authServices += `\nbuilder.Services.AddTransient<IClaimsTransformation, AdRoleTransformer>();\n`;
+      }
 
-      if (authConfig?.useAdGroups && authConfig.adGroups) {
-          const groups = authConfig.adGroups.split(',').map(g => g.trim());
-          const checks = groups.map(g => `context.User.IsInRole(@"${g}")`).join(' || ');
-          
-          authServices += `
-// Enforce AD Group Policy
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdGroupPolicy", policy => 
-        policy.RequireAssertion(context => ${checks}));
-    options.FallbackPolicy = options.GetPolicy("AdGroupPolicy");
-});`;
-      } else {
-          authServices += `
+      // Add Permission Service for RBAC
+      namespaces += `\nusing ${config.projectName}.Services;`;
+      authServices += `\nbuilder.Services.AddScoped<IPermissionService, PermissionService>();\n`;
+
+      authServices += `
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = options.DefaultPolicy;
 });`;
-      }
 
       authAppUse += `
 app.UseAuthentication();
 app.UseAuthorization();`;
+  } else if (authConfig?.useUserLogin) {
+      // JWT setup (simplified for brevity in this specific file update, assuming other parts handle JWT logic if needed)
+      namespaces += `\nusing ${config.projectName}.Services;`;
+      authServices += `\nbuilder.Services.AddScoped<IPermissionService, PermissionService>();\n`;
   }
 
   if (authConfig?.devBypass) {
-      const mockRole = (authConfig.useAdGroups && authConfig.adGroups) 
-          ? authConfig.adGroups.split(',')[0].trim() 
-          : "Admin";
-
+      // Default to Admin role for dev
       authAppUse = `
 if (app.Environment.IsDevelopment())
 {
@@ -82,7 +79,7 @@ if (app.Environment.IsDevelopment())
         {
             var claims = new[] { 
                 new Claim(ClaimTypes.Name, "DevUser"), 
-                new Claim(ClaimTypes.Role, @"${mockRole}") 
+                new Claim(ClaimTypes.Role, "Admin") 
             };
             var identity = new ClaimsIdentity(claims, "DevBypass");
             context.User = new ClaimsPrincipal(identity);

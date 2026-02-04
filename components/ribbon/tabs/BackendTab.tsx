@@ -13,6 +13,15 @@ interface BackendTabProps {
   onOpenSettings: () => void;
 }
 
+const getDefaultPort = (framework: FrontendFramework): number => {
+    switch (framework) {
+        case 'angular': return 4200;
+        case 'vue': return 5173;
+        case 'blazor': return 5002;
+        default: return 3000; // react, electron, none
+    }
+};
+
 export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig, setBackendConfig, onOpenSettings }) => {
   const { t } = useTranslation();
   return (
@@ -36,7 +45,7 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
              </div>
 
              {/* 2. Backend (Logic) */}
-             <div className="w-28">
+             <div className="w-24">
                 <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Backend</label>
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
@@ -65,7 +74,14 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
                     value={backendConfig.frontendFramework}
-                    onChange={e => setBackendConfig({ ...backendConfig, frontendFramework: e.target.value as FrontendFramework })}
+                    onChange={e => {
+                        const fw = e.target.value as FrontendFramework;
+                        setBackendConfig({ 
+                            ...backendConfig, 
+                            frontendFramework: fw,
+                            frontendPort: getDefaultPort(fw)
+                        });
+                    }}
                 >
                     <option value="react">React</option>
                     <option value="vue">Vue.js</option>
@@ -73,6 +89,30 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                     <option value="blazor">Blazor (WASM)</option>
                     <option value="none">Keins (Nur API)</option>
                 </select>
+             </div>
+
+             {/* 4. Ports */}
+             <div className="w-20 flex flex-col gap-1">
+                <div className="flex gap-1 items-center">
+                    <label className="text-[9px] text-slate-500 font-bold w-6">API:</label>
+                    <input 
+                        type="number" 
+                        className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
+                        value={backendConfig.port}
+                        onChange={e => setBackendConfig({ ...backendConfig, port: parseInt(e.target.value) || 5000 })}
+                        title="Backend Port (Localhost)"
+                    />
+                </div>
+                <div className="flex gap-1 items-center">
+                    <label className="text-[9px] text-slate-500 font-bold w-6">Web:</label>
+                    <input 
+                        type="number" 
+                        className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
+                        value={backendConfig.frontendPort || 3000}
+                        onChange={e => setBackendConfig({ ...backendConfig, frontendPort: parseInt(e.target.value) || 3000 })}
+                        title="Frontend Port (Localhost)"
+                    />
+                </div>
              </div>
            </div>
            

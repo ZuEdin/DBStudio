@@ -196,7 +196,7 @@ export const useAppController = () => {
         const finishSave = (objectToSave: Table | Query, wasNew: boolean) => {
             if ('fields' in objectToSave && !('nodes' in objectToSave)) {
                 // Table
-                if (wasNew) store.setTables([...store.tables, objectToSave as Table]);
+                if (wasNew) store.addTable(objectToSave as Table); // Use new action
                 else store.updateTable(objectToSave as Table);
                 addToast(`Tabelle "${objectToSave.name}" ${wasNew ? 'erstellt' : 'aktualisiert'}.`);
             } else {
@@ -252,7 +252,12 @@ export const useAppController = () => {
       }
 
       switch(action) {
-        case 'new_db': if(confirm("Zum Startbildschirm?")) { store.projectId = null; setCurrentView({ type: 'welcome' }); } break;
+        case 'new_db': 
+            if(confirm("Zum Startbildschirm?")) { 
+                store.closeProject(); 
+                setCurrentView({ type: 'welcome' }); 
+            } 
+            break;
         case 'create_table_ai':
         case 'create_table': handleSetView({ type: 'table_create' }); break;
         case 'create_query': handleSetView({ type: 'query_designer' }); break;
@@ -403,7 +408,8 @@ export const useAppController = () => {
       dbType: store.backendConfig?.dbType || DbType.SQL,
       deleteRelationship: (id: string) => store.setRelationships(store.relationships.filter(r => r.id !== id)),
       updateRelationship: (rel: Relationship) => store.setRelationships(store.relationships.map(r => r.id === rel.id ? rel : r)),
-      saveTable: (t: Table, m: any) => m === 'create' ? store.setTables([...store.tables, t]) : store.updateTable(t),
+      // Safe add using new action
+      saveTable: (t: Table, m: any) => m === 'create' ? store.addTable(t) : store.updateTable(t),
       saveForm: (f: Form) => store.setForms([...store.forms.filter(o => o.id !== f.id), f]),
       saveReport: (r: Report) => store.setReports([...store.reports.filter(o => o.id !== r.id), r]),
       saveQuery: (q: Query) => store.setQueries([...store.queries.filter(o => o.id !== q.id), q]),

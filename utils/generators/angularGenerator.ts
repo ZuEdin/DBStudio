@@ -72,7 +72,45 @@ ${routeDefs}
   const serviceFiles = generateAngularServices(tables, queries, config, appRoot);
   const structureFiles = generateAngularStructure(config, tables, root);
 
-  const readmeContent = `# ${config.projectName} (Angular Client)`;
+  const readmeContent = `# ${config.projectName} (Angular Client)
+
+Dieses Frontend wurde mit **Angular** (CLI) generiert.
+
+## 🚀 Schnellstart
+
+### 1. Voraussetzungen
+* **Node.js** (LTS).
+* **Angular CLI**: Installieren Sie es global via \`npm install -g @angular/cli\`.
+
+### 2. Installation
+Wechseln Sie in das Verzeichnis \`Frontend\`:
+
+\`\`\`bash
+npm install
+\`\`\`
+
+### 3. Starten (Development)
+\`\`\`bash
+ng serve
+\`\`\`
+Oder alternativ via npm:
+\`\`\`bash
+npm start
+\`\`\`
+
+Die Anwendung läuft unter **http://localhost:4200**.
+⚠️ Stellen Sie sicher, dass das Backend läuft (Port ${config.port}).
+
+### 4. Build (Production)
+\`\`\`bash
+ng build
+\`\`\`
+Die kompilierten Dateien liegen im Ordner \`dist/angular-client\`.
+
+## 🛠 Konfiguration
+Die API-URL ist im Service \`src/app/services/api.service.ts\` hinterlegt:
+\`http://localhost:${config.port}/api\`
+`;
   const readme: VirtualFile = { name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' };
 
   return [

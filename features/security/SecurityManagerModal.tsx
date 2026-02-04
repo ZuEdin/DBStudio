@@ -1,46 +1,147 @@
 
-import React, { useState, useMemo } from 'react';
-import { Table, Form, Report } from '../../types/index';
-import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Table, Form, Report, BackendConfig, Field } from '../../types/index';
+import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type, Users, Key, Plus, UserCog, Wand2 } from 'lucide-react';
 
 interface SecurityManagerModalProps {
   tables: Table[];
   forms: Form[];
   reports: Report[];
   onUpdateTable: (table: Table) => void;
+  onCreateTable: (table: Table) => void;
   onClose: () => void;
+  backendConfig?: BackendConfig;
+  onUpdateBackendConfig?: (config: BackendConfig) => void;
 }
 
-export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tables, forms, reports, onUpdateTable, onClose }) => {
+export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tables, forms, reports, onUpdateTable, onCreateTable, onClose, backendConfig, onUpdateBackendConfig }) => {
   // Find system tables
   const rolesTable = tables.find(t => t.name === 'sys_roles');
   const permTable = tables.find(t => t.name === 'sys_permissions');
 
-  const [activeTab, setActiveTab] = useState<'matrix' | 'roles'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'roles' | 'auth'>('matrix');
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
 
-  // If system tables don't exist, show warning
+  // Local state for Auth settings
+  const [authConfig, setAuthConfig] = useState(backendConfig?.authConfig || { 
+      useWindowsAuth: false, 
+      useAdGroups: false, 
+      adGroups: '', 
+      adMapping: [],
+      useUserLogin: false, 
+      isMobileReady: false, 
+      devBypass: true 
+  });
+
+  // New mapping state
+  const [newMapGroup, setNewMapGroup] = useState('');
+  const [newMapRole, setNewMapRole] = useState('');
+
+  // Role Management State
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleDesc, setNewRoleDesc] = useState('');
+
+  const saveAuthChanges = () => {
+      if (backendConfig && onUpdateBackendConfig) {
+          onUpdateBackendConfig({ ...backendConfig, authConfig });
+      }
+  };
+
+  const handleInitialize = () => {
+      // 1. Create sys_roles
+      const rolesPk = crypto.randomUUID();
+      const rolesFields: Field[] = [
+          { id: rolesPk, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+          { id: crypto.randomUUID(), name: 'Name', type: 'VARCHAR', length: 50 },
+          { id: crypto.randomUUID(), name: 'Description', type: 'VARCHAR', length: 255 }
+      ];
+      
+      const rolesData = [
+          { Id: 1, Name: 'Administrator', Description: 'Vollzugriff auf alle Bereiche' },
+          { Id: 2, Name: 'Manager', Description: 'Darf Inhalte verwalten' },
+          { Id: 3, Name: 'Creater', Description: 'Darf neue Datensätze erstellen' },
+          { Id: 4, Name: 'User', Description: 'Lesezugriff' },
+          { Id: 5, Name: 'Guest', Description: 'Eingeschränkter Zugriff' }
+      ];
+
+      onCreateTable({
+          id: 'sys_roles',
+          name: 'sys_roles',
+          fields: rolesFields,
+          data: rolesData
+      });
+
+      // 2. Create sys_permissions
+      const permPk = crypto.randomUUID();
+      const permFields: Field[] = [
+          { id: permPk, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+          { id: crypto.randomUUID(), name: 'RoleId', type: 'INTEGER' },
+          { id: crypto.randomUUID(), name: 'ObjectType', type: 'VARCHAR', length: 50 }, // Table, Field
+          { id: crypto.randomUUID(), name: 'ObjectId', type: 'VARCHAR', length: 50 },
+          { id: crypto.randomUUID(), name: 'CanRead', type: 'BOOLEAN' },
+          { id: crypto.randomUUID(), name: 'CanWrite', type: 'BOOLEAN' },
+          { id: crypto.randomUUID(), name: 'CanDelete', type: 'BOOLEAN' }
+      ];
+
+      onCreateTable({
+          id: 'sys_permissions',
+          name: 'sys_permissions',
+          fields: permFields,
+          data: []
+      });
+
+      // Force refresh (by state update delay) or assume props update
+      // But we can enable login config right away
+      if(backendConfig) {
+          setAuthConfig({...authConfig, useUserLogin: true});
+      }
+  };
+
+  // If system tables don't exist, show initialization screen
   if (!rolesTable || !permTable) {
       return (
-          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center">
-              <div className="bg-white rounded-lg p-6 max-w-md text-center">
-                  <div className="flex justify-center mb-4 text-orange-500"><AlertTriangle size={48}/></div>
-                  <h2 className="text-xl font-bold mb-2">Sicherheitssystem nicht aktiv</h2>
-                  <p className="text-slate-600 mb-4">
-                      Das Rollensystem (RBAC) ist in diesem Projekt nicht aktiviert. 
-                      Bitte erstellen Sie ein neues Projekt mit "Benutzer-Login", um diese Funktion zu nutzen.
+          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25">
+              <div className="bg-white rounded-lg p-8 max-w-md text-center shadow-2xl border border-slate-200">
+                  <div className="flex justify-center mb-6 text-blue-600">
+                      <div className="bg-blue-100 p-4 rounded-full">
+                        <Shield size={48}/>
+                      </div>
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2 text-slate-800">Sicherheits-System einrichten</h2>
+                  <p className="text-slate-600 mb-6 text-sm">
+                      Die notwendigen Systemtabellen für das Rollenmanagement (RBAC) fehlen noch. 
+                      Das System kann diese automatisch erstellen und mit Standardrollen befüllen.
                   </p>
-                  <button onClick={onClose} className="bg-slate-800 text-white px-4 py-2 rounded">Schließen</button>
+                  
+                  <div className="bg-slate-50 p-4 rounded border border-slate-200 text-left text-xs text-slate-500 mb-6 space-y-2">
+                      <p className="font-bold text-slate-700">Wird erstellt:</p>
+                      <ul className="list-disc pl-4 space-y-1">
+                          <li>Tabelle <code>sys_roles</code> (Rollen)</li>
+                          <li>Tabelle <code>sys_permissions</code> (Rechte)</li>
+                          <li>Rollen: Administrator, Manager, Creater, User, Guest</li>
+                      </ul>
+                  </div>
+
+                  <div className="flex gap-3 justify-center">
+                      <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded">Abbrechen</button>
+                      <button 
+                        onClick={handleInitialize} 
+                        className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-500/30"
+                      >
+                          <Wand2 size={18}/> Initialisieren
+                      </button>
+                  </div>
               </div>
           </div>
       );
   }
 
-  const roles = rolesTable.data || [];
-  const permissions = permTable.data || [];
+  const roles = rolesTable?.data || [];
+  const permissions = permTable?.data || [];
 
-  // Helper to update permission
+  // --- Permission Logic ---
   const togglePermission = (roleId: any, objectType: string, objectId: string, permType: 'CanRead' | 'CanWrite' | 'CanDelete') => {
+      if (!permTable) return;
       // Find existing permission row
       const existingIdx = permissions.findIndex(p => 
           String(p.RoleId) === String(roleId) && 
@@ -85,6 +186,65 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       setExpandedTables(prev => ({ ...prev, [tableId]: !prev[tableId] }));
   };
 
+  // --- Auth Mapping Handlers ---
+  const addMapping = () => {
+      if(newMapGroup && newMapRole) {
+          const currentMap = authConfig.adMapping || [];
+          setAuthConfig({
+              ...authConfig,
+              adMapping: [...currentMap, { groupName: newMapGroup, roleName: newMapRole }]
+          });
+          setNewMapGroup('');
+      }
+  };
+
+  const removeMapping = (idx: number) => {
+      const currentMap = authConfig.adMapping || [];
+      setAuthConfig({
+          ...authConfig,
+          adMapping: currentMap.filter((_, i) => i !== idx)
+      });
+  };
+
+  // --- Role Management Handlers ---
+  const handleAddRole = () => {
+      if (!rolesTable || !newRoleName) return;
+      const currentRoles = rolesTable.data || [];
+      
+      // Calculate next ID (simple max + 1)
+      const nextId = currentRoles.length > 0 
+        ? Math.max(...currentRoles.map((r: any) => parseInt(r.Id || 0))) + 1 
+        : 1;
+
+      const newRole = {
+          Id: nextId,
+          Name: newRoleName,
+          Description: newRoleDesc
+      };
+
+      onUpdateTable({ ...rolesTable, data: [...currentRoles, newRole] });
+      setNewRoleName('');
+      setNewRoleDesc('');
+  };
+
+  const handleDeleteRole = (roleId: any) => {
+      if (!rolesTable) return;
+      if (String(roleId) === '1') {
+          alert("Die Admin-Rolle (ID 1) kann nicht gelöscht werden.");
+          return;
+      }
+      if (confirm("Rolle wirklich löschen? Dies entfernt auch alle zugehörigen Berechtigungen.")) {
+          const newRoles = (rolesTable.data || []).filter((r: any) => String(r.Id) !== String(roleId));
+          onUpdateTable({ ...rolesTable, data: newRoles });
+          
+          // Cleanup permissions for this role
+          if (permTable) {
+              const newPerms = (permTable.data || []).filter((p: any) => String(p.RoleId) !== String(roleId));
+              onUpdateTable({ ...permTable, data: newPerms });
+          }
+      }
+  };
+
   const businessTables = tables.filter(t => !t.name.startsWith('sys_'));
 
   return (
@@ -117,6 +277,12 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                 className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'roles' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                 Rollen definieren
+            </button>
+            <button 
+                onClick={() => setActiveTab('auth')}
+                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'auth' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+                Authentifizierung (AD/Login)
             </button>
         </div>
 
@@ -208,37 +374,225 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                         </div>
                     </div>
                 </div>
-            ) : (
-                <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto">
-                    <h3 className="font-bold text-lg mb-4">Vorhandene Rollen</h3>
-                    <table className="w-full max-w-2xl text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-100 border-b border-slate-300">
-                                <th className="p-3 w-16">ID</th>
-                                <th className="p-3">Rollenname</th>
-                                <th className="p-3">Beschreibung</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {roles.map((r: any) => (
-                                <tr key={r.Id} className="border-b border-slate-100">
-                                    <td className="p-3 font-mono text-slate-500">{r.Id}</td>
-                                    <td className="p-3 font-bold text-slate-800">{r.Name}</td>
-                                    <td className="p-3 text-slate-600">{r.Description}</td>
+            ) : activeTab === 'roles' ? (
+                <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto max-w-3xl mx-auto flex flex-col">
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                        <UserCog size={20} className="text-slate-600"/> Rollenverwaltung
+                    </h3>
+                    
+                    {/* Role List */}
+                    <div className="flex-1 overflow-auto border border-slate-200 rounded-lg mb-6">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead className="bg-slate-100 sticky top-0">
+                                <tr>
+                                    <th className="p-3 border-b font-semibold text-slate-600 w-16">ID</th>
+                                    <th className="p-3 border-b font-semibold text-slate-600">Rollenname</th>
+                                    <th className="p-3 border-b font-semibold text-slate-600">Beschreibung</th>
+                                    <th className="p-3 border-b w-20"></th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <p className="mt-4 text-sm text-slate-500 italic">
-                        Hinweis: Um Rollen hinzuzufügen oder zu löschen, bearbeiten Sie bitte direkt die Tabelle <strong>sys_roles</strong> in der Datenblatt-Ansicht.
-                    </p>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {roles.map((r: any) => (
+                                    <tr key={r.Id} className="hover:bg-slate-50">
+                                        <td className="p-3 font-mono text-slate-500">{r.Id}</td>
+                                        <td className="p-3 font-bold text-slate-800">
+                                            {r.Name}
+                                            {String(r.Id) === '1' && <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded border border-yellow-200">System</span>}
+                                        </td>
+                                        <td className="p-3 text-slate-600">{r.Description || '-'}</td>
+                                        <td className="p-3 text-right">
+                                            {String(r.Id) !== '1' && (
+                                                <button onClick={() => handleDeleteRole(r.Id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50">
+                                                    <Trash2 size={16}/>
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Add Role Form */}
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Neue Rolle erstellen</h4>
+                        <div className="flex gap-3 items-end">
+                            <div className="flex-1">
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Bezeichnung</label>
+                                <input 
+                                    type="text" 
+                                    className="w-full border border-slate-300 rounded p-2 text-sm"
+                                    placeholder="z.B. Lektor, Gast, Manager"
+                                    value={newRoleName}
+                                    onChange={e => setNewRoleName(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Beschreibung</label>
+                                <input 
+                                    type="text" 
+                                    className="w-full border border-slate-300 rounded p-2 text-sm"
+                                    placeholder="z.B. Darf Berichte lesen"
+                                    value={newRoleDesc}
+                                    onChange={e => setNewRoleDesc(e.target.value)}
+                                />
+                            </div>
+                            <button 
+                                onClick={handleAddRole} 
+                                disabled={!newRoleName}
+                                className="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 h-[38px]"
+                            >
+                                <Plus size={16}/> Hinzufügen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                // AUTH CONFIG TAB
+                <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto max-w-3xl mx-auto">
+                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><Key size={20}/> Authentifizierungs-Methoden</h3>
+                    
+                    <div className="space-y-6">
+                        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                            <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                <input 
+                                    type="checkbox" 
+                                    checked={authConfig.useWindowsAuth}
+                                    onChange={e => setAuthConfig({...authConfig, useWindowsAuth: e.target.checked})}
+                                    className="rounded w-5 h-5 text-emerald-600"
+                                />
+                                <span className="font-bold text-slate-800">Windows Authentifizierung (Active Directory)</span>
+                            </label>
+                            <p className="text-sm text-slate-600 ml-7 mb-4">
+                                Nutzt die Windows-Identität des Benutzers (Intranet/Enterprise). Erfordert IIS oder entsprechenden Proxy.
+                            </p>
+
+                            {authConfig.useWindowsAuth && (
+                                <div className="ml-7 pl-4 border-l-2 border-slate-300 space-y-4 animate-in slide-in-from-top-2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={authConfig.useAdGroups}
+                                            onChange={e => setAuthConfig({...authConfig, useAdGroups: e.target.checked})}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm font-semibold">Zugriff auf AD-Gruppen beschränken (Role Mapping)</span>
+                                    </label>
+                                    
+                                    {authConfig.useAdGroups && (
+                                        <div className="space-y-3">
+                                            <div className="bg-white border border-slate-200 rounded-lg p-3">
+                                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Gruppen-zu-Rollen Zuweisung</h4>
+                                                <table className="w-full text-sm mb-3">
+                                                    <thead>
+                                                        <tr className="text-left text-slate-500 border-b">
+                                                            <th className="pb-1 font-normal">AD Gruppe</th>
+                                                            <th className="pb-1 font-normal">Interne Rolle</th>
+                                                            <th className="pb-1 w-10"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {authConfig.adMapping?.map((map, i) => (
+                                                            <tr key={i} className="border-b last:border-0">
+                                                                <td className="py-2 font-mono text-xs">{map.groupName}</td>
+                                                                <td className="py-2"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">{map.roleName}</span></td>
+                                                                <td className="py-2 text-right">
+                                                                    <button onClick={() => removeMapping(i)} className="text-slate-400 hover:text-red-500"><X size={14}/></button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {(!authConfig.adMapping || authConfig.adMapping.length === 0) && (
+                                                            <tr><td colSpan={3} className="py-4 text-center text-slate-400 italic text-xs">Keine Zuweisungen.</td></tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                                
+                                                <div className="flex gap-2 items-center bg-slate-50 p-2 rounded">
+                                                    <input 
+                                                        type="text" 
+                                                        className="flex-1 border rounded px-2 py-1 text-xs" 
+                                                        placeholder="DOMAIN\GroupName"
+                                                        value={newMapGroup}
+                                                        onChange={e => setNewMapGroup(e.target.value)}
+                                                    />
+                                                    <span className="text-slate-400 text-xs">→</span>
+                                                    <select 
+                                                        className="border rounded px-2 py-1 text-xs w-32"
+                                                        value={newMapRole}
+                                                        onChange={e => setNewMapRole(e.target.value)}
+                                                    >
+                                                        <option value="">(Rolle)</option>
+                                                        {roles.map((r: any) => <option key={r.Name} value={r.Name}>{r.Name}</option>)}
+                                                    </select>
+                                                    <button 
+                                                        onClick={addMapping}
+                                                        disabled={!newMapGroup || !newMapRole}
+                                                        className="bg-blue-600 text-white p-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                                                    >
+                                                        <Plus size={14}/>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-slate-400">
+                                                Definieren Sie hier, welche Active Directory Gruppen welche interne Rolle (Admin, User...) erhalten. 
+                                                Die Berechtigungen (Lesen/Schreiben) werden dann über die Rolle in der "Berechtigungs-Matrix" gesteuert.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                            <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                <input 
+                                    type="checkbox" 
+                                    checked={authConfig.useUserLogin}
+                                    onChange={e => setAuthConfig({...authConfig, useUserLogin: e.target.checked})}
+                                    className="rounded w-5 h-5 text-emerald-600"
+                                />
+                                <span className="font-bold text-slate-800">Benutzer-Login (Formular)</span>
+                            </label>
+                            <p className="text-sm text-slate-600 ml-7 mb-2">
+                                Klassisches Login mit Username/Passwort (JWT Tokens). Speichert Benutzer in der Tabelle <code>sys_users</code>.
+                            </p>
+                            {authConfig.useUserLogin && (
+                                <div className="ml-7 mt-2">
+                                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={authConfig.isMobileReady}
+                                            onChange={e => setAuthConfig({...authConfig, isMobileReady: e.target.checked})}
+                                            className="rounded"
+                                        />
+                                        Mobile App kompatibel (Lange Token-Laufzeit)
+                                    </label>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="border border-slate-200 rounded-lg p-4 bg-yellow-50">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={authConfig.devBypass}
+                                    onChange={e => setAuthConfig({...authConfig, devBypass: e.target.checked})}
+                                    className="rounded"
+                                />
+                                <span className="font-bold text-slate-800">Developer Bypass (Dev Mode)</span>
+                            </label>
+                            <p className="text-sm text-slate-600 ml-6 mt-1">
+                                Wenn aktiv, wird im Entwicklungsmodus (Localhost) automatisch ein Admin-Benutzer simuliert.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
 
         {/* Footer */}
         <div className="p-4 bg-white border-t border-slate-200 flex justify-end shrink-0">
-            <button onClick={onClose} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded font-semibold shadow-sm flex items-center gap-2">
+            <button onClick={() => { saveAuthChanges(); onClose(); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded font-semibold shadow-sm flex items-center gap-2">
                 <Check size={18}/> Fertig
             </button>
         </div>

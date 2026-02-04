@@ -17,23 +17,42 @@ export const generateReact = (tables: Table[], relationships: Relationship[], qu
   // Docs
   const readmeContent = `# ${config.projectName} (React Client)
 
-## Voraussetzungen
-- Node.js (LTS Version)
+Dieses Frontend wurde mit **React + Vite + TypeScript** generiert.
 
-## Installation
-Öffnen Sie ein Terminal im Ordner \`Frontend\` und führen Sie aus:
+## 🚀 Schnellstart
+
+### 1. Voraussetzungen
+* **Node.js** (LTS Version, z.B. v18 oder v20).
+
+### 2. Installation
+Öffnen Sie ein Terminal im Ordner \`Frontend\`:
 
 \`\`\`bash
 npm install
 \`\`\`
 
-## Starten
+### 3. Starten (Development)
 \`\`\`bash
 npm run dev
 \`\`\`
 
-Die Anwendung läuft standardmäßig unter \`http://localhost:3000\`.
-Stellen Sie sicher, dass das Backend ebenfalls läuft (siehe Backend README).
+Die Anwendung läuft standardmäßig unter **http://localhost:${config.frontendPort || 3000}**.
+⚠️ Stellen Sie sicher, dass das Backend läuft (Standard: Port ${config.port}).
+
+### 4. Build (Production)
+Um eine optimierte Version für den Webserver zu erstellen:
+
+\`\`\`bash
+npm run build
+\`\`\`
+
+Die Dateien befinden sich anschließend im Ordner \`dist\`. Diese können auf jeden statischen Webserver (Nginx, Apache, Azure Static Web Apps) hochgeladen werden.
+
+## 🛠 Konfiguration
+Die API-URL ist in \`src/services/api.ts\` definiert.
+Aktuell: \`http://localhost:${config.port}/api\`
+
+Um dies für Produktion zu ändern, setzen Sie Umgebungsvariablen oder ändern Sie die Datei vor dem Build.
 `;
 
   const readme: VirtualFile = { name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' };
