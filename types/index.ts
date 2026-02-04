@@ -331,10 +331,26 @@ export interface WebhookConfig {
     secret?: string; 
 }
 
+export interface AiIntegrationConfig {
+    provider: 'gemini' | 'openai' | 'ollama' | 'azure_openai';
+    apiKey?: string;
+    modelName?: string;
+    endpointUrl?: string; // For Ollama or Azure
+}
+
+export interface CollaborationConfig {
+    provider: 'signalr' | 'socketio' | 'pusher' | 'none';
+    serverUrl?: string;
+    apiKey?: string; // For Pusher
+    hubPath?: string; // For SignalR
+}
+
 export interface IntegrationsConfig {
     storage: StorageConfig;
     sso: SsoConfig[];
     webhooks: WebhookConfig[];
+    ai?: AiIntegrationConfig;
+    collaboration?: CollaborationConfig;
 }
 
 export interface EnvironmentConfig {

@@ -8,8 +8,9 @@ import { useTranslation } from 'react-i18next';
 // Tabs
 import { FileTab } from './ribbon/tabs/FileTab';
 import { CreateTab } from './ribbon/tabs/CreateTab';
-import { ProjectTab } from './ribbon/tabs/ProjectTab'; // NEW
+import { ProjectTab } from './ribbon/tabs/ProjectTab'; 
 import { ToolsTab } from './ribbon/tabs/ToolsTab';
+import { IntegrationTab } from './ribbon/tabs/IntegrationTab'; // NEW
 import { BackendTab } from './ribbon/tabs/BackendTab';
 import { FormDesignTab } from './ribbon/tabs/FormDesignTab';
 import { ReportDesignTab } from './ribbon/tabs/ReportDesignTab';
@@ -55,10 +56,12 @@ export const Ribbon: React.FC<RibbonProps> = ({
         return <FileTab onAction={onAction} currentDbType={currentDbType} />;
       case 'create':
         return <CreateTab onAction={onAction} />;
-      case 'project': // NEW
+      case 'project':
         return <ProjectTab onAction={onAction} />;
       case 'tools':
         return <ToolsTab onAction={onAction} />;
+      case 'integration': // NEW
+        return <IntegrationTab onAction={onAction} />;
       case 'backend':
         if (!backendConfig || !setBackendConfig) return null;
         return (
@@ -106,6 +109,12 @@ export const Ribbon: React.FC<RibbonProps> = ({
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'tools' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
             {t('ribbon.tools')}
+            </button>
+            <button 
+            onClick={() => setActiveTab('integration')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-purple-500 ${activeTab === 'integration' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            >
+            Integration
             </button>
             <button 
             onClick={() => setActiveTab('backend')}

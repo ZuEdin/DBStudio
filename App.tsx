@@ -167,13 +167,19 @@ export default function App() {
         onSnapshot={app.onSnapshot}
         lastSnapshot={app.lastSnapshot}
         
-        // --- FIX: Pass Excel Wizard State ---
+        // Pass Integration Props
+        showIntegrationsModal={app.showIntegrationsModal}
+        setShowIntegrationsModal={app.setShowIntegrationsModal}
+        onSaveIntegrations={app.onSaveIntegrations}
+        
         showExcelWizard={app.showExcelWizard}
         setShowExcelWizard={app.setShowExcelWizard}
 
-        // --- FIX: Pass Access Wizard State (ADDED) ---
         showAccessWizard={app.showAccessWizard}
         setShowAccessWizard={app.setShowAccessWizard}
+        
+        showDummyDataWizard={app.showDummyDataWizard}
+        setShowDummyDataWizard={app.setShowDummyDataWizard}
 
         backendConfig={app.backendConfig}
         onUpdateBackendConfig={app.setBackendConfig}

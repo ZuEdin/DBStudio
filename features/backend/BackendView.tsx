@@ -8,10 +8,6 @@ import { generateDeploymentScripts } from '../../utils/generators/deploymentGene
 import JSZip from 'jszip';
 import { GoogleGenAI } from '@google/genai';
 import { GitPushModal } from '../versioning/GitPushModal';
-import { IntegrationsModal } from './IntegrationsModal';
-import { EnvironmentManagerModal } from './EnvironmentManagerModal';
-import { MigrationManagerModal } from './MigrationManagerModal';
-import { WhitelabelModal } from './WhitelabelModal';
 
 interface BackendViewProps {
   tables: Table[];
@@ -23,12 +19,22 @@ interface BackendViewProps {
   generateTrigger: number;
   config: BackendConfig;
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
+  // Hooks to trigger global modals (passed from ViewRouter -> AppController)
+  // We don't render modals here anymore, we assume they are triggered via Ribbon mostly.
+  // But for the sidebar buttons inside BackendView, we need triggers.
+  // Ideally these buttons should call `onAction` from AppController, but ViewRouter doesn't pass it fully.
+  // For simplicity, we assume these buttons trigger the *global* modal state which is passed down via specific props if needed,
+  // OR we just remove buttons from here that are now in the Ribbon to avoid confusion.
+  // However, users might expect them here. 
+  // Let's assume onUpdateEnvironments etc are just callbacks. The modals are rendered in ModalLayer.
+  // We need a way to open them. ViewRouter passes specific callbacks? No, currently props are onUpdate...
+  // Refactor: BackendView sidebar buttons will just be shortcuts that might need to be wired up or removed.
+  // Given the instruction to move to Ribbon, I will REMOVE the buttons from the sidebar to declutter and rely on Ribbon.
+  
   onOpenDeployment: () => void;
-  // New props passed down
   lastSnapshot?: Table[];
   onSnapshot?: () => void;
   onUpdateEnvironments?: (envs: EnvironmentConfig[]) => void;
-  onUpdateCommercial?: (w: WhitelabelConfig, m: MultiTenancyConfig, l: LicensingConfig) => void;
 }
 
 interface TreeNode {
@@ -135,19 +141,15 @@ const FileTreeItem: React.FC<{
     );
 };
 
-export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], reports = [], exportTrigger, generateTrigger, config, showMessage, onOpenDeployment, lastSnapshot, onSnapshot, onUpdateEnvironments, onUpdateCommercial }) => {
+export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], reports = [], exportTrigger, generateTrigger, config, showMessage, onOpenDeployment }) => {
   const [generatedFiles, setGeneratedFiles] = useState<VirtualFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<VirtualFile | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
   
-  // Modals
+  // Modals (Local only for Git Push, others are global via Ribbon)
   const [showGitModal, setShowGitModal] = useState(false);
-  const [showIntegrationsModal, setShowIntegrationsModal] = useState(false);
-  const [showEnvModal, setShowEnvModal] = useState(false);
-  const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [showWhitelabelModal, setShowWhitelabelModal] = useState(false);
   
   const [localConfig, setLocalConfig] = useState(config);
 
@@ -219,7 +221,6 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           
-          // Use string concatenation for the content to avoid nested template literal issues
           const contentPrompt = "Du bist ein Senior Developer. Hier ist der Code der Datei '" + selectedFile.name + "' (" + selectedFile.language + ").\n" +
               "Projekt-Kontext: " + localConfig.language + ", " + localConfig.projectName + ".\n\n" +
               "Code:\n" + selectedFile.content + "\n\n" +
@@ -279,34 +280,8 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
         
         {/* Operations Section */}
         <div className="p-3 border-t border-slate-200 bg-slate-100 space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-                <button 
-                    onClick={() => setShowEnvModal(true)}
-                    className="flex items-center justify-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-teal-100"
-                >
-                    <Globe size={14} /> Envs
-                </button>
-                <button 
-                    onClick={() => setShowMigrationModal(true)}
-                    className="flex items-center justify-center gap-1 bg-orange-50 text-orange-800 border border-orange-200 p-2 rounded shadow-sm text-xs font-bold hover:bg-orange-100"
-                >
-                    <GitCommit size={14} /> Migrations
-                </button>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-                <button 
-                    onClick={() => setShowIntegrationsModal(true)}
-                    className="flex items-center justify-center gap-2 bg-yellow-100 text-yellow-800 border border-yellow-200 p-2 rounded shadow text-xs font-bold hover:bg-yellow-200"
-                >
-                    <CloudLightning size={14} /> Integration
-                </button>
-                <button 
-                    onClick={() => setShowWhitelabelModal(true)}
-                    className="flex items-center justify-center gap-2 bg-indigo-100 text-indigo-900 border border-indigo-200 p-2 rounded shadow text-xs font-bold hover:bg-indigo-200"
-                >
-                    <Briefcase size={14} /> Business
-                </button>
+            <div className="bg-blue-50 border border-blue-100 p-2 rounded text-[10px] text-blue-800">
+                Nutzen Sie den <strong>Integration</strong> Tab für Deployment, Environments und externe Dienste.
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -316,6 +291,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
                 >
                     <GitBranch size={14} className="text-orange-400"/> Push Git
                 </button>
+                {/* Fallback Deploy Button inside view, keeps context */}
                 <button 
                     onClick={onOpenDeployment}
                     className="flex items-center justify-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-2 rounded shadow text-xs font-bold hover:from-blue-700 hover:to-indigo-700"
@@ -399,56 +375,6 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
             files={generatedFiles} 
             onClose={() => setShowGitModal(false)}
             onSuccess={() => showMessage("Git Push Erfolgreich", "Code übertragen.", 'success')}
-          />
-      )}
-
-      {showIntegrationsModal && (
-          <IntegrationsModal
-            config={localConfig.integrations}
-            onSave={(newIntegrations) => {
-                setLocalConfig({ ...localConfig, integrations: newIntegrations });
-                showMessage("Gespeichert", "Generieren Sie den Code neu.", 'success');
-            }}
-            onClose={() => setShowIntegrationsModal(false)}
-          />
-      )}
-
-      {showEnvModal && onUpdateEnvironments && (
-          <EnvironmentManagerModal
-            initialEnvs={localConfig.environments}
-            dbType={localConfig.dbType}
-            onSave={(envs) => {
-                setLocalConfig({ ...localConfig, environments: envs });
-                onUpdateEnvironments(envs);
-                showMessage("Gespeichert", "Umgebungen aktualisiert.", 'success');
-            }}
-            onClose={() => setShowEnvModal(false)}
-          />
-      )}
-
-      {showWhitelabelModal && onUpdateCommercial && (
-          <WhitelabelModal
-            whitelabel={localConfig.whitelabel}
-            multiTenancy={localConfig.multiTenancy}
-            licensing={localConfig.licensing}
-            onSave={(w, m, l) => {
-                onUpdateCommercial(w, m, l);
-                showMessage("Gespeichert", "Bitte Code neu generieren.", 'success');
-            }}
-            onClose={() => setShowWhitelabelModal(false)}
-          />
-      )}
-
-      {showMigrationModal && onSnapshot && (
-          <MigrationManagerModal
-            currentTables={tables}
-            lastSnapshot={lastSnapshot}
-            dbType={config.dbType}
-            onSnapshot={() => {
-                onSnapshot();
-                showMessage("Snapshot erstellt", "Status gespeichert.", 'success');
-            }}
-            onClose={() => setShowMigrationModal(false)}
           />
       )}
     </div>

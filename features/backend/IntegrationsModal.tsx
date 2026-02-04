@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { IntegrationsConfig, SsoConfig, WebhookConfig, StorageConfig } from '../../types/index';
-import { X, Save, HardDrive, Key, CloudLightning, Plus, Trash2 } from 'lucide-react';
+import { IntegrationsConfig, SsoConfig, WebhookConfig, StorageConfig, AiIntegrationConfig, CollaborationConfig } from '../../types/index';
+import { X, Save, HardDrive, Key, CloudLightning, Plus, Trash2, Bot, MessageCircle, Wifi } from 'lucide-react';
 
 interface IntegrationsModalProps {
   config: IntegrationsConfig | undefined;
@@ -10,14 +10,16 @@ interface IntegrationsModalProps {
 }
 
 export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ config, onSave, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'storage' | 'sso' | 'webhooks'>('storage');
+  const [activeTab, setActiveTab] = useState<'storage' | 'sso' | 'webhooks' | 'ai' | 'chat'>('storage');
   
   const [storage, setStorage] = useState<StorageConfig>(config?.storage || { provider: 'local' });
   const [sso, setSso] = useState<SsoConfig[]>(config?.sso || []);
   const [webhooks, setWebhooks] = useState<WebhookConfig[]>(config?.webhooks || []);
+  const [aiConfig, setAiConfig] = useState<AiIntegrationConfig>(config?.ai || { provider: 'gemini', modelName: 'gemini-2.5-flash' });
+  const [chatConfig, setChatConfig] = useState<CollaborationConfig>(config?.collaboration || { provider: 'none' });
 
   const handleSave = () => {
-    onSave({ storage, sso, webhooks });
+    onSave({ storage, sso, webhooks, ai: aiConfig, collaboration: chatConfig });
     onClose();
   };
 
@@ -74,6 +76,18 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ config, on
                     className={`w-full text-left p-3 rounded flex items-center gap-3 transition-colors ${activeTab === 'webhooks' ? 'bg-white shadow text-blue-600 font-bold border border-slate-200' : 'text-slate-600 hover:bg-slate-200'}`}
                 >
                     <CloudLightning size={18} /> Webhooks & Zapier
+                </button>
+                <button 
+                    onClick={() => setActiveTab('ai')}
+                    className={`w-full text-left p-3 rounded flex items-center gap-3 transition-colors ${activeTab === 'ai' ? 'bg-white shadow text-purple-600 font-bold border border-slate-200' : 'text-slate-600 hover:bg-slate-200'}`}
+                >
+                    <Bot size={18} /> AI & Intelligence
+                </button>
+                <button 
+                    onClick={() => setActiveTab('chat')}
+                    className={`w-full text-left p-3 rounded flex items-center gap-3 transition-colors ${activeTab === 'chat' ? 'bg-white shadow text-green-600 font-bold border border-slate-200' : 'text-slate-600 hover:bg-slate-200'}`}
+                >
+                    <MessageCircle size={18} /> Realtime & Chat
                 </button>
             </div>
 
@@ -241,6 +255,137 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ config, on
                             </div>
                         ))}
                         <button onClick={addWebhook} className="flex items-center gap-2 text-blue-600 font-bold text-sm hover:underline"><Plus size={16}/> Webhook hinzufügen</button>
+                    </div>
+                )}
+
+                {/* AI / LLM TAB */}
+                {activeTab === 'ai' && (
+                    <div className="space-y-6 animate-in slide-in-from-right-4">
+                        <div className="bg-purple-50 border border-purple-200 p-4 rounded text-sm text-purple-800 flex items-start gap-3">
+                            <Bot size={24} className="shrink-0 mt-1"/>
+                            <div>
+                                <strong>KI-Integration:</strong> Definieren Sie den Provider für KI-gestützte Funktionen in Ihrer App 
+                                (z.B. automatische Texterstellung, Analyse, Chatbots).
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">AI Provider</label>
+                            <select 
+                                value={aiConfig.provider} 
+                                onChange={e => setAiConfig({...aiConfig, provider: e.target.value as any})}
+                                className="w-full border border-slate-300 rounded p-2"
+                            >
+                                <option value="gemini">Google Gemini (Empfohlen)</option>
+                                <option value="openai">OpenAI (GPT-4 / GPT-3.5)</option>
+                                <option value="ollama">Ollama (Lokal / Self-Hosted)</option>
+                                <option value="azure_openai">Azure OpenAI</option>
+                            </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">API Key</label>
+                                <div className="relative">
+                                    <Key size={14} className="absolute left-2 top-2.5 text-slate-400"/>
+                                    <input 
+                                        type="password" 
+                                        className="w-full border border-slate-300 rounded p-2 pl-8 text-sm font-mono"
+                                        placeholder="sk-..."
+                                        value={aiConfig.apiKey || ''}
+                                        onChange={e => setAiConfig({...aiConfig, apiKey: e.target.value})}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-1">Wird verschlüsselt oder via Env-Var injiziert.</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Modell Name</label>
+                                <input 
+                                    type="text" 
+                                    className="w-full border border-slate-300 rounded p-2 text-sm"
+                                    placeholder={aiConfig.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o'}
+                                    value={aiConfig.modelName || ''}
+                                    onChange={e => setAiConfig({...aiConfig, modelName: e.target.value})}
+                                />
+                            </div>
+                        </div>
+
+                        {(aiConfig.provider === 'ollama' || aiConfig.provider === 'azure_openai') && (
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Endpoint URL</label>
+                                <input 
+                                    type="text" 
+                                    className="w-full border border-slate-300 rounded p-2 text-sm font-mono"
+                                    placeholder={aiConfig.provider === 'ollama' ? 'http://localhost:11434' : 'https://my-resource.openai.azure.com'}
+                                    value={aiConfig.endpointUrl || ''}
+                                    onChange={e => setAiConfig({...aiConfig, endpointUrl: e.target.value})}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* CHAT / REALTIME TAB */}
+                {activeTab === 'chat' && (
+                    <div className="space-y-6 animate-in slide-in-from-right-4">
+                        <div className="bg-green-50 border border-green-200 p-4 rounded text-sm text-green-800 flex items-start gap-3">
+                            <Wifi size={24} className="shrink-0 mt-1"/>
+                            <div>
+                                <strong>Echtzeit & Kollaboration:</strong> Wählen Sie den Dienst für Live-Updates (z.B. "Wer ist online") und Chat-Nachrichten.
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Service Provider</label>
+                            <select 
+                                value={chatConfig.provider} 
+                                onChange={e => setChatConfig({...chatConfig, provider: e.target.value as any})}
+                                className="w-full border border-slate-300 rounded p-2"
+                            >
+                                <option value="none">Keine (Deaktiviert)</option>
+                                <option value="signalr">SignalR (Microsoft / Self-Hosted)</option>
+                                <option value="socketio">Socket.IO (Node.js / Self-Hosted)</option>
+                                <option value="pusher">Pusher (Managed Service)</option>
+                            </select>
+                        </div>
+
+                        {chatConfig.provider !== 'none' && (
+                            <div className="space-y-4 pt-2 border-t">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Server URL / Endpoint</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full border border-slate-300 rounded p-2 text-sm"
+                                        placeholder={chatConfig.provider === 'pusher' ? 'cluster-eu' : 'http://localhost:5000'}
+                                        value={chatConfig.serverUrl || ''}
+                                        onChange={e => setChatConfig({...chatConfig, serverUrl: e.target.value})}
+                                    />
+                                </div>
+                                {chatConfig.provider === 'pusher' && (
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">API Key (Pusher Key)</label>
+                                        <input 
+                                            type="text" 
+                                            className="w-full border border-slate-300 rounded p-2 text-sm"
+                                            value={chatConfig.apiKey || ''}
+                                            onChange={e => setChatConfig({...chatConfig, apiKey: e.target.value})}
+                                        />
+                                    </div>
+                                )}
+                                {chatConfig.provider === 'signalr' && (
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Hub Pfad</label>
+                                        <input 
+                                            type="text" 
+                                            className="w-full border border-slate-300 rounded p-2 text-sm"
+                                            placeholder="/hubs/chat"
+                                            value={chatConfig.hubPath || '/hubs/chat'}
+                                            onChange={e => setChatConfig({...chatConfig, hubPath: e.target.value})}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Settings, Play, Download, AppWindow, Globe, GitCommit, UploadCloud, Server } from 'lucide-react';
+import { Settings, Play, Download, AppWindow } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -70,7 +70,7 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
 
              {/* 3. Frontend (UI) */}
              <div className="w-24">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Frontend</label>
+                <label className="block text--[10px] text-slate-500 font-bold mb-0.5">Frontend</label>
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
                     value={backendConfig.frontendFramework}
@@ -135,20 +135,13 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
            <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">{t('ribbon.groups.settings')}</span>
         </div>
 
-        {/* Lifecycle Group (NEW) */}
-        <RibbonGroup label={t('ribbon.groups.lifecycle')}>
-            <RibbonButton icon={<Globe className="text-teal-600" />} label={t('ribbon.actions.envs')} onClick={() => onAction('open_envs')} />
-            <RibbonButton icon={<GitCommit className="text-orange-600" />} label={t('ribbon.actions.migrations')} onClick={() => onAction('open_migrations')} />
-        </RibbonGroup>
-
         {/* Actions Group */}
         <RibbonGroup label={t('ribbon.groups.actions')}>
             <RibbonButton icon={<Play className="text-green-600"/>} label={t('ribbon.actions.generate')} onClick={() => onAction('backend_generate')} size="large" />
         </RibbonGroup>
         
-        {/* Deployment Group */}
-        <RibbonGroup label={t('ribbon.groups.deploy')} isLast>
-            <RibbonButton icon={<UploadCloud className="text-blue-600"/>} label={t('ribbon.actions.publish')} onClick={() => onAction('open_deployment_modal')} />
+        {/* Source Download Group */}
+        <RibbonGroup label={t('ribbon.groups.export')} isLast>
             <RibbonButton icon={<Download />} label={t('ribbon.actions.download_zip')} onClick={() => onAction('backend_export')} />
         </RibbonGroup>
     </div>

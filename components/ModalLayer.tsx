@@ -12,14 +12,15 @@ import { DeploymentModal } from '../features/backend/components/DeploymentModal'
 import { WhitelabelModal } from '../features/backend/WhitelabelModal';
 import { EnvironmentManagerModal } from '../features/backend/EnvironmentManagerModal';
 import { MigrationManagerModal } from '../features/backend/MigrationManagerModal';
+import { IntegrationsModal } from '../features/backend/IntegrationsModal'; // NEW
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
 import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
 import { DeleteQueryWizard, Criterion } from '../features/queries/wizards/DeleteQueryWizard'; 
 import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
 import { AccessImportWizard } from '../features/tools/AccessImportWizard';
-import { DummyDataWizard } from '../features/tools/DummyDataWizard'; // NEW
+import { DummyDataWizard } from '../features/tools/DummyDataWizard';
 import { MessageModal } from './MessageModal';
-import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig, DbType } from '../types/index';
+import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig, DbType, IntegrationsConfig } from '../types/index';
 
 interface ModalLayerProps {
   savePrompt: { show: boolean; targetView?: ViewType };
@@ -81,13 +82,18 @@ interface ModalLayerProps {
   onSnapshot?: () => void;
   lastSnapshot?: Table[];
 
+  // NEW: Integrations Modal
+  showIntegrationsModal?: boolean;
+  setShowIntegrationsModal?: (show: boolean) => void;
+  onSaveIntegrations?: (config: IntegrationsConfig) => void;
+
   // Imports / Tools
   showExcelWizard?: boolean;
   setShowExcelWizard?: (show: boolean) => void;
   showAccessWizard?: boolean; 
   setShowAccessWizard?: (show: boolean) => void;
-  showDummyDataWizard?: boolean; // NEW
-  setShowDummyDataWizard?: (show: boolean) => void; // NEW
+  showDummyDataWizard?: boolean;
+  setShowDummyDataWizard?: (show: boolean) => void;
 
   // Global Message Modal
   messageModal: MessageModalConfig | null;
@@ -118,9 +124,12 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showEnvModal, setShowEnvModal, onUpdateEnvironments,
     showMigrationModal, setShowMigrationModal, onSnapshot, lastSnapshot,
     
+    // NEW
+    showIntegrationsModal, setShowIntegrationsModal, onSaveIntegrations,
+
     showExcelWizard, setShowExcelWizard,
     showAccessWizard, setShowAccessWizard,
-    showDummyDataWizard, setShowDummyDataWizard, // NEW
+    showDummyDataWizard, setShowDummyDataWizard,
     
     messageModal, onCloseMessage,
     tables, queries, forms, reports, backendConfig, onUpdateBackendConfig
@@ -263,6 +272,15 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             dbType={backendConfig?.dbType || DbType.SQL}
             onSnapshot={onSnapshot}
             onClose={() => setShowMigrationModal(false)}
+          />
+      )}
+
+      {/* NEW: Integrations Modal Global */}
+      {showIntegrationsModal && onSaveIntegrations && setShowIntegrationsModal && (
+          <IntegrationsModal
+            config={backendConfig?.integrations}
+            onSave={onSaveIntegrations}
+            onClose={() => setShowIntegrationsModal(false)}
           />
       )}
 
