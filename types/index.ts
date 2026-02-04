@@ -399,6 +399,7 @@ export interface BackendConfig {
   deploymentConfig?: DeploymentConfig;
   integrations?: IntegrationsConfig;
   environments?: EnvironmentConfig[];
+  apiBaseUrl?: string; // NEW: Global Base URL for API Import
   // New Commercial Configs
   whitelabel?: WhitelabelConfig;
   multiTenancy?: MultiTenancyConfig;

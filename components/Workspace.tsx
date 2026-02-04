@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ViewType, Table, TableNode, Relationship, Query, Report, Form, SelectQuery, BackendConfig, Chart, Workflow } from '../types/index';
+import { ViewType, Table, TableNode, Relationship, Query, Report, Form, SelectQuery, BackendConfig, Chart, Workflow, EnvironmentConfig } from '../types/index';
 import { X, Command } from 'lucide-react';
 import { CommandPalette } from './CommandPalette';
 import { ViewRouter } from './ViewRouter';
@@ -30,6 +30,7 @@ interface WorkspaceProps {
   showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
   formActionTrigger?: { action: string, timestamp: number };
   backendConfig: BackendConfig;
+  onUpdateBackendConfig?: (config: BackendConfig) => void; // NEW
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
   // Lock
   activeLock?: any;
@@ -60,6 +61,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   showConfirmation,
   formActionTrigger,
   backendConfig,
+  onUpdateBackendConfig,
   showMessage,
   activeLock
 }) => {
@@ -106,6 +108,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
          case 'relationships': return 'Beziehungen';
          case 'backend_generator': return 'App Generator';
          case 'scheduler': return 'Zeitplaner';
+         case 'api_import': return 'API Import';
          default: return '';
       }
     }
@@ -170,6 +173,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             showConfirmation={showConfirmation}
             formActionTrigger={formActionTrigger}
             backendConfig={backendConfig}
+            onUpdateBackendConfig={onUpdateBackendConfig}
             exportTrigger={exportTrigger}
             generateTrigger={generateTrigger}
             showMessage={showMessage}

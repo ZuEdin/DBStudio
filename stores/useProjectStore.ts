@@ -5,6 +5,7 @@ import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbTyp
 import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEngine';
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
+import { saveProjectToStorage } from '../services/storageService';
 
 interface ProjectStore extends ProjectData {
     projectId: string | null;
@@ -27,6 +28,7 @@ interface ProjectStore extends ProjectData {
     setRelationships: (relationships: Relationship[]) => void;
     setBackendConfig: (config: BackendConfig) => void;
     snapshot: () => void;
+    saveProject: () => Promise<void>; // New persistence action
     executeQuery: (query: Query) => Record<string, any>[];
 }
 
@@ -101,7 +103,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
              tables.push({ id: userTableId, name: 'sys_users', fields: userFields, data: [{Id:1, Username:'admin', RoleId:1}] });
 
              const permTableId = 'sys_permissions';
-             tables.push({ id: permTableId, name: 'sys_permissions', fields: [{ id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true }, { id: crypto.randomUUID(), name: 'RoleId', type: 'INTEGER' }, { id: crypto.randomUUID(), name: 'ObjectType', type: 'VARCHAR' }, { id: crypto.randomUUID(), name: 'CanRead', type: 'BOOLEAN' }] });
+             tables.push({ id: permTableId, name: 'sys_permissions', fields: [{ id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true }, { id: crypto.randomUUID(), name: 'RoleId', type: 'INTEGER' }, { id: crypto.randomUUID(), name: 'ObjectType', type: 'VARCHAR' }, { id: crypto.randomUUID(), name: 'CanRead', type: 'BOOLEAN' }, { id: crypto.randomUUID(), name: 'CanWrite', type: 'BOOLEAN' }, { id: crypto.randomUUID(), name: 'CanDelete', type: 'BOOLEAN' }] });
         }
 
         set({ 
@@ -219,6 +221,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     snapshot: () => {
         get().pushHistory();
         set(state => ({ lastSnapshot: JSON.parse(JSON.stringify(state.tables)) }));
+    },
+
+    saveProject: async () => {
+        const state = get();
+        if (!state.projectId) return;
+        
+        const project: Project = {
+            id: state.projectId,
+            name: state.projectName,
+            lastModified: Date.now(),
+            data: {
+                tables: state.tables,
+                queries: state.queries,
+                reports: state.reports,
+                forms: state.forms,
+                charts: state.charts,
+                workflows: state.workflows,
+                relationships: state.relationships,
+                backendConfig: state.backendConfig,
+                lastSnapshot: state.lastSnapshot
+            }
+        };
+        await saveProjectToStorage(project);
     },
 
     executeQuery: (query) => {

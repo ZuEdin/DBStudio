@@ -40,6 +40,7 @@ interface ViewRouterProps {
   showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
   formActionTrigger?: { action: string, timestamp: number };
   backendConfig: BackendConfig;
+  onUpdateBackendConfig?: (config: BackendConfig) => void; // NEW
   exportTrigger: number;
   generateTrigger: number;
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
@@ -74,6 +75,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
   showConfirmation,
   formActionTrigger,
   backendConfig,
+  onUpdateBackendConfig,
   exportTrigger,
   generateTrigger,
   showMessage,
@@ -229,7 +231,14 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         }
        return null;
       case 'api_import':
-        return <ApiImportView onSaveTable={(t) => saveTable(t, 'create')} showMessage={showMessage} />;
+        return (
+            <ApiImportView 
+                onSaveTable={(t) => saveTable(t, 'create')} 
+                showMessage={showMessage} 
+                backendConfig={backendConfig}
+                onUpdateConfig={onUpdateBackendConfig}
+            />
+        );
       default:
         return null;
     }

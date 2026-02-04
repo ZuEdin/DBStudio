@@ -88,6 +88,7 @@ export default function App() {
             showConfirmation={(t, m, c) => app.setConfirmationModal({ title: t, message: m, onConfirm: c })}
             formActionTrigger={app.formActionTrigger}
             backendConfig={app.backendConfig}
+            onUpdateBackendConfig={app.setBackendConfig} // Pass the setter!
             showMessage={app.showMessage}
             activeLock={app.activeLock}
           />

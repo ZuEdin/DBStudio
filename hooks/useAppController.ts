@@ -134,11 +134,11 @@ export const useAppController = () => {
   };
 
   const handleSave = async () => { 
+      // 1. Save Active Object to Memory Store
       if (activeObject) {
           if ('fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
               store.updateTable(activeObject as Table);
           } else if ('nodes' in activeObject && 'columns' in activeObject) {
-              // Update Query in store
               const queries = store.queries.map(q => q.id === activeObject.id ? activeObject as Query : q);
               store.setQueries(queries);
           } else if ('layout' in activeObject) {
@@ -155,8 +155,13 @@ export const useAppController = () => {
               store.setWorkflows(workflows);
           }
           setIsDirty(false);
-          addToast("Gespeichert.");
       }
+      
+      // 2. Persist Everything to IndexedDB (Project File)
+      // This ensures BackendConfig (ApiURL etc.) and all other changes are written to disk
+      await store.saveProject();
+      
+      addToast("Projekt gespeichert.", 'success');
       return {success:true}; 
   };
 
@@ -187,7 +192,6 @@ export const useAppController = () => {
       }
       
       if (action === 'report_update_style' && activeObject) { 
-          // Handle Report Style update logic from Ribbon
           const report = activeObject as Report;
           const { section, style } = payload;
           if (report.styles) {
@@ -202,33 +206,28 @@ export const useAppController = () => {
         case 'create_table': handleSetView({ type: 'table_create' }); break;
         case 'create_table_ai': handleSetView({ type: 'table_create' }); break;
         case 'create_query': handleSetView({ type: 'query_designer' }); break;
-        // Wizards
         case 'wizard_duplicate': setActiveWizard('duplicate'); break;
         case 'wizard_inconsistency': setActiveWizard('inconsistency'); break;
         case 'wizard_append': setActiveWizard('append'); break;
         case 'wizard_delete': setActiveWizard('delete'); break;
         case 'create_report': setShowReportWizard(true); break;
         case 'create_form': setShowFormWizard(true); break;
-        case 'create_chart': /* ... Chart creation ... */ break;
-        case 'create_workflow': /* ... Workflow creation ... */ break;
+        case 'create_chart': /* ... */ break;
+        case 'create_workflow': /* ... */ break;
         
-        // Navigation
         case 'relationships': handleSetView({ type: 'relationships' }); break;
         case 'api_import': handleSetView({ type: 'api_import' }); break;
         
-        // Tools Modals
         case 'import_excel': setShowExcelWizard(true); break;
         case 'import_access': setShowAccessWizard(true); break;
         case 'generate_dummy': setShowDummyDataWizard(true); break;
         case 'save': await handleSave(); break;
         
-        // Settings & Governance
         case 'electron_settings': setShowElectronSettings(true); break;
         case 'security_manager': setShowSecurityManager(true); break;
         case 'open_app_info': handleSetView({ type: 'app_info' }); break;
         case 'open_whitelabel': setShowWhitelabelModal(true); break;
         
-        // NEW: Integration Tab Actions
         case 'open_integrations': setShowIntegrationsModal(true); break;
         case 'open_envs': setShowEnvModal(true); break;
         case 'open_migrations': setShowMigrationModal(true); break;
@@ -240,7 +239,8 @@ export const useAppController = () => {
   const handleSaveIntegrations = (newConfig: IntegrationsConfig) => {
       if (store.backendConfig) {
           store.setBackendConfig({ ...store.backendConfig, integrations: newConfig });
-          addToast("Integrationen gespeichert.");
+          // Auto-save project on config change
+          store.saveProject().then(() => addToast("Integrationen gespeichert."));
       }
   };
 

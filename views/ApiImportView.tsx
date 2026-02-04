@@ -1,20 +1,22 @@
 
 import React, { useState } from 'react';
-import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders } from 'lucide-react';
+import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server } from 'lucide-react';
 import { VirtualTable } from '../components/VirtualTable';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Table, Field, ApiQueryParam } from '../types/index';
+import { Table, Field, ApiQueryParam, BackendConfig } from '../types/index';
 import { InputModal } from '../components/InputModal';
 import { fetchApiData, inferFieldType } from '../utils/apiImportHelper';
 
 interface ApiImportViewProps {
     onSaveTable?: (table: Table) => void;
     showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
+    backendConfig?: BackendConfig;
+    onUpdateConfig?: (config: BackendConfig) => void;
 }
 
-export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showMessage }) => {
+export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showMessage, backendConfig, onUpdateConfig }) => {
   const [url, setUrl] = useState('');
   const [method, setMethod] = useState('GET');
   const [headers, setHeaders] = useState('');
@@ -26,6 +28,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   const [error, setError] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showParamBuilder, setShowParamBuilder] = useState(true);
+  const [showBaseUrlSettings, setShowBaseUrlSettings] = useState(false);
 
   // --- Parameter Logic ---
   const addParam = () => {
@@ -46,13 +49,28 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       setQueryParams(queryParams.filter(p => p.id !== id));
   };
 
+  const getEffectiveUrl = () => {
+      if (!url) return '';
+      if (url.startsWith('http://') || url.startsWith('https://')) return url;
+      
+      const baseUrl = backendConfig?.apiBaseUrl;
+      if (baseUrl) {
+          const cleanBase = baseUrl.replace(/\/$/, '');
+          const cleanPath = url.startsWith('/') ? url : '/' + url;
+          return cleanBase + cleanPath;
+      }
+      return url; // Fallback if no base url but relative path (will likely fail fetch but shows intent)
+  };
+
   const handleFetch = async () => {
-    if (!url) return;
+    const targetUrl = getEffectiveUrl();
+    if (!targetUrl) return;
+    
     setIsLoading(true);
     setError(null);
     setData([]);
 
-    const result = await fetchApiData(url, method, headers, queryParams);
+    const result = await fetchApiData(targetUrl, method, headers, queryParams);
     
     if (result.error) {
         setError(result.error);
@@ -108,6 +126,11 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
           data.forEach((row, i) => row['_ImportId'] = i + 1);
       }
 
+      // Important: Save the full URL if we used a base URL to ensure it works standalone later?
+      // OR: We assume the base URL is stable project config.
+      // Let's save the FULL resolved URL to be safe for table reloads, unless dynamic.
+      const savedUrl = getEffectiveUrl();
+
       const newTable: Table = {
           id: crypto.randomUUID(),
           name: tableName,
@@ -115,7 +138,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
           data: data,
           isApiImport: true,
           apiConfig: {
-              url,
+              url: savedUrl,
               method,
               headers: headers || undefined,
               queryParams, // Save params
@@ -128,39 +151,6 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       
       const message = `Tabelle "${tableName}" wurde erfolgreich erstellt!\n${refreshOnLoad ? 'HINWEIS: Daten werden beim Öffnen der Tabelle immer frisch geladen.' : 'Die Daten wurden als Snapshot gespeichert.'}`;
       showMessage("Tabelle erstellt", message, 'success');
-  };
-
-  // Export functions (Excel, PDF, HTML) ...
-  const exportExcel = () => {
-      if (data.length === 0) return;
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "API Data");
-      XLSX.writeFile(wb, "api_export.xlsx");
-  };
-
-  const exportPDF = () => {
-      if (data.length === 0) return;
-      const doc = new jsPDF();
-      const columns = getColumns();
-      const rows = data.map(row => columns.map(col => String(row[col] ?? '')));
-      autoTable(doc, { head: [columns], body: rows, styles: { fontSize: 8 }, theme: 'grid' });
-      doc.save("api_export.pdf");
-  };
-
-  const exportHTML = () => {
-      if (data.length === 0) return;
-      const columns = getColumns();
-      let html = `<html><head><style>table { border-collapse: collapse; width: 100%; font-family: sans-serif; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }</style></head><body>`;
-      html += `<h2>Export von ${url}</h2>`;
-      html += `<table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
-      data.forEach(row => { html += `<tr>${columns.map(c => `<td>${row[c] ?? ''}</td>`).join('')}</tr>`; });
-      html += `</tbody></table></body></html>`;
-      const blob = new Blob([html], { type: 'text/html' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = "api_export.html";
-      link.click();
   };
 
   const renderRow = (row: any, rowIndex: number) => {
@@ -178,14 +168,19 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
   const constructPreviewUrl = () => {
       try {
-          const urlObj = new URL(url || 'http://localhost');
+          const effective = getEffectiveUrl();
+          const urlObj = new URL(effective || 'http://localhost');
           queryParams.forEach(p => {
               if (p.isActive && p.key) urlObj.searchParams.append(p.key, p.value);
           });
-          // Only show query string part if base is dummy
-          if (!url) return '...';
           return urlObj.toString();
-      } catch { return url; }
+      } catch { return getEffectiveUrl(); }
+  };
+
+  const updateBaseUrl = (newUrl: string) => {
+      if (backendConfig && onUpdateConfig) {
+          onUpdateConfig({ ...backendConfig, apiBaseUrl: newUrl });
+      }
   };
 
   return (
@@ -196,27 +191,57 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
             <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
                 <Globe className="text-blue-600" /> API Abfrage & Import
             </h2>
-            {data.length > 0 && onSaveTable && (
-                <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer border border-slate-300 rounded px-2 py-1 bg-slate-50 hover:bg-white">
-                        <input 
-                            type="checkbox" 
-                            checked={refreshOnLoad} 
-                            onChange={e => setRefreshOnLoad(e.target.checked)}
-                            className="rounded text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="flex items-center gap-1"><RefreshCw size={14} /> Live-Verbindung</span>
-                    </label>
+            <div className="flex items-center gap-2">
+                {backendConfig && (
                     <button 
-                        onClick={handleSaveClick}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm transition-colors"
+                        onClick={() => setShowBaseUrlSettings(!showBaseUrlSettings)} 
+                        className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold border rounded transition-colors ${showBaseUrlSettings || backendConfig.apiBaseUrl ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+                        title="Globale Server-URL definieren"
                     >
-                        <Save size={16} /> Speichern
+                        <Server size={14}/> {backendConfig.apiBaseUrl ? 'Basis-URL aktiv' : 'Basis-URL definieren'}
                     </button>
-                </div>
-            )}
+                )}
+                {data.length > 0 && onSaveTable && (
+                    <div className="flex items-center gap-2 border-l pl-2 ml-2">
+                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer border border-slate-300 rounded px-2 py-1 bg-slate-50 hover:bg-white">
+                            <input 
+                                type="checkbox" 
+                                checked={refreshOnLoad} 
+                                onChange={e => setRefreshOnLoad(e.target.checked)}
+                                className="rounded text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="flex items-center gap-1"><RefreshCw size={14} /> Live-Verbindung</span>
+                        </label>
+                        <button 
+                            onClick={handleSaveClick}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm transition-colors"
+                        >
+                            <Save size={16} /> Speichern
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
         
+        {/* Base URL Settings Panel */}
+        {showBaseUrlSettings && backendConfig && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded animate-in slide-in-from-top-2">
+                <label className="block text-xs font-bold text-blue-800 uppercase mb-1">Globale Projekt Basis-URL</label>
+                <div className="flex gap-2">
+                    <input 
+                        type="text" 
+                        value={backendConfig.apiBaseUrl || ''}
+                        onChange={e => updateBaseUrl(e.target.value)}
+                        placeholder="https://api.mein-server.de/v1"
+                        className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm text-blue-900 placeholder:text-blue-300 focus:ring-2 focus:ring-blue-400 outline-none"
+                    />
+                </div>
+                <p className="text-[10px] text-blue-600 mt-1">
+                    Wenn definiert, können Sie unten relative Pfade (z.B. <code>/users</code>) eingeben. Volle URLs (starten mit http) ignorieren diese Einstellung.
+                </p>
+            </div>
+        )}
+
         <div className="flex flex-col gap-4">
             <div className="flex gap-2">
                 <select 
@@ -231,8 +256,8 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                     type="text" 
                     value={url} 
                     onChange={e => setUrl(e.target.value)}
-                    placeholder="https://api.example.com/data"
-                    className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder={backendConfig?.apiBaseUrl ? "/endpoint (oder volle URL)" : "https://api.example.com/data"}
+                    className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                 />
                 <button 
                     onClick={handleFetch} 
@@ -248,8 +273,8 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                 <button onClick={() => setShowParamBuilder(!showParamBuilder)} className="flex items-center gap-1 text-slate-600 hover:text-blue-600 font-semibold">
                     <Sliders size={14} /> {showParamBuilder ? 'Parameter verbergen' : 'Parameter & Optionen'}
                 </button>
-                <div className="text-slate-400 text-xs truncate max-w-xl">
-                    Vorschau: {constructPreviewUrl()}
+                <div className="text-slate-400 text-xs truncate max-w-xl font-mono bg-slate-100 px-2 py-0.5 rounded">
+                    {constructPreviewUrl()}
                 </div>
             </div>
 
