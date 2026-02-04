@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Form, Table, FormElement, Relationship } from '../../types/index';
-import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns } from 'lucide-react';
+import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
@@ -179,7 +179,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       setDraggedElementId(null);
   };
 
-  // 3. Drop on Element (Insert Before) - For Reordering
+  // 3. Drop on Element (Insert Before) - For Reordering & Inserting new items
   const handleDropOnElement = (e: React.DragEvent, targetElementId: string) => {
       e.preventDefault(); e.stopPropagation();
       const json = e.dataTransfer.getData('application/json');
@@ -187,41 +187,57 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
       try {
           const data = JSON.parse(json);
-          if (data.type !== 'move_element' || data.id === targetElementId) return;
+          // If moving self, do nothing
+          if (data.type === 'move_element' && data.id === targetElementId) return;
 
           updateFormLayout((layout) => {
-              // Extract Item
-              let itemToMove: FormElement | null = null;
-              const removeAndFind = (parent: FormElement): boolean => {
-                  if (!parent.children) return false;
-                  const idx = parent.children.findIndex(c => c.id === data.id);
-                  if (idx > -1) {
-                      itemToMove = parent.children[idx];
-                      parent.children.splice(idx, 1);
-                      return true;
+              let itemToInsert: FormElement | null = null;
+
+              // CASE A: Moving existing element
+              if (data.type === 'move_element') {
+                  const removeAndFind = (parent: FormElement): boolean => {
+                      if (!parent.children) return false;
+                      const idx = parent.children.findIndex(c => c.id === data.id);
+                      if (idx > -1) {
+                          itemToInsert = parent.children[idx];
+                          parent.children.splice(idx, 1);
+                          return true;
+                      }
+                      return parent.children.some(c => removeAndFind(c));
+                  };
+                  
+                  const draggedEl = findElement(layout, data.id);
+                  const targetEl = findElement(layout, targetElementId);
+                  
+                  // Check recursion (dropping parent into child)
+                  if(draggedEl && targetEl) {
+                      const isChild = (parent: FormElement, childId: string): boolean => {
+                          return parent.id === childId || (parent.children || []).some(c => isChild(c, childId));
+                      };
+                      if (!isChild(draggedEl, targetElementId)) {
+                          removeAndFind(layout);
+                      }
                   }
-                  return parent.children.some(c => removeAndFind(c));
-              };
+              } 
+              // CASE B: Dropping new Field
+              else if (data.type === 'field') {
+                  itemToInsert = { 
+                      id: crypto.randomUUID(), 
+                      type: 'field', 
+                      fieldId: data.fieldId, 
+                      label: data.label, 
+                      className: 'mb-4' 
+                  };
+              }
+              // CASE C: Dropping new Subform (Not supported for insert-before yet, use container drop)
               
-              // Validate not dropping parent into child
-              const draggedEl = findElement(layout, data.id);
-              const targetEl = findElement(layout, targetElementId);
-              if(!draggedEl || !targetEl) return;
-              
-              const isChild = (parent: FormElement, childId: string): boolean => {
-                  return parent.id === childId || (parent.children || []).some(c => isChild(c, childId));
-              };
-              if (isChild(draggedEl, targetElementId)) return;
-
-              removeAndFind(layout);
-
-              // Insert Before Target
-              if (itemToMove) {
+              // Perform Insertion
+              if (itemToInsert) {
                   const insertBefore = (parent: FormElement): boolean => {
                       if (!parent.children) return false;
                       const idx = parent.children.findIndex(c => c.id === targetElementId);
                       if (idx > -1) {
-                          parent.children.splice(idx, 0, itemToMove!);
+                          parent.children.splice(idx, 0, itemToInsert!);
                           return true;
                       }
                       return parent.children.some(c => insertBefore(c));
@@ -299,8 +315,15 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
               <div key={el.id} className={`${baseClass} ${el.className} bg-white p-2 pl-6 rounded border border-slate-200 group shadow-sm`} {...commonProps}>
                   <GripHandle />
                   <label className="block text-sm font-semibold text-slate-600 mb-1 pointer-events-none">{el.label}</label>
-                  <div className="h-8 bg-slate-50 border border-slate-200 rounded w-full flex items-center px-2 text-xs text-slate-400 pointer-events-none">
-                      {el.widgetType || 'Text Input'}
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-slate-50 border border-slate-200 rounded w-full flex items-center px-2 text-xs text-slate-400 pointer-events-none">
+                        {el.widgetType === 'select' ? 'Dropdown' : (el.widgetType || 'Text Input')}
+                    </div>
+                    {el.widgetType === 'select' && el.lookup?.allowQuickCreate && (
+                        <div className="h-8 w-8 bg-emerald-100 border border-emerald-300 rounded flex items-center justify-center text-emerald-700 shadow-sm" title="Quick Create aktiv">
+                            <Plus size={16} strokeWidth={3} />
+                        </div>
+                    )}
                   </div>
               </div>
           );

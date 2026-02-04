@@ -146,7 +146,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
       case 'table_create':
       case 'table_edit':
         if (activeObject && 'fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
-          return <TableDesigner table={activeObject as Table} onTableChange={onActiveObjectChange as any} lockedBy={activeLock} />;
+          return <TableDesigner table={activeObject as Table} onTableChange={onActiveObjectChange as any} lockedBy={activeLock} currentUserId="u1" />;
         }
         return null;
       case 'table_data':

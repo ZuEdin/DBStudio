@@ -1,17 +1,18 @@
 
 import React, { useState } from 'react';
 import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo } from '../../types/index';
-import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock } from 'lucide-react';
+import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
 
 interface TableDesignerProps {
   table: Table;
   onTableChange: (table: Table) => void;
-  lockedBy?: LockInfo | null; // NEW Prop
+  lockedBy?: LockInfo | null;
+  currentUserId?: string; // New Prop to check ownership
 }
 
-export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy }) => {
+export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy, currentUserId }) => {
   const [activeTab, setActiveTab] = useState<'fields' | 'validation'>('fields');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -19,7 +20,10 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   
   const { name: tableName, fields, validationRules = [] } = table;
   
-  const isReadOnly = !!lockedBy;
+  // Logic Fix: Only read-only if locked by SOMEONE ELSE
+  const isLockedByMe = lockedBy?.userId === currentUserId;
+  const isLockedByOther = lockedBy && !isLockedByMe;
+  const isReadOnly = isLockedByOther;
 
   const setTableName = (name: string) => {
     if(isReadOnly) return;
@@ -173,12 +177,12 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
 
   return (
     <div className="p-8 h-full bg-slate-50 overflow-y-auto">
-      <div className={`max-w-[95%] mx-auto bg-white shadow-lg border rounded-lg overflow-hidden flex flex-col h-full ${isReadOnly ? 'border-amber-300 ring-2 ring-amber-100' : 'border-slate-200'}`}>
+      <div className={`max-w-[95%] mx-auto bg-white shadow-lg border rounded-lg overflow-hidden flex flex-col h-full ${isReadOnly ? 'border-amber-300 ring-2 ring-amber-100' : isLockedByMe ? 'border-emerald-300 ring-2 ring-emerald-50' : 'border-slate-200'}`}>
         {/* Header */}
-        <div className={`text-white px-6 py-4 flex justify-between items-center shrink-0 ${isReadOnly ? 'bg-amber-600' : 'bg-slate-800'}`}>
+        <div className={`text-white px-6 py-4 flex justify-between items-center shrink-0 ${isReadOnly ? 'bg-amber-600' : isLockedByMe ? 'bg-emerald-700' : 'bg-slate-800'}`}>
           <div className="flex gap-4 items-center">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                  {isReadOnly && <Lock size={20} className="text-white"/>} 
+                  {isReadOnly ? <Lock size={20} className="text-white"/> : isLockedByMe ? <UserCheck size={20} className="text-emerald-100"/> : null} 
                   Tabellenentwurf
               </h2>
               <div className="flex bg-black/20 rounded p-1">
@@ -197,7 +201,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
               </div>
           </div>
           {!isReadOnly && (
-            <button onClick={() => setShowAi(!showAi)} className="flex items-center gap-1 bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm">
+            <button onClick={() => setShowAi(!showAi)} className={`flex items-center gap-1 px-3 py-1 rounded text-sm ${isLockedByMe ? 'bg-emerald-800 hover:bg-emerald-600' : 'bg-purple-600 hover:bg-purple-500'}`}>
                 <Wand2 size={14} /> AI-Entwurf
             </button>
           )}
@@ -207,7 +211,15 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
         {isReadOnly && lockedBy && (
             <div className="bg-amber-100 text-amber-800 px-6 py-2 text-sm font-semibold flex items-center gap-2 border-b border-amber-200">
                 <Lock size={14} />
-                Schreibgeschützt: Dieses Objekt wird gerade von {lockedBy.userName} bearbeitet.
+                Schreibgeschützt: Dieses Objekt wird gerade von <u>{lockedBy.userName}</u> bearbeitet.
+            </div>
+        )}
+        
+        {/* Locked by Me Banner */}
+        {isLockedByMe && (
+            <div className="bg-emerald-50 text-emerald-800 px-6 py-2 text-xs font-semibold flex items-center gap-2 border-b border-emerald-100">
+                <UserCheck size={14} />
+                Bearbeitungsmodus: Für andere Benutzer gesperrt.
             </div>
         )}
 
