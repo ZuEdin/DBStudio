@@ -221,9 +221,13 @@ export const Canvas: React.FC<CanvasProps> = ({
                 <div className="flex items-center gap-2 truncate">
                     {/* Icon based on table type (API vs DB) */}
                     {table.isApiImport ? (
-                        <Globe size={14} className="text-blue-600 flex-shrink-0" title="Externe API Tabelle" />
+                        <span title="Externe API Tabelle" className="flex items-center text-blue-600 flex-shrink-0">
+                            <Globe size={14} />
+                        </span>
                     ) : (
-                        <TableIcon size={14} className="text-slate-500 flex-shrink-0" title="Lokale Tabelle" />
+                        <span title="Lokale Tabelle" className="flex items-center text-slate-500 flex-shrink-0">
+                            <TableIcon size={14} />
+                        </span>
                     )}
                     <span className="font-bold text-xs truncate text-slate-700" title={table.name}>{table.name}</span>
                 </div>

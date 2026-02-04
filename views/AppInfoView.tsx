@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Database, Code, Zap, Layers, ShieldCheck, Rocket, GitBranch, Layout, Server, Database as DbIcon, CheckCircle2, ArrowRight, Lock, Users, Cloud, HardDrive, Terminal, TrendingUp, ClipboardList, Briefcase as BriefcaseIcon } from 'lucide-react';
+import { Database, Code, Zap, Layers, ShieldCheck, Rocket, GitBranch, Layout, Server, Database as DbIcon, CheckCircle2, ArrowRight, Lock, Users, Cloud, HardDrive, Terminal, TrendingUp, ClipboardList, Briefcase as BriefcaseIcon, Mail, MapPin } from 'lucide-react';
 
 interface AppInfoViewProps {
     onNavigate: (view: string) => void;
@@ -263,6 +263,31 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
               <GitBranch size={24}/> Neues Projekt starten
           </button>
       </div>
+
+      {/* Contact / Imprint Section */}
+      <div className="bg-slate-950 text-slate-400 py-12 border-t border-slate-800 text-sm">
+          <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
+              <div>
+                  <div className="flex items-center gap-2 mb-2">
+                      <DbIcon size={20} className="text-blue-500"/>
+                      <span className="font-bold text-slate-200 text-lg">DB Studio Pro</span>
+                  </div>
+                  <p className="max-w-xs">
+                      Die moderne Lösung für schnelles Prototyping und Generierung von Unternehmensanwendungen.
+                  </p>
+              </div>
+              
+              <div className="text-center md:text-right">
+                  <h4 className="font-bold text-slate-200 mb-2 uppercase tracking-wider text-xs">Kontakt & Impressum</h4>
+                  <p className="font-medium text-slate-300">Edin Zubovic</p>
+                  <p className="flex items-center justify-center md:justify-end gap-1"><MapPin size={12}/> Birkenstraße 23, 4600 Wels</p>
+                  <a href="mailto:edin.zubovic@hotmail.de" className="flex items-center justify-center md:justify-end gap-2 text-blue-400 hover:text-blue-300 mt-2 transition-colors">
+                      <Mail size={14}/> edin.zubovic@hotmail.de
+                  </a>
+              </div>
+          </div>
+      </div>
     </div>
+    
   );
 };

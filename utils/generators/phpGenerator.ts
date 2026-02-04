@@ -393,7 +393,8 @@ if (!$resource) {
     exit();
 }
 
-$controllerName = 'App\\Controllers\\' . ucfirst($resource) . 'Controller';
+// Ensure proper namespace resolution for the controller
+$controllerName = 'App\\\\Controllers\\\\' . ucfirst($resource) . 'Controller';
 
 if (class_exists($controllerName)) {
     $database = new Database();
