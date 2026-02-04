@@ -340,6 +340,7 @@ export interface EnvironmentConfig {
     name: 'Development' | 'Staging' | 'Production';
     dbConnection: string;
     apiUrl?: string;
+    buildPath?: string;
     vars?: Record<string, string>;
 }
 

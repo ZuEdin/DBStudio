@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { EnvironmentConfig, DbType } from '../../types/index';
-import { X, Server, Database, Save, Globe } from 'lucide-react';
+import { X, Server, Database, Save, Globe, FolderOpen } from 'lucide-react';
 
 interface EnvironmentManagerModalProps {
   initialEnvs: EnvironmentConfig[] | undefined;
@@ -12,9 +12,9 @@ interface EnvironmentManagerModalProps {
 
 export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = ({ initialEnvs, dbType, onSave, onClose }) => {
   const [envs, setEnvs] = useState<EnvironmentConfig[]>(initialEnvs || [
-      { name: 'Development', dbConnection: '' },
-      { name: 'Staging', dbConnection: '' },
-      { name: 'Production', dbConnection: '' }
+      { name: 'Development', dbConnection: '', apiUrl: 'http://localhost:5000/api', buildPath: './dist/dev' },
+      { name: 'Staging', dbConnection: '', apiUrl: 'https://api-staging.example.com', buildPath: './dist/staging' },
+      { name: 'Production', dbConnection: '', apiUrl: 'https://api.example.com', buildPath: './dist/prod' }
   ]);
 
   const updateEnv = (index: number, key: keyof EnvironmentConfig, value: string) => {
@@ -25,7 +25,7 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl border border-slate-300 overflow-hidden flex flex-col h-[600px]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl border border-slate-300 overflow-hidden flex flex-col h-[700px]">
         <div className="bg-slate-800 text-white p-5 flex justify-between items-center">
             <h2 className="text-xl font-bold flex items-center gap-2"><Globe className="text-teal-400"/> Umgebungskonfiguration</h2>
             <button onClick={onClose}><X size={20}/></button>
@@ -33,8 +33,8 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50 space-y-6">
             <div className="bg-blue-50 border border-blue-200 p-4 rounded text-sm text-blue-800">
-                Definieren Sie hier unterschiedliche Datenbank-Verbindungen für Ihre Umgebungen. 
-                Der App Generator erstellt automatisch passende Konfigurationsdateien (z.B. <code>appsettings.Production.json</code> oder <code>.env.production</code>).
+                Definieren Sie hier Ihre Zielumgebungen. Der Generator passt <code>npm run build</code> Skripte und API-URLs automatisch an, 
+                damit Sie ohne manuelle Änderungen deployen können.
             </div>
 
             {envs.map((env, idx) => (
@@ -44,8 +44,8 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
                         <h3 className="font-bold text-slate-700">{env.name}</h3>
                     </div>
                     
-                    <div className="space-y-4">
-                        <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                                 Connection String ({dbType})
                             </label>
@@ -60,9 +60,10 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
                                 />
                             </div>
                         </div>
+                        
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                                API Base URL (Frontend)
+                                Server URL (Backend API)
                             </label>
                             <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
                                 <Server size={16} className="text-slate-400" />
@@ -72,6 +73,22 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
                                     placeholder="https://api.mydomain.com"
                                     value={env.apiUrl || ''}
                                     onChange={e => updateEnv(idx, 'apiUrl', e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                Build Ordner (Output Path)
+                            </label>
+                            <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                <FolderOpen size={16} className="text-slate-400" />
+                                <input 
+                                    type="text" 
+                                    className="flex-1 bg-transparent outline-none text-sm font-mono"
+                                    placeholder="./dist/prod"
+                                    value={env.buildPath || ''}
+                                    onChange={e => updateEnv(idx, 'buildPath', e.target.value)}
                                 />
                             </div>
                         </div>

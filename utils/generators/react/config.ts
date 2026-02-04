@@ -4,12 +4,28 @@ import { VirtualFile, BackendConfig } from '../../../types/index';
 export const generateReactConfigs = (config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
   
+  // Build Scripts based on Environments
+  const scripts: Record<string, string> = { 
+      "dev": "vite", 
+      "build": "tsc && vite build", 
+      "preview": "vite preview" 
+  };
+
+  if (config.environments) {
+      config.environments.forEach(env => {
+          const suffix = env.name === 'Production' ? 'prod' : env.name === 'Staging' ? 'staging' : 'dev';
+          const outDir = env.buildPath || `dist/${suffix}`;
+          // Add specific build command for this environment
+          scripts[`build:${suffix}`] = `tsc && vite build --outDir "${outDir}" --mode ${suffix}`;
+      });
+  }
+
   const packageJson = {
     "name": "react-client",
     "private": true,
     "version": "0.0.0",
     "type": "module",
-    "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" },
+    "scripts": scripts,
     "dependencies": { "axios": "^1.6.2", "react": "^18.2.0", "react-dom": "^18.2.0", "react-router-dom": "^6.20.0", "lucide-react": "^0.294.0", "clsx": "^2.0.0", "tailwind-merge": "^2.0.0" },
     "devDependencies": { "@types/react": "^18.2.37", "@types/react-dom": "^18.2.15", "@vitejs/plugin-react": "^4.2.0", "autoprefixer": "^10.4.16", "postcss": "^8.4.31", "tailwindcss": "^3.3.5", "typescript": "^5.2.2", "vite": "^5.0.0" }
   };

@@ -5,6 +5,10 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   const files: VirtualFile[] = [];
   const useAuth = config.authConfig?.useUserLogin;
   
+  // Find production build path
+  const prodEnv = config.environments?.find(e => e.name === 'Production');
+  const outputPath = prodEnv?.buildPath || "dist/angular-client";
+
   files.push({ name: 'package.json', path: `${root}/package.json`, content: `{"name":"angular-client","version":"0.0.0","scripts":{"start":"ng serve","build":"ng build"},"dependencies":{"@angular/common":"^16.0.0","@angular/core":"^16.0.0","@angular/forms":"^16.0.0","@angular/platform-browser":"^16.0.0", "@angular/platform-browser-dynamic":"^16.0.0","@angular/router":"^16.0.0","rxjs":"~7.8.0","tslib":"^2.3.0","zone.js":"~0.13.0"},"devDependencies":{"@angular-devkit/build-angular":"^16.0.0","@angular/cli":"~16.0.0","@angular/compiler-cli":"^16.0.0","typescript":"~5.0.2","tailwindcss":"^3.3.0","postcss":"^8.4.31","autoprefixer":"^10.4.16"}}`, language: 'json' });
   
   const angularJson = {
@@ -19,7 +23,7 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
           "build": {
             "builder": "@angular-devkit/build-angular:browser",
             "options": {
-              "outputPath": "dist/angular-client",
+              "outputPath": outputPath,
               "index": "src/index.html",
               "main": "src/main.ts",
               "polyfills": ["src/polyfills.ts"],
