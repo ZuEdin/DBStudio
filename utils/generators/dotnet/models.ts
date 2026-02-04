@@ -238,7 +238,8 @@ ${validationMethod}
   queries.filter(q => q.type === 'SELECT').forEach(q => {
       const selectQ = q as SelectQuery;
       const safeName = toPascalCase(q.name);
-      
+      const usedNames = new Set<string>();
+
       const props = selectQ.columns.filter(c => c.show).map(c => {
           const table = tables.find(t => t.id === c.tableId);
           const field = table?.fields.find(f => f.id === c.fieldId);
@@ -250,7 +251,20 @@ ${validationMethod}
           if (c.aggregate === 'COUNT') type = 'int';
           if (c.aggregate === 'SUM' && type === 'int') type = 'long?';
           
-          const propName = toPascalCase(c.alias || c.fieldName);
+          let propName = toPascalCase(c.alias || c.fieldName);
+          
+          // Deduplication Logic
+          if (usedNames.has(propName)) {
+              propName = toPascalCase(`${c.alias || c.fieldName}${toPascalCase(c.tableName)}`);
+          }
+          let counter = 2;
+          const original = propName;
+          while(usedNames.has(propName)) {
+              propName = `${original}${counter}`;
+              counter++;
+          }
+          usedNames.add(propName);
+
           return `        public ${type} ${propName} { get; set; }`;
       }).join('\n\n');
 

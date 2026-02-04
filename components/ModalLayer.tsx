@@ -14,8 +14,10 @@ import { EnvironmentManagerModal } from '../features/backend/EnvironmentManagerM
 import { MigrationManagerModal } from '../features/backend/MigrationManagerModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
 import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
-import { DeleteQueryWizard, Criterion } from '../features/queries/wizards/DeleteQueryWizard'; // Import
+import { DeleteQueryWizard, Criterion } from '../features/queries/wizards/DeleteQueryWizard'; 
 import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
+import { AccessImportWizard } from '../features/tools/AccessImportWizard';
+import { DummyDataWizard } from '../features/tools/DummyDataWizard'; // NEW
 import { MessageModal } from './MessageModal';
 import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig, DbType } from '../types/index';
 
@@ -43,11 +45,11 @@ interface ModalLayerProps {
   onUpdateTable: (table: Table) => void;
   onCreateTable: (table: Table) => void; 
 
-  activeWizard: 'duplicate' | 'inconsistency' | 'append' | 'delete' | null; // Added 'delete'
+  activeWizard: 'duplicate' | 'inconsistency' | 'append' | 'delete' | null;
   setActiveWizard: (wizard: 'duplicate' | 'inconsistency' | 'append' | 'delete' | null) => void;
   onSaveWizardQuery: (query: SelectQuery) => void;
   onExecuteAppend: (source: Table, target: Table, map: Record<string, string>) => void;
-  onExecuteDelete: (table: Table, criteria: Criterion[]) => void; // New handler
+  onExecuteDelete: (table: Table, criteria: Criterion[]) => void;
   
   confirmationModal: { title: string; message: string; onConfirm: () => void } | null;
   setConfirmationModal: (modal: null) => void;
@@ -65,7 +67,7 @@ interface ModalLayerProps {
   onDeploy?: () => void;
   onCloseDeploymentModal?: () => void;
 
-  // Commercial / Lifecycle Modals (NEW)
+  // Commercial / Lifecycle Modals
   showWhitelabelModal?: boolean;
   setShowWhitelabelModal?: (show: boolean) => void;
   onUpdateCommercial?: (w: WhitelabelConfig, m: MultiTenancyConfig, l: LicensingConfig) => void;
@@ -79,9 +81,13 @@ interface ModalLayerProps {
   onSnapshot?: () => void;
   lastSnapshot?: Table[];
 
-  // Excel Import
+  // Imports / Tools
   showExcelWizard?: boolean;
   setShowExcelWizard?: (show: boolean) => void;
+  showAccessWizard?: boolean; 
+  setShowAccessWizard?: (show: boolean) => void;
+  showDummyDataWizard?: boolean; // NEW
+  setShowDummyDataWizard?: (show: boolean) => void; // NEW
 
   // Global Message Modal
   messageModal: MessageModalConfig | null;
@@ -108,11 +114,13 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showElectronSettings, electronSettings, onSaveElectronSettings, onCloseElectronSettings,
     showDeploymentModal, deploymentConfig, onSaveDeploymentConfig, onDeploy, onCloseDeploymentModal,
     
-    // New Props
     showWhitelabelModal, setShowWhitelabelModal, onUpdateCommercial,
     showEnvModal, setShowEnvModal, onUpdateEnvironments,
     showMigrationModal, setShowMigrationModal, onSnapshot, lastSnapshot,
+    
     showExcelWizard, setShowExcelWizard,
+    showAccessWizard, setShowAccessWizard,
+    showDummyDataWizard, setShowDummyDataWizard, // NEW
     
     messageModal, onCloseMessage,
     tables, queries, forms, reports, backendConfig, onUpdateBackendConfig
@@ -181,6 +189,21 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
           <ExcelImportWizard 
             onSave={onCreateTable} 
             onClose={() => setShowExcelWizard(false)} 
+          />
+      )}
+
+      {showAccessWizard && setShowAccessWizard && (
+          <AccessImportWizard 
+            onSave={onCreateTable} 
+            onClose={() => setShowAccessWizard(false)} 
+          />
+      )}
+
+      {showDummyDataWizard && setShowDummyDataWizard && (
+          <DummyDataWizard 
+            tables={tables}
+            onGenerate={onUpdateTable}
+            onClose={() => setShowDummyDataWizard(false)}
           />
       )}
 

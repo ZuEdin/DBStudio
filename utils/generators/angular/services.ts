@@ -23,6 +23,7 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
   queries.filter(q => q.type === 'SELECT').forEach(q => {
       const query = q as SelectQuery;
       const safeName = toPascalCase(q.name);
+      const usedNames = new Set<string>();
       
       const props = query.columns.filter(c => c.show).map(c => {
           let type = 'string';
@@ -33,7 +34,21 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
           }
           if (c.aggregate === 'COUNT') type = 'number';
           
-          const propName = toCamelCase(c.alias || c.fieldName);
+          let propName = toCamelCase(c.alias || c.fieldName);
+          
+          // Collision Handling
+          if (usedNames.has(propName)) {
+              const tableSuffix = toPascalCase(c.tableName);
+              propName = toCamelCase(`${c.alias || c.fieldName}${tableSuffix}`);
+          }
+          let counter = 2;
+          const original = propName;
+          while (usedNames.has(propName)) {
+              propName = `${original}${counter}`;
+              counter++;
+          }
+          usedNames.add(propName);
+
           return `  ${propName}?: ${type};`;
       });
 

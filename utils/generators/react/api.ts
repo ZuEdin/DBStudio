@@ -80,6 +80,7 @@ export const logoutUser = () => {
   queries.filter(q => q.type === 'SELECT').forEach(q => {
       const query = q as SelectQuery;
       const safeName = toPascalCase(q.name);
+      const usedNames = new Set<string>(); // Track used property names to prevent duplicates
       
       const props = query.columns.filter(c => c.show).map(c => {
           let type = 'string';
@@ -90,7 +91,25 @@ export const logoutUser = () => {
           }
           if (c.aggregate === 'COUNT') type = 'number';
           
-          const propName = toCamelCase(c.alias || c.fieldName);
+          // Naming Logic: Alias -> FieldName -> FieldName + TableName -> FieldName + Counter
+          let rawName = c.alias && c.alias.trim() !== '' ? c.alias : c.fieldName;
+          let propName = toCamelCase(rawName);
+
+          if (usedNames.has(propName)) {
+              // Collision detected! Try appending TableName
+              const tableSuffix = toPascalCase(c.tableName);
+              propName = toCamelCase(`${rawName}${tableSuffix}`);
+          }
+
+          // If still collision, append number
+          let counter = 2;
+          const originalPropName = propName;
+          while (usedNames.has(propName)) {
+              propName = `${originalPropName}${counter}`;
+              counter++;
+          }
+
+          usedNames.add(propName);
           return `  ${propName}?: ${type};`;
       });
       

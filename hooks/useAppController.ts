@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
-import { ViewType, Table, Query, Report, Form, SelectQuery, BackendConfig, TableNode, NODE_WIDTH, DbType, Relationship, Chart, ElectronSettings, MessageModalConfig, DeploymentConfig, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, Project, LockInfo } from '../types/index';
+import { ViewType, Table, Query, Report, Form, SelectQuery, BackendConfig, TableNode, NODE_WIDTH, DbType, Relationship, Chart, ElectronSettings, MessageModalConfig, DeploymentConfig, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, Project, LockInfo, Chat, ChatMessage } from '../types/index';
 import { ToastInfo } from '../components/Toast';
 import { saveProjectToStorage, getAllProjects } from '../services/storageService';
 import { Criterion } from '../features/queries/wizards/DeleteQueryWizard';
@@ -25,6 +25,29 @@ export const useAppController = () => {
   const [activeLock, setActiveLock] = useState<LockInfo | null>(null);
   const [readOnlyMode, setReadOnlyMode] = useState(false);
 
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [chats, setChats] = useState<Chat[]>([
+      {
+          id: 'c1', type: 'group', name: 'Projekt Team', participants: ['u1', 'u2', 'u3'], 
+          messages: [
+              { id: 'm1', senderId: 'u2', senderName: 'Sarah', text: 'Hat jemand die neue Tabelle gesehen?', timestamp: Date.now() - 3600000 },
+              { id: 'm2', senderId: 'u3', senderName: 'Tom', text: 'Ja, sieht gut aus. Ich arbeite an der API.', timestamp: Date.now() - 3500000 }
+          ], unreadCount: 0
+      },
+      {
+          id: 'c2', type: 'private', name: 'Sarah Lee', participants: ['u1', 'u2'], isOnline: true,
+          messages: [
+              { id: 'm3', senderId: 'u2', senderName: 'Sarah', text: 'Kannst du den Deploy anstoßen?', timestamp: Date.now() - 100000 }
+          ], unreadCount: 1
+      },
+      {
+          id: 'c3', type: 'private', name: 'Tom H.', participants: ['u1', 'u3'], isOnline: false,
+          messages: [], unreadCount: 0
+      }
+  ]);
+
   // New Global Message Modal State
   const [messageModal, setMessageModal] = useState<MessageModalConfig | null>(null);
 
@@ -42,6 +65,9 @@ export const useAppController = () => {
   const [showReportWizard, setShowReportWizard] = useState(false);
   const [showFormWizard, setShowFormWizard] = useState(false);
   const [showExcelWizard, setShowExcelWizard] = useState(false);
+  const [showAccessWizard, setShowAccessWizard] = useState(false);
+  const [showDummyDataWizard, setShowDummyDataWizard] = useState(false); // NEW
+  
   const [showElectronSettings, setShowElectronSettings] = useState(false);
   const [showSecurityManager, setShowSecurityManager] = useState(false);
   const [showWhitelabelModal, setShowWhitelabelModal] = useState(false);
@@ -130,6 +156,25 @@ export const useAppController = () => {
           setActiveLock(null);
       }
       setReadOnlyMode(false);
+  };
+
+  // --- CHAT LOGIC ---
+  const handleSelectChat = (id: string | null) => {
+      setActiveChatId(id);
+      if (id) {
+          setChats(prev => prev.map(c => c.id === id ? { ...c, unreadCount: 0 } : c));
+      }
+  };
+
+  const handleSendMessage = (chatId: string, text: string) => {
+      const newMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          senderId: 'u1',
+          senderName: 'Du',
+          text,
+          timestamp: Date.now()
+      };
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, messages: [...c.messages, newMessage] } : c));
   };
 
   const handleSetView = async (view: ViewType) => {
@@ -309,7 +354,7 @@ export const useAppController = () => {
         case 'wizard_duplicate': setActiveWizard('duplicate'); break;
         case 'wizard_inconsistency': setActiveWizard('inconsistency'); break;
         case 'wizard_append': setActiveWizard('append'); break;
-        case 'wizard_delete': setActiveWizard('delete'); break; // NEW Action
+        case 'wizard_delete': setActiveWizard('delete'); break;
         case 'create_report': setShowReportWizard(true); break;
         case 'create_form': setShowFormWizard(true); break;
         case 'create_chart': 
@@ -329,6 +374,8 @@ export const useAppController = () => {
         case 'relationships': handleSetView({ type: 'relationships' }); break;
         case 'api_import': handleSetView({ type: 'api_import' }); break;
         case 'import_excel': setShowExcelWizard(true); break;
+        case 'import_access': setShowAccessWizard(true); break;
+        case 'generate_dummy': setShowDummyDataWizard(true); break; // NEW
         case 'save': await handleSave(); break;
         case 'electron_settings': setShowElectronSettings(true); break;
         case 'security_manager': setShowSecurityManager(true); break;
@@ -354,7 +401,6 @@ export const useAppController = () => {
           const targetData = [...(targetTable.data || [])];
           let addedCount = 0;
 
-          // Find AutoInc fields in target to handle IDs manually if needed (local simulation)
           const autoIncFields = targetTable.fields.filter(f => f.isAutoIncrement && f.type === 'INTEGER');
           const nextAutoIncValues: Record<string, number> = {};
           
@@ -407,10 +453,6 @@ export const useAppController = () => {
           const originalCount = table.data.length;
           
           const newData = table.data.filter(row => {
-              // Keep row if it DOES NOT match ALL criteria (Delete logic is "Delete WHERE...")
-              // If criteria match, we delete -> so we filter OUT.
-              
-              // If no criteria, delete all -> filter keeps nothing (false)
               if (criteria.length === 0) return false;
 
               const matchesAll = criteria.every(crit => {
@@ -434,7 +476,7 @@ export const useAppController = () => {
                   }
               });
               
-              return !matchesAll; // Keep if NOT matches all
+              return !matchesAll;
           });
 
           const deletedCount = originalCount - newData.length;
@@ -554,7 +596,6 @@ export const useAppController = () => {
     }
   };
 
-  // Wrapper object for legacy compatibility with App.tsx which expects a 'db' object
   const db = {
     projectId: store.projectId,
     currentProjectName: store.projectName,
@@ -616,15 +657,16 @@ export const useAppController = () => {
     showDeploymentModal, setShowDeploymentModal, 
     onSaveDeploymentConfig: handleSaveDeploymentConfig, onDeploy: handleDeploy,
     
-    // Pass new modal states
     showWhitelabelModal, setShowWhitelabelModal,
     showEnvModal, setShowEnvModal,
     showMigrationModal, setShowMigrationModal,
     showExcelWizard, setShowExcelWizard,
+    showAccessWizard, setShowAccessWizard,
+    showDummyDataWizard, setShowDummyDataWizard, // NEW
 
     activeWizard, setActiveWizard, onSaveWizardQuery: (q) => { store.setQueries([...store.queries, q]); setActiveWizard(null); handleSetView({type: 'query_designer', queryId: q.id}); },
     onExecuteAppend: handleExecuteAppend, 
-    onExecuteDelete: handleExecuteDelete, // Pass handler
+    onExecuteDelete: handleExecuteDelete, 
 
     confirmationModal, setConfirmationModal,
     handleSetView, handleActiveObjectChange, handleSave, handleRibbonAction,
@@ -636,6 +678,8 @@ export const useAppController = () => {
     onUpdateCommercial: handleUpdateCommercial,
     lastSnapshot: store.lastSnapshot,
 
-    activeLock // Expose lock to view
+    activeLock,
+
+    isChatOpen, setIsChatOpen, chats, activeChatId, handleSelectChat, handleSendMessage
   };
 };

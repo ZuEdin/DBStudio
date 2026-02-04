@@ -5,15 +5,17 @@ import { LanguageSelector } from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { CollaborationBar } from './CollaborationBar';
 import { cloudService } from '../services/cloudService';
-import { Cloud, GitBranch } from 'lucide-react';
+import { Cloud, GitBranch, MessageSquare } from 'lucide-react';
 
 interface AppHeaderProps {
   projectName: string;
   backendConfig: BackendConfig;
   onExport: (config: BackendConfig) => void;
+  onToggleChat: () => void; // New prop
+  isChatOpen: boolean; // New prop
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ projectName, backendConfig, onExport }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ projectName, backendConfig, onExport, onToggleChat, isChatOpen }) => {
   const { t } = useTranslation();
   // Mock Data: In a real app, this would come from a Context/Store connected to Websockets
   const collaborators = cloudService.getCollaborators('mock-id');
@@ -33,6 +35,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ projectName, backendConfig
 
         <div className="flex items-center">
             <CollaborationBar collaborators={collaborators} />
+            
+            {/* Chat Toggle */}
+            <div className="ml-2 mr-2">
+                <button 
+                    onClick={onToggleChat}
+                    className={`p-1.5 rounded transition-colors ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                    title="Team Chat"
+                >
+                    <MessageSquare size={16} />
+                </button>
+            </div>
+
             <div className="h-4 w-px bg-slate-600 mx-2"></div>
             <LanguageSelector />
             <div className="h-4 w-px bg-slate-600 mx-2"></div>

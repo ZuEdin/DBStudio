@@ -8,6 +8,7 @@ import { DatabaseSelector } from './views/DatabaseSelector';
 import { AppHeader } from './components/AppHeader';
 import { ModalLayer } from './components/ModalLayer';
 import { ToastContainer } from './components/Toast';
+import { ChatPanel } from './components/ChatPanel'; // Import ChatPanel
 import { useAppController } from './hooks/useAppController';
 
 export default function App() {
@@ -27,6 +28,8 @@ export default function App() {
         projectName={db.currentProjectName} 
         backendConfig={app.backendConfig} 
         onExport={db.exportProject} 
+        onToggleChat={() => app.setIsChatOpen(!app.isChatOpen)}
+        isChatOpen={app.isChatOpen}
       />
       
       <Ribbon 
@@ -59,7 +62,7 @@ export default function App() {
           toggleSidebar={() => app.setIsSidebarOpen(!app.isSidebarOpen)}
         />
         
-        <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300" style={{ marginRight: app.isChatOpen ? '320px' : '0' }}>
           <Workspace 
             currentView={app.currentView}
             tables={db.tables}
@@ -89,6 +92,16 @@ export default function App() {
             activeLock={app.activeLock}
           />
         </div>
+
+        {/* Chat Panel */}
+        <ChatPanel 
+            isOpen={app.isChatOpen} 
+            onClose={() => app.setIsChatOpen(false)}
+            chats={app.chats}
+            activeChatId={app.activeChatId}
+            onSelectChat={app.handleSelectChat}
+            onSendMessage={app.handleSendMessage}
+        />
       </div>
 
       <StatusBar 
@@ -157,6 +170,10 @@ export default function App() {
         // --- FIX: Pass Excel Wizard State ---
         showExcelWizard={app.showExcelWizard}
         setShowExcelWizard={app.setShowExcelWizard}
+
+        // --- FIX: Pass Access Wizard State (ADDED) ---
+        showAccessWizard={app.showAccessWizard}
+        setShowAccessWizard={app.setShowAccessWizard}
 
         backendConfig={app.backendConfig}
         onUpdateBackendConfig={app.setBackendConfig}

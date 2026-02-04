@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo } from '../../types/index';
-import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck } from 'lucide-react';
+import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
 
@@ -9,7 +9,7 @@ interface TableDesignerProps {
   table: Table;
   onTableChange: (table: Table) => void;
   lockedBy?: LockInfo | null;
-  currentUserId?: string; // New Prop to check ownership
+  currentUserId?: string;
 }
 
 export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy, currentUserId }) => {
@@ -17,10 +17,10 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAi, setShowAi] = useState(false);
+  const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
   
   const { name: tableName, fields, validationRules = [] } = table;
   
-  // Logic Fix: Only read-only if locked by SOMEONE ELSE
   const isLockedByMe = lockedBy?.userId === currentUserId;
   const isLockedByOther = lockedBy && !isLockedByMe;
   const isReadOnly = isLockedByOther;
@@ -68,6 +68,35 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const removeField = (id: string) => {
     if(isReadOnly) return;
     setFields(fields.filter(f => f.id !== id));
+  };
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (isReadOnly) return;
+    setDraggedFieldIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    // Required for Firefox to allow dragging
+    e.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (isReadOnly) return;
+    e.preventDefault(); // Necessary to allow dropping
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    if (isReadOnly) return;
+    e.preventDefault();
+    
+    if (draggedFieldIndex === null || draggedFieldIndex === dropIndex) return;
+
+    const newFields = [...fields];
+    const [movedField] = newFields.splice(draggedFieldIndex, 1);
+    newFields.splice(dropIndex, 0, movedField);
+
+    setFields(newFields);
+    setDraggedFieldIndex(null);
   };
 
   const addValidationRule = () => {
@@ -264,6 +293,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                 <table className="w-full border-collapse">
                     <thead>
                     <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                        {!isReadOnly && <th className="p-2 w-8"></th>}
                         <th className="p-2 w-10 text-center" title="Primärschlüssel">PK</th>
                         <th className="p-2 w-1/5">Feldname</th>
                         <th className="p-2 w-40">Datentyp</th>
@@ -276,11 +306,23 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                     </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                    {fields.map((field) => {
+                    {fields.map((field, idx) => {
                         const typeConfig = DATA_TYPES[field.type];
                         const isDate = field.type === 'DATE' || field.type === 'DATETIME';
                         return (
-                        <tr key={field.id} className="hover:bg-slate-50">
+                        <tr 
+                            key={field.id} 
+                            className={`group ${draggedFieldIndex === idx ? 'bg-blue-50 opacity-50' : 'hover:bg-slate-50'}`}
+                            draggable={!isReadOnly}
+                            onDragStart={(e) => handleDragStart(e, idx)}
+                            onDragOver={(e) => handleDragOver(e, idx)}
+                            onDrop={(e) => handleDrop(e, idx)}
+                        >
+                        {!isReadOnly && (
+                            <td className="p-2 text-center cursor-move text-slate-300 hover:text-slate-500">
+                                <GripVertical size={16} />
+                            </td>
+                        )}
                         <td className="p-2 text-center">
                             <button 
                             disabled={isReadOnly}

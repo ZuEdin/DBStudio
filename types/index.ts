@@ -457,6 +457,25 @@ export interface MessageModalConfig {
   message: string;
 }
 
+// CHAT Types
+export interface ChatMessage {
+    id: string;
+    senderId: string;
+    senderName: string;
+    text: string;
+    timestamp: number;
+}
+
+export interface Chat {
+    id: string;
+    type: 'private' | 'group';
+    name: string;
+    participants: string[];
+    messages: ChatMessage[];
+    unreadCount?: number;
+    isOnline?: boolean;
+}
+
 export type ViewType = 
   | { type: 'welcome' }
   | { type: 'app_info' }

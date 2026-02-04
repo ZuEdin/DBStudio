@@ -1,11 +1,12 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Table, ApiQueryParam, Field, Relationship } from '../../types/index';
-import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink, Layout, List } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
 import { RecordDetailModal } from '../../components/RecordDetailModal';
+import { KanbanBoard } from './components/KanbanBoard'; // NEW
 
 interface TableViewProps {
   table: Table;
@@ -17,52 +18,39 @@ interface TableViewProps {
 
 const formatDateValue = (val: any, format?: string) => {
     if (!val) return '';
-    
     let date: Date;
-    // Handle Numeric Timestamps
     if (typeof val === 'number') {
-        // Assume seconds if small, ms if large (naive check > 10 digits)
         date = new Date(val > 10000000000 ? val : val * 1000);
     } else {
         date = new Date(val);
     }
-    
-    if (isNaN(date.getTime())) return String(val); // Fallback if parsing fails
-
+    if (isNaN(date.getTime())) return String(val);
     if (!format) return date.toLocaleString();
-
-    // Simple formatter implementation
     const d = date.getDate().toString().padStart(2, '0');
     const m = (date.getMonth() + 1).toString().padStart(2, '0');
     const y = date.getFullYear();
     const H = date.getHours().toString().padStart(2, '0');
     const M = date.getMinutes().toString().padStart(2, '0');
     const S = date.getSeconds().toString().padStart(2, '0');
-
-    return format
-        .replace('dd', d)
-        .replace('MM', m)
-        .replace('yyyy', String(y))
-        .replace('HH', H)
-        .replace('mm', M)
-        .replace('ss', S);
+    return format.replace('dd', d).replace('MM', m).replace('yyyy', String(y)).replace('HH', H).replace('mm', M).replace('ss', S);
 };
 
 export const TableView: React.FC<TableViewProps> = ({ table, allTables, relationships, onTableChange, showConfirmation }) => {
   const headers = table.fields.map(field => field.name);
   const rawData = table.data || [];
   
-  // Use Filter Hook
   const { filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats } = useDataFilter(rawData);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showParams, setShowParams] = useState(false);
   const [detailView, setDetailView] = useState<{ targetTableId: string, recordId: any } | null>(null);
+  
+  // View Mode: List or Kanban
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
 
   const queryParams = table.apiConfig?.queryParams || [];
 
-  // Auto-Refresh Logic
   useEffect(() => {
       if (table.apiConfig?.refreshOnLoad) {
           handleApiRefresh();
@@ -76,10 +64,8 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   };
 
   const handleDataChange = (rowToUpdate: any, header: string, value: string) => {
-    // We must find the index in the ORIGINAL rawData array, not the filtered array
     const originalIndex = rawData.indexOf(rowToUpdate);
     if (originalIndex === -1) return;
-
     const newData = [...rawData];
     newData[originalIndex] = { ...newData[originalIndex], [header]: value };
     onTableChange({ ...table, data: newData });
@@ -88,7 +74,6 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   const addRow = () => {
     const newRow = headers.reduce((acc, header) => {
       const field = table.fields.find(f => f.name === header);
-      
       if (field?.isAutoIncrement && field.type === 'INTEGER') {
           const maxVal = rawData.reduce((max, row) => {
               const val = parseInt(row[header], 10);
@@ -96,7 +81,6 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
           }, 0);
           acc[header] = maxVal + 1;
       } else if (field?.defaultValue !== undefined && field?.defaultValue !== '') {
-          // Default Value Handling
           if (field.type === 'BOOLEAN') {
               acc[header] = field.defaultValue === 'true';
           } else if ((field.type === 'DATE' || field.type === 'DATETIME') && field.defaultValue.toUpperCase() === 'NOW') {
@@ -116,7 +100,6 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
 
   const deleteRow = (rowToDelete: any) => {
     showConfirmation('Zeile löschen', 'Möchten Sie diese Zeile wirklich löschen?', () => {
-        // Filter out by object reference
         const newData = rawData.filter(r => r !== rowToDelete);
         onTableChange({ ...table, data: newData });
     });
@@ -135,7 +118,6 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   };
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // ... CSV logic unchanged ...
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -184,11 +166,8 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             const field = table.fields.find(f => f.name === header);
             const isAutoInc = field?.isAutoIncrement;
             const isDate = field?.type === 'DATE' || field?.type === 'DATETIME';
-            
             const rawVal = row[header] ?? '';
             const displayVal = isDate ? formatDateValue(rawVal, field?.displayFormat) : rawVal;
-
-            // Check Relationship for FK Link
             const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
             const isFK = !!rel;
 
@@ -198,9 +177,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                         type="text"
                         value={displayVal} 
                         title={String(rawVal)} 
-                        onChange={(e) => {
-                            handleDataChange(row, header, e.target.value)
-                        }}
+                        onChange={(e) => { handleDataChange(row, header, e.target.value) }}
                         readOnly={isAutoInc}
                         className={`flex-1 h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''}`}
                     />
@@ -232,37 +209,48 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
         <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold">Datenblatt: {table.name}</h2>
-              <div className="flex items-center gap-1 ml-4">
-                  <button 
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
-                    title="Filter anzeigen"
-                  >
-                      <Filter size={14} /> Filter {Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : ''}
+              <div className="flex items-center gap-1 ml-4 bg-slate-700 rounded p-1">
+                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-white text-slate-800' : 'text-slate-400 hover:text-white'}`} title="Liste">
+                      <List size={16}/>
                   </button>
-
-                  {table.apiConfig && (
-                    <div className="flex items-center bg-slate-700 rounded ml-2 p-1">
-                        {queryParams.length > 0 && (
-                            <button 
-                                onClick={() => setShowParams(!showParams)}
-                                className={`p-1 px-2 rounded text-xs flex items-center gap-1 ${showParams ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-white'}`}
-                                title="API Parameter"
-                            >
-                                <Sliders size={14} /> {queryParams.length}
-                            </button>
-                        )}
-                        <button 
-                            onClick={handleApiRefresh} 
-                            disabled={isRefreshing}
-                            className={`flex items-center gap-1 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs ml-1 disabled:opacity-50 ${isRefreshing ? 'bg-blue-500' : 'bg-blue-600'}`}
-                        >
-                            {isRefreshing ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14} />}
-                            {isRefreshing ? 'Lädt...' : 'Refresh'}
-                        </button>
-                    </div>
-                  )}
+                  <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded transition-colors ${viewMode === 'kanban' ? 'bg-white text-slate-800' : 'text-slate-400 hover:text-white'}`} title="Kanban Board">
+                      <Layout size={16}/>
+                  </button>
               </div>
+
+              {viewMode === 'list' && (
+                  <div className="flex items-center gap-1 ml-4">
+                      <button 
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
+                        title="Filter anzeigen"
+                      >
+                          <Filter size={14} /> Filter {Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : ''}
+                      </button>
+
+                      {table.apiConfig && (
+                        <div className="flex items-center bg-slate-700 rounded ml-2 p-1">
+                            {queryParams.length > 0 && (
+                                <button 
+                                    onClick={() => setShowParams(!showParams)}
+                                    className={`p-1 px-2 rounded text-xs flex items-center gap-1 ${showParams ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-white'}`}
+                                    title="API Parameter"
+                                >
+                                    <Sliders size={14} /> {queryParams.length}
+                                </button>
+                            )}
+                            <button 
+                                onClick={handleApiRefresh} 
+                                disabled={isRefreshing}
+                                className={`flex items-center gap-1 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs ml-1 disabled:opacity-50 ${isRefreshing ? 'bg-blue-500' : 'bg-blue-600'}`}
+                            >
+                                {isRefreshing ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14} />}
+                                {isRefreshing ? 'Lädt...' : 'Refresh'}
+                            </button>
+                        </div>
+                      )}
+                  </div>
+              )}
           </div>
           <div className="flex gap-2">
             <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportCSV} />
@@ -276,28 +264,19 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
         </div>
 
         {/* API Parameters Toolbar */}
-        {showParams && queryParams.length > 0 && (
+        {showParams && queryParams.length > 0 && viewMode === 'list' && (
             <div className="bg-slate-100 border-b border-slate-200 p-2 flex flex-wrap gap-4 items-center animate-in slide-in-from-top-1">
                 <span className="text-xs font-bold text-slate-500 uppercase">API Parameter:</span>
                 {queryParams.map(p => (
                     <div key={p.id} className="flex items-center gap-1">
                         <label className="text-xs font-semibold text-slate-700">{p.key}:</label>
                         {p.type === 'select' ? (
-                            <select 
-                                value={p.value} 
-                                onChange={e => updateParamValue(p.id, e.target.value)}
-                                className="border border-slate-300 rounded text-xs py-1 px-2"
-                            >
+                            <select value={p.value} onChange={e => updateParamValue(p.id, e.target.value)} className="border border-slate-300 rounded text-xs py-1 px-2">
                                 <option value="">(Alle/Keine)</option>
                                 {p.options?.map(opt => <option key={opt} value={opt.trim()}>{opt.trim()}</option>)}
                             </select>
                         ) : (
-                            <input 
-                                type="text" 
-                                value={p.value} 
-                                onChange={e => updateParamValue(p.id, e.target.value)}
-                                className="border border-slate-300 rounded text-xs py-1 px-2 w-24" 
-                            />
+                            <input type="text" value={p.value} onChange={e => updateParamValue(p.id, e.target.value)} className="border border-slate-300 rounded text-xs py-1 px-2 w-24" />
                         )}
                     </div>
                 ))}
@@ -305,43 +284,28 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
         )}
 
         {/* DATA FILTER BAR */}
-        {showFilters && (
-            <div className="bg-orange-50 border-b border-orange-200 p-2 flex overflow-x-auto gap-2 items-center animate-in slide-in-from-top-2 shadow-inner">
+        {showFilters && viewMode === 'list' && (
+            <div className="bg-orange-50 border-b border-orange-200 p-2 flex overflow-x-auto gap-2 items-center animate-in slide-in-from-top-2 shadow-inner shrink-0">
                 <div className="flex items-center gap-2 pr-4 border-r border-orange-200 mr-2">
-                    <span className="text-xs font-bold text-orange-800 uppercase flex items-center gap-1">
-                        <Filter size={12}/> Filter
-                    </span>
-                    <button onClick={clearFilters} className="text-orange-600 hover:text-orange-800 text-xs underline">
-                        Alle löschen
-                    </button>
+                    <span className="text-xs font-bold text-orange-800 uppercase flex items-center gap-1"><Filter size={12}/> Filter</span>
+                    <button onClick={clearFilters} className="text-orange-600 hover:text-orange-800 text-xs underline">Alle löschen</button>
                 </div>
                 {headers.map(h => {
                     const stats = columnStats[h];
                     const hasFilter = !!filters[h];
                     const field = table.fields.find(f => f.name === h);
                     const isDate = field?.type === 'DATE' || field?.type === 'DATETIME';
-
                     return (
                         <div key={h} className={`flex flex-col min-w-[120px] max-w-[200px] ${hasFilter ? 'bg-white rounded shadow-sm' : ''} p-1`}>
                             <label className="text-[10px] font-bold text-orange-700 mb-0.5 truncate px-1">{h}</label>
                             {stats?.isLowCardinality && !isDate ? (
-                                <select 
-                                    value={filters[h] || ''}
-                                    onChange={e => setFilter(h, e.target.value)}
-                                    className={`w-full border rounded px-1 py-0.5 text-xs outline-none ${hasFilter ? 'border-orange-400 bg-orange-50' : 'border-orange-200 bg-white'}`}
-                                >
+                                <select value={filters[h] || ''} onChange={e => setFilter(h, e.target.value)} className={`w-full border rounded px-1 py-0.5 text-xs outline-none ${hasFilter ? 'border-orange-400 bg-orange-50' : 'border-orange-200 bg-white'}`}>
                                     <option value="">(Alle)</option>
                                     {stats.uniqueValues.map(val => <option key={val} value={val}>{val}</option>)}
                                 </select>
                             ) : (
                                 <div className="relative">
-                                    <input 
-                                        type="text" 
-                                        value={filters[h] || ''}
-                                        onChange={e => setFilter(h, e.target.value)}
-                                        placeholder={isDate ? "z.B. 2024-01-01 oder TODAY" : "Suchen..."}
-                                        className={`w-full border rounded px-1 py-0.5 text-xs outline-none pr-4 ${hasFilter ? 'border-orange-400 bg-orange-50' : 'border-orange-200'}`}
-                                    />
+                                    <input type="text" value={filters[h] || ''} onChange={e => setFilter(h, e.target.value)} placeholder={isDate ? "z.B. 2024-01-01" : "Suchen..."} className={`w-full border rounded px-1 py-0.5 text-xs outline-none pr-4 ${hasFilter ? 'border-orange-400 bg-orange-50' : 'border-orange-200'}`} />
                                     {filters[h] && <button onClick={() => setFilter(h, '')} className="absolute right-1 top-0.5 text-orange-400 hover:text-orange-600"><X size={10}/></button>}
                                 </div>
                             )}
@@ -351,7 +315,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             </div>
         )}
 
-        <div className="overflow-auto flex-1 relative">
+        <div className="overflow-auto flex-1 relative bg-slate-50">
           {isRefreshing && (
               <div className="absolute inset-0 bg-white/50 z-20 flex items-center justify-center backdrop-blur-sm">
                   <div className="bg-white p-4 rounded shadow-lg flex items-center gap-3 border border-slate-200">
@@ -360,33 +324,25 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                   </div>
               </div>
           )}
-          {headers.length > 0 ? (
-              <VirtualTable 
-                data={filteredData} 
-                headers={headers}
-                renderRow={renderRow}
-                rowHeight={35}
-              />
+          
+          {viewMode === 'kanban' ? (
+              <KanbanBoard table={table} onUpdateRow={handleDataChange} />
           ) : (
-             <div className="p-6 text-center text-slate-500">
-                <p>Die Tabelle "{table.name}" enthält keine Daten.</p>
-            </div>
+              headers.length > 0 ? (
+                  <VirtualTable data={filteredData} headers={headers} renderRow={renderRow} rowHeight={35} />
+              ) : (
+                 <div className="p-6 text-center text-slate-500"><p>Die Tabelle "{table.name}" enthält keine Daten.</p></div>
+              )
           )}
         </div>
         <div className="bg-slate-50 border-t border-slate-200 p-2 text-xs text-slate-500 text-right flex justify-between">
-           <span>
-               {Object.keys(filters).length > 0 ? `${filteredData.length} gefiltert von ${rawData.length}` : `${rawData.length} Datensätze`}
-           </span>
+           <span>{Object.keys(filters).length > 0 ? `${filteredData.length} gefiltert von ${rawData.length}` : `${rawData.length} Datensätze`}</span>
            <span>{table.apiConfig?.refreshOnLoad ? '(Live API)' : '(Lokal)'}</span>
         </div>
       </div>
 
       {detailView && targetTable && (
-          <RecordDetailModal 
-            table={targetTable} 
-            recordId={detailView.recordId} 
-            onClose={() => setDetailView(null)} 
-          />
+          <RecordDetailModal table={targetTable} recordId={detailView.recordId} onClose={() => setDetailView(null)} />
       )}
     </div>
   );
