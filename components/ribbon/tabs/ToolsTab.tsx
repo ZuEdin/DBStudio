@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Network, Globe } from 'lucide-react';
+import { Network, Globe, FileSpreadsheet } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ onAction }) => {
       </RibbonGroup>
       
       <RibbonGroup label={t('ribbon.groups.external')} isLast>
+        <RibbonButton icon={<FileSpreadsheet className="text-green-600" />} label="Excel Import" onClick={() => onAction('import_excel')} />
         <RibbonButton icon={<Globe className="text-blue-600" />} label={t('ribbon.actions.api_query')} onClick={() => onAction('api_import')} />
       </RibbonGroup>
     </div>

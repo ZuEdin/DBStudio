@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH } from '../types/index';
-import { X } from 'lucide-react';
+import { X, Globe, Table as TableIcon, Hash } from 'lucide-react';
 
 interface CanvasProps {
   nodes: TableNode[];
@@ -218,7 +218,15 @@ export const Canvas: React.FC<CanvasProps> = ({
               onMouseDown={(e) => handleDragStart(e, node.id)}
             >
               <div className="node-header h-10 bg-gradient-to-b from-slate-100 to-slate-200 border-b border-slate-300 px-2 flex items-center justify-between cursor-move">
-                <span className="font-bold text-xs truncate text-slate-700">{table.name}</span>
+                <div className="flex items-center gap-2 truncate">
+                    {/* Icon based on table type (API vs DB) */}
+                    {table.isApiImport ? (
+                        <Globe size={14} className="text-blue-600 flex-shrink-0" title="Externe API Tabelle" />
+                    ) : (
+                        <TableIcon size={14} className="text-slate-500 flex-shrink-0" title="Lokale Tabelle" />
+                    )}
+                    <span className="font-bold text-xs truncate text-slate-700" title={table.name}>{table.name}</span>
+                </div>
                 {onRemoveNode && (
                   <button onClick={() => onRemoveNode(node.id)} className="text-slate-400 hover:text-red-500">
                     <X size={14} />
@@ -251,7 +259,15 @@ export const Canvas: React.FC<CanvasProps> = ({
                         {isForeignKey && <span className="text-cyan-600 text-[9px] font-bold" title="Foreign Key">FK</span>}
                         <span className="truncate">{field.name}</span>
                       </div>
-                      <span className="text-[9px] text-slate-400 uppercase">{field.type.substring(0,3)}</span>
+                      <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-slate-400 uppercase">{field.type.substring(0,3)}</span>
+                          {/* Auto Increment Indicator */}
+                          {field.isAutoIncrement && (
+                              <span className="text-[8px] bg-slate-200 text-slate-600 px-1 rounded flex items-center" title="Auto Increment">
+                                  AI
+                              </span>
+                          )}
+                      </div>
                     </div>
                   );
                 })}

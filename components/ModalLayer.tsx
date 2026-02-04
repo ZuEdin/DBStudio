@@ -13,8 +13,11 @@ import { WhitelabelModal } from '../features/backend/WhitelabelModal';
 import { EnvironmentManagerModal } from '../features/backend/EnvironmentManagerModal';
 import { MigrationManagerModal } from '../features/backend/MigrationManagerModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
+import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
+import { DeleteQueryWizard, Criterion } from '../features/queries/wizards/DeleteQueryWizard'; // Import
+import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
 import { MessageModal } from './MessageModal';
-import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig } from '../types/index';
+import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig, DbType } from '../types/index';
 
 interface ModalLayerProps {
   savePrompt: { show: boolean; targetView?: ViewType };
@@ -38,11 +41,13 @@ interface ModalLayerProps {
   showSecurityManager: boolean;
   setShowSecurityManager: (show: boolean) => void;
   onUpdateTable: (table: Table) => void;
-  onCreateTable: (table: Table) => void; // Added for initialization
+  onCreateTable: (table: Table) => void; 
 
-  activeWizard: 'duplicate' | 'inconsistency' | null;
-  setActiveWizard: (wizard: 'duplicate' | 'inconsistency' | null) => void;
+  activeWizard: 'duplicate' | 'inconsistency' | 'append' | 'delete' | null; // Added 'delete'
+  setActiveWizard: (wizard: 'duplicate' | 'inconsistency' | 'append' | 'delete' | null) => void;
   onSaveWizardQuery: (query: SelectQuery) => void;
+  onExecuteAppend: (source: Table, target: Table, map: Record<string, string>) => void;
+  onExecuteDelete: (table: Table, criteria: Criterion[]) => void; // New handler
   
   confirmationModal: { title: string; message: string; onConfirm: () => void } | null;
   setConfirmationModal: (modal: null) => void;
@@ -74,6 +79,10 @@ interface ModalLayerProps {
   onSnapshot?: () => void;
   lastSnapshot?: Table[];
 
+  // Excel Import
+  showExcelWizard?: boolean;
+  setShowExcelWizard?: (show: boolean) => void;
+
   // Global Message Modal
   messageModal: MessageModalConfig | null;
   onCloseMessage: () => void;
@@ -94,7 +103,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showReportWizard, setShowReportWizard, onSaveReport,
     showFormWizard, setShowFormWizard, onSaveForm,
     showSecurityManager, setShowSecurityManager, onUpdateTable, onCreateTable,
-    activeWizard, setActiveWizard, onSaveWizardQuery,
+    activeWizard, setActiveWizard, onSaveWizardQuery, onExecuteAppend, onExecuteDelete,
     confirmationModal, setConfirmationModal,
     showElectronSettings, electronSettings, onSaveElectronSettings, onCloseElectronSettings,
     showDeploymentModal, deploymentConfig, onSaveDeploymentConfig, onDeploy, onCloseDeploymentModal,
@@ -103,6 +112,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showWhitelabelModal, setShowWhitelabelModal, onUpdateCommercial,
     showEnvModal, setShowEnvModal, onUpdateEnvironments,
     showMigrationModal, setShowMigrationModal, onSnapshot, lastSnapshot,
+    showExcelWizard, setShowExcelWizard,
     
     messageModal, onCloseMessage,
     tables, queries, forms, reports, backendConfig, onUpdateBackendConfig
@@ -167,6 +177,13 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         />
       )}
 
+      {showExcelWizard && setShowExcelWizard && (
+          <ExcelImportWizard 
+            onSave={onCreateTable} 
+            onClose={() => setShowExcelWizard(false)} 
+          />
+      )}
+
       {showSecurityManager && (
           <SecurityManagerModal 
             tables={tables}
@@ -210,7 +227,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {showEnvModal && onUpdateEnvironments && setShowEnvModal && (
           <EnvironmentManagerModal
             initialEnvs={backendConfig?.environments}
-            dbType={backendConfig?.dbType || 'SQL'}
+            dbType={backendConfig?.dbType || DbType.SQL}
             onSave={onUpdateEnvironments}
             onClose={() => setShowEnvModal(false)}
           />
@@ -220,14 +237,17 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
           <MigrationManagerModal
             currentTables={tables}
             lastSnapshot={lastSnapshot}
-            dbType={backendConfig?.dbType || 'SQL'}
+            dbType={backendConfig?.dbType || DbType.SQL}
             onSnapshot={onSnapshot}
             onClose={() => setShowMigrationModal(false)}
           />
       )}
 
+      {/* Query Wizards */}
       {activeWizard === 'duplicate' && <DuplicateWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
       {activeWizard === 'inconsistency' && <InconsistencyWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
+      {activeWizard === 'append' && <AppendQueryWizard tables={tables} onExecute={onExecuteAppend} onClose={() => setActiveWizard(null)} />}
+      {activeWizard === 'delete' && <DeleteQueryWizard tables={tables} onExecute={onExecuteDelete} onClose={() => setActiveWizard(null)} />}
 
       {confirmationModal && (
         <ConfirmationModal 

@@ -31,6 +31,8 @@ interface WorkspaceProps {
   formActionTrigger?: { action: string, timestamp: number };
   backendConfig: BackendConfig;
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
+  // Lock
+  activeLock?: any;
 }
 
 export const Workspace: React.FC<WorkspaceProps> = ({
@@ -58,7 +60,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   showConfirmation,
   formActionTrigger,
   backendConfig,
-  showMessage
+  showMessage,
+  activeLock
 }) => {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [exportTrigger, setExportTrigger] = useState(0);
@@ -172,6 +175,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             showMessage={showMessage}
             onOpenDeployment={() => { /* Handled via effect in AppController usually, but passed here for direct view access if needed */ }}
             onUpdateWorkflow={saveWorkflow}
+            activeLock={activeLock}
         />
       </div>
     </div>

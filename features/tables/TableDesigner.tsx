@@ -1,32 +1,38 @@
 
 import React, { useState } from 'react';
-import { Table, Field, FieldType, ValidationRule, ValidationOperator } from '../../types/index';
-import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert } from 'lucide-react';
+import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo } from '../../types/index';
+import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
 
 interface TableDesignerProps {
   table: Table;
   onTableChange: (table: Table) => void;
+  lockedBy?: LockInfo | null; // NEW Prop
 }
 
-export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange }) => {
+export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy }) => {
   const [activeTab, setActiveTab] = useState<'fields' | 'validation'>('fields');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAi, setShowAi] = useState(false);
   
   const { name: tableName, fields, validationRules = [] } = table;
+  
+  const isReadOnly = !!lockedBy;
 
   const setTableName = (name: string) => {
+    if(isReadOnly) return;
     onTableChange({ ...table, name });
   }
 
   const setFields = (fields: Field[]) => {
+    if(isReadOnly) return;
     onTableChange({ ...table, fields });
   }
 
   const addField = () => {
+    if(isReadOnly) return;
     setFields([...fields, { 
         id: crypto.randomUUID(), 
         name: `Feld${fields.length + 1}`, 
@@ -37,10 +43,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   };
 
   const updateField = (id: string, updates: Partial<Field>) => {
+    if(isReadOnly) return;
     setFields(fields.map(f => {
         if (f.id !== id) return f;
-        
-        // If changing type, reset specific props based on config
         if (updates.type && updates.type !== f.type) {
             const config = DATA_TYPES[updates.type];
             return { 
@@ -49,20 +54,20 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                 length: config.hasLength ? (config.defaultLength || 255) : undefined,
                 precision: config.hasPrecision ? config.defaultPrecision : undefined,
                 scale: config.hasPrecision ? config.defaultScale : undefined,
-                defaultValue: undefined // Reset default value on type change
+                defaultValue: undefined 
             };
         }
-        
         return { ...f, ...updates };
     }));
   };
 
   const removeField = (id: string) => {
+    if(isReadOnly) return;
     setFields(fields.filter(f => f.id !== id));
   };
 
-  // --- Validation Logic ---
   const addValidationRule = () => {
+      if(isReadOnly) return;
       const newRule: ValidationRule = {
           id: crypto.randomUUID(),
           fieldId: fields[0]?.id || '',
@@ -75,16 +80,18 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   };
 
   const updateValidationRule = (id: string, updates: Partial<ValidationRule>) => {
+      if(isReadOnly) return;
       const newRules = validationRules.map(r => r.id === id ? { ...r, ...updates } : r);
       onTableChange({ ...table, validationRules: newRules });
   };
 
   const removeValidationRule = (id: string) => {
+      if(isReadOnly) return;
       onTableChange({ ...table, validationRules: validationRules.filter(r => r.id !== id) });
   };
 
   const handleAiGenerate = async () => {
-    if (!aiPrompt) return;
+    if (!aiPrompt || isReadOnly) return;
     setIsAiLoading(true);
     const schema = await generateTableSchema(aiPrompt);
     if (schema) {
@@ -115,6 +122,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
           return (
               <select 
                   value={field.defaultValue || ''} 
+                  disabled={isReadOnly}
                   onChange={e => updateField(field.id, { defaultValue: e.target.value })}
                   className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
               >
@@ -131,19 +139,22 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                 <input 
                     type="text" 
                     value={field.defaultValue || ''}
+                    disabled={isReadOnly}
                     onChange={(e) => updateField(field.id, { defaultValue: e.target.value })}
                     placeholder="NULL"
                     className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm placeholder:text-slate-300"
                 />
-                <div className="absolute right-1 top-1 hidden group-hover:block">
-                    <button 
-                        onClick={() => updateField(field.id, { defaultValue: 'NOW' })} 
-                        className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1 rounded text-slate-600"
-                        title="Aktuelles Datum (NOW)"
-                    >
-                        NOW
-                    </button>
-                </div>
+                {!isReadOnly && (
+                    <div className="absolute right-1 top-1 hidden group-hover:block">
+                        <button 
+                            onClick={() => updateField(field.id, { defaultValue: 'NOW' })} 
+                            className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1 rounded text-slate-600"
+                            title="Aktuelles Datum (NOW)"
+                        >
+                            NOW
+                        </button>
+                    </div>
+                )}
             </div>
           );
       }
@@ -152,6 +163,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
         <input 
             type="text" 
             value={field.defaultValue || ''}
+            disabled={isReadOnly}
             onChange={(e) => updateField(field.id, { defaultValue: e.target.value })}
             placeholder="NULL"
             className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm placeholder:text-slate-300"
@@ -161,33 +173,46 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
 
   return (
     <div className="p-8 h-full bg-slate-50 overflow-y-auto">
-      <div className="max-w-[95%] mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
+      <div className={`max-w-[95%] mx-auto bg-white shadow-lg border rounded-lg overflow-hidden flex flex-col h-full ${isReadOnly ? 'border-amber-300 ring-2 ring-amber-100' : 'border-slate-200'}`}>
         {/* Header */}
-        <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center shrink-0">
+        <div className={`text-white px-6 py-4 flex justify-between items-center shrink-0 ${isReadOnly ? 'bg-amber-600' : 'bg-slate-800'}`}>
           <div className="flex gap-4 items-center">
-              <h2 className="text-xl font-bold">Tabellenentwurf</h2>
-              <div className="flex bg-slate-700 rounded p-1">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                  {isReadOnly && <Lock size={20} className="text-white"/>} 
+                  Tabellenentwurf
+              </h2>
+              <div className="flex bg-black/20 rounded p-1">
                   <button 
                     onClick={() => setActiveTab('fields')} 
-                    className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'fields' ? 'bg-white text-slate-900 font-bold' : 'text-slate-300 hover:text-white'}`}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'fields' ? 'bg-white text-slate-900 font-bold' : 'text-white/70 hover:text-white'}`}
                   >
                       Felder
                   </button>
                   <button 
                     onClick={() => setActiveTab('validation')} 
-                    className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${activeTab === 'validation' ? 'bg-white text-slate-900 font-bold' : 'text-slate-300 hover:text-white'}`}
+                    className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${activeTab === 'validation' ? 'bg-white text-slate-900 font-bold' : 'text-white/70 hover:text-white'}`}
                   >
                       <ShieldAlert size={14}/> Validierung
                   </button>
               </div>
           </div>
-          <button onClick={() => setShowAi(!showAi)} className="flex items-center gap-1 bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm">
-            <Wand2 size={14} /> AI-Entwurf
-          </button>
+          {!isReadOnly && (
+            <button onClick={() => setShowAi(!showAi)} className="flex items-center gap-1 bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm">
+                <Wand2 size={14} /> AI-Entwurf
+            </button>
+          )}
         </div>
 
+        {/* Lock Banner */}
+        {isReadOnly && lockedBy && (
+            <div className="bg-amber-100 text-amber-800 px-6 py-2 text-sm font-semibold flex items-center gap-2 border-b border-amber-200">
+                <Lock size={14} />
+                Schreibgeschützt: Dieses Objekt wird gerade von {lockedBy.userName} bearbeitet.
+            </div>
+        )}
+
         {/* AI Assistant */}
-        {showAi && (
+        {showAi && !isReadOnly && (
           <div className="p-4 bg-purple-50 border-b border-purple-100 animate-in slide-in-from-top-2 shrink-0">
             <label className="block text-sm font-medium text-purple-900 mb-1">Beschreibe deine Tabelle:</label>
             <div className="flex gap-2">
@@ -216,8 +241,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
             <input 
               type="text" 
               value={tableName} 
+              disabled={isReadOnly}
               onChange={(e) => setTableName(e.target.value)}
-              className="w-full max-w-md border border-slate-300 rounded p-2 font-mono text-sm"
+              className="w-full max-w-md border border-slate-300 rounded p-2 font-mono text-sm disabled:bg-slate-100 disabled:text-slate-500"
             />
           </div>
 
@@ -234,7 +260,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         <th className="p-2 w-16 text-center" title="Erlaubt NULL-Werte">Null</th>
                         <th className="p-2 w-16 text-center" title="Automatisch hochzählen (nur Integer)">Auto</th>
                         <th className="p-2 flex-1">Standardwert</th>
-                        <th className="p-2 w-10"></th>
+                        {!isReadOnly && <th className="p-2 w-10"></th>}
                     </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -245,8 +271,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         <tr key={field.id} className="hover:bg-slate-50">
                         <td className="p-2 text-center">
                             <button 
-                            onClick={() => updateField(field.id, { isPrimaryKey: !field.isPrimaryKey, allowNull: field.isPrimaryKey })} // PK usually not null
-                            className={`hover:bg-slate-200 p-1 rounded ${field.isPrimaryKey ? 'text-yellow-600' : 'text-slate-300'}`}
+                            disabled={isReadOnly}
+                            onClick={() => updateField(field.id, { isPrimaryKey: !field.isPrimaryKey, allowNull: field.isPrimaryKey })}
+                            className={`p-1 rounded ${field.isPrimaryKey ? 'text-yellow-600' : 'text-slate-300'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
                             >
                             <Key size={16} />
                             </button>
@@ -255,15 +282,17 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                             <input 
                             type="text" 
                             value={field.name}
+                            disabled={isReadOnly}
                             onChange={(e) => updateField(field.id, { name: e.target.value })}
-                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
+                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500"
                             />
                         </td>
                         <td className="p-2">
                             <select 
                             value={field.type}
+                            disabled={isReadOnly}
                             onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
-                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
+                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500"
                             >
                             {Object.entries(DATA_TYPES).map(([key, config]) => (
                                 <option key={key} value={key}>{config.label}</option>
@@ -276,8 +305,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                     type="number" 
                                     placeholder="Len"
                                     value={field.length || ''} 
+                                    disabled={isReadOnly}
                                     onChange={e => updateField(field.id, { length: parseInt(e.target.value) })}
-                                    className="w-16 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
+                                    className="w-16 border border-slate-300 rounded px-1 py-0.5 text-xs text-center disabled:bg-slate-100"
                                 />
                             )}
                             {typeConfig?.hasPrecision && (
@@ -286,18 +316,18 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                         type="number" 
                                         placeholder="Prec"
                                         value={field.precision || ''} 
+                                        disabled={isReadOnly}
                                         onChange={e => updateField(field.id, { precision: parseInt(e.target.value) })}
-                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
-                                        title="Precision (Gesamtstellen)"
+                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center disabled:bg-slate-100"
                                     />
                                     <span className="text-slate-400">,</span>
                                     <input 
                                         type="number" 
                                         placeholder="Scale"
                                         value={field.scale || ''} 
+                                        disabled={isReadOnly}
                                         onChange={e => updateField(field.id, { scale: parseInt(e.target.value) })}
-                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center"
-                                        title="Scale (Nachkommastellen)"
+                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center disabled:bg-slate-100"
                                     />
                                 </>
                             )}
@@ -306,9 +336,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                             {isDate && (
                                 <select 
                                     value={field.displayFormat || ''}
+                                    disabled={isReadOnly}
                                     onChange={e => updateField(field.id, { displayFormat: e.target.value })}
-                                    className="w-full border border-slate-200 rounded px-1 py-0.5 text-xs"
-                                    title="Anzeigeformat"
+                                    className="w-full border border-slate-200 rounded px-1 py-0.5 text-xs disabled:bg-slate-100"
                                 >
                                     <option value="">(Standard)</option>
                                     <option value="dd.MM.yyyy">dd.MM.yyyy (31.12.2024)</option>
@@ -322,17 +352,17 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         <td className="p-2 text-center">
                             <input 
                                 type="checkbox" 
-                                checked={field.allowNull !== false} // Default is true if undefined
-                                disabled={field.isPrimaryKey}
+                                checked={field.allowNull !== false}
+                                disabled={field.isPrimaryKey || isReadOnly}
                                 onChange={(e) => updateField(field.id, { allowNull: e.target.checked })}
                             />
                         </td>
                         <td className="p-2 text-center">
                             {field.type === 'INTEGER' && (
                                 <button 
+                                disabled={isReadOnly}
                                 onClick={() => updateField(field.id, { isAutoIncrement: !field.isAutoIncrement })}
-                                className={`hover:bg-slate-200 p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-200'}`}
-                                title="Auto Increment aktivieren"
+                                className={`p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-200'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
                                 >
                                 <Hash size={16} />
                                 </button>
@@ -341,26 +371,30 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         <td className="p-2">
                             {renderDefaultValueInput(field)}
                         </td>
-                        <td className="p-2">
-                            <button 
-                            onClick={() => removeField(field.id)}
-                            className="text-slate-400 hover:text-red-600 p-1"
-                            title="Feld löschen"
-                            >
-                            <Trash2 size={16} />
-                            </button>
-                        </td>
+                        {!isReadOnly && (
+                            <td className="p-2">
+                                <button 
+                                onClick={() => removeField(field.id)}
+                                className="text-slate-400 hover:text-red-600 p-1"
+                                title="Feld löschen"
+                                >
+                                <Trash2 size={16} />
+                                </button>
+                            </td>
+                        )}
                         </tr>
                     )})}
                     </tbody>
                 </table>
 
-                <button 
-                    onClick={addField}
-                    className="mt-4 flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold"
-                >
-                    <Plus size={16} /> Feld hinzufügen
-                </button>
+                {!isReadOnly && (
+                    <button 
+                        onClick={addField}
+                        className="mt-4 flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                    >
+                        <Plus size={16} /> Feld hinzufügen
+                    </button>
+                )}
               </>
           ) : (
               <div className="max-w-4xl animate-in fade-in slide-in-from-right-4">
@@ -376,8 +410,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                               <div className="w-1/4">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase">Feld</label>
                                   <select 
-                                    className="w-full border rounded p-1 text-sm"
+                                    className="w-full border rounded p-1 text-sm disabled:bg-slate-100"
                                     value={rule.fieldId}
+                                    disabled={isReadOnly}
                                     onChange={e => updateValidationRule(rule.id, { fieldId: e.target.value })}
                                   >
                                       {fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -386,8 +421,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                               <div className="w-24">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase">Operator</label>
                                   <select 
-                                    className="w-full border rounded p-1 text-sm"
+                                    className="w-full border rounded p-1 text-sm disabled:bg-slate-100"
                                     value={rule.operator}
+                                    disabled={isReadOnly}
                                     onChange={e => updateValidationRule(rule.id, { operator: e.target.value as ValidationOperator })}
                                   >
                                       <option value="gt">Größer (&gt;)</option>
@@ -403,8 +439,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase">Vergleichswert / Feld</label>
                                   <div className="flex gap-1">
                                       <select 
-                                        className="border rounded p-1 text-xs w-16 bg-slate-100"
+                                        className="border rounded p-1 text-xs w-16 bg-slate-100 disabled:opacity-50"
                                         value={rule.compareType}
+                                        disabled={isReadOnly}
                                         onChange={e => updateValidationRule(rule.id, { compareType: e.target.value as any })}
                                       >
                                           <option value="value">Wert</option>
@@ -412,8 +449,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                       </select>
                                       {rule.compareType === 'field' ? (
                                           <select 
-                                            className="flex-1 border rounded p-1 text-sm"
+                                            className="flex-1 border rounded p-1 text-sm disabled:bg-slate-100"
                                             value={rule.compareValue}
+                                            disabled={isReadOnly}
                                             onChange={e => updateValidationRule(rule.id, { compareValue: e.target.value })}
                                           >
                                               <option value="">(Wählen)</option>
@@ -422,9 +460,10 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                       ) : (
                                           <input 
                                             type="text" 
-                                            className="flex-1 border rounded p-1 text-sm"
+                                            className="flex-1 border rounded p-1 text-sm disabled:bg-slate-100"
                                             placeholder={rule.operator === 'regex' ? '^Pattern$' : 'Wert'}
                                             value={rule.compareValue}
+                                            disabled={isReadOnly}
                                             onChange={e => updateValidationRule(rule.id, { compareValue: e.target.value })}
                                           />
                                       )}
@@ -434,19 +473,24 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase">Fehlermeldung</label>
                                   <input 
                                     type="text" 
-                                    className="w-full border rounded p-1 text-sm"
+                                    className="w-full border rounded p-1 text-sm disabled:bg-slate-100"
                                     placeholder="z.B. Startdatum muss vor Enddatum liegen"
                                     value={rule.errorMessage}
+                                    disabled={isReadOnly}
                                     onChange={e => updateValidationRule(rule.id, { errorMessage: e.target.value })}
                                   />
                               </div>
-                              <button onClick={() => removeValidationRule(rule.id)} className="mt-4 text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>
+                              {!isReadOnly && (
+                                <button onClick={() => removeValidationRule(rule.id)} className="mt-4 text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>
+                              )}
                           </div>
                       ))}
                       
-                      <button onClick={addValidationRule} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold mt-4">
-                          <Plus size={16} /> Regel hinzufügen
-                      </button>
+                      {!isReadOnly && (
+                        <button onClick={addValidationRule} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold mt-4">
+                            <Plus size={16} /> Regel hinzufügen
+                        </button>
+                      )}
                   </div>
               </div>
           )}

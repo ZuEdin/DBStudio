@@ -427,6 +427,14 @@ export interface Collaborator {
   currentAction?: string;
 }
 
+// NEW: Locking
+export interface LockInfo {
+    objectId: string;
+    userId: string;
+    userName: string;
+    lockedAt: number;
+}
+
 export interface ProjectTemplate {
   id: string;
   name: string;
@@ -451,6 +459,7 @@ export interface MessageModalConfig {
 
 export type ViewType = 
   | { type: 'welcome' }
+  | { type: 'app_info' }
   | { type: 'table_create' }
   | { type: 'table_edit', tableId: string }
   | { type: 'table_data', tableId: string }

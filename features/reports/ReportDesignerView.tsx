@@ -210,7 +210,13 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
           </div>
           <div className="flex-1 overflow-auto relative bg-slate-200">
              <div className="absolute inset-0 scale-[0.8] origin-top p-4">
-                <ReportView report={previewReport} data={previewData} sourceFields={sourceFields} />
+                <ReportView 
+                    report={previewReport} 
+                    data={previewData} 
+                    sourceFields={sourceFields}
+                    allTables={tables} 
+                    relationships={relationships} 
+                />
              </div>
           </div>
       </div>

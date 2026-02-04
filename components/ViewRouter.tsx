@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { ViewType, Table, Query, Report, Form, Relationship, SelectQuery, BackendConfig, TableNode, Chart, Workflow, EnvironmentConfig } from '../types/index';
 import { WelcomeView } from '../views/WelcomeView';
+import { AppInfoView } from '../views/AppInfoView'; // Import
 import { TableDesigner } from '../features/tables/TableDesigner';
 import { TableView } from '../features/tables/TableView';
 import { RelationshipsView } from '../features/relationships/RelationshipsView';
@@ -16,6 +17,7 @@ import { ApiImportView } from '../views/ApiImportView';
 import { ChartView } from '../features/charts/ChartView';
 import { WorkflowDesigner } from '../features/workflows/WorkflowDesigner';
 import { SchedulerView } from '../features/scheduler/SchedulerView'; 
+import { useAppController } from '../hooks/useAppController'; // Need context types or pass down
 
 interface ViewRouterProps {
   currentView: ViewType;
@@ -47,6 +49,8 @@ interface ViewRouterProps {
   lastSnapshot?: Table[];
   onSnapshot?: () => void;
   onUpdateEnvironments?: (envs: EnvironmentConfig[]) => void;
+  // Lock Prop
+  activeLock?: any;
 }
 
 export const ViewRouter: React.FC<ViewRouterProps> = ({
@@ -77,7 +81,8 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
   onUpdateWorkflow,
   lastSnapshot,
   onSnapshot,
-  onUpdateEnvironments
+  onUpdateEnvironments,
+  activeLock
 }) => {
 
   useEffect(() => {
@@ -133,10 +138,15 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 }}
             />
         );
+      case 'app_info': // New Route
+        return <AppInfoView onNavigate={(action) => {
+            if(action === 'create_table') onSetView({type: 'table_create'});
+            else if(action === 'backend_generate') onSetView({type: 'backend_generator'});
+        }} />;
       case 'table_create':
       case 'table_edit':
         if (activeObject && 'fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
-          return <TableDesigner table={activeObject as Table} onTableChange={onActiveObjectChange as any} />;
+          return <TableDesigner table={activeObject as Table} onTableChange={onActiveObjectChange as any} lockedBy={activeLock} />;
         }
         return null;
       case 'table_data':

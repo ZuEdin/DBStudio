@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Form, Table, FormElement, Relationship } from '../../types/index';
-import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List } from 'lucide-react';
+import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
@@ -19,6 +19,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [linkingSubform, setLinkingSubform] = useState<Form | null>(null);
   const [showLookupModal, setShowLookupModal] = useState(false);
+  const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   
   const mainFormTable = allTables.find(t => t.id === form.sourceId);
 
@@ -91,7 +92,13 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
     // Add Elements logic
     updateFormLayout((layout) => {
         let target = selectedElementId ? findElement(layout, selectedElementId) : layout;
-        if (target && target.type !== 'container') target = layout; // Fallback to root
+        // If selected is a field, go to parent container
+        if (target && target.type !== 'container') {
+             // Basic finding of parent would be better, for now fallback to root if not container
+             // Ideally we traverse to find parent, but for simplicity:
+             target = layout; 
+        }
+        if (!target) target = layout;
         
         const newId = crypto.randomUUID();
         const newEl: FormElement = { id: newId, type: 'container', children: [] }; // Default placeholder
@@ -99,12 +106,12 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
         if (actionTrigger.action === 'form_add_label') {
             newEl.type = 'label'; newEl.label = 'Neues Label'; newEl.className = 'font-bold text-lg mb-2';
         } else if (actionTrigger.action === 'form_add_container') {
-            newEl.type = 'container'; newEl.className = 'p-4 border border-dashed border-slate-300 rounded';
+            newEl.type = 'container'; newEl.className = 'p-4 border border-dashed border-slate-300 rounded bg-slate-50 min-h-[60px]';
         } else if (actionTrigger.action === 'form_add_2col') {
             newEl.type = 'container'; newEl.className = 'grid grid-cols-2 gap-4';
             newEl.children = [
-                { id: crypto.randomUUID(), type: 'container', className: 'border border-dashed p-2 min-h-[50px]', children: [] },
-                { id: crypto.randomUUID(), type: 'container', className: 'border border-dashed p-2 min-h-[50px]', children: [] }
+                { id: crypto.randomUUID(), type: 'container', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] },
+                { id: crypto.randomUUID(), type: 'container', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] }
             ];
         }
 
@@ -112,24 +119,118 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
     });
   }, [actionTrigger]);
 
-  // --- Drag & Drop (Fields) ---
+  // --- Drag & Drop Logic ---
+
+  // 1. Start Dragging an existing element
+  const handleDragStart = (e: React.DragEvent, elementId: string) => {
+      e.stopPropagation();
+      setDraggedElementId(elementId);
+      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'move_element', id: elementId }));
+      e.dataTransfer.effectAllowed = 'move';
+  };
+
+  // 2. Drop on Container (Append to end)
   const handleDropOnContainer = (e: React.DragEvent, containerId: string) => {
       e.preventDefault(); e.stopPropagation();
       const json = e.dataTransfer.getData('application/json');
       if (!json) return;
-      const data = JSON.parse(json);
+      
+      try {
+        const data = JSON.parse(json);
+        updateFormLayout((layout) => {
+            const container = findElement(layout, containerId);
+            if (!container || !container.children) return;
 
-      updateFormLayout((layout) => {
-          const container = findElement(layout, containerId);
-          if (container && container.children) {
-              if (data.type === 'field') {
-                  container.children.push({ id: crypto.randomUUID(), type: 'field', fieldId: data.fieldId, label: data.label, className: 'mb-4' });
-              } else if (data.type === 'form') {
-                  setLinkingSubform(allForms.find(f => f.id === data.formId) || null);
-                  (window as any).__tempContainerId = containerId; // Hack to pass container to modal callback
+            if (data.type === 'move_element') {
+                if (data.id === containerId) return; // Can't drop into self
+                // Remove from old pos
+                let itemToMove: FormElement | null = null;
+                
+                const removeAndFind = (parent: FormElement): boolean => {
+                    if (!parent.children) return false;
+                    const idx = parent.children.findIndex(c => c.id === data.id);
+                    if (idx > -1) {
+                        itemToMove = parent.children[idx];
+                        parent.children.splice(idx, 1);
+                        return true;
+                    }
+                    return parent.children.some(c => removeAndFind(c));
+                };
+                
+                // If drop target is inside the dragged item (recursion check), abort
+                const isChild = (parent: FormElement, childId: string): boolean => {
+                    return parent.id === childId || (parent.children || []).some(c => isChild(c, childId));
+                };
+                if (isChild(findElement(layout, data.id)!, containerId)) return;
+
+                removeAndFind(layout);
+                if (itemToMove) container.children.push(itemToMove);
+
+            } else if (data.type === 'field') {
+                // New Field
+                container.children.push({ id: crypto.randomUUID(), type: 'field', fieldId: data.fieldId, label: data.label, className: 'mb-4' });
+            } else if (data.type === 'form') {
+                // New Subform
+                setLinkingSubform(allForms.find(f => f.id === data.formId) || null);
+                (window as any).__tempContainerId = containerId;
+            }
+        });
+      } catch (e) { console.error(e); }
+      setDraggedElementId(null);
+  };
+
+  // 3. Drop on Element (Insert Before) - For Reordering
+  const handleDropOnElement = (e: React.DragEvent, targetElementId: string) => {
+      e.preventDefault(); e.stopPropagation();
+      const json = e.dataTransfer.getData('application/json');
+      if (!json) return;
+
+      try {
+          const data = JSON.parse(json);
+          if (data.type !== 'move_element' || data.id === targetElementId) return;
+
+          updateFormLayout((layout) => {
+              // Extract Item
+              let itemToMove: FormElement | null = null;
+              const removeAndFind = (parent: FormElement): boolean => {
+                  if (!parent.children) return false;
+                  const idx = parent.children.findIndex(c => c.id === data.id);
+                  if (idx > -1) {
+                      itemToMove = parent.children[idx];
+                      parent.children.splice(idx, 1);
+                      return true;
+                  }
+                  return parent.children.some(c => removeAndFind(c));
+              };
+              
+              // Validate not dropping parent into child
+              const draggedEl = findElement(layout, data.id);
+              const targetEl = findElement(layout, targetElementId);
+              if(!draggedEl || !targetEl) return;
+              
+              const isChild = (parent: FormElement, childId: string): boolean => {
+                  return parent.id === childId || (parent.children || []).some(c => isChild(c, childId));
+              };
+              if (isChild(draggedEl, targetElementId)) return;
+
+              removeAndFind(layout);
+
+              // Insert Before Target
+              if (itemToMove) {
+                  const insertBefore = (parent: FormElement): boolean => {
+                      if (!parent.children) return false;
+                      const idx = parent.children.findIndex(c => c.id === targetElementId);
+                      if (idx > -1) {
+                          parent.children.splice(idx, 0, itemToMove!);
+                          return true;
+                      }
+                      return parent.children.some(c => insertBefore(c));
+                  };
+                  insertBefore(layout);
               }
-          }
-      });
+          });
+      } catch (e) { console.error(e); }
+      setDraggedElementId(null);
   };
 
   const handleLinkSubform = (m: string, c: string) => {
@@ -152,40 +253,78 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   // --- Recursive Renderer ---
   const renderElement = (el: FormElement) => {
       const isSelected = el.id === selectedElementId;
-      const baseClass = `relative border ${isSelected ? 'border-blue-500 ring-1 ring-blue-500' : 'border-transparent hover:border-slate-300'} transition-all`;
+      const isDragging = el.id === draggedElementId;
+      
+      const commonProps = {
+          onClick: (e: React.MouseEvent) => { e.stopPropagation(); setSelectedElementId(el.id); },
+          draggable: true,
+          onDragStart: (e: React.DragEvent) => handleDragStart(e, el.id),
+          onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); }, // Allow Drop
+          onDrop: (e: React.DragEvent) => handleDropOnElement(e, el.id)
+      };
+
+      const baseClass = `relative border transition-all cursor-pointer ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 z-10' : 'border-transparent hover:border-blue-300'} ${isDragging ? 'opacity-40' : 'opacity-100'}`;
+
+      // Grip Handle for Items
+      const GripHandle = () => (
+          <div className="absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center cursor-move text-slate-300 hover:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+              <GripVertical size={12} />
+          </div>
+      );
 
       if (el.type === 'container') {
           return (
               <div 
-                key={el.id} className={`${baseClass} ${el.className} min-h-[40px]`}
+                key={el.id} 
+                className={`${baseClass} ${el.className} min-h-[40px] group/container relative`}
                 onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => handleDropOnContainer(e, el.id)}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => handleDropOnContainer(e, el.id)}
+                draggable // Containers are draggable too
+                onDragStart={(e) => handleDragStart(e, el.id)}
               >
-                  {el.children?.length === 0 && <div className="text-xs text-slate-300 text-center py-2 pointer-events-none">Container</div>}
+                  {/* Container Grip - Top Right */}
+                  <div className="absolute right-0 top-0 p-1 cursor-move text-slate-300 hover:text-blue-500 opacity-0 group-hover/container:opacity-100 z-20 bg-white/50 rounded">
+                      <GripVertical size={14} />
+                  </div>
+                  
+                  {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-4 border-2 border-dashed border-slate-200 rounded pointer-events-none">Hier Elemente ablegen</div>}
                   {el.children?.map(renderElement)}
               </div>
           );
       }
+      
       if (el.type === 'field') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} bg-white p-2 rounded border border-slate-200`}
-                   onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}>
+              <div key={el.id} className={`${baseClass} ${el.className} bg-white p-2 pl-6 rounded border border-slate-200 group shadow-sm`} {...commonProps}>
+                  <GripHandle />
                   <label className="block text-sm font-semibold text-slate-600 mb-1 pointer-events-none">{el.label}</label>
-                  <div className="h-8 bg-slate-100 border rounded w-full flex items-center px-2 text-xs text-slate-400 pointer-events-none">
-                      {el.widgetType || 'Input'}
+                  <div className="h-8 bg-slate-50 border border-slate-200 rounded w-full flex items-center px-2 text-xs text-slate-400 pointer-events-none">
+                      {el.widgetType || 'Text Input'}
                   </div>
               </div>
           );
       }
-      if (el.type === 'subform') {
+      
+      if (el.type === 'label') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} p-4`} onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}>
-                  <div className="font-bold text-indigo-700">Subform: {el.label}</div>
+              <div key={el.id} className={`${baseClass} ${el.className} pl-6 group`} {...commonProps}>
+                  <GripHandle />
+                  {el.label}
               </div>
           );
       }
-      return <div key={el.id} className={`${baseClass} ${el.className}`} onClick={(e) => {e.stopPropagation(); setSelectedElementId(el.id)}}>{el.label}</div>;
+
+      if (el.type === 'subform') {
+          return (
+              <div key={el.id} className={`${baseClass} ${el.className} p-4 pl-6 group`} {...commonProps}>
+                  <GripHandle />
+                  <div className="font-bold text-indigo-700 pointer-events-none">Subform: {el.label}</div>
+                  <div className="text-xs text-indigo-400">Verknüpftes Formular</div>
+              </div>
+          );
+      }
+      return null;
   };
 
   const selectedEl = form.layout ? findElement(form.layout, selectedElementId || '') : null;
@@ -208,8 +347,8 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       {/* Main Canvas */}
       <div className="flex-1 p-8 overflow-y-auto" onClick={() => setSelectedElementId(null)}>
          <div className="max-w-4xl mx-auto">
-            <div className="bg-white min-h-[600px] shadow-lg rounded-lg overflow-hidden flex flex-col">
-                <div className="p-4 bg-slate-800 text-white font-bold flex justify-between items-center">
+            <div className="bg-white min-h-[600px] shadow-lg rounded-lg overflow-hidden flex flex-col border border-slate-300">
+                <div className="p-4 bg-slate-800 text-white font-bold flex justify-between items-center shrink-0">
                     <span>{form.name}</span>
                     <div className="flex gap-2">
                         <button onClick={() => onFormChange({...form, mode: form.mode === 'edit' ? 'readonly' : 'edit'})} className="text-xs bg-slate-700 px-2 py-1 rounded">
@@ -217,7 +356,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 p-6">
+                <div className="flex-1 p-6 relative">
                     {form.layout ? renderElement(form.layout) : <div className="text-slate-400 text-center mt-20">Kein Layout.</div>}
                 </div>
             </div>
@@ -225,35 +364,43 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       </div>
 
       {/* Sidebar */}
-      <div className="w-72 bg-white border-l border-slate-300 flex flex-col">
-          <PropertiesPanel 
-            form={form}
-            selectedElement={selectedEl}
-            allTables={allTables}
-            allForms={allForms}
-            onPropertyChange={handlePropertyChange}
-            onLookupPropertyChange={(k, v) => { if(selectedEl?.lookup) handleLookupSave({ [k]: v }); }}
-            onSubformPermissionChange={(k, v) => { if(selectedEl?.subform) { 
-                updateFormLayout(l => { const el = findElement(l, selectedElementId!); if(el && el.subform) (el.subform as any)[k] = v; });
-            }}}
-            onDeleteSelected={deleteSelected}
-            onShowLookupModal={() => setShowLookupModal(true)}
-            onToggleFullScreen={() => onFormChange({...form, settings: {...form.settings, isFullScreen: !form.settings?.isFullScreen}})}
-            onToggleEditButton={() => onFormChange({...form, settings: {...form.settings, showEditToggle: !form.settings?.showEditToggle}})}
-          />
+      <div className="w-72 bg-white border-l border-slate-300 flex flex-col h-full">
+          <div className="h-2/3 overflow-hidden flex flex-col">
+            <PropertiesPanel 
+                form={form}
+                selectedElement={selectedEl}
+                allTables={allTables}
+                allForms={allForms}
+                onPropertyChange={handlePropertyChange}
+                onLookupPropertyChange={(k, v) => { if(selectedEl?.lookup) handleLookupSave({ [k]: v }); }}
+                onSubformPermissionChange={(k, v) => { if(selectedEl?.subform) { 
+                    updateFormLayout(l => { const el = findElement(l, selectedElementId!); if(el && el.subform) (el.subform as any)[k] = v; });
+                }}}
+                onDeleteSelected={deleteSelected}
+                onShowLookupModal={() => setShowLookupModal(true)}
+                onToggleFullScreen={() => onFormChange({...form, settings: {...form.settings, isFullScreen: !form.settings?.isFullScreen}})}
+                onToggleEditButton={() => onFormChange({...form, settings: {...form.settings, showEditToggle: !form.settings?.showEditToggle}})}
+            />
+          </div>
           <div className="h-1/3 border-t border-slate-300 p-4 overflow-y-auto bg-slate-50">
              <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">Verfügbare Felder</h4>
+             <p className="text-[10px] text-slate-400 mb-2">Drag & Drop auf das Formular.</p>
              <div className="space-y-1">
                  {mainFormTable?.fields.map(f => (
-                     <div key={f.id} draggable onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'field', fieldId: f.id, label: f.name })); }} className="bg-white border p-1.5 rounded cursor-grab text-sm hover:shadow-sm flex gap-2">
+                     <div 
+                        key={f.id} 
+                        draggable 
+                        onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'field', fieldId: f.id, label: f.name })); }} 
+                        className="bg-white border p-1.5 rounded cursor-grab text-sm hover:shadow-sm flex gap-2 hover:border-blue-400 active:cursor-grabbing"
+                     >
                          <GripVertical size={14} className="text-slate-400"/> {f.name}
                      </div>
                  ))}
              </div>
-             <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Sub-Formulare</h4>
+             <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Unterformulare</h4>
              <div className="space-y-1">
                  {allForms.filter(f => f.id !== form.id).map(f => (
-                     <div key={f.id} draggable onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'form', formId: f.id })); }} className="bg-indigo-50 border border-indigo-200 p-1.5 rounded cursor-grab text-sm flex gap-2 text-indigo-700">
+                     <div key={f.id} draggable onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'form', formId: f.id })); }} className="bg-indigo-50 border border-indigo-200 p-1.5 rounded cursor-grab text-sm flex gap-2 text-indigo-700 hover:border-indigo-400 active:cursor-grabbing">
                          <Layout size={14}/> {f.name}
                      </div>
                  ))}

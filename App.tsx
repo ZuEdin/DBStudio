@@ -86,6 +86,7 @@ export default function App() {
             formActionTrigger={app.formActionTrigger}
             backendConfig={app.backendConfig}
             showMessage={app.showMessage}
+            activeLock={app.activeLock}
           />
         </div>
       </div>
@@ -113,6 +114,8 @@ export default function App() {
         activeWizard={app.activeWizard}
         setActiveWizard={app.setActiveWizard}
         onSaveWizardQuery={(q) => { db.saveQuery(q); app.setActiveWizard(null); app.handleSetView({ type: 'query_designer', queryId: q.id }); }}
+        onExecuteAppend={app.onExecuteAppend}
+        onExecuteDelete={app.onExecuteDelete}
         confirmationModal={app.confirmationModal}
         setConfirmationModal={app.setConfirmationModal}
         tables={db.tables}
@@ -151,6 +154,10 @@ export default function App() {
         onSnapshot={app.onSnapshot}
         lastSnapshot={app.lastSnapshot}
         
+        // --- FIX: Pass Excel Wizard State ---
+        showExcelWizard={app.showExcelWizard}
+        setShowExcelWizard={app.setShowExcelWizard}
+
         backendConfig={app.backendConfig}
         onUpdateBackendConfig={app.setBackendConfig}
       />

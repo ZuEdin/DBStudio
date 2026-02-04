@@ -1,10 +1,11 @@
+
 import React, { useEffect } from 'react';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 export interface ToastInfo {
   id: number;
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning';
 }
 
 interface ToastProps {
@@ -23,12 +24,21 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
     };
   }, [toast, onDismiss]);
 
-  const bgColor = toast.type === 'success' ? 'bg-green-600' : 'bg-red-600';
-  const Icon = toast.type === 'success' ? CheckCircle : XCircle;
+  const getStyle = () => {
+      switch (toast.type) {
+          case 'success': return { bg: 'bg-green-600', icon: CheckCircle };
+          case 'error': return { bg: 'bg-red-600', icon: XCircle };
+          case 'warning': return { bg: 'bg-orange-500', icon: AlertTriangle };
+          default: return { bg: 'bg-blue-600', icon: CheckCircle };
+      }
+  };
+
+  const style = getStyle();
+  const Icon = style.icon;
 
   return (
     <div 
-      className={`flex items-center gap-4 text-white p-4 rounded-md shadow-lg animate-in fade-in-5 slide-in-from-bottom-5 ${bgColor}`}
+      className={`flex items-center gap-4 text-white p-4 rounded-md shadow-lg animate-in fade-in-5 slide-in-from-bottom-5 ${style.bg}`}
     >
       <Icon size={20} />
       <span className="text-sm font-medium">{toast.message}</span>

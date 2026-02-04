@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Database, Save, Undo, Redo } from 'lucide-react';
+import { Database, Save, Undo, Redo, Info } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { useTranslation } from 'react-i18next';
 
@@ -45,7 +45,12 @@ export const FileTab: React.FC<FileTabProps> = ({ onAction, currentDbType }) => 
           </button>
       </div>
 
-      <div className="flex flex-col justify-center text-sm text-slate-600">
+      <div className="flex flex-col items-center group cursor-pointer p-2 hover:bg-slate-200 rounded" onClick={() => onAction('open_app_info')}>
+        <Info className="w-8 h-8 text-slate-500 mb-1" />
+        <span className="text-xs">Info / Über</span>
+      </div>
+
+      <div className="flex flex-col justify-center text-sm text-slate-600 ml-2 border-l border-slate-300 pl-4">
         <span className="font-bold">Engine:</span>
         <span className="flex items-center gap-1">
             {currentDbType} 
