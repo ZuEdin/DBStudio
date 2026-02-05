@@ -345,12 +345,21 @@ export interface CollaborationConfig {
     hubPath?: string; // For SignalR
 }
 
+export interface SharePointConfig {
+    siteUrl: string;
+    authMethod: 'user' | 'app';
+    clientId?: string;
+    clientSecret?: string;
+    tenantId?: string;
+}
+
 export interface IntegrationsConfig {
     storage: StorageConfig;
     sso: SsoConfig[];
     webhooks: WebhookConfig[];
     ai?: AiIntegrationConfig;
     collaboration?: CollaborationConfig;
+    sharePoint?: SharePointConfig; // NEW
 }
 
 export interface EnvironmentConfig {
@@ -414,6 +423,7 @@ export interface ProjectData {
   charts?: Chart[];
   workflows?: Workflow[];
   relationships: Relationship[];
+  layout: TableNode[]; // Stores the visual position of tables in relationship view
   backendConfig: BackendConfig;
   lastSnapshot?: Table[];
 }

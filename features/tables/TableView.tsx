@@ -6,7 +6,7 @@ import { VirtualTable } from '../../components/VirtualTable';
 import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
 import { RecordDetailModal } from '../../components/RecordDetailModal';
-import { KanbanBoard } from './components/KanbanBoard'; // NEW
+import { KanbanBoard } from './components/KanbanBoard';
 
 interface TableViewProps {
   table: Table;
@@ -204,8 +204,8 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   const targetTable = detailView ? allTables.find(t => t.id === detailView.targetTableId) : null;
 
   return (
-    <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-auto">
-      <div className="max-w-full mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
+    <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-hidden flex flex-col">
+      <div className="max-w-full mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full w-full">
         <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold">Datenblatt: {table.name}</h2>
@@ -257,7 +257,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm border border-slate-600">
               <Upload size={16} /> CSV
             </button>
-            <button onClick={addRow} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm font-semibold">
+            <button onClick={addRow} className="flex items-center gap-1 bg-green-600 hover:bg-green-50 px-3 py-1 rounded text-sm font-semibold">
               <Plus size={16} /> Neu
             </button>
           </div>
@@ -315,7 +315,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             </div>
         )}
 
-        <div className="overflow-auto flex-1 relative bg-slate-50">
+        <div className="overflow-hidden flex-1 relative bg-slate-50">
           {isRefreshing && (
               <div className="absolute inset-0 bg-white/50 z-20 flex items-center justify-center backdrop-blur-sm">
                   <div className="bg-white p-4 rounded shadow-lg flex items-center gap-3 border border-slate-200">
@@ -335,7 +335,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
               )
           )}
         </div>
-        <div className="bg-slate-50 border-t border-slate-200 p-2 text-xs text-slate-500 text-right flex justify-between">
+        <div className="bg-slate-50 border-t border-slate-200 p-2 text-xs text-slate-500 text-right flex justify-between shrink-0">
            <span>{Object.keys(filters).length > 0 ? `${filteredData.length} gefiltert von ${rawData.length}` : `${rawData.length} Datensätze`}</span>
            <span>{table.apiConfig?.refreshOnLoad ? '(Live API)' : '(Lokal)'}</span>
         </div>

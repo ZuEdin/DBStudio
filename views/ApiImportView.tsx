@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server } from 'lucide-react';
+import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server, GitFork } from 'lucide-react';
 import { VirtualTable } from '../components/VirtualTable';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -8,6 +8,7 @@ import autoTable from 'jspdf-autotable';
 import { Table, Field, ApiQueryParam, BackendConfig } from '../types/index';
 import { InputModal } from '../components/InputModal';
 import { fetchApiData, inferFieldType } from '../utils/apiImportHelper';
+import { ArrayExtractionModal } from '../features/tools/ArrayExtractionModal';
 
 interface ApiImportViewProps {
     onSaveTable?: (table: Table) => void;
@@ -29,6 +30,9 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showParamBuilder, setShowParamBuilder] = useState(true);
   const [showBaseUrlSettings, setShowBaseUrlSettings] = useState(false);
+
+  // Extraction State
+  const [extractColumn, setExtractColumn] = useState<string | null>(null);
 
   // --- Parameter Logic ---
   const addParam = () => {
@@ -59,7 +63,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
           const cleanPath = url.startsWith('/') ? url : '/' + url;
           return cleanBase + cleanPath;
       }
-      return url; // Fallback if no base url but relative path (will likely fail fetch but shows intent)
+      return url; 
   };
 
   const handleFetch = async () => {
@@ -86,12 +90,19 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
   const getColumns = () => {
       if (data.length === 0) return [];
-      return Object.keys(data[0]);
+      return Object.keys(data[0]).filter(k => k !== '_ImportId');
   };
 
   const handleSaveClick = () => {
       if (!onSaveTable || data.length === 0) return;
       setShowSaveModal(true);
+  };
+
+  const handleExtractionSave = (newTable: Table) => {
+      if(onSaveTable) {
+          onSaveTable(newTable);
+          showMessage("Tabelle erstellt", `Die Tabelle "${newTable.name}" wurde aus dem Array extrahiert.`, 'success');
+      }
   };
 
   const performSave = (tableName: string) => {
@@ -102,7 +113,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
       const fields: Field[] = columns.map(col => {
           const sampleVal = sampleRow[col];
-          const type = inferFieldType(sampleVal);
+          const type = Array.isArray(sampleVal) ? 'TEXT' : inferFieldType(sampleVal); // Fallback for arrays inside main table
           const isId = col.toLowerCase() === 'id';
           
           return {
@@ -115,6 +126,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
           };
       });
 
+      // Ensure stable ID for linking
       if (!fields.some(f => f.isPrimaryKey)) {
           fields.unshift({
               id: crypto.randomUUID(),
@@ -123,45 +135,74 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
               isPrimaryKey: true,
               isAutoIncrement: true
           });
-          data.forEach((row, i) => row['_ImportId'] = i + 1);
+      } else {
+          // If we have a PK, ensure _ImportId is also present if we rely on it for extraction linking,
+          // but usually the extraction happens BEFORE save. 
+          // If we save the main table, we might want to preserve the _ImportId as a key if it was used for linking.
+          // For simplicity, we just add _ImportId as a regular field if it exists in data
+          if (data[0]['_ImportId']) {
+               fields.push({ id: crypto.randomUUID(), name: '_ImportId', type: 'INTEGER' });
+          }
       }
 
-      // Important: Save the full URL if we used a base URL to ensure it works standalone later?
-      // OR: We assume the base URL is stable project config.
-      // Let's save the FULL resolved URL to be safe for table reloads, unless dynamic.
       const savedUrl = getEffectiveUrl();
+
+      // Clean data for saving (stringify remaining arrays)
+      const cleanData = data.map(row => {
+          const newRow = { ...row };
+          for (const key in newRow) {
+              if (Array.isArray(newRow[key])) {
+                  newRow[key] = JSON.stringify(newRow[key]); // Flatten for storage
+              }
+          }
+          return newRow;
+      });
 
       const newTable: Table = {
           id: crypto.randomUUID(),
           name: tableName,
           fields: fields,
-          data: data,
+          data: cleanData,
           isApiImport: true,
           apiConfig: {
               url: savedUrl,
               method,
               headers: headers || undefined,
-              queryParams, // Save params
+              queryParams,
               refreshOnLoad
           }
       };
 
-      onSaveTable(newTable);
+      onSaveTable && onSaveTable(newTable);
       setShowSaveModal(false);
-      
-      const message = `Tabelle "${tableName}" wurde erfolgreich erstellt!\n${refreshOnLoad ? 'HINWEIS: Daten werden beim Öffnen der Tabelle immer frisch geladen.' : 'Die Daten wurden als Snapshot gespeichert.'}`;
-      showMessage("Tabelle erstellt", message, 'success');
+      showMessage("Tabelle erstellt", `Tabelle "${tableName}" gespeichert.`, 'success');
   };
 
   const renderRow = (row: any, rowIndex: number) => {
       const cols = getColumns();
       return (
         <div className="flex border-b border-slate-100 hover:bg-sky-50 group h-full items-center text-sm text-slate-700">
-            {cols.map(header => (
-                <div key={`${rowIndex}-${header}`} className="w-40 shrink-0 border-r border-slate-100 h-full px-2 py-1 overflow-hidden truncate" title={String(row[header])}>
-                    {String(row[header] ?? '')}
-                </div>
-            ))}
+            {cols.map(header => {
+                const val = row[header];
+                if (Array.isArray(val)) {
+                    return (
+                        <div key={`${rowIndex}-${header}`} className="w-40 shrink-0 border-r border-slate-100 h-full px-2 py-1 flex items-center justify-center bg-slate-50">
+                            <button 
+                                onClick={() => setExtractColumn(header)}
+                                className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-200 hover:bg-indigo-200 flex items-center gap-1 font-semibold transition-colors"
+                                title="Klicken um als eigene Tabelle zu extrahieren"
+                            >
+                                <GitFork size={12}/> Array ({val.length})
+                            </button>
+                        </div>
+                    );
+                }
+                return (
+                    <div key={`${rowIndex}-${header}`} className="w-40 shrink-0 border-r border-slate-100 h-full px-2 py-1 overflow-hidden truncate" title={String(val)}>
+                        {String(val ?? '')}
+                    </div>
+                );
+            })}
         </div>
       );
   };
@@ -236,9 +277,6 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                         className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm text-blue-900 placeholder:text-blue-300 focus:ring-2 focus:ring-blue-400 outline-none"
                     />
                 </div>
-                <p className="text-[10px] text-blue-600 mt-1">
-                    Wenn definiert, können Sie unten relative Pfade (z.B. <code>/users</code>) eingeben. Volle URLs (starten mit http) ignorieren diese Einstellung.
-                </p>
             </div>
         )}
 
@@ -367,7 +405,6 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
         </div>
       </div>
 
-      {/* Error Message is now handled via Modal, but we keep this for persistent error state in view */}
       {error && (
           <div className="bg-red-50 text-red-600 p-4 border-b border-red-100 text-sm">
               <strong>Letzter Fehler:</strong> {error}
@@ -389,9 +426,6 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                       <FileJson size={64} className="opacity-20" />
                       <div className="text-center">
                           <p className="font-semibold">Konfigurieren Sie die API-Anfrage oben.</p>
-                          <p className="text-xs mt-2 max-w-md mx-auto">
-                              Nutzen Sie "Parameter", um dynamische Werte oder Dropdowns (wie bei Swagger) zu definieren.
-                          </p>
                       </div>
                   </div>
               )
@@ -406,6 +440,15 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
             onConfirm={performSave} 
             onCancel={() => setShowSaveModal(false)} 
         />
+      )}
+
+      {extractColumn && (
+          <ArrayExtractionModal 
+            parentData={data} 
+            arrayColumn={extractColumn} 
+            onSave={handleExtractionSave}
+            onClose={() => setExtractColumn(null)}
+          />
       )}
     </div>
   );

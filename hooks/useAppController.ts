@@ -1,99 +1,68 @@
 
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
-import { ViewType, Table, Query, Report, Form, SelectQuery, BackendConfig, TableNode, NODE_WIDTH, DbType, Relationship, Chart, ElectronSettings, MessageModalConfig, DeploymentConfig, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, Project, LockInfo, Chat, ChatMessage, IntegrationsConfig } from '../types/index';
-import { ToastInfo } from '../components/Toast';
-import { saveProjectToStorage, getAllProjects } from '../services/storageService';
-import { Criterion } from '../features/queries/wizards/DeleteQueryWizard';
+import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig } from '../types/index';
+import { saveProjectToStorage } from '../services/storageService';
 import { cloudService } from '../services/cloudService'; 
+import * as XLSX from 'xlsx';
+
+// Import Sub-Hooks
+import { useUIState } from './useUIState';
+import { useChatState } from './useChatState';
 
 export const useAppController = () => {
   const store = useProjectStore();
+  const ui = useUIState();
+  const chat = useChatState();
   
   const [currentView, setCurrentView] = useState<ViewType>({ type: 'welcome' });
   const [activeTab, setActiveTab] = useState('create');
   const [activeObject, setActiveObject] = useState<Table | Query | Report | Form | Chart | Workflow | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [savePrompt, setSavePrompt] = useState<{show: boolean, targetView?: ViewType}>({show: false});
-  const [relationshipNodes, setRelationshipNodes] = useState<TableNode[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isRibbonOpen, setIsRibbonOpen] = useState(true);
   
-  const [toasts, setToasts] = useState<ToastInfo[]>([]);
-
   // Locking State
   const [activeLock, setActiveLock] = useState<LockInfo | null>(null);
   const [readOnlyMode, setReadOnlyMode] = useState(false);
 
-  // Chat State
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [chats, setChats] = useState<Chat[]>([
-      {
-          id: 'c1', type: 'group', name: 'Projekt Team', participants: ['u1', 'u2', 'u3'], 
-          messages: [
-              { id: 'm1', senderId: 'u2', senderName: 'Sarah', text: 'Hat jemand die neue Tabelle gesehen?', timestamp: Date.now() - 3600000 },
-              { id: 'm2', senderId: 'u3', senderName: 'Tom', text: 'Ja, sieht gut aus. Ich arbeite an der API.', timestamp: Date.now() - 3500000 }
-          ], unreadCount: 0
-      },
-      {
-          id: 'c2', type: 'private', name: 'Sarah Lee', participants: ['u1', 'u2'], isOnline: true,
-          messages: [
-              { id: 'm3', senderId: 'u2', senderName: 'Sarah', text: 'Kannst du den Deploy anstoßen?', timestamp: Date.now() - 100000 }
-          ], unreadCount: 1
-      },
-      {
-          id: 'c3', type: 'private', name: 'Tom H.', participants: ['u1', 'u3'], isOnline: false,
-          messages: [], unreadCount: 0
-      }
-  ]);
-
-  // Global Modals
-  const [messageModal, setMessageModal] = useState<MessageModalConfig | null>(null);
-  const [itemContextMenu, setItemContextMenu] = useState<{
-    type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow';
-    id: string;
-    x: number;
-    y: number;
-  } | null>(null);
-  
-  const [nameInput, setNameInput] = useState<{
-    title: string; label: string; initialValue: string; onConfirm: (name: string) => void; onCancel: () => void;
-  } | null>(null);
-  
-  const [showReportWizard, setShowReportWizard] = useState(false);
-  const [showFormWizard, setShowFormWizard] = useState(false);
-  const [showExcelWizard, setShowExcelWizard] = useState(false);
-  const [showAccessWizard, setShowAccessWizard] = useState(false);
-  const [showDummyDataWizard, setShowDummyDataWizard] = useState(false);
-  
-  const [showElectronSettings, setShowElectronSettings] = useState(false);
-  const [showSecurityManager, setShowSecurityManager] = useState(false);
-  const [showWhitelabelModal, setShowWhitelabelModal] = useState(false);
-  const [showEnvModal, setShowEnvModal] = useState(false);
-  const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [showIntegrationsModal, setShowIntegrationsModal] = useState(false); // NEW Global State
-  const [showDeploymentModal, setShowDeploymentModal] = useState(false);
-
-  const [activeWizard, setActiveWizard] = useState<'duplicate' | 'inconsistency' | 'append' | 'delete' | null>(null);
-  const [confirmationModal, setConfirmationModal] = useState<{
-    title: string; message: string; onConfirm: () => void;
-  } | null>(null);
-
-  const [formActionTrigger, setFormActionTrigger] = useState<{ action: string, timestamp: number } | undefined>(undefined);
-
   useEffect(() => { store.init(); }, []);
 
-  const addToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
-      const id = Date.now();
-      setToasts(prev => [...prev, { id, message, type }]);
-  };
+  // --- Auto-Sync Tables to Layout Nodes ---
+  useEffect(() => {
+      if (!store.tables || store.tables.length === 0) return;
 
-  const removeToast = (id: number) => { setToasts(prev => prev.filter(t => t.id !== id)); };
+      const currentTableIds = store.tables.map(t => t.id);
+      const currentNodes = store.layout || [];
+      const layoutTableIds = new Set(currentNodes.map(n => n.tableId));
+      
+      let hasChanges = false;
+      let newLayout = [...currentNodes];
 
-  const showMessage = (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success' = 'info') => {
-      setMessageModal({ title, message, type });
-  };
+      // Remove nodes for deleted tables
+      const nodesToRemove = newLayout.filter(n => !store.tables.find(t => t.id === n.tableId));
+      if (nodesToRemove.length > 0) {
+          newLayout = newLayout.filter(n => store.tables.find(t => t.id === n.tableId));
+          hasChanges = true;
+      }
+
+      // Add nodes for new tables
+      const tablesToAdd = store.tables.filter(t => !layoutTableIds.has(t.id));
+      if (tablesToAdd.length > 0) {
+          tablesToAdd.forEach((t, i) => {
+              newLayout.push({
+                  id: `node_${t.id}`,
+                  tableId: t.id,
+                  x: 50 + (i * 250) % 1000, 
+                  y: 50 + (Math.floor(i / 4) * 200)
+              });
+          });
+          hasChanges = true;
+      }
+
+      if (hasChanges) {
+          store.setLayout(newLayout);
+      }
+  }, [store.tables.length, store.layout.length]); // Check on length changes
 
   const releaseCurrentLock = async () => {
       if (activeObject && 'id' in activeObject) {
@@ -103,22 +72,62 @@ export const useAppController = () => {
   };
 
   const handleSetView = async (view: ViewType) => {
-    // 1. Release Lock if changing away from editable view
     if (activeObject) {
         await releaseCurrentLock();
     }
 
-    // 2. Check Dirty
     if (isDirty) { 
         setSavePrompt({ show: true, targetView: view }); 
         return; 
     }
 
-    // 3. Set View & Check for new Lock
     setCurrentView(view);
     
-    // Reset selection if moving to a general view
-    if (view.type === 'welcome' || view.type === 'relationships' || view.type === 'backend_generator') {
+    // Use fresh state
+    const freshState = useProjectStore.getState();
+    let foundObject = null;
+
+    if (view.type === 'table_data' || view.type === 'table_edit') {
+        foundObject = freshState.tables.find(t => t.id === view.tableId) || null;
+    } else if (view.type === 'query_results' || view.type === 'query_designer') {
+        foundObject = freshState.queries.find(q => q.id === view.queryId) || null;
+    } else if (view.type === 'form_view' || view.type === 'form_designer') {
+        foundObject = freshState.forms.find(f => f.id === view.formId) || null;
+    } else if (view.type === 'report_view' || view.type === 'report_designer') {
+        foundObject = freshState.reports.find(r => r.id === view.reportId) || null;
+    } else if (view.type === 'chart_view') {
+        foundObject = freshState.charts.find(c => c.id === view.chartId) || null;
+    } else if (view.type === 'workflow_designer') {
+        foundObject = freshState.workflows.find(w => w.id === view.workflowId) || null;
+    }
+
+    if (foundObject) {
+        setActiveObject(foundObject);
+    } else if (view.type === 'table_create') {
+        setActiveObject({
+            id: 'new_table_' + Date.now(),
+            name: 'NeueTabelle',
+            fields: [{ id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }],
+            data: []
+        });
+        setReadOnlyMode(false);
+    } else if (view.type === 'query_designer' && !view.queryId) {
+        setActiveObject({
+            id: 'new_query_' + Date.now(),
+            type: 'SELECT',
+            name: 'NeueAbfrage',
+            nodes: [],
+            columns: []
+        });
+        setReadOnlyMode(false);
+    } else if (
+        view.type === 'welcome' || 
+        view.type === 'relationships' || 
+        view.type === 'backend_generator' || 
+        view.type === 'scheduler' || 
+        view.type === 'api_import' || 
+        view.type === 'app_info'
+    ) {
         setActiveObject(null);
         setReadOnlyMode(false);
     }
@@ -126,7 +135,7 @@ export const useAppController = () => {
 
   const handleActiveObjectChange = (newObjectState: any) => {
     if (readOnlyMode) { 
-        addToast("Schreibgeschützt.", 'error'); 
+        ui.addToast("Schreibgeschützt.", 'error'); 
         return; 
     }
     setActiveObject(newObjectState);
@@ -134,35 +143,181 @@ export const useAppController = () => {
   };
 
   const handleSave = async () => { 
-      // 1. Save Active Object to Memory Store
       if (activeObject) {
           if ('fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
-              store.updateTable(activeObject as Table);
+              // Table
+              const exists = store.tables.some(t => t.id === activeObject.id);
+              if (exists) store.updateTable(activeObject as Table);
+              else store.addTable(activeObject as Table);
           } else if ('nodes' in activeObject && 'columns' in activeObject) {
-              const queries = store.queries.map(q => q.id === activeObject.id ? activeObject as Query : q);
-              store.setQueries(queries);
+              // Query
+              const exists = store.queries.some(q => q.id === activeObject.id);
+              if (exists) {
+                  const queries = store.queries.map(q => q.id === activeObject.id ? activeObject as Query : q);
+                  store.setQueries(queries);
+              } else {
+                  store.setQueries([...store.queries, activeObject as Query]);
+              }
           } else if ('layout' in activeObject) {
-              const forms = store.forms.map(f => f.id === activeObject.id ? activeObject as Form : f);
-              store.setForms(forms);
+              // Form
+              const exists = store.forms.some(f => f.id === activeObject.id);
+              if (exists) {
+                  const forms = store.forms.map(f => f.id === activeObject.id ? activeObject as Form : f);
+                  store.setForms(forms);
+              } else {
+                  store.setForms([...store.forms, activeObject as Form]);
+              }
           } else if ('summaries' in activeObject) {
-              const reports = store.reports.map(r => r.id === activeObject.id ? activeObject as Report : r);
-              store.setReports(reports);
+              // Report
+              const exists = store.reports.some(r => r.id === activeObject.id);
+              if (exists) {
+                  const reports = store.reports.map(r => r.id === activeObject.id ? activeObject as Report : r);
+                  store.setReports(reports);
+              } else {
+                  store.setReports([...store.reports, activeObject as Report]);
+              }
           } else if ('config' in activeObject) {
-              const charts = store.charts.map(c => c.id === activeObject.id ? activeObject as Chart : c);
-              store.setCharts(charts);
+              // Chart
+              const exists = store.charts.some(c => c.id === activeObject.id);
+              if (exists) {
+                  const charts = store.charts.map(c => c.id === activeObject.id ? activeObject as Chart : c);
+                  store.setCharts(charts);
+              } else {
+                  store.setCharts([...store.charts, activeObject as Chart]);
+              }
           } else if ('nodes' in activeObject) {
-              const workflows = store.workflows.map(w => w.id === activeObject.id ? activeObject as Workflow : w);
-              store.setWorkflows(workflows);
+              // Workflow
+              const exists = store.workflows.some(w => w.id === activeObject.id);
+              if (exists) {
+                  const workflows = store.workflows.map(w => w.id === activeObject.id ? activeObject as Workflow : w);
+                  store.setWorkflows(workflows);
+              } else {
+                  store.setWorkflows([...store.workflows, activeObject as Workflow]);
+              }
           }
           setIsDirty(false);
       }
       
-      // 2. Persist Everything to IndexedDB (Project File)
-      // This ensures BackendConfig (ApiURL etc.) and all other changes are written to disk
       await store.saveProject();
-      
-      addToast("Projekt gespeichert.", 'success');
+      ui.addToast("Projekt gespeichert.", 'success');
       return {success:true}; 
+  };
+
+  const handleContextMenuAction = (action: 'view' | 'view_data' | 'export' | 'rename' | 'delete') => {
+      if (!ui.itemContextMenu) return;
+      const { type, id } = ui.itemContextMenu;
+      ui.setItemContextMenu(null);
+
+      if (action === 'delete') {
+          ui.setConfirmationModal({
+              title: `${type === 'table' ? 'Tabelle' : 'Objekt'} löschen`,
+              message: `Möchten Sie "${type}" wirklich löschen?`,
+              onConfirm: () => {
+                  if (type === 'table') store.setTables(store.tables.filter(t => t.id !== id));
+                  if (type === 'query') store.setQueries(store.queries.filter(q => q.id !== id));
+                  if (type === 'form') store.setForms(store.forms.filter(f => f.id !== id));
+                  if (type === 'report') store.setReports(store.reports.filter(r => r.id !== id));
+                  if (type === 'workflow') store.setWorkflows(store.workflows.filter(w => w.id !== id));
+                  
+                  if (activeObject?.id === id) {
+                      setActiveObject(null);
+                      setCurrentView({ type: 'welcome' });
+                  }
+                  ui.addToast("Gelöscht.", 'warning');
+              }
+          });
+      }
+      
+      if (action === 'rename') {
+          let currentName = '';
+          if (type === 'table') currentName = store.tables.find(t => t.id === id)?.name || '';
+          if (type === 'query') currentName = store.queries.find(q => q.id === id)?.name || '';
+          if (type === 'form') currentName = store.forms.find(f => f.id === id)?.name || '';
+          if (type === 'report') currentName = store.reports.find(r => r.id === id)?.name || '';
+          if (type === 'workflow') currentName = store.workflows.find(w => w.id === id)?.name || '';
+
+          ui.setNameInput({
+              title: 'Umbenennen',
+              label: 'Neuer Name',
+              initialValue: currentName,
+              onConfirm: (newName) => {
+                  if (type === 'table') store.setTables(store.tables.map(t => t.id === id ? { ...t, name: newName } : t));
+                  if (type === 'query') store.setQueries(store.queries.map(q => q.id === id ? { ...q, name: newName } : q));
+                  if (type === 'form') store.setForms(store.forms.map(f => f.id === id ? { ...f, name: newName } : f));
+                  if (type === 'report') store.setReports(store.reports.map(r => r.id === id ? { ...r, name: newName } : r));
+                  if (type === 'workflow') store.setWorkflows(store.workflows.map(w => w.id === id ? { ...w, name: newName } : w));
+                  ui.setNameInput(null);
+              },
+              onCancel: () => ui.setNameInput(null)
+          });
+      }
+
+      if (action === 'view') {
+          if (type === 'table') handleSetView({ type: 'table_edit', tableId: id });
+          if (type === 'query') handleSetView({ type: 'query_designer', queryId: id });
+          if (type === 'form') handleSetView({ type: 'form_designer', formId: id });
+          if (type === 'report') handleSetView({ type: 'report_designer', reportId: id });
+          if (type === 'workflow') handleSetView({ type: 'workflow_designer', workflowId: id });
+          if (type === 'chart') handleSetView({ type: 'chart_view', chartId: id });
+      }
+
+      if (action === 'view_data') {
+          if (type === 'table') handleSetView({ type: 'table_data', tableId: id });
+          if (type === 'query') handleSetView({ type: 'query_results', queryId: id });
+          if (type === 'form') handleSetView({ type: 'form_view', formId: id });
+          if (type === 'report') handleSetView({ type: 'report_view', reportId: id });
+      }
+
+      if (action === 'export') {
+          // EXPORT LOGIC
+          if (type === 'table' || type === 'query') {
+              // DATA EXPORT (EXCEL)
+              let data: any[] = [];
+              let fileName = 'export';
+              
+              if (type === 'table') {
+                  const t = store.tables.find(x => x.id === id);
+                  if (t) { data = t.data || []; fileName = t.name; }
+              } else {
+                  const q = store.queries.find(x => x.id === id);
+                  if (q) { 
+                      data = store.executeQuery(q); 
+                      fileName = q.name; 
+                  }
+              }
+
+              if (data.length === 0) {
+                  ui.addToast("Keine Daten zum Exportieren.", 'warning');
+                  return;
+              }
+
+              const ws = XLSX.utils.json_to_sheet(data);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Daten");
+              XLSX.writeFile(wb, `${fileName}.xlsx`);
+              ui.addToast(`${fileName} als Excel exportiert.`, 'success');
+
+          } else {
+              // DEFINITION EXPORT (JSON) - Forms, Reports, Workflows
+              let obj = null;
+              if (type === 'form') obj = store.forms.find(x => x.id === id);
+              if (type === 'report') obj = store.reports.find(x => x.id === id);
+              if (type === 'workflow') obj = store.workflows.find(x => x.id === id);
+              if (type === 'chart') obj = store.charts.find(x => x.id === id);
+
+              if (obj) {
+                  const dataStr = JSON.stringify(obj, null, 2);
+                  const blob = new Blob([dataStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${obj.name}_${type}_def.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  ui.addToast(`${type} Definition exportiert.`, 'success');
+              }
+          }
+      }
   };
 
   const closeSavePrompt = async (action: 'yes' | 'no' | 'cancel') => {
@@ -174,7 +329,6 @@ export const useAppController = () => {
       if (action === 'yes') {
           await handleSave();
       } else {
-          // Discard changes: Reset dirty flag
           setIsDirty(false);
       }
       
@@ -186,7 +340,7 @@ export const useAppController = () => {
   const handleRibbonAction = async (action: string, payload?: any) => {
     try {
       if (action === 'backend_generate' || action === 'backend_export' || action.startsWith('form_') || action === 'export_form') {
-          setFormActionTrigger({ action, timestamp: Date.now() });
+          ui.setFormActionTrigger({ action, timestamp: Date.now() });
           if(action === 'backend_generate' && currentView.type !== 'backend_generator') handleSetView({ type: 'backend_generator' });
           return;
       }
@@ -206,64 +360,42 @@ export const useAppController = () => {
         case 'create_table': handleSetView({ type: 'table_create' }); break;
         case 'create_table_ai': handleSetView({ type: 'table_create' }); break;
         case 'create_query': handleSetView({ type: 'query_designer' }); break;
-        case 'wizard_duplicate': setActiveWizard('duplicate'); break;
-        case 'wizard_inconsistency': setActiveWizard('inconsistency'); break;
-        case 'wizard_append': setActiveWizard('append'); break;
-        case 'wizard_delete': setActiveWizard('delete'); break;
-        case 'create_report': setShowReportWizard(true); break;
-        case 'create_form': setShowFormWizard(true); break;
+        case 'wizard_duplicate': ui.setActiveWizard('duplicate'); break;
+        case 'wizard_inconsistency': ui.setActiveWizard('inconsistency'); break;
+        case 'wizard_append': ui.setActiveWizard('append'); break;
+        case 'wizard_delete': ui.setActiveWizard('delete'); break;
+        case 'create_report': ui.setShowReportWizard(true); break;
+        case 'create_form': ui.setShowFormWizard(true); break;
         case 'create_chart': /* ... */ break;
         case 'create_workflow': /* ... */ break;
         
         case 'relationships': handleSetView({ type: 'relationships' }); break;
         case 'api_import': handleSetView({ type: 'api_import' }); break;
+        case 'sharepoint_import': ui.setShowSharePointWizard(true); break;
         
-        case 'import_excel': setShowExcelWizard(true); break;
-        case 'import_access': setShowAccessWizard(true); break;
-        case 'generate_dummy': setShowDummyDataWizard(true); break;
+        case 'import_excel': ui.setShowExcelWizard(true); break;
+        case 'import_access': ui.setShowAccessWizard(true); break;
+        case 'generate_dummy': ui.setShowDummyDataWizard(true); break;
         case 'save': await handleSave(); break;
         
-        case 'electron_settings': setShowElectronSettings(true); break;
-        case 'security_manager': setShowSecurityManager(true); break;
+        case 'electron_settings': ui.setShowElectronSettings(true); break;
+        case 'security_manager': ui.setShowSecurityManager(true); break;
         case 'open_app_info': handleSetView({ type: 'app_info' }); break;
-        case 'open_whitelabel': setShowWhitelabelModal(true); break;
+        case 'open_whitelabel': ui.setShowWhitelabelModal(true); break;
         
-        case 'open_integrations': setShowIntegrationsModal(true); break;
-        case 'open_envs': setShowEnvModal(true); break;
-        case 'open_migrations': setShowMigrationModal(true); break;
-        case 'open_deployment_modal': setShowDeploymentModal(true); break;
+        case 'open_integrations': ui.setShowIntegrationsModal(true); break;
+        case 'open_envs': ui.setShowEnvModal(true); break;
+        case 'open_migrations': ui.setShowMigrationModal(true); break;
+        case 'open_deployment_modal': ui.setShowDeploymentModal(true); break;
       }
-    } catch (error: any) { showMessage("Systemfehler", error.message, 'error'); }
+    } catch (error: any) { ui.showMessage("Systemfehler", error.message, 'error'); }
   };
 
   const handleSaveIntegrations = (newConfig: IntegrationsConfig) => {
       if (store.backendConfig) {
           store.setBackendConfig({ ...store.backendConfig, integrations: newConfig });
-          // Auto-save project on config change
-          store.saveProject().then(() => addToast("Integrationen gespeichert."));
+          store.saveProject().then(() => ui.addToast("Integrationen gespeichert."));
       }
-  };
-
-  const handleSelectChat = (id: string | null) => {
-      setActiveChatId(id);
-  };
-
-  const handleSendMessage = (chatId: string, text: string) => {
-      setChats(prev => prev.map(chat => {
-          if (chat.id === chatId) {
-              return {
-                  ...chat,
-                  messages: [...chat.messages, {
-                      id: crypto.randomUUID(),
-                      senderId: 'u1', 
-                      senderName: 'Me',
-                      text,
-                      timestamp: Date.now()
-                  }]
-              };
-          }
-          return chat;
-      }));
   };
 
   return {
@@ -291,44 +423,38 @@ export const useAppController = () => {
         exportProject: async (conf: any) => { /* ... */ }
     },
     currentView, activeTab, setActiveTab, activeObject, isDirty, 
-    relationshipNodes, isSidebarOpen, setIsSidebarOpen, isRibbonOpen, setIsRibbonOpen,
-    backendConfig: store.backendConfig, setBackendConfig: store.setBackendConfig, formActionTrigger,
-    toasts, addToast, removeToast,
-    savePrompt, itemContextMenu, setItemContextMenu, nameInput, setNameInput,
-    showReportWizard, setShowReportWizard, showFormWizard, setShowFormWizard,
-    showSecurityManager, setShowSecurityManager, onUpdateTable: store.updateTable,
-    showElectronSettings, electronSettings: store.backendConfig?.electronSettings || { includeBackend: true, bundleFrontend: true },
-    onSaveElectronSettings: (s: any) => { if(store.backendConfig) store.setBackendConfig({...store.backendConfig, electronSettings: s}); setShowElectronSettings(false); }, onCloseElectronSettings: () => setShowElectronSettings(false),
+    backendConfig: store.backendConfig, setBackendConfig: store.setBackendConfig,
+    savePrompt, 
     
-    showDeploymentModal, setShowDeploymentModal, 
-    onSaveDeploymentConfig: (c: any) => { if(store.backendConfig) store.setBackendConfig({...store.backendConfig, deploymentConfig: c}); }, onDeploy: () => { setShowDeploymentModal(false); setFormActionTrigger({action:'backend_generate', timestamp: Date.now()}); },
+    // UI State & Actions
+    ...ui,
+    // Provide store layout to UI hooks if needed or directly pass to ViewRouter
+    relationshipNodes: store.layout || [], 
+    setRelationshipNodes: store.setLayout, // Direct store update for moves
     
-    showWhitelabelModal, setShowWhitelabelModal,
-    showEnvModal, setShowEnvModal,
-    showMigrationModal, setShowMigrationModal,
-    showExcelWizard, setShowExcelWizard,
-    showAccessWizard, setShowAccessWizard,
-    showDummyDataWizard, setShowDummyDataWizard,
-    
-    // NEW Integrations
-    showIntegrationsModal, setShowIntegrationsModal,
-    onSaveIntegrations: handleSaveIntegrations,
+    // Chat State & Actions
+    ...chat,
 
-    activeWizard, setActiveWizard, onSaveWizardQuery: (q: any) => { store.setQueries([...store.queries, q]); setActiveWizard(null); handleSetView({type: 'query_designer', queryId: q.id}); },
+    // Core Logic Overrides
+    onSaveElectronSettings: (s: any) => { if(store.backendConfig) store.setBackendConfig({...store.backendConfig, electronSettings: s}); ui.setShowElectronSettings(false); }, onCloseElectronSettings: () => ui.setShowElectronSettings(false),
+    
+    onSaveDeploymentConfig: (c: any) => { if(store.backendConfig) store.setBackendConfig({...store.backendConfig, deploymentConfig: c}); }, onDeploy: () => { ui.setShowDeploymentModal(false); ui.setFormActionTrigger({action:'backend_generate', timestamp: Date.now()}); },
+    electronSettings: store.backendConfig?.electronSettings || { includeBackend: true, bundleFrontend: true },
+
+    onSaveIntegrations: handleSaveIntegrations,
+    onSaveWizardQuery: (q: any) => { store.setQueries([...store.queries, q]); ui.setActiveWizard(null); handleSetView({type: 'query_designer', queryId: q.id}); },
     onExecuteAppend: (s:any,t:any,m:any) => {}, 
     onExecuteDelete: (t:any,c:any) => {}, 
+    onUpdateTable: store.updateTable,
 
-    confirmationModal, setConfirmationModal,
     handleSetView, handleActiveObjectChange, handleSave, handleRibbonAction,
-    closeSavePrompt, handleContextMenuAction: (a:any) => {}, setRelationshipNodes,
-    messageModal, showMessage, closeMessage: () => setMessageModal(null),
+    closeSavePrompt, handleContextMenuAction, 
     
     onSnapshot: store.snapshot,
     onUpdateEnvironments: (e: any) => { if(store.backendConfig) store.setBackendConfig({...store.backendConfig, environments: e}); },
     onUpdateCommercial: (w:any,m:any,l:any) => { if(store.backendConfig) store.setBackendConfig({...store.backendConfig, whitelabel: w, multiTenancy: m, licensing: l}); },
     lastSnapshot: store.lastSnapshot,
 
-    activeLock,
-    isChatOpen, setIsChatOpen, chats, activeChatId, handleSelectChat, handleSendMessage
+    activeLock
   };
 };

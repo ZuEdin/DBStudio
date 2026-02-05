@@ -5,10 +5,6 @@ import { FieldType, ApiQueryParam } from '../types/index';
 export const inferFieldType = (value: any): FieldType => {
     if (typeof value === 'number') {
         // Check for potential timestamps (e.g. > 1990-01-01 in seconds)
-        // 631152000 is 1990-01-01 in seconds
-        // 631152000000 is 1990-01-01 in ms
-        // If it looks like a timestamp, we suggest DATETIME, but we might need user confirmation in a real app
-        // For this demo, if it's a huge integer, treat as DATETIME if sensible, or INTEGER
         if (value > 631152000 && Number.isInteger(value)) {
             return 'DATETIME';
         }
@@ -19,20 +15,23 @@ export const inferFieldType = (value: any): FieldType => {
     // Simple Date check (YYYY-MM-DD or ISO)
     if (typeof value === 'string' && value.length > 5) {
         if (!isNaN(Date.parse(value)) && (value.includes('-') || value.includes('/') || value.includes('T'))) {
-            return 'DATETIME'; // or DATE
+            return 'DATETIME'; 
         }
     }
     return 'VARCHAR';
 };
 
-// Flattens nested JSON objects to a single level (optional deep flatten)
+// Flattens nested JSON objects to a single level, BUT keeps Arrays intact for extraction tools
 export const flattenApiData = (data: any[]): any[] => {
-    return data.map(row => {
-        const newRow: any = {};
+    return data.map((row, index) => {
+        const newRow: any = { _ImportId: index + 1 }; // Add stable ID for linking
         for (const key in row) {
-            if (typeof row[key] === 'object' && row[key] !== null) {
-                // If it's an object/array, stringify it to store as text/json
-                // Alternatively, complex logic could create sub-tables
+            if (Array.isArray(row[key])) {
+                // KEEP ARRAYS as raw data for the Extraction Wizard
+                newRow[key] = row[key];
+            } else if (typeof row[key] === 'object' && row[key] !== null) {
+                // Flatten simple objects to string or extract sub-keys could be better, 
+                // but for now stringify objects to avoid [object Object] mess in grid
                 newRow[key] = JSON.stringify(row[key]);
             } else {
                 newRow[key] = row[key];
@@ -64,7 +63,6 @@ export const fetchApiData = async (baseUrl: string, method: string, headersStr?:
                 });
                 finalUrl = urlObj.toString();
             } catch (e) {
-                // If baseUrl is relative or invalid, fallback (though URL ctor usually requires valid)
                 console.warn("Invalid Base URL for param appending", e);
             }
         }

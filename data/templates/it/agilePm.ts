@@ -112,7 +112,8 @@ export const getAgilePm = (lang: string): ProjectTemplate => {
                   }
               }
           ],
-          reports: []
+          reports: [],
+          layout: []
         }
     };
 };

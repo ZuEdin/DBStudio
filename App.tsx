@@ -150,7 +150,7 @@ export default function App() {
         showSecurityManager={app.showSecurityManager}
         setShowSecurityManager={app.setShowSecurityManager}
         onUpdateTable={app.onUpdateTable}
-        onCreateTable={(t) => db.saveTable(t, 'create')} // Add create table handler
+        onCreateTable={(t) => db.saveTable(t, 'create')} 
         forms={db.forms}
         reports={db.reports}
         
@@ -181,6 +181,10 @@ export default function App() {
         
         showDummyDataWizard={app.showDummyDataWizard}
         setShowDummyDataWizard={app.setShowDummyDataWizard}
+
+        // FIX: Ensure SharePoint Props are passed
+        showSharePointWizard={app.showSharePointWizard}
+        setShowSharePointWizard={app.setShowSharePointWizard}
 
         backendConfig={app.backendConfig}
         onUpdateBackendConfig={app.setBackendConfig}

@@ -13,7 +13,7 @@ const MOCK_CLOUD_PROJECTS: Project[] = [
         owner: 'Max Mustermann',
         collaborators: ['Sarah', 'Tom'],
         data: {
-            tables: [], queries: [], reports: [], forms: [], relationships: [],
+            tables: [], queries: [], reports: [], forms: [], relationships: [], layout: [],
             backendConfig: { 
                 language: 'dotnet', dbType: DbType.SQL, projectName: 'EntCRM', port: 5000, 
                 dbConnection: '', useSwagger: true, frontendFramework: 'react' 

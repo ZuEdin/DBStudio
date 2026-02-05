@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { DbType, Table, Query, Relationship, Report, Form, SelectQuery, Project, BackendConfig, FormElement, Workflow } from '../types/index';
+import { DbType, Table, Query, Relationship, Report, Form, SelectQuery, Project, BackendConfig, FormElement, Workflow, TableNode } from '../types/index';
 import { executeSelectQuery } from '../features/queries/utils/queryExecution';
 import { saveProjectToStorage } from '../services/storageService';
 
@@ -16,6 +16,7 @@ export const useDatabase = () => {
   const [forms, setForms] = useState<Form[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]); // NEW
   const [relationships, setRelationships] = useState<Relationship[]>([]);
+  const [layout, setLayout] = useState<TableNode[]>([]); // NEW
   
   const [loadedBackendConfig, setLoadedBackendConfig] = useState<BackendConfig | null>(null);
 
@@ -123,6 +124,7 @@ export const useDatabase = () => {
           setForms(demoData.forms);
           setReports(demoData.reports);
           setWorkflows(demoData.workflows);
+          setLayout([]);
       } else {
           // Initialize empty lists
           let initialTables: Table[] = [];
@@ -149,6 +151,7 @@ export const useDatabase = () => {
           setForms([]);
           setReports([]);
           setWorkflows([]);
+          setLayout([]);
       }
       
       // Store the config passed from Selector
@@ -165,6 +168,7 @@ export const useDatabase = () => {
       setForms(project.data.forms || []);
       setReports(project.data.reports || []);
       setWorkflows(project.data.workflows || []);
+      setLayout(project.data.layout || []);
       setLoadedBackendConfig(project.data.backendConfig);
   };
 
@@ -181,6 +185,7 @@ export const useDatabase = () => {
               forms,
               workflows,
               relationships,
+              layout,
               backendConfig
           }
       };
@@ -193,7 +198,7 @@ export const useDatabase = () => {
           id: currentProjectId,
           name: currentProjectName,
           lastModified: Date.now(),
-          data: { tables, queries, reports, forms, workflows, relationships, backendConfig }
+          data: { tables, queries, reports, forms, workflows, relationships, layout, backendConfig }
       };
     const dataStr = JSON.stringify(project, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
@@ -214,6 +219,7 @@ export const useDatabase = () => {
     setForms([]);
     setReports([]);
     setWorkflows([]);
+    setLayout([]);
   };
 
   // Table operations
@@ -303,7 +309,9 @@ export const useDatabase = () => {
     forms,
     workflows,
     relationships,
+    layout,
     setRelationships,
+    setLayout,
     saveTable,
     saveQuery,
     saveReport,

@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { produce } from 'immer';
-import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow } from '../types/index';
+import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, TableNode } from '../types/index';
 import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEngine';
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
@@ -18,7 +18,7 @@ interface ProjectStore extends ProjectData {
     redo: () => void;
     pushHistory: () => void;
     setTables: (tables: Table[]) => void;
-    addTable: (table: Table) => void; // New Action
+    addTable: (table: Table) => void; 
     updateTable: (table: Table) => void;
     setQueries: (queries: Query[]) => void;
     setReports: (reports: Report[]) => void;
@@ -27,13 +27,14 @@ interface ProjectStore extends ProjectData {
     setWorkflows: (workflows: Workflow[]) => void;
     setRelationships: (relationships: Relationship[]) => void;
     setBackendConfig: (config: BackendConfig) => void;
+    setLayout: (layout: TableNode[]) => void; // New
     snapshot: () => void;
-    saveProject: () => Promise<void>; // New persistence action
+    saveProject: () => Promise<void>; 
     executeQuery: (query: Query) => Record<string, any>[];
 }
 
 const initialData: ProjectData = {
-    tables: [], queries: [], reports: [], forms: [], charts: [], workflows: [], relationships: [],
+    tables: [], queries: [], reports: [], forms: [], charts: [], workflows: [], relationships: [], layout: [],
     backendConfig: { 
         language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, 
         dbConnection: '', useSwagger: true, frontendFramework: 'react' 
@@ -60,8 +61,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             charts: project.data.charts || [],
             workflows: project.data.workflows || [],
             relationships: project.data.relationships || [],
+            layout: project.data.layout || [], // Load layout
             backendConfig: project.data.backendConfig,
-            lastSnapshot: project.data.lastSnapshot || [], // Restore snapshot
+            lastSnapshot: project.data.lastSnapshot || [], 
             history: { past: [], future: [] }
         } as any);
         syncTablesToSql(project.data.tables || []);
@@ -69,7 +71,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     createNew: (type, name, config, initialData) => {
         const id = crypto.randomUUID();
-        // Clone to ensure mutability
         let tables = [...(initialData?.tables || [])];
         let relationships = [...(initialData?.relationships || [])];
         
@@ -88,11 +89,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
              const userFields: Field[] = [
                  { id: userPkId, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, 
                  { id: crypto.randomUUID(), name: 'Username', type: 'VARCHAR', length: 50 }, 
-                 { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255 }, // In real app, stored securely
+                 { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255 }, 
                  { id: roleFkId, name: 'RoleId', type: 'INTEGER' }
              ];
 
-             // Multi-Tenancy Logic: Add TenantId to Users/Roles if using Discriminator
              if (config.multiTenancy?.enabled && config.multiTenancy.strategy === 'discriminator') {
                  const tenantField = config.multiTenancy.tenantField || 'TenantId';
                  userFields.push({ id: crypto.randomUUID(), name: tenantField, type: 'VARCHAR', length: 50 });
@@ -115,7 +115,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             relationships,
             charts: [],
             workflows: [],
-            lastSnapshot: [], // Init empty snapshot
+            layout: [], // Init empty
+            lastSnapshot: [], 
             history: { past: [], future: [] }
         } as any);
         
@@ -136,7 +137,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const current: ProjectData = {
                 tables: state.tables, queries: state.queries, reports: state.reports,
                 forms: state.forms, charts: state.charts, workflows: state.workflows, relationships: state.relationships, backendConfig: state.backendConfig,
-                lastSnapshot: state.lastSnapshot
+                lastSnapshot: state.lastSnapshot, layout: state.layout
             };
             const newPast = [...state.history.past, current].slice(-20);
             state.history.past = newPast;
@@ -153,7 +154,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const current: ProjectData = {
                 tables: state.tables, queries: state.queries, reports: state.reports,
                 forms: state.forms, charts: state.charts, workflows: state.workflows, relationships: state.relationships, backendConfig: state.backendConfig,
-                lastSnapshot: state.lastSnapshot
+                lastSnapshot: state.lastSnapshot, layout: state.layout
             };
 
             state.history.future.push(current);
@@ -166,6 +167,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             state.charts = previous.charts || [];
             state.workflows = previous.workflows || [];
             state.relationships = previous.relationships || [];
+            state.layout = previous.layout || [];
             state.backendConfig = previous.backendConfig;
             state.lastSnapshot = previous.lastSnapshot;
         }));
@@ -179,7 +181,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const current: ProjectData = {
                 tables: state.tables, queries: state.queries, reports: state.reports,
                 forms: state.forms, charts: state.charts, workflows: state.workflows, relationships: state.relationships, backendConfig: state.backendConfig,
-                lastSnapshot: state.lastSnapshot
+                lastSnapshot: state.lastSnapshot, layout: state.layout
             };
             state.history.past.push(current);
             state.tables = next.tables || [];
@@ -189,6 +191,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             state.charts = next.charts || [];
             state.workflows = next.workflows || [];
             state.relationships = next.relationships || [];
+            state.layout = next.layout || [];
             state.backendConfig = next.backendConfig;
             state.lastSnapshot = next.lastSnapshot;
         }));
@@ -196,26 +199,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
 
     setTables: (tables) => { get().pushHistory(); set({ tables }); syncTablesToSql(tables); },
-    
-    // SAFE ADD: Uses get() to ensure we have latest tables
     addTable: (table) => { 
         const currentTables = get().tables;
-        // Avoid duplicates by Name or ID
         if (currentTables.some(t => t.id === table.id || t.name === table.name)) return;
-        
         const newTables = [...currentTables, table];
         get().pushHistory(); 
         set({ tables: newTables }); 
         syncTablesToSql(newTables); 
     },
-
     updateTable: (table) => { get().pushHistory(); set(state => ({ tables: state.tables.map(t => t.id === table.id ? table : t) })); syncTablesToSql(get().tables); },
+    
     setQueries: (queries) => { get().pushHistory(); set({ queries }); },
     setReports: (reports) => { get().pushHistory(); set({ reports }); },
     setForms: (forms) => { get().pushHistory(); set({ forms }); },
     setCharts: (charts) => { get().pushHistory(); set({ charts }); },
     setWorkflows: (workflows) => { get().pushHistory(); set({ workflows }); },
     setRelationships: (relationships) => { get().pushHistory(); set({ relationships }); },
+    
+    // Set Layout without pushing history on every drag frame to avoid lag, but saves on drop
+    setLayout: (layout) => { set({ layout }); }, 
+    
     setBackendConfig: (config) => { get().pushHistory(); set({ backendConfig: config }); },
     
     snapshot: () => {
@@ -239,6 +242,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 charts: state.charts,
                 workflows: state.workflows,
                 relationships: state.relationships,
+                layout: state.layout, // Persist layout
                 backendConfig: state.backendConfig,
                 lastSnapshot: state.lastSnapshot
             }

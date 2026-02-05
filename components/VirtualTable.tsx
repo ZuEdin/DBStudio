@@ -13,16 +13,27 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
   data, headers, rowHeight = 35, renderRow, className = '' 
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(400);
 
   useEffect(() => {
     if (containerRef.current) {
         setContainerHeight(containerRef.current.clientHeight);
-        const handleScroll = () => setScrollTop(containerRef.current?.scrollTop || 0);
+        
+        const handleScroll = () => {
+            if (containerRef.current) {
+                setScrollTop(containerRef.current.scrollTop);
+                // Sync horizontal scroll to header
+                if (headerRef.current) {
+                    headerRef.current.scrollLeft = containerRef.current.scrollLeft;
+                }
+            }
+        };
+
         const container = containerRef.current;
         container.addEventListener('scroll', handleScroll);
-        // Observer for resize
+        
         const observer = new ResizeObserver(entries => {
             if(entries[0]) setContainerHeight(entries[0].contentRect.height);
         });
@@ -37,7 +48,7 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
 
   const totalHeight = data.length * rowHeight;
   const startIndex = Math.floor(scrollTop / rowHeight);
-  // Render a buffer of 5 rows above and below
+  // Render a buffer of 10 rows
   const visibleCount = Math.ceil(containerHeight / rowHeight) + 10; 
   const endIndex = Math.min(data.length, startIndex + visibleCount);
   const startBuffer = Math.max(0, startIndex - 5);
@@ -50,12 +61,16 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
 
   return (
     <div className={`flex flex-col h-full bg-white border border-slate-200 rounded overflow-hidden ${className}`}>
-      {/* Header */}
-      <div className="flex bg-slate-100 border-b border-slate-300 font-bold text-xs text-slate-600 uppercase tracking-wider shrink-0 shadow-sm z-10">
+      {/* Header - overflow-hidden to hide scrollbar but allow programmatic scroll */}
+      <div 
+        ref={headerRef}
+        className="flex bg-slate-100 border-b border-slate-300 font-bold text-xs text-slate-600 uppercase tracking-wider shrink-0 shadow-sm z-10 overflow-hidden"
+      >
          {headers.map(h => (
              <div key={h} className="p-3 w-40 shrink-0 border-r border-slate-200 last:border-0 truncate">{h}</div>
          ))}
-         <div className="w-10 shrink-0"></div>
+         {/* Spacer to match scrollbar width roughly if needed, or just let content flow */}
+         <div className="w-4 shrink-0"></div>
       </div>
       
       {/* Virtual Body */}
@@ -68,7 +83,7 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
                         position: 'absolute', 
                         top: 0, 
                         left: 0, 
-                        width: '100%', 
+                        width: '100%', // Ensure row takes full width for horizontal scrolling
                         height: rowHeight, 
                         transform: `translateY(${row.offset}px)` 
                     }}

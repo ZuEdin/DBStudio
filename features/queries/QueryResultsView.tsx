@@ -19,10 +19,8 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
     return <div className="p-6 text-center text-slate-500">Ergebnisse können nur für SELECT-Abfragen angezeigt werden.</div>;
   }
   
-  // Use Filter Hook
   const { filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats } = useDataFilter(results);
 
-  // Use aliases if defined, otherwise fieldName
   const headers = query.columns.filter(c => c.show).map(c => c.alias || c.fieldName);
   const dataKeys = query.columns.filter(c => c.show).map(c => c.alias || c.fieldName);
 
@@ -64,14 +62,13 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
 
   return (
     <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-hidden flex flex-col">
-      <div className="max-w-full mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
+      <div className="max-w-full mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full w-full">
         <div className="bg-slate-800 text-white px-6 py-3 flex justify-between items-center shrink-0">
           <h2 className="text-lg font-bold flex items-center gap-2">
              <Download size={18} className="text-blue-400" /> Abfrageergebnis: {query.name}
           </h2>
           
           <div className="flex gap-4 items-center">
-             {/* Filter Toggle */}
              <button 
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
@@ -106,7 +103,7 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
                     </button>
                 </div>
                 {headers.map((h, i) => {
-                    const key = dataKeys[i]; // Map header label back to data key
+                    const key = dataKeys[i]; 
                     const stats = columnStats[key];
                     const hasFilter = !!filters[key];
                     
@@ -140,7 +137,7 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
             </div>
         )}
 
-        <div className="overflow-auto flex-1">
+        <div className="overflow-auto flex-1 relative">
           {filteredData.length > 0 ? (
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 shadow-sm z-10">

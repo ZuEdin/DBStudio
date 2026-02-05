@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Globe, CloudLightning, Server, UploadCloud, Radio, CircuitBoard } from 'lucide-react';
+import { Globe, CloudLightning, Server, UploadCloud, Radio, CircuitBoard, Share2 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 
@@ -18,6 +18,11 @@ export const IntegrationTab: React.FC<IntegrationTabProps> = ({ onAction }) => {
             icon={<Globe className="text-blue-600" />} 
             label="API Import" 
             onClick={() => onAction('api_import')} 
+        />
+        <RibbonButton 
+            icon={<Share2 className="text-teal-600" />} 
+            label="SharePoint" 
+            onClick={() => onAction('sharepoint_import')} 
         />
       </RibbonGroup>
 

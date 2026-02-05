@@ -226,7 +226,8 @@ export const getCrmSuite = (lang: string): ProjectTemplate => {
                 { fieldId: 'c6', label: t.f_status, visible: true, order: 3, formattingRules: [{ operator: 'eq', value: t.d_active, style: { color: 'green', bold: true } }] }
               ]
             }
-          ]
+          ],
+          layout: []
         }
     };
 };

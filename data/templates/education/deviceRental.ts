@@ -235,7 +235,8 @@ export const getDeviceRental = (lang: string): ProjectTemplate => {
                       { fieldId: 'd7', label: t.f_status, visible: true, order: 2, formattingRules: [{ operator: 'eq', value: t.st_broken, style: { color: 'red', bold: true } }, { operator: 'eq', value: t.st_avail, style: { color: 'green', bold: true } }] }
                   ]
               }
-          ]
+          ],
+          layout: []
         }
     };
 };

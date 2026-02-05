@@ -12,13 +12,14 @@ import { DeploymentModal } from '../features/backend/components/DeploymentModal'
 import { WhitelabelModal } from '../features/backend/WhitelabelModal';
 import { EnvironmentManagerModal } from '../features/backend/EnvironmentManagerModal';
 import { MigrationManagerModal } from '../features/backend/MigrationManagerModal';
-import { IntegrationsModal } from '../features/backend/IntegrationsModal'; // NEW
+import { IntegrationsModal } from '../features/backend/IntegrationsModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
 import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
 import { DeleteQueryWizard, Criterion } from '../features/queries/wizards/DeleteQueryWizard'; 
 import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
 import { AccessImportWizard } from '../features/tools/AccessImportWizard';
 import { DummyDataWizard } from '../features/tools/DummyDataWizard';
+import { SharePointImportWizard } from '../features/tools/SharePointImportWizard'; 
 import { MessageModal } from './MessageModal';
 import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig, DbType, IntegrationsConfig } from '../types/index';
 
@@ -82,7 +83,7 @@ interface ModalLayerProps {
   onSnapshot?: () => void;
   lastSnapshot?: Table[];
 
-  // NEW: Integrations Modal
+  // Integrations
   showIntegrationsModal?: boolean;
   setShowIntegrationsModal?: (show: boolean) => void;
   onSaveIntegrations?: (config: IntegrationsConfig) => void;
@@ -94,6 +95,8 @@ interface ModalLayerProps {
   setShowAccessWizard?: (show: boolean) => void;
   showDummyDataWizard?: boolean;
   setShowDummyDataWizard?: (show: boolean) => void;
+  showSharePointWizard?: boolean; 
+  setShowSharePointWizard?: (show: boolean) => void; 
 
   // Global Message Modal
   messageModal: MessageModalConfig | null;
@@ -124,12 +127,12 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showEnvModal, setShowEnvModal, onUpdateEnvironments,
     showMigrationModal, setShowMigrationModal, onSnapshot, lastSnapshot,
     
-    // NEW
     showIntegrationsModal, setShowIntegrationsModal, onSaveIntegrations,
 
     showExcelWizard, setShowExcelWizard,
     showAccessWizard, setShowAccessWizard,
     showDummyDataWizard, setShowDummyDataWizard,
+    showSharePointWizard, setShowSharePointWizard,
     
     messageModal, onCloseMessage,
     tables, queries, forms, reports, backendConfig, onUpdateBackendConfig
@@ -213,6 +216,15 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             tables={tables}
             onGenerate={onUpdateTable}
             onClose={() => setShowDummyDataWizard(false)}
+          />
+      )}
+
+      {showSharePointWizard && setShowSharePointWizard && (
+          <SharePointImportWizard 
+            onSave={onCreateTable} 
+            onClose={() => setShowSharePointWizard(false)}
+            backendConfig={backendConfig}
+            onUpdateConfig={onUpdateBackendConfig}
           />
       )}
 
