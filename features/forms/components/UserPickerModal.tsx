@@ -37,12 +37,14 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ initialTab = '
         setError(null);
         try {
             // Versuche Backend Call (Standard Port 5000 für .NET)
+            // WICHTIG: credentials: 'include' ist notwendig für Windows Auth (Negotiate) Cross-Origin
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s Timeout für schnelle Mock-Fallback
+            const timeoutId = setTimeout(() => controller.abort(), 2000); 
 
             const res = await fetch('http://localhost:5000/api/ad/me', { 
                 signal: controller.signal,
-                headers: { 'Accept': 'application/json' }
+                headers: { 'Accept': 'application/json' },
+                credentials: 'include' 
             });
             clearTimeout(timeoutId);
 
@@ -50,10 +52,10 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ initialTab = '
                 const data = await res.json();
                 setMe(data);
             } else {
-                throw new Error("Backend nicht erreichbar");
+                throw new Error("Backend nicht erreichbar oder 401");
             }
         } catch (e) {
-            console.warn("Backend API failed, using Mock data for Preview.");
+            console.warn("Backend API failed, using Mock data for Preview.", e);
             // Mock Data für Designer-Vorschau
             setMe({
                 Username: 'preview.user',
@@ -63,7 +65,7 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ initialTab = '
                 Groups: ['Domain Users', 'Developers']
             });
             if ((e as Error).name !== 'AbortError') {
-                setError("Backend nicht verbunden. Zeige Beispiel-Daten.");
+                setError("Backend nicht verbunden (Auth Fehler). Zeige Beispiel-Daten.");
             }
         } finally {
             setLoading(false);
@@ -79,7 +81,9 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ initialTab = '
             const timeoutId = setTimeout(() => controller.abort(), 2000);
 
             const res = await fetch(`http://localhost:5000/api/ad/search?q=${query}`, {
-                signal: controller.signal
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' },
+                credentials: 'include'
             });
             clearTimeout(timeoutId);
 

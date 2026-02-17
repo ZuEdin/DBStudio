@@ -9,9 +9,13 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
   const apiService = `import axios from 'axios';
 const API_URL = 'http://localhost:${config.port}/api';
 
-export const api = axios.create({ baseURL: API_URL });
+// withCredentials: true is required for Windows Auth (Negotiate) to work cross-origin
+export const api = axios.create({ 
+    baseURL: API_URL,
+    withCredentials: true 
+});
 
-// Auth Interceptor
+// Auth Interceptor (for JWT)
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('auth_token');
     if (token) {

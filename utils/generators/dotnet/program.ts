@@ -40,6 +40,12 @@ builder.Services.AddScoped<${config.projectName}.Services.IAdService, ${config.p
       authServices += `\nbuilder.Services.AddScoped<IPermissionService, PermissionService>();\n`;
   }
 
+  // Update CORS policy to allow credentials if Windows Auth is enabled
+  // Use SetIsOriginAllowed to allow any localhost port without wildcard
+  const corsPolicy = authConfig?.useWindowsAuth 
+    ? `app.UseCors(x => x.SetIsOriginAllowed(origin => true).AllowAnyMethod().AllowAnyHeader().AllowCredentials());`
+    : `app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());`;
+
   const content = `using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using ${config.projectName}.Data;
@@ -79,7 +85,10 @@ ${isBlazor ? 'app.UseBlazorFrameworkFiles();' : ''}
 app.UseDefaultFiles();
 app.UseStaticFiles();
 ${config.multiTenancy?.enabled ? `app.UseMiddleware<TenantMiddleware>();` : ''}
-app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+
+// CORS Config
+${corsPolicy}
+
 ${authAppUse}
 app.MapControllers();
 ${isBlazor ? 'app.MapFallbackToFile("index.html");' : 'app.MapFallbackToFile("index.html");'}
