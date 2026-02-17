@@ -77,7 +77,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 };`;
   files.push({ name: 'Modal.tsx', path: `${root}/src/components/Modal.tsx`, content: modalComponent, language: 'typescript' });
 
-  // 1.2 User Picker Modal Component (New)
+  // 1.2 User Picker Modal Component (UPDATED: Fixed Data Access)
   const userPickerModal = `import React, { useState, useEffect } from 'react';
 import { X, User, Search, Check, Loader2, ShieldAlert } from 'lucide-react';
 import { api } from '../services/api'; // Axios instance
@@ -114,7 +114,11 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
         setError(null);
         try {
             const res = await api.get('/ad/me');
-            setMe(res.data);
+            // The api wrapper returns response.data directly.
+            // If it's a paged response, it wraps it. If it's a raw object (like user), it returns it as-is.
+            // Safe check:
+            const userData = (res as any).data || res;
+            setMe(userData);
         } catch (e) {
             console.warn(e);
             setError("Konnte Benutzer nicht laden.");
@@ -129,7 +133,8 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
         setError(null);
         try {
             const res = await api.get(\`/ad/search?q=\${query}\`);
-            setResults(res.data);
+            const searchData = (res as any).data || res;
+            setResults(Array.isArray(searchData) ? searchData : []);
         } catch (e) {
             setError("Suche fehlgeschlagen.");
         } finally {
@@ -185,7 +190,7 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
 };`;
   files.push({ name: 'UserPickerModal.tsx', path: `${root}/src/components/UserPickerModal.tsx`, content: userPickerModal, language: 'typescript' });
 
-  // 2. Auth Components & Context
+  // 2. Auth Components & Context (Shortened for brevity, mostly same)
   if (useAuth) {
       // Auth Context with decoding
       const authContext = `import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -429,7 +434,9 @@ export const Profile = () => {
         try {
             // Fetch ALL profiles and filter by userId (in a real scenario, use /api/me/profile)
             const res = await get<any>('sysUserProfiles');
-            const myProfile = (res.data || res).find((p: any) => String(p.userId) === String(user.id));
+            // Safe access for data
+            const allProfiles = (res as any).data || res;
+            const myProfile = Array.isArray(allProfiles) ? allProfiles.find((p: any) => String(p.userId) === String(user.id)) : null;
             if (myProfile) {
                 setProfile(myProfile);
                 setProfileId(myProfile.id);
@@ -749,7 +756,6 @@ function App() {
                     <Route path="/profile" element={<Profile />} />
                 ` : `<Route element={<Layout><Outlet /></Layout>}>`}
                     <Route path="/" element={
-                        // FIX: Removed inner <Layout> wrapper, as parent provides it
                         <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                             <h1 className="text-4xl font-bold text-slate-800 dark:text-white tracking-tight">Willkommen bei ${wl.appName}</h1>
                             <p className="text-slate-500 dark:text-slate-400 max-w-md">Wählen Sie einen Eintrag aus dem Menü, um zu starten.</p>

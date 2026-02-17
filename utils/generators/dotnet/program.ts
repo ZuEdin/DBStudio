@@ -40,11 +40,12 @@ builder.Services.AddScoped<${config.projectName}.Services.IAdService, ${config.p
       authServices += `\nbuilder.Services.AddScoped<IPermissionService, PermissionService>();\n`;
   }
 
-  // Update CORS policy to allow credentials if Windows Auth is enabled
-  // Use SetIsOriginAllowed to allow any localhost port without wildcard
-  const corsPolicy = authConfig?.useWindowsAuth 
-    ? `app.UseCors(x => x.SetIsOriginAllowed(origin => true).AllowAnyMethod().AllowAnyHeader().AllowCredentials());`
-    : `app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());`;
+  // ROBUST CORS POLICY: Always allow credentials and reflect origin to avoid "Status 0" errors in browsers
+  const corsPolicy = `app.UseCors(x => x
+    .SetIsOriginAllowed(origin => true) // Allow any origin but reflect it back (required for Credentials)
+    .AllowAnyMethod()
+    .AllowAnyHeader()
+    .AllowCredentials());`;
 
   const content = `using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
@@ -53,6 +54,11 @@ ${namespaces}
 ${config.multiTenancy?.enabled ? `using ${config.projectName}.Services;` : ''}
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Note: "AllowedHosts" is configured in appsettings.json. 
+// By default it is set to "*" (all).
+// We explicitly bind to all interfaces here to ensure accessibility (e.g. from LAN).
+builder.WebHost.UseUrls("http://*:${config.port}");
 
 builder.Services.AddControllers().AddJsonOptions(options => { options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; });
 ${config.multiTenancy?.enabled ? `builder.Services.AddScoped<ITenantService, TenantService>();` : ''}

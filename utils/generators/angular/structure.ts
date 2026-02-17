@@ -74,7 +74,7 @@ export class LayoutComponent {}
     files.push({ name: 'layout.component.html', path: `${appRoot}/components/layout/layout.component.html`, content: layoutHtml, language: 'html' });
     files.push({ name: 'layout.component.ts', path: `${appRoot}/components/layout/layout.component.ts`, content: layoutTs, language: 'typescript' });
 
-    // 3. User Picker Component (NEW)
+    // 3. User Picker Component
     const userPickerHtml = `
 <div *ngIf="isOpen" class="fixed inset-0 bg-black/50 z-[250] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-300 overflow-hidden flex flex-col h-[500px]">
@@ -167,7 +167,8 @@ export class UserPickerComponent implements OnChanges {
   loadMe() {
       this.loading = true;
       this.error = '';
-      this.api.getAll('ad/me').subscribe({
+      // Use generic get() to avoid pagination wrapper, as endpoint returns single object
+      this.api.get('ad/me').subscribe({
           next: (data) => { this.me = data; this.loading = false; },
           error: () => { this.error = 'Fehler beim Laden.'; this.loading = false; }
       });
@@ -177,8 +178,9 @@ export class UserPickerComponent implements OnChanges {
       if (!this.query || this.query.length < 2) return;
       this.loading = true;
       this.error = '';
-      this.api.getAll('ad/search', 1, 20, this.query).subscribe({
-          next: (res: any) => { this.results = res; this.loading = false; }, // Search returns raw list
+      // Use generic get() to avoid pagination wrapper, as endpoint returns raw array
+      this.api.get('ad/search', { q: this.query }).subscribe({
+          next: (res: any) => { this.results = res; this.loading = false; },
           error: () => { this.error = 'Suche fehlgeschlagen.'; this.loading = false; }
       });
   }

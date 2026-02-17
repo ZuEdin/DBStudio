@@ -55,6 +55,7 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
   });
 
   // API Service using Environment config
+  // UPDATED: Added generic get method for raw data
   const apiService = `import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -67,6 +68,12 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
+  // Generic Get for raw data (single objects or arrays without pagination wrapper)
+  get<T>(endpoint: string, params: any = {}): Observable<T> {
+    return this.http.get<T>(this.baseUrl + '/' + endpoint, { params, withCredentials: true });
+  }
+
+  // List Get with Pagination normalization
   getAll(endpoint: string, page: number = 1, pageSize: number = 20, search: string = ''): Observable<any> {
     let params = new HttpParams()
         .set('page', page.toString())
@@ -76,7 +83,7 @@ export class ApiService {
         params = params.set('search', search);
     }
 
-    return this.http.get<any>(this.baseUrl + '/' + endpoint, { params }).pipe(
+    return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
       map(response => {
           if (Array.isArray(response)) {
               return { data: response, total: response.length, page: 1, totalPages: 1 };
@@ -90,19 +97,19 @@ export class ApiService {
   }
 
   getById(endpoint: string, id: any): Observable<any> {
-    return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id);
+    return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
   }
 
   create(endpoint: string, item: any): Observable<any> {
-    return this.http.post<any>(this.baseUrl + '/' + endpoint, item);
+    return this.http.post<any>(this.baseUrl + '/' + endpoint, item, { withCredentials: true });
   }
 
   update(endpoint: string, id: any, item: any): Observable<any> {
-    return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item);
+    return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item, { withCredentials: true });
   }
 
   delete(endpoint: string, id: any): Observable<void> {
-    return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id);
+    return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
   }
 }`;
   files.push({ name: 'api.service.ts', path: `${appRoot}/services/api.service.ts`, content: apiService, language: 'typescript' });

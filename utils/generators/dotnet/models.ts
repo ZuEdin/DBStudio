@@ -1,7 +1,7 @@
 
 import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery, ValidationRule, DbType } from '../../../types/index';
 import { DATA_TYPES } from '../../../config/dataTypes';
-import { resolveType, toPascalCase } from '../common';
+import { resolveType, toPascalCase, isNullable } from '../common';
 
 export const generateDbContext = (tables: Table[], queries: Query[], config: BackendConfig, root: string): VirtualFile => {
   const dbSets = tables.map(t => `        public DbSet<${toPascalCase(t.name)}> ${toPascalCase(t.name)}s { get; set; }`).join('\n');
@@ -167,6 +167,9 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       let type = resolveType(f, 'csharp');
       const typeConfig = DATA_TYPES[f.type];
       const attributes = [];
+      
+      const nullable = isNullable(f);
+
       if (f.isPrimaryKey) attributes.push('[Key]');
       if (typeConfig && typeConfig.mappings.csharp.attributes) {
           attributes.push(...typeConfig.mappings.csharp.attributes({ length: f.length, precision: f.precision, scale: f.scale }));
@@ -174,15 +177,21 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       
       const isValueType = ['int', 'decimal', 'double', 'DateTime', 'bool'].includes(type);
       let initializer = '';
-      if (f.allowNull) type += '?';
-      else {
+      
+      // Determine if type should be nullable '?'
+      if (nullable) {
+          type += '?';
+      } else {
+          // If NOT nullable and is String, init to empty to avoid warnings
           if (type === 'string') initializer = ' = string.Empty;';
-          else if (!isValueType) initializer = ' = default!;';
+          // If NOT nullable and Value Type, no initializer needed (defaults to 0/false)
       }
+
+      // Explicit Default Values override
       if (f.defaultValue) {
           if (type.startsWith('string')) initializer = ` = "${f.defaultValue}";`;
           else if (type.includes('bool')) initializer = ` = ${f.defaultValue.toLowerCase() === 'true' ? 'true' : 'false'};`;
-          else initializer = ` = ${f.defaultValue};`;
+          else if (!type.startsWith('DateTime')) initializer = ` = ${f.defaultValue};`;
       }
 
       const indent = "        "; 
@@ -215,10 +224,6 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
 
         if (!parentTable || !fkField || !parentPk) return '';
 
-        // SAFEGUARD: Check for Type Mismatch (The fix for your crash)
-        // If the Foreign Key type doesn't match the Parent Primary Key type, EF Core crashes.
-        // We skip generating the navigation property in C# code to allow the app to start.
-        // The relationship metadata still exists for SQL generation (Views), so your query will still work.
         if (fkField.type !== parentPk.type) {
             return `        // [SKIPPED] Navigation to ${toPascalCase(parentTable.name)} skipped due to Type Mismatch: ${fkField.name} (${fkField.type}) vs PK ${parentPk.name} (${parentPk.type})`;
         }

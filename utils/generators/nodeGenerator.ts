@@ -269,7 +269,13 @@ const upload = require('./services/storageService');
 ${integrations.sso.length > 0 ? "const passport = require('passport');" : ""}
 
 const app = express();
-app.use(cors());
+
+// Enable CORS with Credentials support (fixes Status 0 errors in fetch)
+app.use(cors({
+    origin: true, // Reflect request origin
+    credentials: true 
+}));
+
 app.use(express.json());
 
 // Auth Setup

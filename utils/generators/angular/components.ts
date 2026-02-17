@@ -164,6 +164,15 @@ export class ${pascalName}ListComponent implements OnInit {
       let subformLoads = '';
       let subformSaveLogic = '';
 
+      // DATA SANITIZATION LOGIC
+      // Prevents empty strings for numbers/dates from being sent to API
+      const sanitizationLogic = table.fields.map(f => {
+          if (f.type !== 'VARCHAR' && f.type !== 'TEXT') {
+              return `if ((this.data as any).${toCamelCase(f.name)} === '') (this.data as any).${toCamelCase(f.name)} = null;`;
+          }
+          return '';
+      }).filter(s => s).join('\n      ');
+
       if (linkedForm && linkedForm.layout) {
           const layoutHtml = generateHtmlForLayout(linkedForm.layout, tables, forms);
           formHtml = `<div class="p-6 max-w-4xl mx-auto">
@@ -311,8 +320,14 @@ ${listFetches}
   }
 
   save() {
+      // Auto-Sanitize empty strings to null for backend compatibility
+      ${sanitizationLogic}
+
       const op = this.isNew ? this.api.create('${camelName}', this.data) : this.api.update('${camelName}', (this.data as any).${pkCamel}, this.data);
-      op.subscribe(() => this.router.navigate(['/${camelName}']));
+      op.subscribe({
+          next: () => this.router.navigate(['/${camelName}']),
+          error: (err) => alert('Fehler beim Speichern: ' + (err.error?.title || err.message))
+      });
   }
 
   openModal(id: string) { this.modals[id] = true; this.tempData = {}; this.tempSubData = {}; }

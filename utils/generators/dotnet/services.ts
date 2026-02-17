@@ -124,9 +124,9 @@ namespace ${config.projectName}.Services
         {
             if (principal?.Identity?.Name == null) return null;
 
+            // 1. Try Domain Context (Active Directory)
             try 
             {
-                // Connect to current Domain
                 using var context = new PrincipalContext(ContextType.Domain);
                 using var user = UserPrincipal.FindByIdentity(context, principal.Identity.Name);
                 
@@ -134,10 +134,24 @@ namespace ${config.projectName}.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "AD lookup failed for current user. Fallback to Identity.");
+                // This catches UriFormatException (Hostname parsing) and Timeouts
+                _logger.LogWarning("AD Domain lookup failed ({Msg}). Trying local machine fallback...", ex.Message);
+
+                // 2. Fallback: Try Machine Context (Local User / Dev Mode)
+                try 
+                {
+                    using var context = new PrincipalContext(ContextType.Machine);
+                    using var user = UserPrincipal.FindByIdentity(context, principal.Identity.Name);
+                    if (user != null) return MapUser(user, includeGroups: false);
+                }
+                catch (Exception ex2)
+                {
+                    _logger.LogWarning("Machine lookup also failed: {Msg}", ex2.Message);
+                }
             }
-            // Fallback
-            return new AdUserInfo { Username = principal.Identity.Name };
+            
+            // 3. Last Resort: Return simple Identity info
+            return new AdUserInfo { Username = principal.Identity.Name, DisplayName = principal.Identity.Name };
         }
 
         public List<AdUserInfo> SearchUsers(string query)
@@ -147,42 +161,49 @@ namespace ${config.projectName}.Services
 
             try
             {
+                // Try connecting to Domain first
                 using var context = new PrincipalContext(ContextType.Domain);
                 
-                // 1. Search by Username (SamAccountName)
-                var userProto1 = new UserPrincipal(context);
-                userProto1.SamAccountName = "*" + query + "*";
+                // 1. Search by Username
+                var userProto1 = new UserPrincipal(context) { SamAccountName = "*" + query + "*" };
                 using var searcher1 = new PrincipalSearcher(userProto1);
                 
                 foreach (var result in searcher1.FindAll().Take(10))
                 {
-                    if (result is UserPrincipal user) 
+                    if (result is UserPrincipal user && !results.Any(r => r.Username == user.SamAccountName))
                     {
-                        if (!results.Any(r => r.Username == user.SamAccountName))
-                            results.Add(MapUser(user, includeGroups: false));
+                        results.Add(MapUser(user, includeGroups: false));
                     }
                 }
 
-                // 2. Search by DisplayName (only if we need more results)
+                // 2. Search by DisplayName
                 if (results.Count < 20)
                 {
-                    var userProto2 = new UserPrincipal(context);
-                    userProto2.DisplayName = "*" + query + "*";
+                    var userProto2 = new UserPrincipal(context) { DisplayName = "*" + query + "*" };
                     using var searcher2 = new PrincipalSearcher(userProto2);
 
                     foreach (var result in searcher2.FindAll().Take(20 - results.Count))
                     {
-                        if (result is UserPrincipal user) 
+                        if (result is UserPrincipal user && !results.Any(r => r.Username == user.SamAccountName))
                         {
-                            if (!results.Any(r => r.Username == user.SamAccountName))
-                                results.Add(MapUser(user, includeGroups: false));
+                            results.Add(MapUser(user, includeGroups: false));
                         }
                     }
                 }
             }
             catch (Exception ex) 
             { 
-                _logger.LogError(ex, "Error searching AD users."); 
+                _logger.LogError(ex, "Error searching AD users. (Are you connected to the domain?)"); 
+                
+                // Optional: Fallback search on local machine
+                try {
+                    using var localCtx = new PrincipalContext(ContextType.Machine);
+                    var localProto = new UserPrincipal(localCtx) { Name = "*" + query + "*" };
+                    using var localSearcher = new PrincipalSearcher(localProto);
+                    foreach (var res in localSearcher.FindAll().Take(5)) {
+                        if (res is UserPrincipal u) results.Add(MapUser(u, false));
+                    }
+                } catch {}
             }
             return results;
         }
@@ -197,7 +218,6 @@ namespace ${config.projectName}.Services
                 Department = "Unknown"
             };
             
-            // Try to extract Department if possible (requires underlying DirectoryEntry)
             try {
                if (user.GetUnderlyingObject() is System.DirectoryServices.DirectoryEntry de) {
                    if(de.Properties.Contains("department")) 
@@ -210,7 +230,12 @@ namespace ${config.projectName}.Services
                 try {
                     var groups = user.GetAuthorizationGroups();
                     info.Groups = groups.Select(g => g.Name).ToList();
-                } catch { /* Groups fetch can fail */ }
+                } 
+                catch (Exception ex) 
+                { 
+                    // Swallow group fetch errors specifically (common source of crashes)
+                    _logger.LogDebug("Could not fetch AD groups for {User}: {Msg}", user.Name, ex.Message);
+                }
             }
             return info;
         }

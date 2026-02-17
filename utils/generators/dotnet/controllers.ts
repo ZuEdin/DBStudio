@@ -51,12 +51,13 @@ namespace ${config.projectName}.Controllers
         }
 
         [HttpGet("search")]
-        public ActionResult<List<AdUserInfo>> Search([FromQuery] string q)
+        public ActionResult<List<AdUserInfo>> Search([FromQuery] string? q = null, [FromQuery] string? search = null)
         {
-            if (string.IsNullOrWhiteSpace(q) || q.Length < 2) 
+            var query = q ?? search;
+            if (string.IsNullOrWhiteSpace(query) || query.Length < 2) 
                 return BadRequest("Query must be at least 2 characters.");
 
-            return Ok(_adService.SearchUsers(q));
+            return Ok(_adService.SearchUsers(query));
         }
     }
 }`;

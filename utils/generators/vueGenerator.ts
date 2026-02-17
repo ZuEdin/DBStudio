@@ -227,7 +227,8 @@ const save = async () => { if(isNew) await post('${c}', data.value); else await 
   files.push({ name: 'main.ts', path: `${root}/src/main.ts`, content: `import { createApp } from 'vue';\nimport './style.css';\nimport App from './App.vue';\nimport router from './router';\n\ncreateApp(App).use(router).mount('#app');`, language: 'typescript' });
   files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;`, language: 'css' });
   
-  const apiContent = "import axios from 'axios';\nconst API_URL = 'http://localhost:" + config.port + "/api';\nconst api = axios.create({ baseURL: API_URL });\nexport const get = async (e: string, p?: any) => (await api.get(e, { params: p })).data;\nexport const post = async (e: string, d: any) => (await api.post(e, d)).data;\nexport const put = async (e: string, d: any) => (await api.put(e, d)).data;\nexport const remove = async (e: string) => await api.delete(e);";
+  // UPDATED: Added withCredentials: true
+  const apiContent = "import axios from 'axios';\nconst API_URL = 'http://localhost:" + config.port + "/api';\nconst api = axios.create({ baseURL: API_URL, withCredentials: true });\nexport const get = async (e: string, p?: any) => (await api.get(e, { params: p })).data;\nexport const post = async (e: string, d: any) => (await api.post(e, d)).data;\nexport const put = async (e: string, d: any) => (await api.put(e, d)).data;\nexport const remove = async (e: string) => await api.delete(e);";
   files.push({ name: 'api.ts', path: `${root}/src/services/api.ts`, content: apiContent, language: 'typescript' });
 
   return files;
