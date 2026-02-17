@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Form, Table, FormElement } from '../../types/index';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FormWidget } from './renderer/FormWidget';
 
@@ -210,7 +210,18 @@ export const FormView: React.FC<FormViewProps> = ({
           />;
       }
       if (el.type === 'subform' && el.subform) {
-          if (isCreating) return <div key={el.id} className="p-4 text-center text-slate-400 border border-dashed rounded bg-slate-50">Bitte speichern Sie den Datensatz, um Unterformulare zu bearbeiten.</div>;
+          // --- LOGIC CHANGE: BLOCK SUBFORM IF PARENT IS CREATING ---
+          if (isCreating) {
+              return (
+                  <div key={el.id} className={`border-2 border-dashed border-slate-300 rounded-lg p-6 bg-slate-50 mt-4 text-center ${el.className || ''}`}>
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                          <AlertCircle size={24} />
+                          <p className="font-semibold text-sm">Unterformular "{el.label}" nicht verfügbar</p>
+                          <p className="text-xs">Bitte speichern Sie den Hauptdatensatz, bevor Sie Einträge hinzufügen.</p>
+                      </div>
+                  </div>
+              );
+          }
 
           const subDef = allForms.find(f => f.id === el.subform!.formId);
           if (!subDef) return <div key={el.id} className="text-red-500">Subform nicht gefunden.</div>;
@@ -231,7 +242,7 @@ export const FormView: React.FC<FormViewProps> = ({
             <div key={el.id} className={`border border-slate-300 rounded-md overflow-hidden mt-4 ${el.className || ''}`}>
                 <div className="bg-slate-100 p-2 flex justify-between items-center border-b border-slate-200">
                     <span className="font-bold text-sm text-slate-700 flex items-center gap-2">
-                        <Layout size={14}/> {el.label || subDef.name}
+                        <Layout size={14}/> {el.label || subDef.name} ({subformData.length})
                     </span>
                     {!isReadOnly && el.subform.canAdd && (
                         <button 
@@ -243,17 +254,31 @@ export const FormView: React.FC<FormViewProps> = ({
                     )}
                 </div>
                 <div className="p-2 bg-slate-50/50">
-                    <FormView 
-                        form={subDef}
-                        allForms={allForms}
-                        allTables={allTables}
-                        onTableChange={onTableChange}
-                        showConfirmation={showConfirmation}
-                        isSubform={true}
-                        filteredData={subformData}
-                        parentRecord={currentRecord}
-                        linkConfig={{ masterFieldId: el.subform!.masterLinkFieldId, childFieldId: el.subform!.childLinkFieldId }}
-                    />
+                    {subformData.length > 0 ? (
+                        <FormView 
+                            form={subDef}
+                            allForms={allForms}
+                            allTables={allTables}
+                            onTableChange={onTableChange}
+                            showConfirmation={showConfirmation}
+                            isSubform={true}
+                            filteredData={subformData}
+                            parentRecord={currentRecord}
+                            linkConfig={{ masterFieldId: el.subform!.masterLinkFieldId, childFieldId: el.subform!.childLinkFieldId }}
+                        />
+                    ) : (
+                        <div className="p-6 text-center">
+                            <p className="text-slate-400 text-sm mb-3">Keine Einträge vorhanden.</p>
+                            {!isReadOnly && el.subform.canAdd && (
+                                <button 
+                                    onClick={() => handleOpenSubformModal(el.subform!.formId, el.subform!.masterLinkFieldId, el.subform!.childLinkFieldId)}
+                                    className="bg-blue-50 text-blue-600 px-4 py-2 rounded text-sm font-medium hover:bg-blue-100 transition-colors mx-auto flex items-center gap-2"
+                                >
+                                    <Plus size={14}/> Ersten Eintrag erstellen
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
           );
@@ -313,6 +338,7 @@ export const FormView: React.FC<FormViewProps> = ({
                         showConfirmation={showConfirmation}
                         isSubform={false}
                         onClose={() => setLookupModal(null)}
+                        linkConfig={undefined} // Quick Create usually doesn't cascade yet
                     />
                   </div>
               </div>
@@ -326,14 +352,6 @@ export const FormView: React.FC<FormViewProps> = ({
       if (!targetForm) return null;
       const targetTable = allTables.find(t => t.id === targetForm.sourceId);
       if (!targetTable) return null;
-
-      // We need to initialize the form in "Create Mode"
-      // Since FormView controls its own state, we pass a special linkConfig and maybe force a "New" mode visually?
-      // A trick is to use a wrapper component that auto-clicks "New" or pass an initial state.
-      // For now, we reuse FormView but we need it to start in Create mode for the subform modal to make sense.
-      // We can use the existing `startCreate` logic if we modify FormView to accept an `autoCreate` prop.
-      // OR we just mount it and let user click New.
-      // Better: We pre-fill the parent record info.
 
       return (
           <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in zoom-in-95 duration-200">
