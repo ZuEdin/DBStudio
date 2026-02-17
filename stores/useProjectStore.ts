@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { produce } from 'immer';
-import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, TableNode } from '../types/index';
+import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, TableNode, FormElement, FormField } from '../types/index';
 import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEngine';
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
@@ -12,7 +12,7 @@ interface ProjectStore extends ProjectData {
     projectName: string;
     init: () => Promise<void>;
     loadProject: (project: Project) => void;
-    createNew: (type: DbType, name: string, config: BackendConfig, initialData?: Partial<ProjectData>) => void;
+    createNew: (type: DbType, name: string, config: BackendConfig, initialData?: Partial<ProjectData>) => Promise<void>;
     closeProject: () => void;
     undo: () => void;
     redo: () => void;
@@ -69,41 +69,178 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         syncTablesToSql(project.data.tables || []);
     },
 
-    createNew: (type, name, config, initialData) => {
+    createNew: async (type, name, config, initialData) => {
         const id = crypto.randomUUID();
         let tables = [...(initialData?.tables || [])];
         let relationships = [...(initialData?.relationships || [])];
+        let forms = [...(initialData?.forms || [])];
         
-        // Auto-create Auth Tables
+        // Auto-create Auth Tables & Forms
         if (config.authConfig?.useUserLogin && !tables.some(t => t.name.toLowerCase() === 'sys_users')) {
+             // 1. ROLES
              const roleTableId = 'sys_roles';
              const rolePkId = crypto.randomUUID();
              const roleFields: Field[] = [
                  { id: rolePkId, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, 
-                 { id: crypto.randomUUID(), name: 'Name', type: 'VARCHAR', length: 50 }
+                 { id: crypto.randomUUID(), name: 'Name', type: 'VARCHAR', length: 50 },
+                 { id: crypto.randomUUID(), name: 'Description', type: 'VARCHAR', length: 255 }
              ];
              
+             // 2. USERS (Auth credentials only)
              const userTableId = 'sys_users';
              const userPkId = crypto.randomUUID();
              const roleFkId = crypto.randomUUID();
              const userFields: Field[] = [
                  { id: userPkId, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, 
                  { id: crypto.randomUUID(), name: 'Username', type: 'VARCHAR', length: 50 }, 
+                 { id: crypto.randomUUID(), name: 'Email', type: 'VARCHAR', length: 100 }, 
                  { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255 }, 
                  { id: roleFkId, name: 'RoleId', type: 'INTEGER' }
+             ];
+
+             // 3. PROFILES (Extended User Data)
+             const profileTableId = 'sys_user_profiles';
+             const profilePkId = crypto.randomUUID();
+             const profileUserFkId = crypto.randomUUID();
+             const profileFields: Field[] = [
+                 { id: profilePkId, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+                 { id: profileUserFkId, name: 'UserId', type: 'INTEGER' },
+                 { id: crypto.randomUUID(), name: 'FirstName', type: 'VARCHAR', length: 100, allowNull: true },
+                 { id: crypto.randomUUID(), name: 'LastName', type: 'VARCHAR', length: 100, allowNull: true },
+                 { id: crypto.randomUUID(), name: 'Company', type: 'VARCHAR', length: 100, allowNull: true },
+                 { id: crypto.randomUUID(), name: 'Street', type: 'VARCHAR', length: 200, allowNull: true },
+                 { id: crypto.randomUUID(), name: 'City', type: 'VARCHAR', length: 100, allowNull: true },
+                 { id: crypto.randomUUID(), name: 'Zip', type: 'VARCHAR', length: 20, allowNull: true },
+                 { id: crypto.randomUUID(), name: 'Phone', type: 'VARCHAR', length: 50, allowNull: true }
              ];
 
              if (config.multiTenancy?.enabled && config.multiTenancy.strategy === 'discriminator') {
                  const tenantField = config.multiTenancy.tenantField || 'TenantId';
                  userFields.push({ id: crypto.randomUUID(), name: tenantField, type: 'VARCHAR', length: 50 });
                  roleFields.push({ id: crypto.randomUUID(), name: tenantField, type: 'VARCHAR', length: 50 });
+                 profileFields.push({ id: crypto.randomUUID(), name: tenantField, type: 'VARCHAR', length: 50 });
              }
 
-             tables.push({ id: roleTableId, name: 'sys_roles', fields: roleFields, data: [{Id:1, Name:'Admin'},{Id:2, Name:'User'}] });
-             tables.push({ id: userTableId, name: 'sys_users', fields: userFields, data: [{Id:1, Username:'admin', RoleId:1}] });
+             tables.push({ id: roleTableId, name: 'sys_roles', fields: roleFields, data: [{Id:1, Name:'Admin', Description: 'Administrator'},{Id:2, Name:'User', Description: 'Standard User'}] });
+             tables.push({ id: userTableId, name: 'sys_users', fields: userFields, data: [{Id:1, Username:'admin', Email:'admin@local.host', RoleId:1}] });
+             tables.push({ id: profileTableId, name: 'sys_user_profiles', fields: profileFields, data: [] });
 
+             // 4. PERMISSIONS
              const permTableId = 'sys_permissions';
-             tables.push({ id: permTableId, name: 'sys_permissions', fields: [{ id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true }, { id: crypto.randomUUID(), name: 'RoleId', type: 'INTEGER' }, { id: crypto.randomUUID(), name: 'ObjectType', type: 'VARCHAR' }, { id: crypto.randomUUID(), name: 'CanRead', type: 'BOOLEAN' }, { id: crypto.randomUUID(), name: 'CanWrite', type: 'BOOLEAN' }, { id: crypto.randomUUID(), name: 'CanDelete', type: 'BOOLEAN' }] });
+             const permRoleFkId = crypto.randomUUID();
+             tables.push({ 
+                 id: permTableId, 
+                 name: 'sys_permissions', 
+                 fields: [
+                     { id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, 
+                     { id: permRoleFkId, name: 'RoleId', type: 'INTEGER' }, 
+                     { id: crypto.randomUUID(), name: 'ObjectType', type: 'VARCHAR' }, 
+                     { id: crypto.randomUUID(), name: 'ObjectId', type: 'VARCHAR' },
+                     { id: crypto.randomUUID(), name: 'CanRead', type: 'BOOLEAN' }, 
+                     { id: crypto.randomUUID(), name: 'CanWrite', type: 'BOOLEAN' }, 
+                     { id: crypto.randomUUID(), name: 'CanDelete', type: 'BOOLEAN' }
+                ] 
+             });
+
+             // Add Relationships
+             relationships.push({
+                 id: crypto.randomUUID(),
+                 fromTableId: roleTableId,
+                 fromFieldId: rolePkId,
+                 toTableId: userTableId,
+                 toFieldId: roleFkId,
+                 type: '1:n',
+                 referentialIntegrity: true
+             });
+
+             relationships.push({
+                id: crypto.randomUUID(),
+                fromTableId: userTableId,
+                fromFieldId: userPkId,
+                toTableId: profileTableId,
+                toFieldId: profileUserFkId,
+                type: '1:1',
+                referentialIntegrity: true,
+                onDelete: 'CASCADE'
+            });
+
+             relationships.push({
+                id: crypto.randomUUID(),
+                fromTableId: roleTableId,
+                fromFieldId: rolePkId,
+                toTableId: permTableId,
+                toFieldId: permRoleFkId,
+                type: '1:n',
+                referentialIntegrity: true,
+                onDelete: 'CASCADE'
+            });
+
+            // --- AUTO GENERATE FORMS ---
+            // 1. Role Management Form
+            const fRoleFields: FormField[] = [
+                { fieldId: roleFields.find(f => f.name === 'Name')!.id, label: 'Bezeichnung' },
+                { fieldId: roleFields.find(f => f.name === 'Description')!.id, label: 'Beschreibung' }
+            ];
+            
+            forms.push({
+                id: crypto.randomUUID(),
+                name: 'Rollenverwaltung',
+                sourceType: 'table',
+                sourceId: roleTableId,
+                fields: fRoleFields,
+                layout: {
+                    id: crypto.randomUUID(), type: 'container', className: 'p-6 bg-white space-y-4 max-w-2xl mx-auto',
+                    children: [
+                        { id: crypto.randomUUID(), type: 'label', label: 'Rolle definieren', className: 'text-xl font-bold text-slate-800 border-b pb-2' },
+                        { id: crypto.randomUUID(), type: 'field', fieldId: fRoleFields[0].fieldId, label: 'Rollenname', className: 'mb-4' },
+                        { id: crypto.randomUUID(), type: 'field', fieldId: fRoleFields[1].fieldId, label: 'Beschreibung', widgetType: 'textarea' }
+                    ]
+                }
+            });
+
+            // 2. User Management Form (With Lookup)
+            const fUserFields: FormField[] = [
+                { fieldId: userFields.find(f => f.name === 'Username')!.id, label: 'Benutzername' },
+                { fieldId: userFields.find(f => f.name === 'Email')!.id, label: 'E-Mail' },
+                { fieldId: userFields.find(f => f.name === 'PasswordHash')!.id, label: 'Passwort' },
+                { fieldId: roleFkId, label: 'Rolle' }
+            ];
+
+            forms.push({
+                id: crypto.randomUUID(),
+                name: 'Benutzerverwaltung',
+                sourceType: 'table',
+                sourceId: userTableId,
+                fields: fUserFields,
+                layout: {
+                    id: crypto.randomUUID(), type: 'container', className: 'p-6 bg-white space-y-6',
+                    children: [
+                        { id: crypto.randomUUID(), type: 'label', label: 'Benutzerkonto', className: 'text-xl font-bold text-slate-800 border-b pb-2 flex items-center gap-2' },
+                        { 
+                            id: crypto.randomUUID(), type: 'container', className: 'grid grid-cols-2 gap-6',
+                            children: [
+                                { id: crypto.randomUUID(), type: 'field', fieldId: fUserFields[0].fieldId, label: 'Benutzername' },
+                                { id: crypto.randomUUID(), type: 'field', fieldId: fUserFields[1].fieldId, label: 'E-Mail Adresse' }
+                            ]
+                        },
+                        { 
+                            id: crypto.randomUUID(), type: 'container', className: 'grid grid-cols-2 gap-6 p-4 bg-slate-50 border rounded-lg',
+                            children: [
+                                { 
+                                    id: crypto.randomUUID(), type: 'field', fieldId: roleFkId, label: 'Zugriffsrolle', 
+                                    widgetType: 'select', 
+                                    lookup: {
+                                        tableId: roleTableId,
+                                        valueFieldId: rolePkId,
+                                        labelFields: [roleFields.find(f => f.name === 'Name')!.id]
+                                    }
+                                },
+                                { id: crypto.randomUUID(), type: 'field', fieldId: fUserFields[2].fieldId, label: 'Initialpasswort', widgetType: 'text' }
+                            ]
+                        }
+                    ]
+                }
+            });
         }
 
         set({ 
@@ -113,6 +250,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             backendConfig: config,
             tables,
             relationships,
+            forms,
             charts: [],
             workflows: [],
             layout: [], // Init empty
@@ -121,6 +259,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         } as any);
         
         syncTablesToSql(tables);
+        
+        // AUTO-SAVE ON CREATE
+        await get().saveProject();
     },
 
     closeProject: () => {
@@ -216,7 +357,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setWorkflows: (workflows) => { get().pushHistory(); set({ workflows }); },
     setRelationships: (relationships) => { get().pushHistory(); set({ relationships }); },
     
-    // Set Layout without pushing history on every drag frame to avoid lag, but saves on drop
     setLayout: (layout) => { set({ layout }); }, 
     
     setBackendConfig: (config) => { get().pushHistory(); set({ backendConfig: config }); },
@@ -242,7 +382,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 charts: state.charts,
                 workflows: state.workflows,
                 relationships: state.relationships,
-                layout: state.layout, // Persist layout
+                layout: state.layout, 
                 backendConfig: state.backendConfig,
                 lastSnapshot: state.lastSnapshot
             }

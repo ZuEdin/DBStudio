@@ -170,6 +170,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             const displayVal = isDate ? formatDateValue(rawVal, field?.displayFormat) : rawVal;
             const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
             const isFK = !!rel;
+            const showLink = isFK && rawVal;
 
             return (
                 <div key={`${rowIndex}-${header}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''} flex items-center`}>
@@ -179,12 +180,12 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                         title={String(rawVal)} 
                         onChange={(e) => { handleDataChange(row, header, e.target.value) }}
                         readOnly={isAutoInc}
-                        className={`flex-1 h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''}`}
+                        className={`flex-1 h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''} ${showLink ? 'pr-8' : ''}`}
                     />
-                    {isFK && rawVal && (
+                    {showLink && (
                         <button 
                             onClick={() => setDetailView({ targetTableId: rel.toTableId, recordId: rawVal })}
-                            className="p-1 mr-1 text-blue-400 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors"
+                            className="absolute right-1 top-1 bottom-1 p-1 text-blue-400 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors flex items-center justify-center"
                             title="Datensatz anzeigen"
                         >
                             <ExternalLink size={12} />

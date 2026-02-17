@@ -49,24 +49,34 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                 <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Backend</label>
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                    value={backendConfig.language === 'dotnet' ? `dotnet-${backendConfig.backendVersion || '9.0'}` : backendConfig.language}
-                    onChange={e => {
-                        const val = e.target.value;
-                        if (val.startsWith('dotnet-')) {
-                            const ver = val.replace('dotnet-', '');
-                            setBackendConfig({ ...backendConfig, language: 'dotnet', backendVersion: ver });
-                        } else {
-                            setBackendConfig({ ...backendConfig, language: val as any });
-                        }
-                    }}
+                    value={backendConfig.language}
+                    onChange={e => setBackendConfig({ ...backendConfig, language: e.target.value as any })}
                 >
-                    <option value="dotnet-9.0">.NET 9 API</option>
+                    <option value="dotnet">.NET API</option>
                     <option value="nodejs">Node.js</option>
                     <option value="php">PHP</option>
                     <option value="laravel">Laravel</option>
                     <option value="electron">Electron</option>
                 </select>
              </div>
+
+             {/* 2.1 .NET Version Selector (Conditional) */}
+             {backendConfig.language === 'dotnet' && (
+                 <div className="w-16 animate-in fade-in slide-in-from-left-1">
+                    <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Version</label>
+                    <select 
+                        className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white font-mono text-blue-700"
+                        value={backendConfig.backendVersion || '9.0'}
+                        onChange={e => setBackendConfig({ ...backendConfig, backendVersion: e.target.value })}
+                        title="Wähle die installierte .NET SDK Version"
+                    >
+                        <option value="9.0">9.0</option>
+                        <option value="8.0">8.0 (LTS)</option>
+                        <option value="7.0">7.0</option>
+                        <option value="6.0">6.0 (LTS)</option>
+                    </select>
+                 </div>
+             )}
 
              {/* 3. Frontend (UI) */}
              <div className="w-24">

@@ -33,6 +33,30 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
         const labelClass = "block text-sm font-semibold text-slate-700 mb-1";
         const inputClass = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all";
 
+        // Current User (WhoAmI)
+        if (element.widgetType === 'current-user') {
+            return `
+            <div class="${wrapperClass}">
+                <label class="${labelClass}">${element.label}</label>
+                <div class="flex gap-2">
+                    <input type="text" readonly [(ngModel)]="data.${bindProp}" name="${bindProp}" class="${inputClass} bg-emerald-50 text-emerald-900 font-mono" placeholder="(Leer)"/>
+                    <button type="button" (click)="openUserPicker('me', '${bindProp}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap">Ich (Auto)</button>
+                </div>
+            </div>`;
+        }
+
+        // AD Search
+        if (element.widgetType === 'ad-search') {
+            return `
+            <div class="${wrapperClass}">
+                <label class="${labelClass}">${element.label}</label>
+                <div class="flex gap-2">
+                    <input type="text" [(ngModel)]="data.${bindProp}" name="${bindProp}" class="${inputClass} pl-8" placeholder="Benutzer auswählen..."/>
+                    <button type="button" (click)="openUserPicker('search', '${bindProp}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap">Suchen</button>
+                </div>
+            </div>`;
+        }
+
         if (element.widgetType === 'select' && element.lookup) {
              const lookupTable = tables.find(t => t.id === element.lookup!.tableId);
              if (lookupTable) {
@@ -40,8 +64,27 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                  const valField = lookupTable.fields.find(f => f.id === element.lookup!.valueFieldId);
                  const valProp = valField ? toCamelCase(valField.name) : 'id';
                  
+                 // --- DISPLAY LOGIC START ---
+                 let displayExpression = `{{item.${valProp}}}`; // Default fallback
+                 
+                 if (element.lookup.displayFormat && element.lookup.displayFormat.length > 0) {
+                     // Complex format with prefix/suffix
+                     displayExpression = element.lookup.displayFormat.map(fmt => {
+                         const f = lookupTable.fields.find(field => field.id === fmt.fieldId);
+                         if (!f) return '';
+                         return `${fmt.prefix || ''}{{item.${toCamelCase(f.name)}}}${fmt.suffix || ''}`;
+                     }).join('');
+                 } else if (element.lookup.labelFields && element.lookup.labelFields.length > 0) {
+                     // Simple list of fields
+                     displayExpression = element.lookup.labelFields.map(fid => {
+                         const f = lookupTable.fields.find(field => field.id === fid);
+                         return f ? `{{item.${toCamelCase(f.name)}}}` : '';
+                     }).join(' ');
+                 }
+                 // --- DISPLAY LOGIC END ---
+
                  const quickCreateBtn = element.lookup.allowQuickCreate 
-                    ? `<button type="button" (click)="openModal('lookup_${element.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 border border-emerald-300 rounded ml-2 font-bold flex items-center justify-center transition-colors" title="Neu">+</button>` 
+                    ? `<button type="button" *ngIf="!isNew" (click)="openModal('lookup_${element.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 border border-emerald-300 rounded ml-2 font-bold flex items-center justify-center transition-colors" title="Neu">+</button>` 
                     : '';
 
                  // Lookup Modal Definition
@@ -79,7 +122,7 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                     <div class="flex gap-2">
                         <select class="${inputClass} bg-white flex-1" [(ngModel)]="data.${bindProp}" name="${bindProp}">
                             <option [ngValue]="null">Bitte wählen...</option>
-                            <option *ngFor="let item of ${listVar}" [value]="item.${valProp}">{{item.${valProp}}}</option>
+                            <option *ngFor="let item of ${listVar}" [value]="item.${valProp}">${displayExpression}</option>
                         </select>
                         ${quickCreateBtn}
                     </div>
@@ -105,44 +148,53 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
     if (element.type === 'subform' && element.subform) {
         const subFormDef = forms.find(f => f.id === element.subform!.formId);
         const subTable = tables.find(t => t.id === subFormDef?.sourceId);
-        const modalId = `sub_${element.id}`;
-        const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms) : '<p>Leer</p>';
-        const subTableCamel = subTable ? toCamelCase(subTable.name) : '';
+        
+        if (subTable) {
+            const modalId = `sub_${element.id}`;
+            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms) : '<p>Leer</p>';
+            const subTableCamel = toCamelCase(subTable.name);
+            const listVariable = `${subTableCamel}SubList_${element.id.substring(0,8)}`;
 
-        const subModal = `
-        <div *ngIf="modals['${modalId}']" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div class="bg-white p-6 rounded-xl w-[600px] max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
-                <h3 class="font-bold mb-4 text-lg border-b pb-2 text-slate-800">Eintrag hinzufügen</h3>
-                <div class="subform-content space-y-4">
-                    <!-- Bind to tempSubData -->
-                    ${subFormHtml.replace(/data\./g, 'tempSubData.')}
+            const subModal = `
+            <div *ngIf="modals['${modalId}']" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+                <div class="bg-white p-6 rounded-xl w-[600px] max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
+                    <h3 class="font-bold mb-4 text-lg border-b pb-2 text-slate-800">Eintrag hinzufügen</h3>
+                    <div class="subform-content space-y-4">
+                        <!-- Bind to tempSubData -->
+                        ${subFormHtml.replace(/data\./g, 'tempSubData.')}
+                    </div>
+                    <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+                        <button type="button" (click)="closeModal('${modalId}')" class="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm">Abbrechen</button>
+                        <button type="button" (click)="saveSubform('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm">Speichern</button>
+                    </div>
                 </div>
-                <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
-                    <button type="button" (click)="closeModal('${modalId}')" class="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm">Abbrechen</button>
-                    <button type="button" (click)="saveSubform('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm">Speichern</button>
-                </div>
-            </div>
-        </div>`;
+            </div>`;
 
-        return `
-        <div class="${element.className || 'border border-slate-300 rounded-lg overflow-hidden mt-6 shadow-sm'}">
-            <div class="bg-slate-100 p-3 flex justify-between items-center border-b border-slate-200">
-                <h4 class="font-bold text-sm text-slate-700 flex items-center gap-2">📄 ${element.label}</h4>
-                ${element.subform.canAdd ? `<button type="button" (click)="openModal('${modalId}')" class="bg-white text-blue-600 px-3 py-1 text-xs font-bold border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors">+ Neu</button>` : ''}
-            </div>
-            <div class="p-0">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th class="p-3">Daten</th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr *ngFor="let item of ${subTableCamel}SubList_${element.id.substring(0,8)}" class="hover:bg-slate-50">
-                            <td class="p-3 font-mono text-xs text-slate-600">{{item | json}}</td>
-                        </tr>
-                        <tr *ngIf="!${subTableCamel}SubList_${element.id.substring(0,8)}?.length"><td class="p-6 text-center text-slate-400 italic">Keine Einträge vorhanden.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            ${subModal}
-        </div>`;
+            return `
+            <div class="${element.className || 'border border-slate-300 rounded-lg overflow-hidden mt-6 shadow-sm'}">
+                <div class="bg-slate-100 p-3 flex justify-between items-center border-b border-slate-200">
+                    <h4 class="font-bold text-sm text-slate-700 flex items-center gap-2">📄 ${element.label || subFormDef?.name}</h4>
+                    <div *ngIf="!isNew">
+                        ${element.subform.canAdd ? `<button type="button" (click)="openModal('${modalId}')" class="bg-white text-blue-600 px-3 py-1 text-xs font-bold border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors">+ Neu</button>` : ''}
+                    </div>
+                    <div *ngIf="isNew" class="text-xs text-orange-600 font-semibold bg-orange-100 px-2 py-1 rounded">
+                        Bitte speichern um Einträge hinzuzufügen
+                    </div>
+                </div>
+                <div class="p-0">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th class="p-3">Daten</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr *ngFor="let item of ${listVariable}" class="hover:bg-slate-50">
+                                <td class="p-3 font-mono text-xs text-slate-600">{{item | json}}</td>
+                            </tr>
+                            <tr *ngIf="!${listVariable}?.length"><td class="p-6 text-center text-slate-400 italic">Keine Einträge vorhanden.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                ${subModal}
+            </div>`;
+        }
     }
 
     return '';

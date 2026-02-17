@@ -77,6 +77,114 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 };`;
   files.push({ name: 'Modal.tsx', path: `${root}/src/components/Modal.tsx`, content: modalComponent, language: 'typescript' });
 
+  // 1.2 User Picker Modal Component (New)
+  const userPickerModal = `import React, { useState, useEffect } from 'react';
+import { X, User, Search, Check, Loader2, ShieldAlert } from 'lucide-react';
+import { api } from '../services/api'; // Axios instance
+
+interface AdUser {
+    username: string;
+    displayName: string;
+    email: string;
+    department?: string;
+    groups?: string[];
+}
+
+interface UserPickerModalProps {
+    isOpen: boolean;
+    initialTab?: 'me' | 'search';
+    onSelect: (username: string, displayName: string) => void;
+    onClose: () => void;
+}
+
+export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initialTab = 'me', onSelect, onClose }) => {
+    const [activeTab, setActiveTab] = useState<'me' | 'search'>(initialTab);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [me, setMe] = useState<AdUser | null>(null);
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState<AdUser[]>([]);
+
+    useEffect(() => {
+        if (isOpen && activeTab === 'me') loadMe();
+    }, [isOpen, activeTab]);
+
+    const loadMe = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.get('/ad/me');
+            setMe(res.data);
+        } catch (e) {
+            console.warn(e);
+            setError("Konnte Benutzer nicht laden.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearch = async () => {
+        if (!query || query.length < 2) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.get(\`/ad/search?q=\${query}\`);
+            setResults(res.data);
+        } catch (e) {
+            setError("Suche fehlgeschlagen.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-[250] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg border border-slate-300 dark:border-slate-700 overflow-hidden flex flex-col h-[500px]">
+                <div className="bg-slate-800 text-white p-4 flex justify-between items-center shrink-0">
+                    <h3 className="font-bold flex items-center gap-2"><User size={20}/> Benutzer auswählen</h3>
+                    <button onClick={onClose}><X size={20}/></button>
+                </div>
+                <div className="flex bg-slate-100 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600">
+                    <button onClick={() => setActiveTab('me')} className={\`flex-1 py-3 text-sm font-bold \${activeTab === 'me' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600'}\`}>Aktueller User</button>
+                    <button onClick={() => setActiveTab('search')} className={\`flex-1 py-3 text-sm font-bold \${activeTab === 'search' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600'}\`}>Suchen</button>
+                </div>
+                <div className="flex-1 p-6 overflow-y-auto bg-slate-50 dark:bg-slate-900 relative">
+                    {loading && <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" size={32}/></div>}
+                    {error && <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-xs">{error}</div>}
+                    
+                    {activeTab === 'me' && me && (
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                            <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold shadow-inner">{me.displayName?.substring(0,2).toUpperCase()}</div>
+                            <div><h4 className="text-xl font-bold dark:text-white">{me.displayName}</h4><p className="text-slate-500 text-sm font-mono">{me.username}</p></div>
+                            <button onClick={() => onSelect(me.username, me.displayName)} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-sm mt-4"><Check size={18}/> Als "{me.username}" übernehmen</button>
+                        </div>
+                    )}
+
+                    {activeTab === 'search' && (
+                        <div className="h-full flex flex-col">
+                            <div className="flex gap-2 mb-4">
+                                <input type="text" className="flex-1 border border-slate-300 dark:border-slate-600 rounded p-2 text-sm dark:bg-slate-800 dark:text-white" placeholder="Name..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} autoFocus />
+                                <button onClick={handleSearch} className="bg-slate-700 text-white px-4 rounded hover:bg-slate-800"><Search size={18}/></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto space-y-2">
+                                {results.map((u) => (
+                                    <div key={u.username} className="p-3 hover:bg-blue-50 dark:hover:bg-slate-800 border-b dark:border-slate-700 flex justify-between items-center cursor-pointer" onClick={() => onSelect(u.username, u.displayName)}>
+                                        <div><div className="font-bold text-sm dark:text-white">{u.displayName}</div><div className="text-xs text-slate-500 font-mono">{u.username}</div></div>
+                                        <button className="text-blue-600 dark:text-blue-400 text-xs font-bold">Wählen</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};`;
+  files.push({ name: 'UserPickerModal.tsx', path: `${root}/src/components/UserPickerModal.tsx`, content: userPickerModal, language: 'typescript' });
+
   // 2. Auth Components & Context
   if (useAuth) {
       // Auth Context with decoding
@@ -84,6 +192,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 import { loginUser, logoutUser } from '../services/api';
 
 interface User {
+    id: string;
     username: string;
     role: string;
 }
@@ -106,6 +215,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             return {
+                id: payload.nameid || payload.id || payload.sub,
                 username: payload.unique_name || payload.sub,
                 role: payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'User'
             };
@@ -165,7 +275,6 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
         return <Navigate to="/forbidden" replace />;
     }
 
-    // FIX: Removed Layout wrapper here, as it is handled by parent Route or Outlet
     return <Layout><Outlet /></Layout>;
 };`;
       files.push({ name: 'ProtectedRoute.tsx', path: `${root}/src/components/ProtectedRoute.tsx`, content: protectedRoute, language: 'typescript' });
@@ -192,12 +301,12 @@ export const Login = () => {
                 <h2 className="text-2xl font-bold mb-4 dark:text-white">Login</h2>
                 {error && <p className="text-red-500 mb-2">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <input className="w-full border p-2 rounded" placeholder="Username" value={creds.username} onChange={e => setCreds({...creds, username: e.target.value})} />
-                    <input className="w-full border p-2 rounded" type="password" placeholder="Password" value={creds.password} onChange={e => setCreds({...creds, password: e.target.value})} />
+                    <input className="w-full border p-2 rounded" placeholder="Benutzername oder E-Mail" value={creds.username} onChange={e => setCreds({...creds, username: e.target.value})} />
+                    <input className="w-full border p-2 rounded" type="password" placeholder="Passwort" value={creds.password} onChange={e => setCreds({...creds, password: e.target.value})} />
                     <div className="text-right text-xs"><Link to="/forgot-password" class="text-blue-500">Passwort vergessen?</Link></div>
-                    <button className="w-full bg-blue-600 text-white p-2 rounded">Login</button>
+                    <button className="w-full bg-blue-600 text-white p-2 rounded">Anmelden</button>
                 </form>
-                <div className="mt-4 text-center"><Link to="/register" className="text-blue-500">Register</Link></div>
+                <div className="mt-4 text-center"><Link to="/register" className="text-blue-500">Registrieren</Link></div>
             </div>
         </div>
     );
@@ -211,23 +320,28 @@ import { useNavigate, Link } from 'react-router-dom';
 export const Register = () => {
     const navigate = useNavigate();
     const [data, setData] = useState({ username: '', password: '', email: '' });
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        try { await registerUser(data); navigate('/login'); } catch { alert('Error'); }
+        try { 
+            await registerUser(data); 
+            navigate('/login'); 
+        } catch { setError('Registrierung fehlgeschlagen.'); }
     };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
             <div className="bg-white dark:bg-gray-800 p-8 rounded shadow-md w-96">
-                <h2 className="text-2xl font-bold mb-4 dark:text-white">Register</h2>
+                <h2 className="text-2xl font-bold mb-4 dark:text-white">Registrieren</h2>
+                {error && <p className="text-red-500 mb-2">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <input className="w-full border p-2 rounded" placeholder="Username" value={data.username} onChange={e => setData({...data, username: e.target.value})} />
-                    <input className="w-full border p-2 rounded" placeholder="Email" value={data.email} onChange={e => setData({...data, email: e.target.value})} />
-                    <input className="w-full border p-2 rounded" type="password" placeholder="Password" value={data.password} onChange={e => setData({...data, password: e.target.value})} />
-                    <button className="w-full bg-green-600 text-white p-2 rounded">Sign Up</button>
+                    <input className="w-full border p-2 rounded" placeholder="Benutzername" value={data.username} onChange={e => setData({...data, username: e.target.value})} />
+                    <input className="w-full border p-2 rounded" placeholder="E-Mail" value={data.email} onChange={e => setData({...data, email: e.target.value})} />
+                    <input className="w-full border p-2 rounded" type="password" placeholder="Passwort" value={data.password} onChange={e => setData({...data, password: e.target.value})} />
+                    <button className="w-full bg-green-600 text-white p-2 rounded">Konto erstellen</button>
                 </form>
-                <div className="mt-4 text-center"><Link to="/login" className="text-blue-500">Login</Link></div>
+                <div className="mt-4 text-center"><Link to="/login" className="text-blue-500">Zum Login</Link></div>
             </div>
         </div>
     );
@@ -252,10 +366,10 @@ export const ForgotPassword = () => {
             <div className="bg-white p-8 rounded shadow-md w-96">
                 <h2 className="text-2xl font-bold mb-4">Passwort vergessen</h2>
                 <form onSubmit={handleSend} className="space-y-4">
-                    <input className="w-full border p-2 rounded" placeholder="E-Mail" value={email} onChange={e => setEmail(e.target.value)} required />
-                    <button className="w-full bg-blue-600 text-white p-2 rounded">Senden</button>
+                    <input className="w-full border p-2 rounded" placeholder="E-Mail Adresse" value={email} onChange={e => setEmail(e.target.value)} required />
+                    <button className="w-full bg-blue-600 text-white p-2 rounded">Link senden</button>
                 </form>
-                <div className="mt-4 text-center"><Link to="/login" className="text-blue-500">Zurück</Link></div>
+                <div className="mt-4 text-center"><Link to="/login" className="text-blue-500">Zurück zum Login</Link></div>
             </div>
         </div>
     );
@@ -283,45 +397,166 @@ export const Forbidden = () => (
           language: 'typescript'
       });
 
-      // Profile
+      // Profile (Full Implementation)
       files.push({
           name: 'Profile.tsx',
           path: `${root}/src/pages/auth/Profile.tsx`,
-          content: `import React, { useState } from 'react';
+          content: `import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { changePassword } from '../../services/api';
+import { changePassword, get, post, put } from '../../services/api';
+import { User, Lock, Save, MapPin, Phone, Briefcase } from 'lucide-react';
 
 export const Profile = () => {
     const { user } = useAuth();
+    const [activeTab, setActiveTab] = useState<'details' | 'security'>('details');
+    
+    // Profile Data
+    const [profile, setProfile] = useState<any>({
+        firstName: '', lastName: '', company: '', street: '', city: '', zip: '', phone: ''
+    });
+    const [profileId, setProfileId] = useState<number | null>(null);
+
+    // Password Data
     const [pass, setPass] = useState({ old: '', new: '' });
+    const [msg, setMsg] = useState({ text: '', type: '' });
+
+    useEffect(() => {
+        loadProfile();
+    }, [user]);
+
+    const loadProfile = async () => {
+        if(!user?.id) return;
+        try {
+            // Fetch ALL profiles and filter by userId (in a real scenario, use /api/me/profile)
+            const res = await get<any>('sysUserProfiles');
+            const myProfile = (res.data || res).find((p: any) => String(p.userId) === String(user.id));
+            if (myProfile) {
+                setProfile(myProfile);
+                setProfileId(myProfile.id);
+            }
+        } catch (e) { console.error("Could not load profile", e); }
+    };
+
+    const handleSaveProfile = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const payload = { ...profile, userId: Number(user?.id) };
+            if (profileId) {
+                await put('sysUserProfiles/' + profileId, payload);
+            } else {
+                const res = await post('sysUserProfiles', payload);
+                setProfileId(res.id);
+            }
+            setMsg({ text: 'Profil erfolgreich gespeichert.', type: 'success' });
+        } catch { setMsg({ text: 'Fehler beim Speichern.', type: 'error' }); }
+    };
 
     const handlePwChange = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             await changePassword({ oldPassword: pass.old, newPassword: pass.new });
-            alert('Passwort geändert.');
+            setMsg({ text: 'Passwort geändert.', type: 'success' });
             setPass({ old: '', new: '' });
-        } catch { alert('Fehler beim Ändern.'); }
+        } catch { setMsg({ text: 'Fehler beim Ändern. Altes Passwort falsch?', type: 'error' }); }
     };
 
     return (
-        <div className="max-w-md mx-auto mt-10 bg-white p-6 rounded shadow">
-            <h2 className="text-2xl font-bold mb-6">Mein Profil</h2>
-            <div className="mb-4">
-                <span className="text-sm font-bold text-gray-500 uppercase block">Benutzername</span>
-                <span>{user?.username}</span>
+        <div className="max-w-4xl mx-auto p-8">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 border-b dark:border-slate-700 flex items-center gap-4">
+                    <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold">
+                        {user?.username.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold dark:text-white">{user?.username}</h1>
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{user?.role}</span>
+                    </div>
+                </div>
+
+                <div className="flex border-b dark:border-slate-700">
+                    <button 
+                        onClick={() => setActiveTab('details')}
+                        className={\`px-6 py-3 font-medium text-sm flex items-center gap-2 \${activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}\`}
+                    >
+                        <User size={16}/> Stammdaten
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('security')}
+                        className={\`px-6 py-3 font-medium text-sm flex items-center gap-2 \${activeTab === 'security' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}\`}
+                    >
+                        <Lock size={16}/> Sicherheit
+                    </button>
+                </div>
+
+                <div className="p-8">
+                    {msg.text && (
+                        <div className={\`p-4 rounded mb-6 \${msg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}\`}>
+                            {msg.text}
+                        </div>
+                    )}
+
+                    {activeTab === 'details' && (
+                        <form onSubmit={handleSaveProfile} className="space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">Vorname</label>
+                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.firstName || ''} onChange={e => setProfile({...profile, firstName: e.target.value})} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">Nachname</label>
+                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.lastName || ''} onChange={e => setProfile({...profile, lastName: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold mb-1 dark:text-slate-300 flex items-center gap-1"><Briefcase size={14}/> Firma</label>
+                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.company || ''} onChange={e => setProfile({...profile, company: e.target.value})} />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold mb-1 dark:text-slate-300 flex items-center gap-1"><MapPin size={14}/> Straße</label>
+                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.street || ''} onChange={e => setProfile({...profile, street: e.target.value})} />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">PLZ</label>
+                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.zip || ''} onChange={e => setProfile({...profile, zip: e.target.value})} />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">Stadt</label>
+                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.city || ''} onChange={e => setProfile({...profile, city: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold mb-1 dark:text-slate-300 flex items-center gap-1"><Phone size={14}/> Telefon</label>
+                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.phone || ''} onChange={e => setProfile({...profile, phone: e.target.value})} />
+                            </div>
+
+                            <div className="flex justify-end pt-4 border-t dark:border-slate-700">
+                                <button className="bg-blue-600 text-white px-6 py-2 rounded flex items-center gap-2 hover:bg-blue-700"><Save size={18}/> Speichern</button>
+                            </div>
+                        </form>
+                    )}
+
+                    {activeTab === 'security' && (
+                        <form onSubmit={handlePwChange} className="max-w-md space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1 dark:text-slate-300">Altes Passwort</label>
+                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" type="password" value={pass.old} onChange={e => setPass({...pass, old: e.target.value})} required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1 dark:text-slate-300">Neues Passwort</label>
+                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" type="password" value={pass.new} onChange={e => setPass({...pass, new: e.target.value})} required />
+                            </div>
+                            <div className="flex justify-start pt-4">
+                                <button className="bg-slate-800 text-white px-6 py-2 rounded flex items-center gap-2 hover:bg-black">Passwort ändern</button>
+                            </div>
+                        </form>
+                    )}
+                </div>
             </div>
-            <div className="mb-6">
-                <span className="text-sm font-bold text-gray-500 uppercase block">Rolle</span>
-                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{user?.role}</span>
-            </div>
-            <hr className="my-6"/>
-            <h3 className="text-lg font-bold mb-4">Passwort ändern</h3>
-            <form onSubmit={handlePwChange} className="space-y-4">
-                <input className="w-full border p-2 rounded" type="password" placeholder="Altes Passwort" value={pass.old} onChange={e => setPass({...pass, old: e.target.value})} required />
-                <input className="w-full border p-2 rounded" type="password" placeholder="Neues Passwort" value={pass.new} onChange={e => setPass({...pass, new: e.target.value})} required />
-                <button className="bg-slate-800 text-white px-4 py-2 rounded">Ändern</button>
-            </form>
         </div>
     );
 };`,

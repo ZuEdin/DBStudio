@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
-import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig } from '../types/index';
+import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig } from '../types/index';
 import { saveProjectToStorage } from '../services/storageService';
 import { cloudService } from '../services/cloudService'; 
 import * as XLSX from 'xlsx';
@@ -356,7 +356,16 @@ export const useAppController = () => {
       }
 
       switch(action) {
-        case 'new_db': if(confirm("Zum Startbildschirm?")) { store.closeProject(); setCurrentView({ type: 'welcome' }); } break;
+        case 'new_db': 
+            ui.setConfirmationModal({
+                title: "Projekt schließen",
+                message: "Möchten Sie zum Startbildschirm zurückkehren? Ungespeicherte Änderungen werden nicht automatisch persistiert, es sei denn, Sie haben gespeichert.",
+                onConfirm: () => {
+                   store.closeProject();
+                   setCurrentView({ type: 'welcome' });
+                }
+            });
+            break;
         case 'create_table': handleSetView({ type: 'table_create' }); break;
         case 'create_table_ai': handleSetView({ type: 'table_create' }); break;
         case 'create_query': handleSetView({ type: 'query_designer' }); break;
@@ -420,7 +429,38 @@ export const useAppController = () => {
         updateRelationship: (rel: any) => store.setRelationships(store.relationships.map(r => r.id === rel.id ? rel : r)),
         setRelationships: store.setRelationships,
         executeQuery: store.executeQuery,
-        exportProject: async (conf: any) => { /* ... */ }
+        exportProject: async (conf: BackendConfig) => {
+            if (!store.projectId) return;
+            const project: Project = {
+                id: store.projectId,
+                name: store.projectName,
+                lastModified: Date.now(),
+                isCloud: false,
+                data: {
+                    tables: store.tables,
+                    queries: store.queries,
+                    reports: store.reports,
+                    forms: store.forms,
+                    charts: store.charts,
+                    workflows: store.workflows,
+                    relationships: store.relationships,
+                    layout: store.layout,
+                    backendConfig: conf || store.backendConfig,
+                    lastSnapshot: store.lastSnapshot
+                }
+            };
+            const dataStr = JSON.stringify(project, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const linkElement = document.createElement('a');
+            linkElement.href = url;
+            linkElement.download = `${store.projectName}.dbsp`;
+            linkElement.click();
+            
+            URL.revokeObjectURL(url);
+            ui.addToast("Projekt als .dbsp exportiert.", 'success');
+        }
     },
     currentView, activeTab, setActiveTab, activeObject, isDirty, 
     backendConfig: store.backendConfig, setBackendConfig: store.setBackendConfig,

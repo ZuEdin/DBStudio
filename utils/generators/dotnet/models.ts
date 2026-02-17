@@ -211,7 +211,18 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
     const parentProps = parentRels.map(r => {
         const parentTable = tables.find(t => t.id === r.fromTableId);
         const fkField = table.fields.find(f => f.id === r.toFieldId);
-        if (!parentTable || !fkField) return '';
+        const parentPk = parentTable?.fields.find(f => f.isPrimaryKey) || parentTable?.fields[0];
+
+        if (!parentTable || !fkField || !parentPk) return '';
+
+        // SAFEGUARD: Check for Type Mismatch (The fix for your crash)
+        // If the Foreign Key type doesn't match the Parent Primary Key type, EF Core crashes.
+        // We skip generating the navigation property in C# code to allow the app to start.
+        // The relationship metadata still exists for SQL generation (Views), so your query will still work.
+        if (fkField.type !== parentPk.type) {
+            return `        // [SKIPPED] Navigation to ${toPascalCase(parentTable.name)} skipped due to Type Mismatch: ${fkField.name} (${fkField.type}) vs PK ${parentPk.name} (${parentPk.type})`;
+        }
+
         return `        [ForeignKey("${fkField.name}")]\n        public virtual ${toPascalCase(parentTable.name)}? ${toPascalCase(parentTable.name)} { get; set; }`;
     }).join('\n\n');
 

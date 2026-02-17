@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Relationship, Table, Field, ReferentialAction } from '../../../types/index';
-import { X, ShieldAlert } from 'lucide-react';
+import { X, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 interface EditRelationshipModalProps {
   relationship: Relationship;
@@ -32,6 +32,9 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
   const fromField = fromTable?.fields.find(f => f.id === fromFieldId);
   const toField = toTable?.fields.find(f => f.id === toFieldId);
   const relationshipType = fromField?.isPrimaryKey && toField?.isPrimaryKey ? '1:1' : '1:n';
+
+  // VALIDATION: Types must match
+  const typesMatch = fromField && toField ? fromField.type === toField.type : true;
 
   const handleSave = () => {
     onSave({
@@ -73,13 +76,13 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
               >
                 {tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
-              <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1">Verknüpftes Feld</label>
+              <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1">Verknüpftes Feld (PK)</label>
               <select
                 value={fromFieldId}
                 onChange={e => setFromFieldId(e.target.value)}
                 className="w-full border border-slate-300 rounded p-2 text-sm"
               >
-                {fromTable?.fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                {fromTable?.fields.map(f => <option key={f.id} value={f.id}>{f.name} ({f.type})</option>)}
               </select>
             </div>
             
@@ -95,17 +98,29 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
               >
                 {tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
-              <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1">Verknüpftes Feld</label>
+              <label className="block text-sm font-semibold text-slate-700 mt-4 mb-1">Verknüpftes Feld (FK)</label>
               <select
                 value={toFieldId}
                 onChange={e => setToFieldId(e.target.value)}
                 className="w-full border border-slate-300 rounded p-2 text-sm"
               >
-                {toTable?.fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                {toTable?.fields.map(f => <option key={f.id} value={f.id}>{f.name} ({f.type})</option>)}
               </select>
             </div>
           </div>
           
+          {!typesMatch && (
+             <div className="mt-4 bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded text-xs flex items-start gap-2">
+                 <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                 <div>
+                     <strong>Warnung: Typ-Konflikt</strong><br/>
+                     Feld '{fromField?.name}' ist <strong>{fromField?.type}</strong>.<br/>
+                     Feld '{toField?.name}' ist <strong>{toField?.type}</strong>.<br/>
+                     Für SQL-Abfragen ist das okay, aber das .NET Backend wird diese Beziehung im Entity Framework ignorieren, um Abstürze zu vermeiden.
+                 </div>
+             </div>
+          )}
+
           <div className="mt-6 pt-4 border-t border-slate-200 space-y-4">
              <div className="flex justify-between items-center">
                  <div className="text-sm text-slate-500">
@@ -135,9 +150,6 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
                          >
                              {actionOptions.map(o => <option key={o} value={o}>{o}</option>)}
                          </select>
-                         <p className="text-[10px] text-slate-400 mt-1">
-                             Was passiert mit Kind-Datensätzen, wenn der Eltern-Datensatz gelöscht wird?
-                         </p>
                      </div>
                      <div>
                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
@@ -150,9 +162,6 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
                          >
                              {actionOptions.map(o => <option key={o} value={o}>{o}</option>)}
                          </select>
-                         <p className="text-[10px] text-slate-400 mt-1">
-                             Was passiert mit Kind-Datensätzen, wenn der Schlüssel des Eltern-Datensatzes geändert wird?
-                         </p>
                      </div>
                  </div>
              )}
@@ -163,7 +172,10 @@ export const EditRelationshipModal: React.FC<EditRelationshipModalProps> = ({
           <button onClick={onClose} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded text-sm">
             Abbrechen
           </button>
-          <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">
+          <button 
+            onClick={handleSave} 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold"
+          >
             Speichern
           </button>
         </div>

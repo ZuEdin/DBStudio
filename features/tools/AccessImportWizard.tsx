@@ -128,7 +128,7 @@ export const AccessImportWizard: React.FC<AccessImportWizardProps> = ({ onSave, 
                 <div className="flex flex-col items-center justify-center h-full gap-6">
                     <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm text-center max-w-md">
                         <p className="text-slate-600 mb-4 text-sm">
-                            Exportieren Sie Ihre Tabellen in Access über <strong>Externe Daten -> XML-Datei</strong> (Haken bei "Daten" und "Schema").
+                            Exportieren Sie Ihre Tabellen in Access über <strong>Externe Daten &rarr; XML-Datei</strong> (Haken bei "Daten" und "Schema").
                         </p>
                         <input 
                             type="file" 

@@ -5,76 +5,106 @@ import { resolveType, toPascalCase } from '../common';
 export const generateControllers = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
   const useAuth = config.authConfig?.useUserLogin;
+  const useWinAuth = config.authConfig?.useWindowsAuth;
 
-  // DTO for Paged Result
-  const pagedResultClass = `
-namespace ${config.projectName}.Models
+  // NEW: AD Controller for User Search
+  if (useWinAuth) {
+      const adControllerContent = `using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using ${config.projectName}.Services;
+
+namespace ${config.projectName}.Controllers
 {
-    public class PagedResult<T>
+    [Route("api/ad")]
+    [ApiController]
+    [Authorize]
+    public class AdController : ControllerBase
     {
-        public IEnumerable<T> Data { get; set; } = new List<T>();
-        public int Total { get; set; }
-        public int Page { get; set; }
-        public int PageSize { get; set; }
-        public int TotalPages { get; set; }
+        private readonly IAdService _adService;
+        private readonly ICurrentUserService _currentUser;
+
+        public AdController(IAdService adService, ICurrentUserService currentUser)
+        {
+            _adService = adService;
+            _currentUser = currentUser;
+        }
+
+        [HttpGet("me")]
+        public ActionResult<AdUserInfo> GetMe()
+        {
+            // Returns the full AD profile of the currently logged in user
+            var info = _adService.GetCurrentUserDetails(User);
+            if (info == null) return NotFound();
+            return Ok(info);
+        }
+        
+        [HttpGet("whoami")]
+        public IActionResult WhoAmI()
+        {
+            // Simple endpoint for non-AD contexts or debugging
+            return Ok(new { 
+                _currentUser.Username, 
+                _currentUser.UserId, 
+                _currentUser.IsAuthenticated,
+                Roles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value)
+            });
+        }
+
+        [HttpGet("search")]
+        public ActionResult<List<AdUserInfo>> Search([FromQuery] string q)
+        {
+            if (string.IsNullOrWhiteSpace(q) || q.Length < 2) 
+                return BadRequest("Query must be at least 2 characters.");
+
+            return Ok(_adService.SearchUsers(q));
+        }
     }
 }`;
+      files.push({ name: 'AdController.cs', path: `${root}/Controllers/AdController.cs`, content: adControllerContent, language: 'csharp' });
+  }
+
+  const pagedResultClass = `namespace ${config.projectName}.Models { public class PagedResult<T> { public IEnumerable<T> Data { get; set; } = new List<T>(); public int Total { get; set; } public int Page { get; set; } public int PageSize { get; set; } public int TotalPages { get; set; } } }`;
   files.push({ name: 'PagedResult.cs', path: `${root}/Models/PagedResult.cs`, content: pagedResultClass, language: 'csharp' });
 
-  // Table Controllers (CRUD)
+  // Generic CRUD Controllers with Audit
   tables.forEach(table => {
-    const safeName = toPascalCase(table.name);
-    const pkField = table.fields.find(f => f.isPrimaryKey) || table.fields[0];
-    const pkType = resolveType(pkField, 'csharp');
-    const searchableFields = table.fields.filter(f => f.type === 'VARCHAR' || f.type === 'TEXT').map(f => toPascalCase(f.name));
-    
-    // Auth Injections
-    let serviceInjection = '';
-    let ctorParam = '';
-    let ctorAssign = '';
-    let authCheckGet = '';
-    let authCheckWrite = '';
-    let authCheckDelete = '';
-
-    if (useAuth) {
-        serviceInjection = `        private readonly IPermissionService _permissions;`;
-        ctorParam = `, IPermissionService permissions`;
-        ctorAssign = `            _permissions = permissions;`;
-        authCheckGet = `            if (!await _permissions.CanReadTableAsync(User, "${table.id}")) return Forbid();`;
-        authCheckWrite = `            if (!await _permissions.CanWriteTableAsync(User, "${table.id}")) return Forbid();`;
-        authCheckDelete = `            if (!await _permissions.CanDeleteTableAsync(User, "${table.id}")) return Forbid();`;
-    }
-
-    const childRels = relationships.filter(r => r.fromTableId === table.id);
-    const parentRels = relationships.filter(r => r.toTableId === table.id);
-    
-    const includes = [];
-    parentRels.forEach(r => {
-        const parent = tables.find(t => t.id === r.fromTableId);
-        if (parent) includes.push(`.Include(x => x.${toPascalCase(parent.name)})`);
-    });
-    childRels.forEach(r => {
-        const child = tables.find(t => t.id === r.toTableId);
-        if (child) includes.push(`.Include(x => x.${toPascalCase(child.name)}s)`);
-    });
-    const includeString = includes.join('');
-
-    // Search Logic construction
-    let searchLogic = '';
-    if (searchableFields.length > 0) {
-        const conditions = searchableFields.map(f => `x.${f}.Contains(search)`).join(' || ');
-        searchLogic = `
+      const safeName = toPascalCase(table.name);
+      const pkField = table.fields.find(f => f.isPrimaryKey) || table.fields[0];
+      
+      // SEARCH LOGIC
+      // Create a predicate to search in all string columns
+      const stringFields = table.fields.filter(f => f.type === 'VARCHAR' || f.type === 'TEXT');
+      let searchLogic = '';
+      if (stringFields.length > 0) {
+          const predicate = stringFields.map(f => `x.${toPascalCase(f.name)}.Contains(search)`).join(' || ');
+          searchLogic = `
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(x => ${conditions});
+                q = q.Where(x => ${predicate});
             }`;
-    }
+      }
 
-    const content = `using Microsoft.AspNetCore.Mvc;
+      // AUDIT LOGIC (CreatedBy / ModifiedBy / Dates)
+      const auditFields = {
+          createdBy: table.fields.find(f => ['createdby', 'erstellt_von', 'erstelltvon'].includes(f.name.toLowerCase())),
+          modifiedBy: table.fields.find(f => ['modifiedby', 'updatedby', 'geaendert_von', 'bearbeitetvon'].includes(f.name.toLowerCase())),
+          createdDate: table.fields.find(f => ['createddate', 'createdat', 'erstellt_am'].includes(f.name.toLowerCase())),
+          modifiedDate: table.fields.find(f => ['modifieddate', 'updatedat', 'geaendert_am'].includes(f.name.toLowerCase()))
+      };
+      
+      let onCreateAudit = '';
+      if (auditFields.createdBy) onCreateAudit += `                item.${toPascalCase(auditFields.createdBy.name)} = _currentUser.Username ?? "System";\n`;
+      if (auditFields.createdDate) onCreateAudit += `                item.${toPascalCase(auditFields.createdDate.name)} = DateTime.Now;\n`;
+      
+      let onUpdateAudit = '';
+      if (auditFields.modifiedBy) onUpdateAudit += `            item.${toPascalCase(auditFields.modifiedBy.name)} = _currentUser.Username ?? "System";\n`;
+      if (auditFields.modifiedDate) onUpdateAudit += `            item.${toPascalCase(auditFields.modifiedDate.name)} = DateTime.Now;\n`;
+
+      const content = `using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ${config.projectName}.Data;
 using ${config.projectName}.Models;
-${useAuth ? `using ${config.projectName}.Services;` : ''}
+using ${config.projectName}.Services;
 
 namespace ${config.projectName}.Controllers
 {
@@ -83,154 +113,62 @@ namespace ${config.projectName}.Controllers
     public class ${safeName}Controller : ControllerBase
     {
         private readonly AppDbContext _context;
-${serviceInjection}
+        private readonly ICurrentUserService _currentUser;
 
-        public ${safeName}Controller(AppDbContext context${ctorParam})
-        {
-            _context = context;
-${ctorAssign}
+        public ${safeName}Controller(AppDbContext context, ICurrentUserService currentUser) 
+        { 
+            _context = context; 
+            _currentUser = currentUser;
         }
 
         [HttpGet]
-        public async Task<ActionResult<PagedResult<${safeName}>>> Get${safeName}s([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
+        public async Task<ActionResult<PagedResult<${safeName}>>> Get([FromQuery] int page=1, [FromQuery] int pageSize=20, [FromQuery] string? search = null)
         {
-${authCheckGet}
-            var query = _context.${safeName}s.AsNoTracking()${includeString}.AsQueryable();
+            var q = _context.${safeName}s.AsQueryable();
 
+            // Search Logic
             ${searchLogic}
 
-            var total = await query.CountAsync();
-            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-
-            return new PagedResult<${safeName}>
-            {
-                Data = items,
-                Total = total,
-                Page = page,
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling(total / (double)pageSize)
-            };
+            var total = await q.CountAsync();
+            var items = await q.Skip((page-1)*pageSize).Take(pageSize).ToListAsync();
+            
+            return new PagedResult<${safeName}> { Data = items, Total = total, Page = page, PageSize = pageSize, TotalPages = (int)Math.Ceiling(total/(double)pageSize) };
         }
-
+        
         [HttpGet("{id}")]
-        public async Task<ActionResult<${safeName}>> Get${safeName}(${pkType} id)
+        public async Task<ActionResult<${safeName}>> GetById(${resolveType(pkField, 'csharp')} id)
         {
-${authCheckGet}
-            var item = await _context.${safeName}s${includeString}
-                .FirstOrDefaultAsync(x => x.${pkField.name} == id);
-
+            var item = await _context.${safeName}s.FindAsync(id);
             if (item == null) return NotFound();
             return item;
         }
 
         [HttpPost]
-        public async Task<ActionResult<${safeName}>> Post${safeName}(${safeName} item)
-        {
-${authCheckWrite}
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try 
-            {
-                _context.${safeName}s.Add(item);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return CreatedAtAction(nameof(Get${safeName}), new { id = item.${pkField.name} }, item);
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+        public async Task<ActionResult> Post(${safeName} item) 
+        { 
+            // Audit: Create
+            ${onCreateAudit}
+            
+            _context.Add(item); 
+            await _context.SaveChangesAsync(); 
+            return Ok(item); 
         }
-
+        
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put${safeName}(${pkType} id, ${safeName} item)
-        {
-${authCheckWrite}
-            if (id != item.${pkField.name}) return BadRequest();
+        public async Task<ActionResult> Put(${resolveType(pkField, 'csharp')} id, ${safeName} item) 
+        { 
+            if (id != item.${toPascalCase(pkField.name)}) return BadRequest();
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                _context.Entry(item).State = EntityState.Modified;
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                await transaction.RollbackAsync();
-                if (!_context.${safeName}s.Any(e => e.${pkField.name} == id)) return NotFound();
-                throw;
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-            return NoContent();
+            // Audit: Update
+            ${onUpdateAudit}
+
+            _context.Entry(item).State = EntityState.Modified; 
+            await _context.SaveChangesAsync(); 
+            return Ok(); 
         }
-
+        
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete${safeName}(${pkType} id)
-        {
-${authCheckDelete}
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                var item = await _context.${safeName}s.FindAsync(id);
-                if (item == null) return NotFound();
-                _context.${safeName}s.Remove(item);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return NoContent();
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-    }
-}`;
-    files.push({ name: `${safeName}Controller.cs`, path: `${root}/Controllers/${safeName}Controller.cs`, content: content, language: 'csharp' });
-  });
-
-  // Query Controllers (Read-Only)
-  queries.filter(q => q.type === 'SELECT').forEach(q => {
-      const safeName = toPascalCase(q.name);
-      const content = `using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ${config.projectName}.Data;
-using ${config.projectName}.Models;
-
-namespace ${config.projectName}.Controllers
-{
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ${safeName}Controller : ControllerBase
-    {
-        private readonly AppDbContext _context;
-
-        public ${safeName}Controller(AppDbContext context)
-        {
-            _context = context;
-        }
-
-        [HttpGet]
-        public async Task<ActionResult<PagedResult<${safeName}>>> Get([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        {
-            var query = _context.${safeName}s.AsNoTracking().AsQueryable();
-            var total = await query.CountAsync();
-            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-
-            return new PagedResult<${safeName}>
-            {
-                Data = items,
-                Total = total,
-                Page = page,
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling(total / (double)pageSize)
-            };
-        }
+        public async Task<ActionResult> Delete(${resolveType(pkField, 'csharp')} id) { var i = await _context.${safeName}s.FindAsync(id); if(i!=null) { _context.Remove(i); await _context.SaveChangesAsync(); } return Ok(); }
     }
 }`;
       files.push({ name: `${safeName}Controller.cs`, path: `${root}/Controllers/${safeName}Controller.cs`, content: content, language: 'csharp' });

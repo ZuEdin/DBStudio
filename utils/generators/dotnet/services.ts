@@ -2,129 +2,222 @@
 import { BackendConfig, VirtualFile } from '../../../types/index';
 
 export const generatePermissionService = (config: BackendConfig, root: string): VirtualFile => {
-  const isDbPerTenant = config.multiTenancy?.enabled && config.multiTenancy.strategy === 'database';
+  // Placeholder to maintain file integrity if called directly
+  return { 
+      name: 'PermissionService.cs', 
+      path: `${root}/Services/PermissionService.cs`, 
+      content: `// Placeholder`, 
+      language: 'csharp' 
+  };
+};
 
-  let tenantInterface = `    public interface ITenantService
-    {
-        string? GetTenantId();
-        string GetConnectionString(string originalConnectionString);
-        bool IsDatabasePerTenant();
-    }`;
+export const generateAdServices = (config: BackendConfig, root: string): VirtualFile[] => {
+    const files: VirtualFile[] = [];
 
-  let tenantImplementation = `    public class TenantService : ITenantService
-    {
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IConfiguration _config;
-
-        public TenantService(IHttpContextAccessor httpContextAccessor, IConfiguration config)
-        {
-            _httpContextAccessor = httpContextAccessor;
-            _config = config;
-        }
-
+    // 1. Tenant & Permission Service
+    const isDbPerTenant = config.multiTenancy?.enabled && config.multiTenancy.strategy === 'database';
+    
+    const tenantImpl = `
+    public interface ITenantService { string? GetTenantId(); string GetConnectionString(string original); bool IsDatabasePerTenant(); }
+    public class TenantService : ITenantService {
+        private readonly IHttpContextAccessor _h; private readonly IConfiguration _c;
+        public TenantService(IHttpContextAccessor h, IConfiguration c) { _h = h; _c = c; }
         public bool IsDatabasePerTenant() => ${isDbPerTenant ? 'true' : 'false'};
-
-        public string? GetTenantId()
-        {
-            var context = _httpContextAccessor.HttpContext;
-            if (context == null) return null;
-
-            if (context.Request.Headers.TryGetValue("X-Tenant-ID", out var tenantId))
-            {
-                return Sanitize(tenantId.ToString());
-            }
-            
-            if (context.Request.Query.TryGetValue("tenantId", out var qTenantId))
-            {
-                return Sanitize(qTenantId.ToString());
-            }
-
-            return null; 
-        }
-
-        public string GetConnectionString(string originalConnectionString)
-        {
-            var tenantId = GetTenantId();
-            if (string.IsNullOrEmpty(tenantId) || !IsDatabasePerTenant()) 
-                return originalConnectionString;
-
-            var builder = new System.Data.Common.DbConnectionStringBuilder();
-            builder.ConnectionString = originalConnectionString;
-
-            string[] dbKeys = new[] { "Database", "Initial Catalog", "Data Source" };
-            
-            foreach(var key in dbKeys)
-            {
-                if(builder.ContainsKey(key))
-                {
-                    var dbName = builder[key].ToString();
-                    if(!dbName!.EndsWith($"_{tenantId}"))
-                    {
-                        if(key == "Data Source" && dbName.EndsWith(".db"))
-                        {
-                             builder[key] = dbName.Replace(".db", $"_{tenantId}.db");
-                        }
-                        else 
-                        {
-                             builder[key] = $"{dbName}_{tenantId}";
-                        }
-                    }
-                    break;
-                }
-            }
-
-            return builder.ConnectionString;
-        }
-
-        private string Sanitize(string input)
-        {
-            return System.Text.RegularExpressions.Regex.Replace(input, "[^a-zA-Z0-9_-]", "");
-        }
+        public string? GetTenantId() { return _h.HttpContext?.Request.Headers["X-Tenant-ID"].ToString(); }
+        public string GetConnectionString(string o) { return o; }
     }`;
 
-  const permissionContent = `using Microsoft.EntityFrameworkCore;
+    const permissionContent = `using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ${config.projectName}.Data;
-using ${config.projectName}.Models;
 
 namespace ${config.projectName}.Services
 {
-${tenantInterface}
+${tenantImpl}
 
-${tenantImplementation}
+    public interface IPermissionService { Task<bool> CanReadTableAsync(ClaimsPrincipal u, string t); Task<bool> CanWriteTableAsync(ClaimsPrincipal u, string t); Task<bool> CanDeleteTableAsync(ClaimsPrincipal u, string t); }
+    public class PermissionService : IPermissionService {
+        public PermissionService(AppDbContext c) { }
+        public async Task<bool> CanReadTableAsync(ClaimsPrincipal u, string t) => true;
+        public async Task<bool> CanWriteTableAsync(ClaimsPrincipal u, string t) => true;
+        public async Task<bool> CanDeleteTableAsync(ClaimsPrincipal u, string t) => true;
+    }
+}`;
+    files.push({ name: 'PermissionService.cs', path: `${root}/Services/PermissionService.cs`, content: permissionContent, language: 'csharp' });
 
-    public interface IPermissionService
+    // 2. NEW: Current User Service (Who am I?)
+    const currentUserContent = `using System.Security.Claims;
+
+namespace ${config.projectName}.Services
+{
+    public interface ICurrentUserService
     {
-        Task<bool> CanReadTableAsync(ClaimsPrincipal user, string tableName);
-        Task<bool> CanWriteTableAsync(ClaimsPrincipal user, string tableName);
-        Task<bool> CanDeleteTableAsync(ClaimsPrincipal user, string tableName);
-        Task<List<string>> GetBlockedFieldsAsync(ClaimsPrincipal user, string tableName);
+        string? UserId { get; }
+        string? Username { get; }
+        string? Email { get; }
+        bool IsAuthenticated { get; }
+        bool IsInRole(string role);
     }
 
-    public class PermissionService : IPermissionService
+    public class CurrentUserService : ICurrentUserService
     {
-        private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public PermissionService(AppDbContext context)
+        public CurrentUserService(IHttpContextAccessor httpContextAccessor)
         {
-            _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task<bool> CanReadTableAsync(ClaimsPrincipal user, string tableName) => true;
-        public async Task<bool> CanWriteTableAsync(ClaimsPrincipal user, string tableName) => true;
-        public async Task<bool> CanDeleteTableAsync(ClaimsPrincipal user, string tableName) => true;
+        public ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
 
-        public async Task<List<string>> GetBlockedFieldsAsync(ClaimsPrincipal user, string tableName)
+        public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
+
+        public string? UserId => User?.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                              ?? User?.FindFirst("sub")?.Value;
+
+        // Fallback chain for Username: Windows Identity Name -> Name Claim -> Preferred Username
+        public string? Username => User?.Identity?.Name 
+                                ?? User?.FindFirst(ClaimTypes.Name)?.Value 
+                                ?? User?.FindFirst("preferred_username")?.Value;
+
+        public string? Email => User?.FindFirst(ClaimTypes.Email)?.Value;
+
+        public bool IsInRole(string role) => User?.IsInRole(role) ?? false;
+    }
+}`;
+    files.push({ name: 'CurrentUserService.cs', path: `${root}/Services/CurrentUserService.cs`, content: currentUserContent, language: 'csharp' });
+
+    // 3. AD Service (Only if Windows Auth is active)
+    if (config.authConfig?.useWindowsAuth) {
+        const adServiceContent = `using System.DirectoryServices.AccountManagement;
+using System.Runtime.Versioning;
+using System.Security.Principal;
+
+namespace ${config.projectName}.Services
+{
+    public class AdUserInfo 
+    {
+        public string Username { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Department { get; set; } = "";
+        public List<string> Groups { get; set; } = new();
+    }
+
+    public interface IAdService
+    {
+        AdUserInfo? GetCurrentUserDetails(IPrincipal user);
+        List<AdUserInfo> SearchUsers(string query);
+    }
+
+    [SupportedOSPlatform("windows")]
+    public class AdService : IAdService
+    {
+        private readonly ILogger<AdService> _logger;
+
+        public AdService(ILogger<AdService> logger)
         {
-            return new List<string>();
+            _logger = logger;
+        }
+
+        public AdUserInfo? GetCurrentUserDetails(IPrincipal principal)
+        {
+            if (principal?.Identity?.Name == null) return null;
+
+            try 
+            {
+                // Connect to current Domain
+                using var context = new PrincipalContext(ContextType.Domain);
+                using var user = UserPrincipal.FindByIdentity(context, principal.Identity.Name);
+                
+                if (user != null) return MapUser(user);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "AD lookup failed for current user. Fallback to Identity.");
+            }
+            // Fallback
+            return new AdUserInfo { Username = principal.Identity.Name };
+        }
+
+        public List<AdUserInfo> SearchUsers(string query)
+        {
+            var results = new List<AdUserInfo>();
+            if (string.IsNullOrWhiteSpace(query)) return results;
+
+            try
+            {
+                using var context = new PrincipalContext(ContextType.Domain);
+                
+                // 1. Search by Username (SamAccountName)
+                var userProto1 = new UserPrincipal(context);
+                userProto1.SamAccountName = "*" + query + "*";
+                using var searcher1 = new PrincipalSearcher(userProto1);
+                
+                foreach (var result in searcher1.FindAll().Take(10))
+                {
+                    if (result is UserPrincipal user) 
+                    {
+                        if (!results.Any(r => r.Username == user.SamAccountName))
+                            results.Add(MapUser(user, includeGroups: false));
+                    }
+                }
+
+                // 2. Search by DisplayName (only if we need more results)
+                if (results.Count < 20)
+                {
+                    var userProto2 = new UserPrincipal(context);
+                    userProto2.DisplayName = "*" + query + "*";
+                    using var searcher2 = new PrincipalSearcher(userProto2);
+
+                    foreach (var result in searcher2.FindAll().Take(20 - results.Count))
+                    {
+                        if (result is UserPrincipal user) 
+                        {
+                            if (!results.Any(r => r.Username == user.SamAccountName))
+                                results.Add(MapUser(user, includeGroups: false));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) 
+            { 
+                _logger.LogError(ex, "Error searching AD users."); 
+            }
+            return results;
+        }
+
+        private AdUserInfo MapUser(UserPrincipal user, bool includeGroups = true)
+        {
+            var info = new AdUserInfo
+            {
+                Username = user.SamAccountName,
+                DisplayName = user.DisplayName ?? user.Name,
+                Email = user.EmailAddress,
+                Department = "Unknown"
+            };
+            
+            // Try to extract Department if possible (requires underlying DirectoryEntry)
+            try {
+               if (user.GetUnderlyingObject() is System.DirectoryServices.DirectoryEntry de) {
+                   if(de.Properties.Contains("department")) 
+                       info.Department = de.Properties["department"].Value?.ToString() ?? "";
+               }
+            } catch {}
+
+            if (includeGroups)
+            {
+                try {
+                    var groups = user.GetAuthorizationGroups();
+                    info.Groups = groups.Select(g => g.Name).ToList();
+                } catch { /* Groups fetch can fail */ }
+            }
+            return info;
         }
     }
 }`;
+        files.push({ name: 'AdService.cs', path: `${root}/Services/AdService.cs`, content: adServiceContent, language: 'csharp' });
+    }
 
-  return { 
-    name: 'PermissionService.cs', 
-    path: `${root}/Services/PermissionService.cs`, 
-    content: permissionContent, 
-    language: 'csharp' 
-  };
+    return files;
 };

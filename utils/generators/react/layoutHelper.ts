@@ -1,7 +1,7 @@
 
 import { Table, FormElement, Form } from '../../../types/index';
 import { toCamelCase, toPascalCase } from '../common';
-import { Plus, Layout } from 'lucide-react';
+import { Plus, Layout, User, Search } from 'lucide-react';
 
 export const collectLookups = (element: FormElement, tables: Table[], accumulated: any[] = []) => {
     if (element.widgetType === 'select' && element.lookup && element.lookup.tableId) {
@@ -171,6 +171,69 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                     </div>
                  </div>`;
              }
+        }
+
+        // Current User (WhoAmI)
+        if (element.widgetType === 'current-user') {
+            const modalId = `picker_me_${element.id}`;
+            if (!modals.find(m => m.id === modalId)) {
+                modals.push({ id: modalId, type: 'user-picker', mode: 'me', targetField: bindProp });
+            }
+            return `
+            <div className="${wrapperClass}">
+                <label className="${labelClass}">${element.label}</label>
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <User className="absolute left-2 top-2.5 text-emerald-600" size={16} />
+                        <input
+                            type="text"
+                            readOnly
+                            value={${dataVar}.${bindProp} || ''}
+                            className="${inputClass} pl-8 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-100 font-mono"
+                            placeholder="(Leer)"
+                        />
+                    </div>
+                    <button 
+                        type="button"
+                        onClick={() => toggleModal('${modalId}', true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap"
+                        title="Mich selbst eintragen"
+                    >
+                        Ich (Auto)
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        // AD Search
+        if (element.widgetType === 'ad-search') {
+            const modalId = `picker_search_${element.id}`;
+            if (!modals.find(m => m.id === modalId)) {
+                modals.push({ id: modalId, type: 'user-picker', mode: 'search', targetField: bindProp });
+            }
+            return `
+            <div className="${wrapperClass}">
+                <label className="${labelClass}">${element.label}</label>
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2 top-2.5 text-blue-500" size={16} />
+                        <input
+                            type="text"
+                            value={${dataVar}.${bindProp} || ''}
+                            onChange={e => setData({...${dataVar}, ${bindProp}: e.target.value})}
+                            className="${inputClass} pl-8"
+                            placeholder="Benutzer auswählen..."
+                        />
+                    </div>
+                    <button 
+                        type="button"
+                        onClick={() => toggleModal('${modalId}', true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap flex items-center gap-1"
+                    >
+                        <Search size={14}/> Suchen
+                    </button>
+                </div>
+            </div>`;
         }
 
         return `

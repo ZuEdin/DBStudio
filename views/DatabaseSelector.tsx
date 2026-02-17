@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Database, Plus, Upload, FolderOpen, Clock, Trash2, Shield, Code, Briefcase, Package, Layout, Monitor, PlayCircle, Smartphone, Users, Cloud, HardDrive, Wifi } from 'lucide-react';
+import { Database, Plus, Upload, FolderOpen, Clock, Trash2, Shield, Code, Briefcase, Package, Layout, Monitor, PlayCircle, Smartphone, Users, Cloud, HardDrive, Wifi, RefreshCw } from 'lucide-react';
 import { DbType, Project, BackendLanguage, AuthConfig, BackendConfig, ProjectData } from '../types/index';
 import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage } from '../services/storageService';
 import { cloudService } from '../services/cloudService';
@@ -18,6 +18,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const [cloudProjects, setCloudProjects] = useState<Project[]>([]);
   const [activeSource, setActiveSource] = useState<'local' | 'cloud'>('local');
   const [activeTab, setActiveTab] = useState<'create' | 'templates'>('create');
+  const [loading, setLoading] = useState(false);
   
   const { t, i18n } = useTranslation();
   const templates = useMemo(() => getTemplates(i18n.language), [i18n.language]);
@@ -27,6 +28,15 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const [newDbType, setNewDbType] = useState<DbType>(DbType.SQL);
   const [newLanguage, setNewLanguage] = useState<BackendLanguage>('dotnet');
   
+  // Dialog State (to avoid native confirm/alert)
+  const [dialog, setDialog] = useState<{ 
+      isOpen: boolean; 
+      type: 'confirm' | 'alert'; 
+      title: string; 
+      message: string; 
+      onConfirm?: () => void; 
+  } | null>(null);
+
   // Auth Config
   const [authConfig, setAuthConfig] = useState<AuthConfig>({
       useWindowsAuth: false,
@@ -44,24 +54,45 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   }, []);
 
   const loadProjects = async () => {
-    const local = await getAllProjects();
-    setLocalProjects(local);
-    
-    // Simulate fetching cloud projects
-    const cloud = await cloudService.getProjects();
-    setCloudProjects(cloud);
+    setLoading(true);
+    try {
+        const local = await getAllProjects();
+        setLocalProjects(local);
+        
+        // Simulate fetching cloud projects
+        const cloud = await cloudService.getProjects();
+        setCloudProjects(cloud);
+    } finally {
+        setLoading(false);
+    }
   };
+
+  const closeDialog = () => setDialog(null);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm(t('start.msg_delete'))) {
-      await deleteProjectFromStorage(id);
-      loadProjects();
-    }
+    setDialog({
+        isOpen: true,
+        type: 'confirm',
+        title: 'Projekt löschen',
+        message: t('start.msg_delete'),
+        onConfirm: async () => {
+            await deleteProjectFromStorage(id);
+            loadProjects();
+            closeDialog();
+        }
+    });
   };
 
   const handleCreate = () => {
     if (newProjectName.trim()) {
+      // Auto-Prepare AD Mapping from simple string list if provided
+      let finalAuthConfig = { ...authConfig };
+      if (authConfig.useWindowsAuth && authConfig.useAdGroups && authConfig.adGroups) {
+          const groups = authConfig.adGroups.split(',').map(g => g.trim()).filter(g => g);
+          finalAuthConfig.adMapping = groups.map(g => ({ groupName: g, roleName: 'User' }));
+      }
+
       const config: BackendConfig = {
           language: newLanguage,
           backendVersion: newLanguage === 'dotnet' ? '9.0' : undefined,
@@ -73,7 +104,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                         : 'Server=.;Database=MyDb;Trusted_Connection=True;TrustServerCertificate=True;',
           useSwagger: true,
           frontendFramework: 'react',
-          authConfig: authConfig
+          authConfig: finalAuthConfig
       };
       onCreateNew(newDbType, newProjectName, config);
     }
@@ -101,20 +132,41 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
             throw new Error("Ungültiges Dateiformat");
         }
 
+        const finalizeImport = async (p: Project) => {
+            p.lastModified = Date.now();
+            await saveProjectToStorage(p);
+            await loadProjects();
+            setDialog({
+                isOpen: true,
+                type: 'alert',
+                title: 'Import',
+                message: t('start.msg_import_success')
+            });
+        };
+
         const existing = localProjects.find(p => p.id === project.id);
         if (existing) {
-            if(!confirm(t('start.msg_overwrite', { name: project.name }))) {
-                project.id = crypto.randomUUID();
-                project.name = project.name + " (Import)";
-            }
+             setDialog({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Projekt existiert',
+                message: t('start.msg_overwrite', { name: project.name }),
+                onConfirm: async () => {
+                    await finalizeImport(project);
+                    closeDialog();
+                }
+             });
+        } else {
+            await finalizeImport(project);
         }
-        
-        project.lastModified = Date.now();
-        await saveProjectToStorage(project);
-        await loadProjects();
-        alert(t('start.msg_import_success'));
+
       } catch (err) {
-        alert(`${t('start.msg_import_error')}: ${err}`);
+        setDialog({
+            isOpen: true,
+            type: 'alert',
+            title: 'Fehler',
+            message: `${t('start.msg_import_error')}: ${err}`
+        });
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -124,7 +176,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const projects = activeSource === 'local' ? localProjects : cloudProjects;
 
   return (
-    <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
+    <div className="flex h-screen bg-slate-100 font-sans overflow-hidden relative">
       
       {/* Language Selector Top Right */}
       <div className="absolute top-4 right-4 z-50">
@@ -157,6 +209,9 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
                 <FolderOpen size={16} /> {activeSource === 'local' ? 'Lokale Projekte' : 'Team Projekte'}
+                <button onClick={loadProjects} className="ml-2 p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-500 transition-colors" title="Liste aktualisieren">
+                    <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                </button>
             </h2>
             <label className="cursor-pointer text-xs text-blue-600 hover:underline flex items-center gap-1">
                 <Upload size={12}/> {t('start.import')}
@@ -253,13 +308,13 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                  {[
                                      { id: DbType.SQL, label: 'SQL Server' },
                                      { id: DbType.MySQL, label: 'MySQL' },
-                                     { id: DbType.SQLite, label: 'SQLite' },
+                                     { id: DbType.SQLite, label: 'SQLite (Lokal)' },
                                      { id: DbType.NoSQL, label: 'NoSQL (Mongo)' },
                                  ].map((type) => (
                                      <div 
                                         key={type.id}
                                         onClick={() => setNewDbType(type.id)}
-                                        className={`p-2 rounded border cursor-pointer transition-all text-sm flex justify-between items-center ${newDbType === type.id ? 'border-blue-500 bg-blue-50 text-blue-800 font-semibold' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
+                                        className={`p-2 rounded border cursor-pointer transition-all text-sm flex justify-between items-center ${newDbType === type.id ? 'border-blue-500 bg-blue-50 text-blue-800 font-semibold shadow-inner' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
                                      >
                                          {type.label}
                                          {newDbType === type.id && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
@@ -281,7 +336,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                      <div 
                                         key={lang.id}
                                         onClick={() => setNewLanguage(lang.id as BackendLanguage)}
-                                        className={`p-2 rounded border cursor-pointer transition-all text-sm flex justify-between items-center ${newLanguage === lang.id ? 'border-indigo-500 bg-indigo-50 text-indigo-800 font-semibold' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
+                                        className={`p-2 rounded border cursor-pointer transition-all text-sm flex justify-between items-center ${newLanguage === lang.id ? 'border-indigo-500 bg-indigo-50 text-indigo-800 font-semibold shadow-inner' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
                                      >
                                          {lang.label}
                                          {newLanguage === lang.id && <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>}
@@ -334,7 +389,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                                         value={authConfig.adGroups || ''}
                                                         onChange={e => setAuthConfig({...authConfig, adGroups: e.target.value})}
                                                     />
-                                                    <p className="text-[10px] text-slate-400 mt-0.5">Kommagetrennt für mehrere Gruppen.</p>
+                                                    <p className="text-[10px] text-slate-400 mt-0.5">Kommagetrennt. Mappt diese Gruppen standardmäßig auf 'User'.</p>
                                                 </div>
                                             )}
                                         </div>
@@ -410,6 +465,28 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
              )}
          </div>
       </div>
+
+      {/* Local Dialog for Confirm/Alert */}
+      {dialog && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] animate-in fade-in-25 backdrop-blur-sm">
+              <div className="bg-white p-6 rounded-lg shadow-2xl border border-slate-300 max-w-sm w-full mx-4">
+                  <h3 className="font-bold text-lg mb-2 text-slate-800">{dialog.title}</h3>
+                  <p className="mb-6 text-slate-600 text-sm">{dialog.message}</p>
+                  <div className="flex justify-end gap-2">
+                      {dialog.type === 'confirm' && (
+                        <button onClick={closeDialog} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded text-slate-700 text-sm">Abbrechen</button>
+                      )}
+                      <button 
+                        onClick={() => { if(dialog.onConfirm) dialog.onConfirm(); else closeDialog(); }} 
+                        className={`px-4 py-2 text-white rounded font-bold text-sm shadow-sm ${dialog.type === 'confirm' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      >
+                          {dialog.type === 'confirm' ? 'Ja, fortfahren' : 'OK'}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
     </div>
   );
 };

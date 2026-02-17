@@ -79,7 +79,7 @@ export default function App() {
             onSave={app.handleSave}
             onDeleteRelationship={db.deleteRelationship}
             onUpdateRelationship={db.updateRelationship}
-            onMoveRelationshipNode={(id, x, y) => app.setRelationshipNodes(prev => prev.map(n => n.id === id ? { ...n, x, y } : n))}
+            onMoveRelationshipNode={(id, x, y) => app.setRelationshipNodes(app.relationshipNodes.map(n => n.id === id ? { ...n, x, y } : n))}
             setRelationships={db.setRelationships}
             executeQuery={db.executeQuery}
             saveTable={db.saveTable}

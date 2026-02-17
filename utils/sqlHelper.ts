@@ -1,5 +1,4 @@
 
-
 import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
 import { quoteIdentifier, toPascalCase } from './generators/common';
 
@@ -51,8 +50,26 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
         
         const conditions = validCriteria.map(crit => {
-            if (crit.toUpperCase() === 'IS NULL' || crit.toUpperCase() === 'IS NOT NULL') return `${fieldRef} ${crit}`;
-            return `${fieldRef} ${crit}`; // Basic append (e.g. "> 5")
+            let criteria = crit.trim();
+            
+            // Fix string literals: replace double quotes with single quotes for SQL compatibility
+            if (criteria.includes('"')) {
+                criteria = criteria.replace(/"/g, "'");
+            }
+
+            // Handle Keywords like TODAY
+            if (criteria.includes('TODAY')) {
+                // SQL Server: CAST(GETDATE() AS DATE), MySQL: CURDATE(), SQLite: DATE('now')
+                const todaySql = dbType === DbType.SQL ? "CAST(GETDATE() AS DATE)" : (dbType === DbType.SQLite ? "DATE('now')" : "CURDATE()");
+                criteria = criteria.replace(/TODAY/g, todaySql);
+            }
+
+            // AUTO-FIX: Handle "NULL" entered without "IS"
+            if (criteria.toUpperCase() === 'NULL') return `${fieldRef} IS NULL`;
+            if (criteria.toUpperCase() === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
+
+            if (criteria.toUpperCase() === 'IS NULL' || criteria.toUpperCase() === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
+            return `${fieldRef} ${criteria}`; // Basic append (e.g. "> 5")
         });
         return conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0];
       }).filter(Boolean);

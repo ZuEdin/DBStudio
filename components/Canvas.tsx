@@ -40,8 +40,13 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
+  // Safe Arrays to prevent "e.find is not a function" errors during fast state updates
+  const safeNodes = Array.isArray(nodes) ? nodes : [];
+  const safeTables = Array.isArray(tables) ? tables : [];
+  const safeRelationships = Array.isArray(relationships) ? relationships : [];
+
   const handleDragStart = (e: React.MouseEvent, nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
+    const node = safeNodes.find(n => n.id === nodeId);
     if (!node || !isInteractive) return;
 
     if ((e.target as HTMLElement).closest('.node-header')) {
@@ -128,9 +133,6 @@ export const Canvas: React.FC<CanvasProps> = ({
     return { x, y };
   };
 
-  // Safe relationships array
-  const safeRelationships = Array.isArray(relationships) ? relationships : [];
-
   return (
     <div 
       className="relative w-full h-full overflow-hidden canvas-grid bg-slate-50 cursor-grab"
@@ -152,16 +154,14 @@ export const Canvas: React.FC<CanvasProps> = ({
             </marker>
           </defs>
           {safeRelationships.map(rel => {
-            const fromNode = nodes.find(n => n.tableId === rel.fromTableId);
-            const toNode = nodes.find(n => n.tableId === rel.toTableId);
-            const fromTable = tables.find(t => t.id === rel.fromTableId);
-            const toTable = tables.find(t => t.id === rel.toTableId);
+            const fromNode = safeNodes.find(n => n.tableId === rel.fromTableId);
+            const toNode = safeNodes.find(n => n.tableId === rel.toTableId);
+            const fromTable = safeTables.find(t => t.id === rel.fromTableId);
+            const toTable = safeTables.find(t => t.id === rel.toTableId);
 
             if (!fromNode || !toNode || !fromTable || !toTable) return null;
 
             // Determine orientation based on X position
-            // If From is Left of To: Connect Right of From -> Left of To
-            // If From is Right of To: Connect Left of From -> Right of To
             const fromIsLeft = fromNode.x < toNode.x;
             
             const startSide = fromIsLeft ? 'right' : 'left';
@@ -194,7 +194,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                 <circle cx={end.x} cy={end.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
 
                  {/* Labels */}
-                 {/* Adjust label position slightly based on side */}
                 <text x={fromIsLeft ? start.x + 8 : start.x - 15} y={start.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">1</text>
                 <text x={fromIsLeft ? end.x - 15 : end.x + 8} y={end.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">{labelTo}</text>
               </g>
@@ -202,8 +201,8 @@ export const Canvas: React.FC<CanvasProps> = ({
           })}
         </svg>
 
-        {nodes.map(node => {
-          const table = tables.find(t => t.id === node.tableId);
+        {safeNodes.map(node => {
+          const table = safeTables.find(t => t.id === node.tableId);
           if (!table) return null;
 
           return (

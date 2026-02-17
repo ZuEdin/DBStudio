@@ -24,20 +24,25 @@ export const generateReactPages = (tables: Table[], forms: Form[], reports: Repo
 import { Link } from 'react-router-dom';
 import { ${pascalName} } from '../../types';
 import { get, remove } from '../../services/api';
-import { Trash2, Plus, Edit, Search } from 'lucide-react';
+import { Trash2, Plus, Edit, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const ${listName} = () => {
-  const [items, setItems] = useState<${pascalName}[]>([]);
+  const [data, setData] = useState<{ data: ${pascalName}[], total: number, page: number, totalPages: number }>({ data: [], total: 0, page: 1, totalPages: 1 });
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadItems(); }, [searchTerm]);
+  // Debounce Search reset page
+  useEffect(() => { setPage(1); }, [searchTerm]);
+
+  useEffect(() => { loadItems(); }, [searchTerm, page]);
 
   const loadItems = async () => {
     try {
       setLoading(true);
-      const res = await get<${pascalName}>('${camelName}', { search: searchTerm });
-      setItems(res.data);
+      const res = await get<${pascalName}>('${camelName}', { search: searchTerm, page: page, pageSize: 10 });
+      // API Helper returns normalized PagedResponse
+      setData(res as any);
     } finally { setLoading(false); }
   };
 
@@ -66,7 +71,7 @@ export const ${listName} = () => {
           </div>
       </div>
       
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
         <div className="overflow-x-auto">
             <table className="w-full text-left">
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-700 text-slate-500 uppercase text-xs font-semibold">
@@ -76,7 +81,7 @@ export const ${listName} = () => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {items.length > 0 ? items.map(i => (
+                    {data.data.length > 0 ? data.data.map(i => (
                         <tr key={i.${pk}} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                             ${table.fields.map(f => `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(i.${toCamelCase(f.name)} ?? '')}</td>`).join('')}
                             <td className="p-4 text-right">
@@ -92,6 +97,29 @@ export const ${listName} = () => {
                 </tbody>
             </table>
         </div>
+        
+        {/* Pagination Controls */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+            <div className="text-sm text-slate-500 dark:text-slate-400">
+                Seite <span className="font-bold">{data.page}</span> von <span className="font-bold">{data.totalPages}</span> ({data.total} Einträge)
+            </div>
+            <div className="flex gap-2">
+                <button 
+                    onClick={() => setPage(p => Math.max(1, p - 1))} 
+                    disabled={data.page <= 1}
+                    className="p-2 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded disabled:opacity-50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                    <ChevronLeft size={16} />
+                </button>
+                <button 
+                    onClick={() => setPage(p => Math.min(data.totalPages, p + 1))} 
+                    disabled={data.page >= data.totalPages}
+                    className="p-2 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded disabled:opacity-50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                    <ChevronRight size={16} />
+                </button>
+            </div>
+        </div>
       </div>
     </div>
   );
@@ -99,119 +127,52 @@ export const ${listName} = () => {
       files.push({ name: `${listName}.tsx`, path: `${root}/src/pages/${pascalName}/${listName}.tsx`, content, language: 'typescript' });
   });
 
-  // 2. Custom Forms with Smart Quick Create
+  // 2. Custom Forms with Smart Quick Create & User Pickers
   forms.forEach(form => {
       const compName = `${toPascalCase(form.name)}Form`;
       const sourceTable = tables.find(t => t.id === form.sourceId);
       if(!sourceTable) return;
       
       const sourceTableCamel = toCamelCase(sourceTable.name);
-      
       const lookups = form.layout ? collectLookups(form.layout, tables) : [];
-      
-      // Accumulate required modals during layout generation
       const requiredModals: any[] = [];
       const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables, forms, 'data', requiredModals) : '<div>Kein Layout definiert.</div>';
       
-      // Subform State declarations
-      const subformStateDecls = requiredModals
-        .filter(m => m.type === 'subform')
-        .map(m => {
+      const subformStateDecls = requiredModals.filter(m => m.type === 'subform').map(m => {
             const camelChild = toCamelCase(m.table.name);
             const varName = `${camelChild}SubList_${m.id.replace('sub_field_', '')}`;
             return `const [${varName}, set${toPascalCase(varName)}] = useState<any[]>([]);`;
         }).join('\n  ');
 
-      const subformLoadLogic = requiredModals
-        .filter(m => m.type === 'subform')
-        .map(m => {
+      const subformLoadLogic = requiredModals.filter(m => m.type === 'subform').map(m => {
             const childTableCamel = toCamelCase(m.table.name);
             const childField = m.table.fields.find(f => f.id === m.childField)?.name;
             const varName = `${childTableCamel}SubList_${m.id.replace('sub_field_', '')}`;
             return `if(id && id!=='new') { const subRes = await get('${childTableCamel}', { search: '' }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
         }).join('\n        ');
 
-      // Generate Smart Modal Content (Typ-Gerecht)
       const modalJsx = requiredModals.map(m => {
           if (m.type === 'lookup') {
-              // Quick Create Form
               const fields = m.table.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement).map((f: any) => {
                   const label = f.name;
                   const name = toCamelCase(f.name);
                   let input = `<input name="${name}" className="w-full border p-2 rounded" />`;
-                  
-                  if (f.type === 'BOOLEAN') {
-                      input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" name="${name}" value="true" className="w-4 h-4" /> <span className="text-sm">Aktivieren</span></div>`;
-                  } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
-                      input = `<input type="number" name="${name}" className="w-full border p-2 rounded" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
-                  } else if (f.type === 'DATE') {
-                      input = `<input type="date" name="${name}" className="w-full border p-2 rounded" />`;
-                  }
-
-                  return `
-                  <div className="mb-3">
-                      <label className="block text-sm font-bold mb-1 text-slate-700">${label}</label>
-                      ${input}
-                  </div>`;
+                  if (f.type === 'BOOLEAN') input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" name="${name}" value="true" className="w-4 h-4" /> <span className="text-sm">Aktivieren</span></div>`;
+                  else if (f.type === 'INTEGER' || f.type === 'DECIMAL') input = `<input type="number" name="${name}" className="w-full border p-2 rounded" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
+                  else if (f.type === 'DATE') input = `<input type="date" name="${name}" className="w-full border p-2 rounded" />`;
+                  return `<div className="mb-3"><label className="block text-sm font-bold mb-1 text-slate-700">${label}</label>${input}</div>`;
               }).join('');
               
-              return `
-              <Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Neu anlegen: ${m.table.name}">
-                  <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      const formData = new FormData(e.currentTarget);
-                      const payload: any = {};
-                      formData.forEach((value, key) => {
-                          if (value === 'true') payload[key] = true;
-                          else if (value === 'false') payload[key] = false;
-                          else payload[key] = value;
-                      });
-                      
-                      try {
-                          await post('${toCamelCase(m.table.name)}', payload);
-                          // Reload Lookups
-                          const res = await get('${toCamelCase(m.table.name)}');
-                          set${toPascalCase(toCamelCase(m.table.name))}List(res.data || res);
-                          toggleModal('${m.id}', false);
-                      } catch (err) {
-                          alert('Fehler beim Speichern');
-                      }
-                  }}>
-                      <div className="space-y-2">
-                        ${fields}
-                      </div>
-                      <div className="mt-6 flex justify-end gap-2">
-                          <button type="button" onClick={() => toggleModal('${m.id}', false)} className="px-4 py-2 border rounded">Abbrechen</button>
-                          <button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button>
-                      </div>
-                  </form>
-              </Modal>`;
+              return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Neu: ${m.table.name}"><form onSubmit={async (e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); const payload: any = {}; formData.forEach((value, key) => { if(value==='true') payload[key]=true; else if(value==='false') payload[key]=false; else payload[key]=value; }); try { await post('${toCamelCase(m.table.name)}', payload); const res = await get('${toCamelCase(m.table.name)}'); set${toPascalCase(toCamelCase(m.table.name))}List(res.data || res); toggleModal('${m.id}', false); } catch (err) { alert('Fehler'); } }}><div className="space-y-2">${fields}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => toggleModal('${m.id}', false)} className="px-4 py-2 border rounded">Abbrechen</button><button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button></div></form></Modal>`;
           }
           if (m.type === 'subform') {
-              // Subform Logic (Simplified for generation)
               const subLayout = m.form.layout ? generateJsxForLayout(m.form.layout, tables, forms, 'subData') : '<div>Formular leer</div>';
               const childTableCamel = toCamelCase(m.table.name);
               const childField = m.table.fields.find(f => f.id === m.childField)?.name;
-              
-              return `
-              <Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Eintrag hinzufügen: ${m.form.name}">
-                  <SubFormWrapper 
-                      onSave={async (subData) => {
-                          if(id && id!=='new') {
-                              subData.${toCamelCase(childField || '')} = id; // Link to parent
-                              await post('${childTableCamel}', subData);
-                              // Reload List
-                              const subRes = await get('${childTableCamel}', { search: '' }); 
-                              set${toPascalCase(toCamelCase(m.table.name))}SubList_${m.id.replace('sub_field_', '')}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField || '')}) === String(id)));
-                          } else {
-                              alert('Bitte zuerst Hauptdatensatz speichern.');
-                          }
-                          toggleModal('${m.id}', false);
-                      }}
-                  >
-                      {${subLayout.replace(/data\./g, 'subData.')}} 
-                  </SubFormWrapper>
-              </Modal>`;
+              return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Eintrag hinzufügen: ${m.form.name}"><SubFormWrapper onSave={async (subData) => { if(id && id!=='new') { subData.${toCamelCase(childField || '')} = id; await post('${childTableCamel}', subData); const subRes = await get('${childTableCamel}', { search: '' }); set${toPascalCase(toCamelCase(m.table.name))}SubList_${m.id.replace('sub_field_', '')}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField || '')}) === String(id))); } else { alert('Bitte erst Hauptdatensatz speichern.'); } toggleModal('${m.id}', false); }}>{${subLayout.replace(/data\./g, 'subData.')}}</SubFormWrapper></Modal>`;
+          }
+          if (m.type === 'user-picker') {
+              return `<UserPickerModal isOpen={modals['${m.id}']} initialTab="${m.mode}" onClose={() => toggleModal('${m.id}', false)} onSelect={(username, display) => { setData({...data, ${m.targetField}: username}); toggleModal('${m.id}', false); }} />`;
           }
           return '';
       }).join('\n');
@@ -219,31 +180,14 @@ export const ${listName} = () => {
       const content = `import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { get, post, put } from '../../services/api';
-import { Save, ArrowLeft, Loader2, Plus, Layout } from 'lucide-react';
+import { Save, ArrowLeft, Loader2, Plus, Layout, User, Search } from 'lucide-react';
 import { Modal } from '../../components/Modal';
+import { UserPickerModal } from '../../components/UserPickerModal';
 
-// Helper for subform state
 const SubFormWrapper = ({ children, onSave }: any) => {
     const [subData, setData] = useState<any>({});
-    // Clone children to inject props (simple simulation for generated code)
-    const injectedChildren = React.Children.map(children, child => {
-        if (React.isValidElement(child)) {
-             // In a real app we'd use a context, here we rely on the generated code using 'subData' variable
-             return child; 
-        }
-        return child;
-    });
-
-    return (
-        <div>
-            {/* Note: In a real app, this would use a FormContext. 
-                For this generated code, we assume 'subData' and 'setData' are available in scope via the replaced string logic. */}
-            {children}
-            <div className="mt-6 flex justify-end gap-2">
-                <button type="button" onClick={() => onSave(subData)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button>
-            </div>
-        </div>
-    );
+    const injectedChildren = React.Children.map(children, child => React.isValidElement(child) ? child : child);
+    return (<div>{children}<div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => onSave(subData)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button></div></div>);
 }
 
 export const ${compName} = () => {
@@ -273,33 +217,18 @@ export const ${compName} = () => {
       init();
   }, [id]);
 
-  const handleSubmit = async (e: React.FormEvent) => { 
-      e.preventDefault(); 
-      try {
-          if (id && id !== 'new') await put(\`${sourceTableCamel}/\${id}\`, data);
-          else await post('${sourceTableCamel}', data);
-          navigate(-1);
-      } catch (e) { alert('Fehler beim Speichern'); }
-  };
+  const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); try { if (id && id !== 'new') await put(\`${sourceTableCamel}/\${id}\`, data); else await post('${sourceTableCamel}', data); navigate(-1); } catch (e) { alert('Fehler'); } };
 
   if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin inline-block mr-2 text-blue-500"/> Lade...</div>;
-
-  // Placeholder for subform compilation scope
-  const subData: any = {}; 
-  const setSubData = (d: any) => {};
+  const subData: any = {}; const setSubData = (d: any) => {};
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-8">
       <button onClick={() => navigate(-1)} className="mb-4 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center gap-2 transition-colors font-medium text-sm"><ArrowLeft size={16}/> Zurück</button>
-      
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">${form.name}</h1>
-          </div>
-          
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50"><h1 className="text-2xl font-bold text-slate-800 dark:text-white">${form.name}</h1></div>
           <form onSubmit={handleSubmit} className="p-6 sm:p-8">
             ${layoutJsx}
-            
             <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
                 <button type="button" onClick={() => navigate(-1)} className="px-6 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors">Abbrechen</button>
                 <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5"><Save size={18}/> Speichern</button>

@@ -15,6 +15,7 @@ interface MigrationManagerModalProps {
 export const MigrationManagerModal: React.FC<MigrationManagerModalProps> = ({ currentTables, lastSnapshot, dbType, onSnapshot, onClose }) => {
   const [migration, setMigration] = useState<MigrationScript | null>(null);
   const [activeTab, setActiveTab] = useState<'up' | 'down'>('up');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
       const result = calculateMigration(currentTables, lastSnapshot || [], dbType);
@@ -22,12 +23,8 @@ export const MigrationManagerModal: React.FC<MigrationManagerModalProps> = ({ cu
   }, [currentTables, lastSnapshot, dbType]);
 
   const handleApply = () => {
-      // In a real app, this would execute the SQL.
-      // Here we "commit" the snapshot to acknowledge changes.
-      if (confirm("Dies aktualisiert den internen Snapshot. Der Status gilt nun als 'deployt' und zukünftige Änderungen werden gegen diesen Stand geprüft.")) {
-          onSnapshot();
-          onClose();
-      }
+      onSnapshot();
+      onClose();
   };
 
   const handleDownload = () => {
@@ -98,22 +95,32 @@ export const MigrationManagerModal: React.FC<MigrationManagerModalProps> = ({ cu
         </div>
 
         <div className="p-4 bg-slate-50 border-t flex justify-between items-center shrink-0">
-            <div className="text-xs text-slate-500">
-                Vergleicht aktuellen Entwurf mit dem letzten Snapshot.
-            </div>
-            <div className="flex gap-2">
-                <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded text-sm">Abbrechen</button>
-                {hasChanges && (
-                    <>
-                        <button onClick={handleDownload} className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 rounded text-sm font-medium flex items-center gap-2">
-                            <Download size={16}/> SQL Speichern
-                        </button>
-                        <button onClick={handleApply} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-bold shadow-sm flex items-center gap-2">
-                            <Database size={16}/> Snapshot aktualisieren
-                        </button>
-                    </>
-                )}
-            </div>
+            {showConfirm ? (
+                <div className="flex items-center gap-3 w-full justify-end bg-orange-50 p-2 rounded border border-orange-200">
+                    <span className="text-sm text-orange-800 font-medium">Snapshot wirklich aktualisieren?</span>
+                    <button onClick={() => setShowConfirm(false)} className="text-slate-500 text-xs hover:underline">Abbrechen</button>
+                    <button onClick={handleApply} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">Ja, bestätigen</button>
+                </div>
+            ) : (
+                <>
+                    <div className="text-xs text-slate-500">
+                        Vergleicht aktuellen Entwurf mit dem letzten Snapshot.
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded text-sm">Abbrechen</button>
+                        {hasChanges && (
+                            <>
+                                <button onClick={handleDownload} className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 rounded text-sm font-medium flex items-center gap-2">
+                                    <Download size={16}/> SQL Speichern
+                                </button>
+                                <button onClick={() => setShowConfirm(true)} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-bold shadow-sm flex items-center gap-2">
+                                    <Database size={16}/> Snapshot aktualisieren
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </>
+            )}
         </div>
       </div>
     </div>

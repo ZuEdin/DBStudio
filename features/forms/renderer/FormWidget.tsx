@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FormElement, Table } from '../../../types/index';
-import { Plus } from 'lucide-react';
+import { Plus, Search, User, Loader2 } from 'lucide-react';
+import { UserPickerModal } from '../components/UserPickerModal';
 
 interface FormWidgetProps {
   element: FormElement;
@@ -27,12 +28,102 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   const label = element.label || fieldName;
   const elementId = `field_${element.id}`;
 
+  const [showUserPicker, setShowUserPicker] = useState<boolean>(false);
+  const [pickerMode, setPickerMode] = useState<'me' | 'search'>('me');
+
+  const openPicker = (mode: 'me' | 'search') => {
+      if (isReadOnly) return;
+      setPickerMode(mode);
+      setShowUserPicker(true);
+  };
+
+  const handleUserSelect = (username: string, display: string) => {
+      onChange(fieldName, username); // We store the username/ID
+      setShowUserPicker(false);
+  };
+
   let widget = element.widgetType;
   if (!widget && field) {
       if (field.type === 'BOOLEAN') widget = 'checkbox';
       else if (field.type === 'DATE') widget = 'date';
       else if (field.type === 'INTEGER' || field.type === 'DECIMAL') widget = 'number';
       else widget = 'text';
+  }
+
+  // --- RENDER: Current User (WhoAmI) ---
+  if (widget === 'current-user') {
+      return (
+          <div className={element.className}>
+              <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+              <div className="flex gap-2">
+                  <div className="relative flex-1">
+                      <User className="absolute left-2 top-2 text-emerald-600" size={16} />
+                      <input
+                        id={elementId}
+                        type="text"
+                        readOnly
+                        value={value || ''}
+                        className="w-full border border-emerald-300 bg-emerald-50 text-emerald-900 rounded p-2 pl-8 text-sm font-mono cursor-default focus:outline-none"
+                        placeholder="(Leer)"
+                      />
+                  </div>
+                  {!isReadOnly && (
+                      <button 
+                        onClick={() => openPicker('me')}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap"
+                        title="Mich selbst eintragen"
+                      >
+                          Ich (Auto)
+                      </button>
+                  )}
+              </div>
+              {showUserPicker && (
+                  <UserPickerModal 
+                    initialTab="me"
+                    onSelect={handleUserSelect} 
+                    onClose={() => setShowUserPicker(false)} 
+                  />
+              )}
+          </div>
+      );
+  }
+
+  // --- RENDER: AD Search ---
+  if (widget === 'ad-search') {
+      return (
+          <div className={element.className}>
+              <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+              <div className="flex gap-2">
+                  <div className="relative flex-1">
+                      <Search className="absolute left-2 top-2 text-blue-500" size={16} />
+                      <input
+                        id={elementId}
+                        type="text"
+                        readOnly={isReadOnly} // Editable manually? Maybe not if strict AD.
+                        value={value || ''} 
+                        onChange={(e) => onChange(fieldName, e.target.value)}
+                        className="w-full border border-blue-200 bg-white rounded p-2 pl-8 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                        placeholder="Benutzer auswählen..."
+                      />
+                  </div>
+                  {!isReadOnly && (
+                      <button 
+                        onClick={() => openPicker('search')}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap flex items-center gap-1"
+                      >
+                          <Search size={14}/> Suchen
+                      </button>
+                  )}
+              </div>
+              {showUserPicker && (
+                  <UserPickerModal 
+                    initialTab="search"
+                    onSelect={handleUserSelect} 
+                    onClose={() => setShowUserPicker(false)} 
+                  />
+              )}
+          </div>
+      );
   }
 
   if (widget === 'checkbox') {
@@ -94,7 +185,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                   readOnly={isReadOnly}
                   value={value || ''}
                   onChange={(e) => onChange(fieldName, e.target.value)}
-                  className="w-full border border-slate-300 rounded p-2 text-sm"
+                  className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   rows={3}
               />
           </div>
@@ -110,7 +201,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
             readOnly={isReadOnly || field?.isAutoIncrement}
             value={value || ''}
             onChange={(e) => onChange(fieldName, e.target.value)}
-            className={`w-full border border-slate-300 rounded p-2 text-sm ${field?.isAutoIncrement ? 'bg-slate-100 text-slate-500 italic' : ''}`}
+            className={`w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none ${field?.isAutoIncrement ? 'bg-slate-100 text-slate-500 italic' : ''}`}
           />
       </div>
   );

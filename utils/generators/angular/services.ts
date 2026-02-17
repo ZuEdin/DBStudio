@@ -24,7 +24,6 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
       const query = q as SelectQuery;
       const safeName = toPascalCase(q.name);
       const usedNames = new Set<string>();
-      
       const props = query.columns.filter(c => c.show).map(c => {
           let type = 'string';
           const table = tables.find(t => t.id === c.tableId);
@@ -33,10 +32,7 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
               type = resolveType(field, 'typescript');
           }
           if (c.aggregate === 'COUNT') type = 'number';
-          
           let propName = toCamelCase(c.alias || c.fieldName);
-          
-          // Collision Handling
           if (usedNames.has(propName)) {
               const tableSuffix = toPascalCase(c.tableName);
               propName = toCamelCase(`${c.alias || c.fieldName}${tableSuffix}`);
@@ -48,10 +44,8 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
               counter++;
           }
           usedNames.add(propName);
-
           return `  ${propName}?: ${type};`;
       });
-
       files.push({ 
         name: `${safeName.toLowerCase()}.interface.ts`, 
         path: `${appRoot}/models/${safeName.toLowerCase()}.interface.ts`, 
@@ -60,19 +54,39 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
     });
   });
 
-  // API Service
+  // API Service using Environment config
   const apiService = `import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = 'http://localhost:${config.port}/api';
+  private baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) { }
 
-  getAll(endpoint: string): Observable<any[]> {
-    return this.http.get<any[]>(this.baseUrl + '/' + endpoint);
+  getAll(endpoint: string, page: number = 1, pageSize: number = 20, search: string = ''): Observable<any> {
+    let params = new HttpParams()
+        .set('page', page.toString())
+        .set('pageSize', pageSize.toString());
+    
+    if (search) {
+        params = params.set('search', search);
+    }
+
+    return this.http.get<any>(this.baseUrl + '/' + endpoint, { params }).pipe(
+      map(response => {
+          if (Array.isArray(response)) {
+              return { data: response, total: response.length, page: 1, totalPages: 1 };
+          }
+          if (response && response.data && Array.isArray(response.data)) {
+              return response;
+          }
+          return { data: [], total: 0, page: 1, totalPages: 0 };
+      })
+    );
   }
 
   getById(endpoint: string, id: any): Observable<any> {
@@ -93,17 +107,17 @@ export class ApiService {
 }`;
   files.push({ name: 'api.service.ts', path: `${appRoot}/services/api.service.ts`, content: apiService, language: 'typescript' });
 
-  // --- AUTHENTICATION SERVICES ---
+  // Auth services
   if (useAuth) {
-      // 1. Auth Service
       const authService = `import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private baseUrl = 'http://localhost:${config.port}/api/auth';
+  private baseUrl = environment.apiUrl + '/auth';
   private tokenKey = 'auth_token';
   private userSubject = new BehaviorSubject<any>(null);
 
@@ -171,7 +185,6 @@ export class AuthService {
 }`;
       files.push({ name: 'auth.service.ts', path: `${appRoot}/services/auth.service.ts`, content: authService, language: 'typescript' });
 
-      // 2. Auth Guard
       const authGuard = `import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
@@ -196,7 +209,6 @@ export const authGuard: CanActivateFn = (route, state) => {
 };`;
       files.push({ name: 'auth.guard.ts', path: `${appRoot}/guards/auth.guard.ts`, content: authGuard, language: 'typescript' });
 
-      // 3. Auth Interceptor
       const authInterceptor = `import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';

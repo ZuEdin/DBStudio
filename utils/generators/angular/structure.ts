@@ -74,5 +74,128 @@ export class LayoutComponent {}
     files.push({ name: 'layout.component.html', path: `${appRoot}/components/layout/layout.component.html`, content: layoutHtml, language: 'html' });
     files.push({ name: 'layout.component.ts', path: `${appRoot}/components/layout/layout.component.ts`, content: layoutTs, language: 'typescript' });
 
+    // 3. User Picker Component (NEW)
+    const userPickerHtml = `
+<div *ngIf="isOpen" class="fixed inset-0 bg-black/50 z-[250] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-300 overflow-hidden flex flex-col h-[500px]">
+        
+        <!-- Header -->
+        <div class="bg-slate-800 text-white p-4 flex justify-between items-center shrink-0">
+            <h3 class="font-bold flex items-center gap-2">Benutzer auswählen</h3>
+            <button (click)="close()" class="text-slate-400 hover:text-white">X</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex bg-slate-100 border-b border-slate-200">
+            <button (click)="activeTab='me'; loadMe()" [class.bg-white]="activeTab==='me'" [class.text-blue-600]="activeTab==='me'" class="flex-1 py-3 text-sm font-bold border-t-2 border-transparent" [class.border-blue-600]="activeTab==='me'">Aktueller User</button>
+            <button (click)="activeTab='search'" [class.bg-white]="activeTab==='search'" [class.text-blue-600]="activeTab==='search'" class="flex-1 py-3 text-sm font-bold border-t-2 border-transparent" [class.border-blue-600]="activeTab==='search'">Suchen</button>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 p-6 overflow-y-auto bg-slate-50 relative">
+            <div *ngIf="loading" class="absolute inset-0 bg-white/50 flex items-center justify-center z-10">Lade...</div>
+            <div *ngIf="error" class="mb-4 p-3 bg-orange-50 border border-orange-200 text-orange-800 rounded text-xs">{{error}}</div>
+
+            <div *ngIf="activeTab === 'me' && me" class="flex flex-col items-center justify-center h-full text-center space-y-4">
+                <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold shadow-inner">
+                    {{me.displayName?.substring(0,2).toUpperCase()}}
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold text-slate-800">{{me.displayName}}</h4>
+                    <p class="text-slate-500 text-sm font-mono">{{me.username}}</p>
+                </div>
+                <button (click)="select(me.username, me.displayName)" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-sm mt-4">
+                    Übernehmen
+                </button>
+            </div>
+
+            <div *ngIf="activeTab === 'search'" class="h-full flex flex-col">
+                <div class="flex gap-2 mb-4">
+                    <input type="text" [(ngModel)]="query" (keydown.enter)="search()" class="flex-1 border border-slate-300 rounded p-2 text-sm" placeholder="Name..." autoFocus />
+                    <button (click)="search()" class="bg-slate-700 text-white px-4 rounded hover:bg-slate-800">Suchen</button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto space-y-2 border border-slate-200 rounded bg-white">
+                    <div *ngFor="let u of results" class="p-3 hover:bg-blue-50 border-b border-slate-100 flex justify-between items-center cursor-pointer" (click)="select(u.username, u.displayName)">
+                        <div>
+                            <div class="font-bold text-slate-700 text-sm">{{u.displayName}}</div>
+                            <div class="text-xs text-slate-500 font-mono">{{u.username}}</div>
+                        </div>
+                        <button class="text-blue-600 text-xs font-bold">Wählen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    `;
+
+    const userPickerTs = `
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ApiService } from '../../services/api.service';
+
+@Component({
+  selector: 'app-user-picker',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './user-picker.component.html'
+})
+export class UserPickerComponent implements OnChanges {
+  @Input() isOpen = false;
+  @Input() initialTab: 'me' | 'search' = 'me';
+  @Output() userSelected = new EventEmitter<{username: string, displayName: string}>();
+  @Output() closed = new EventEmitter<void>();
+
+  activeTab = 'me';
+  loading = false;
+  error = '';
+  me: any = null;
+  query = '';
+  results: any[] = [];
+
+  constructor(private api: ApiService) {}
+
+  ngOnChanges(changes: SimpleChanges) {
+      if (changes['isOpen']?.currentValue) {
+          this.activeTab = this.initialTab;
+          if (this.activeTab === 'me') this.loadMe();
+      }
+  }
+
+  loadMe() {
+      this.loading = true;
+      this.error = '';
+      this.api.getAll('ad/me').subscribe({
+          next: (data) => { this.me = data; this.loading = false; },
+          error: () => { this.error = 'Fehler beim Laden.'; this.loading = false; }
+      });
+  }
+
+  search() {
+      if (!this.query || this.query.length < 2) return;
+      this.loading = true;
+      this.error = '';
+      this.api.getAll('ad/search', 1, 20, this.query).subscribe({
+          next: (res: any) => { this.results = res; this.loading = false; }, // Search returns raw list
+          error: () => { this.error = 'Suche fehlgeschlagen.'; this.loading = false; }
+      });
+  }
+
+  select(username: string, displayName: string) {
+      this.userSelected.emit({ username, displayName });
+      this.close();
+  }
+
+  close() {
+      this.closed.emit();
+  }
+}
+    `;
+
+    files.push({ name: 'user-picker.component.html', path: `${appRoot}/components/user-picker/user-picker.component.html`, content: userPickerHtml, language: 'html' });
+    files.push({ name: 'user-picker.component.ts', path: `${appRoot}/components/user-picker/user-picker.component.ts`, content: userPickerTs, language: 'typescript' });
+
     return files;
 };

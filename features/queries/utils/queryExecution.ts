@@ -71,11 +71,11 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
       }
   }
 
-  // Handle IS NULL / IS NOT NULL
-  if (crit === 'is null') {
+  // Handle IS NULL / IS NOT NULL / NULL
+  if (crit === 'is null' || crit === 'null') {
       return value === null || value === undefined || value === '' || String(value).trim() === '';
   }
-  if (crit === 'is not null') {
+  if (crit === 'is not null' || crit === 'not null') {
       return value !== null && value !== undefined && value !== '' && String(value).trim() !== '';
   }
 

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { FormElement, Form, Table, Relationship } from '../../../types/index';
-import { Edit3, Trash2, Settings2, Shield } from 'lucide-react';
+import { Edit3, Trash2, Settings2, Shield, Users } from 'lucide-react';
 
 interface PropertiesPanelProps {
   form: Form;
@@ -62,17 +62,37 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <select 
                       value={selectedElement.widgetType || ''}
                       onChange={e => onPropertyChange('widgetType', e.target.value)}
-                      className="w-full border border-slate-300 rounded p-1.5 bg-white"
+                      className="w-full border border-slate-300 rounded p-1.5 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                     >
-                      <option value="">Automatisch</option>
-                      <option value="text">Textfeld</option>
-                      <option value="textarea">Mehrzeilig</option>
-                      <option value="number">Zahl</option>
-                      <option value="date">Datum</option>
-                      <option value="checkbox">Checkbox</option>
-                      <option value="select">Dropdown (Lookup)</option>
+                      <option value="">Automatisch (Text)</option>
+                      <optgroup label="Standard">
+                        <option value="text">Textfeld</option>
+                        <option value="textarea">Mehrzeilig (Area)</option>
+                        <option value="number">Zahl</option>
+                        <option value="date">Datum</option>
+                        <option value="checkbox">Checkbox</option>
+                        <option value="select">Dropdown (Lookup)</option>
+                      </optgroup>
+                      <optgroup label="Active Directory / Auth">
+                        <option value="ad-search">🔍 AD User Suche</option>
+                        <option value="current-user">👤 Aktueller User (WhoAmI)</option>
+                      </optgroup>
                     </select>
                 </div>
+
+                {/* Additional Info for AD Types */}
+                {selectedElement.widgetType === 'ad-search' && (
+                    <div className="p-2 bg-blue-50 text-blue-800 text-xs rounded border border-blue-200">
+                        <div className="flex items-center gap-1 font-bold mb-1"><Users size={12}/> AD Suche</div>
+                        Ermöglicht das Suchen nach Benutzern im Active Directory via <code>/api/ad/search</code>.
+                    </div>
+                )}
+                {selectedElement.widgetType === 'current-user' && (
+                    <div className="p-2 bg-emerald-50 text-emerald-800 text-xs rounded border border-emerald-200">
+                        <div className="flex items-center gap-1 font-bold mb-1"><Shield size={12}/> Auto-Fill</div>
+                        Füllt das Feld automatisch mit dem Login-Namen des aktuellen Benutzers.
+                    </div>
+                )}
 
                 {selectedElement.widgetType === 'select' && (
                   <div className="pt-2 border-t border-slate-200">

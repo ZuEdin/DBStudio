@@ -198,7 +198,7 @@ export interface FormElement {
   label?: string; 
   className?: string;
   children?: FormElement[];
-  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select';
+  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select' | 'ad-search' | 'current-user';
   lookup?: LookupConfig;
   subform?: Subform;
 }
