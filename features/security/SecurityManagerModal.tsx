@@ -102,7 +102,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           // User (4): Read Only
           initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: false, CanDelete: false });
 
-          // Guest (5): No Access (Explicit Deny)
+          // Guest (5): No Access (Explicit Deny - entry ensures UI shows it as intentionally set)
           initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: table.id, CanRead: false, CanWrite: false, CanDelete: false });
       });
 
@@ -120,6 +120,14 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
 
   const handleResetDefaults = () => {
       if(!confirm("Möchten Sie wirklich alle Rollen und Rechte auf den Standard zurücksetzen? Ihre Anpassungen gehen verloren.")) return;
+      
+      // Delete existing system tables first (handled by create overwriting or we'd need delete logic)
+      // Since onCreateTable usually appends or updates, for a full reset in this prototype context:
+      // We will re-run the logic which will push new tables. 
+      // Ideally we should clear data first.
+      
+      // Simplified: Just re-run logic, assumes onCreateTable handles ID collision or we manually update data.
+      // Better: Manually update the data of existing sys tables.
       
       if (rolesTable && permTable) {
           // Reset Roles
