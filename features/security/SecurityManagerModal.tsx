@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Table, Form, Report, BackendConfig, Field } from '../../types/index';
-import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type, Users, Key, Plus, UserCog, Wand2 } from 'lucide-react';
+import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type, Users, Key, Plus, UserCog, Wand2, RefreshCw } from 'lucide-react';
 
 interface SecurityManagerModalProps {
   tables: Table[];
@@ -48,7 +48,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   };
 
   const handleInitialize = () => {
-      // 1. Create sys_roles
+      // 1. Create sys_roles with Standard Roles
       const rolesPk = crypto.randomUUID();
       const rolesFields: Field[] = [
           { id: rolesPk, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
@@ -57,10 +57,10 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       ];
       
       const rolesData = [
-          { Id: 1, Name: 'Administrator', Description: 'Vollzugriff auf alle Bereiche' },
-          { Id: 2, Name: 'Manager', Description: 'Darf Inhalte verwalten' },
-          { Id: 3, Name: 'Creater', Description: 'Darf neue Datensätze erstellen' },
-          { Id: 4, Name: 'User', Description: 'Lesezugriff' },
+          { Id: 1, Name: 'Administrator', Description: 'Vollzugriff auf alle Bereiche (System)' },
+          { Id: 2, Name: 'Manager', Description: 'Darf Inhalte verwalten und bearbeiten' },
+          { Id: 3, Name: 'Editor', Description: 'Darf Daten bearbeiten, aber nicht löschen' },
+          { Id: 4, Name: 'User', Description: 'Nur Lesezugriff' },
           { Id: 5, Name: 'Guest', Description: 'Eingeschränkter Zugriff' }
       ];
 
@@ -71,7 +71,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           data: rolesData
       });
 
-      // 2. Create sys_permissions
+      // 2. Create sys_permissions AND pre-fill for existing tables
       const permPk = crypto.randomUUID();
       const permFields: Field[] = [
           { id: permPk, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
@@ -83,17 +83,70 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           { id: crypto.randomUUID(), name: 'CanDelete', type: 'BOOLEAN' }
       ];
 
+      const initialPerms: any[] = [];
+      let permCounter = 1;
+
+      // Generate Defaults for ALL existing non-system tables
+      const contentTables = tables.filter(t => !t.name.startsWith('sys_'));
+      
+      contentTables.forEach(table => {
+          // Admin (1): Full Access
+          initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: true });
+          
+          // Manager (2): Full Access
+          initialPerms.push({ Id: permCounter++, RoleId: 2, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: true });
+
+          // Editor (3): No Delete
+          initialPerms.push({ Id: permCounter++, RoleId: 3, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: false });
+
+          // User (4): Read Only
+          initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: false, CanDelete: false });
+
+          // Guest (5): No Access (Explicit Deny)
+          initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: table.id, CanRead: false, CanWrite: false, CanDelete: false });
+      });
+
       onCreateTable({
           id: 'sys_permissions',
           name: 'sys_permissions',
           fields: permFields,
-          data: []
+          data: initialPerms
       });
 
-      // Force refresh (by state update delay) or assume props update
-      // But we can enable login config right away
       if(backendConfig) {
           setAuthConfig({...authConfig, useUserLogin: true});
+      }
+  };
+
+  const handleResetDefaults = () => {
+      if(!confirm("Möchten Sie wirklich alle Rollen und Rechte auf den Standard zurücksetzen? Ihre Anpassungen gehen verloren.")) return;
+      
+      if (rolesTable && permTable) {
+          // Reset Roles
+           const rolesData = [
+              { Id: 1, Name: 'Administrator', Description: 'Vollzugriff auf alle Bereiche (System)' },
+              { Id: 2, Name: 'Manager', Description: 'Darf Inhalte verwalten und bearbeiten' },
+              { Id: 3, Name: 'Editor', Description: 'Darf Daten bearbeiten, aber nicht löschen' },
+              { Id: 4, Name: 'User', Description: 'Nur Lesezugriff' },
+              { Id: 5, Name: 'Guest', Description: 'Eingeschränkter Zugriff' }
+          ];
+          onUpdateTable({ ...rolesTable, data: rolesData });
+
+          // Reset Permissions
+          const initialPerms: any[] = [];
+          let permCounter = 1;
+          const contentTables = tables.filter(t => !t.name.startsWith('sys_'));
+          
+          contentTables.forEach(table => {
+              initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: true });
+              initialPerms.push({ Id: permCounter++, RoleId: 2, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: true });
+              initialPerms.push({ Id: permCounter++, RoleId: 3, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: false });
+              initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: false, CanDelete: false });
+              initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: table.id, CanRead: false, CanWrite: false, CanDelete: false });
+          });
+          onUpdateTable({ ...permTable, data: initialPerms });
+      } else {
+          handleInitialize();
       }
   };
 
@@ -110,15 +163,15 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                   <h2 className="text-2xl font-bold mb-2 text-slate-800">Sicherheits-System einrichten</h2>
                   <p className="text-slate-600 mb-6 text-sm">
                       Die notwendigen Systemtabellen für das Rollenmanagement (RBAC) fehlen noch. 
-                      Das System kann diese automatisch erstellen und mit Standardrollen befüllen.
+                      Das System wird diese erstellen und für Ihre <strong>{tables.length} existierenden Tabellen</strong> Standardrechte vergeben.
                   </p>
                   
                   <div className="bg-slate-50 p-4 rounded border border-slate-200 text-left text-xs text-slate-500 mb-6 space-y-2">
                       <p className="font-bold text-slate-700">Wird erstellt:</p>
                       <ul className="list-disc pl-4 space-y-1">
-                          <li>Tabelle <code>sys_roles</code> (Rollen)</li>
-                          <li>Tabelle <code>sys_permissions</code> (Rechte)</li>
-                          <li>Rollen: Administrator, Manager, Creater, User, Guest</li>
+                          <li>Tabelle <code>sys_roles</code> (Admin, Manager, Editor, User, Guest)</li>
+                          <li>Tabelle <code>sys_permissions</code> (Matrix)</li>
+                          <li>Automatische <strong>Lese/Schreib-Regeln</strong> für alle aktuellen Tabellen.</li>
                       </ul>
                   </div>
 
@@ -155,6 +208,17 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           // Update
           const row = { ...newPermissions[existingIdx] };
           row[permType] = !row[permType];
+          
+          // Auto-Enforce Logic: Write/Delete implies Read
+          if ((permType === 'CanWrite' || permType === 'CanDelete') && row[permType]) {
+              row.CanRead = true;
+          }
+          // Turning off Read implies turning off Write/Delete
+          if (permType === 'CanRead' && !row.CanRead) {
+              row.CanWrite = false;
+              row.CanDelete = false;
+          }
+
           newPermissions[existingIdx] = row;
       } else {
           // Insert new rule
@@ -163,13 +227,12 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
               RoleId: roleId,
               ObjectType: objectType,
               ObjectId: objectId,
-              CanRead: true, // Default read true if creating entry
+              CanRead: true, // Default read true if creating entry via toggle
               CanWrite: false,
               CanDelete: false
           };
-          // If we are toggling Write/Delete, ensure Read is true? 
           if (permType !== 'CanRead') newRow[permType] = true;
-          else newRow.CanRead = true; // Was toggled to true implicitly by creating
+          else newRow.CanRead = true; 
 
           newPermissions.push(newRow);
       }
@@ -178,8 +241,14 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   };
 
   const getPerm = (roleId: any, objectType: string, objectId: string) => {
-      return permissions.find(p => String(p.RoleId) === String(roleId) && p.ObjectType === objectType && p.ObjectId === objectId) 
-             || { CanRead: true, CanWrite: true, CanDelete: true }; // Default ALLOW (Optimistic)
+      // DEFAULT LOGIC IF NO RECORD EXISTS:
+      // Admin (1) -> Allow All
+      // Others -> Deny All (Secure by default, unless initialized)
+      const entry = permissions.find(p => String(p.RoleId) === String(roleId) && p.ObjectType === objectType && p.ObjectId === objectId);
+      if (entry) return entry;
+
+      if (String(roleId) === '1') return { CanRead: true, CanWrite: true, CanDelete: true };
+      return { CanRead: false, CanWrite: false, CanDelete: false };
   };
 
   const toggleTableExpand = (tableId: string) => {
@@ -210,11 +279,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   const handleAddRole = () => {
       if (!rolesTable || !newRoleName) return;
       const currentRoles = rolesTable.data || [];
-      
-      // Calculate next ID (simple max + 1)
-      const nextId = currentRoles.length > 0 
-        ? Math.max(...currentRoles.map((r: any) => parseInt(r.Id || 0))) + 1 
-        : 1;
+      const nextId = currentRoles.length > 0 ? Math.max(...currentRoles.map((r: any) => parseInt(r.Id || 0))) + 1 : 1;
 
       const newRole = {
           Id: nextId,
@@ -237,7 +302,6 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           const newRoles = (rolesTable.data || []).filter((r: any) => String(r.Id) !== String(roleId));
           onUpdateTable({ ...rolesTable, data: newRoles });
           
-          // Cleanup permissions for this role
           if (permTable) {
               const newPerms = (permTable.data || []).filter((p: any) => String(p.RoleId) !== String(roleId));
               onUpdateTable({ ...permTable, data: newPerms });
@@ -289,6 +353,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
         <div className="flex-1 overflow-hidden bg-slate-50 p-0">
             {activeTab === 'matrix' ? (
                 <div className="bg-white h-full flex flex-col overflow-hidden">
+                    {/* Matrix View */}
                     <div className="overflow-auto flex-1 pb-20">
                         <table className="w-full text-sm border-collapse">
                             <thead className="bg-slate-100 sticky top-0 z-20 shadow-sm">
@@ -305,12 +370,10 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* TABLES & FIELDS */}
                                 {businessTables.map((table) => {
                                     const isExpanded = expandedTables[table.id];
                                     return (
                                         <React.Fragment key={table.id}>
-                                            {/* Table Row */}
                                             <tr className="hover:bg-slate-50 border-b border-slate-200 bg-slate-50/30">
                                                 <td className="p-2 pl-3 border-r border-slate-200 bg-white sticky left-0 font-bold text-slate-800 flex items-center gap-2 z-10">
                                                     <button onClick={() => toggleTableExpand(table.id)} className="text-slate-400 hover:text-slate-700">
@@ -335,8 +398,6 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                                     );
                                                 })}
                                             </tr>
-
-                                            {/* Field Rows (Granular) */}
                                             {isExpanded && table.fields.map(field => (
                                                 <tr key={field.id} className="hover:bg-slate-50 border-b border-slate-100">
                                                     <td className="p-2 pl-12 border-r border-slate-200 bg-slate-50/50 sticky left-0 text-slate-600 flex items-center gap-2 text-xs z-10">
@@ -376,11 +437,13 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                 </div>
             ) : activeTab === 'roles' ? (
                 <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto max-w-3xl mx-auto flex flex-col">
-                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                        <UserCog size={20} className="text-slate-600"/> Rollenverwaltung
-                    </h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-lg flex items-center gap-2"><UserCog size={20} className="text-slate-600"/> Rollenverwaltung</h3>
+                        <button onClick={handleResetDefaults} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                            <RefreshCw size={12}/> Defaults wiederherstellen
+                        </button>
+                    </div>
                     
-                    {/* Role List */}
                     <div className="flex-1 overflow-auto border border-slate-200 rounded-lg mb-6">
                         <table className="w-full text-left border-collapse text-sm">
                             <thead className="bg-slate-100 sticky top-0">
@@ -413,7 +476,6 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                         </table>
                     </div>
 
-                    {/* Add Role Form */}
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                         <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Neue Rolle erstellen</h4>
                         <div className="flex gap-3 items-end">
@@ -422,7 +484,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                 <input 
                                     type="text" 
                                     className="w-full border border-slate-300 rounded p-2 text-sm"
-                                    placeholder="z.B. Lektor, Gast, Manager"
+                                    placeholder="z.B. Lektor"
                                     value={newRoleName}
                                     onChange={e => setNewRoleName(e.target.value)}
                                 />
@@ -448,7 +510,6 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                     </div>
                 </div>
             ) : (
-                // AUTH CONFIG TAB
                 <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto max-w-3xl mx-auto">
                     <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><Key size={20}/> Authentifizierungs-Methoden</h3>
                     
@@ -533,10 +594,6 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                                     </button>
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-slate-400">
-                                                Definieren Sie hier, welche Active Directory Gruppen welche interne Rolle (Admin, User...) erhalten. 
-                                                Die Berechtigungen (Lesen/Schreiben) werden dann über die Rolle in der "Berechtigungs-Matrix" gesteuert.
-                                            </p>
                                         </div>
                                     )}
                                 </div>

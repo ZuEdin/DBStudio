@@ -37,10 +37,15 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
 
   if (config.authConfig?.useWindowsAuth && config.authConfig?.useAdGroups && config.authConfig?.adMapping) {
       // AdRoleTransformer logic...
+      // Map configured AD Groups to Internal Roles
       const mappingLogic = config.authConfig.adMapping.map(m => `
             if (principal.IsInRole(@"${m.groupName}"))
             {
-                identity.AddClaim(new Claim(ClaimTypes.Role, "${m.roleName}"));
+                // Assign Internal Role claim
+                if (!identity.HasClaim(ClaimTypes.Role, "${m.roleName}")) 
+                {
+                    identity.AddClaim(new Claim(ClaimTypes.Role, "${m.roleName}"));
+                }
             }`).join('\n');
 
       files.push({
@@ -56,7 +61,10 @@ namespace ${config.projectName}.Services
         public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
             var identity = (ClaimsIdentity)principal.Identity!;
+            
+            // Map AD Groups to Internal Roles (defined in App Generator)
             ${mappingLogic}
+            
             return Task.FromResult(principal);
         }
     }

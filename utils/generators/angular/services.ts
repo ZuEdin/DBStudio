@@ -54,8 +54,7 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
     });
   });
 
-  // API Service using Environment config
-  // UPDATED: Added generic get method for raw data
+  // API Service
   const apiService = `import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -68,29 +67,21 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
-  // Generic Get for raw data (single objects or arrays without pagination wrapper)
   get<T>(endpoint: string, params: any = {}): Observable<T> {
     return this.http.get<T>(this.baseUrl + '/' + endpoint, { params, withCredentials: true });
   }
 
-  // List Get with Pagination normalization
   getAll(endpoint: string, page: number = 1, pageSize: number = 20, search: string = ''): Observable<any> {
     let params = new HttpParams()
         .set('page', page.toString())
         .set('pageSize', pageSize.toString());
     
-    if (search) {
-        params = params.set('search', search);
-    }
+    if (search) params = params.set('search', search);
 
     return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
       map(response => {
-          if (Array.isArray(response)) {
-              return { data: response, total: response.length, page: 1, totalPages: 1 };
-          }
-          if (response && response.data && Array.isArray(response.data)) {
-              return response;
-          }
+          if (Array.isArray(response)) return { data: response, total: response.length, page: 1, totalPages: 1 };
+          if (response && response.data && Array.isArray(response.data)) return response;
           return { data: [], total: 0, page: 1, totalPages: 0 };
       })
     );
@@ -114,8 +105,9 @@ export class ApiService {
 }`;
   files.push({ name: 'api.service.ts', path: `${appRoot}/services/api.service.ts`, content: apiService, language: 'typescript' });
 
-  // Auth services
+  // Auth Logic Generation
   if (useAuth) {
+      // 1. Auth Service
       const authService = `import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -126,15 +118,12 @@ import { environment } from '../../environments/environment';
 export class AuthService {
   private baseUrl = environment.apiUrl + '/auth';
   private tokenKey = 'auth_token';
-  private userSubject = new BehaviorSubject<any>(null);
-
+  public userSubject = new BehaviorSubject<any>(null);
   public user$ = this.userSubject.asObservable();
 
   constructor(private http: HttpClient, private router: Router) {
     const token = localStorage.getItem(this.tokenKey);
-    if (token) {
-        this.decodeAndNotify(token);
-    }
+    if (token) this.decodeAndNotify(token);
   }
 
   private decodeAndNotify(token: string) {
@@ -142,12 +131,11 @@ export class AuthService {
           const payload = JSON.parse(atob(token.split('.')[1]));
           const user = {
               username: payload.unique_name || payload.sub,
-              role: payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'User',
+              role: payload.role || 'User',
               token
           };
           this.userSubject.next(user);
       } catch (e) {
-          console.error("Token decode error", e);
           this.logout();
       }
   }
@@ -167,31 +155,21 @@ export class AuthService {
     return this.http.post<any>(this.baseUrl + '/register', data);
   }
 
-  changePassword(data: any): Observable<any> {
-    return this.http.post<any>(this.baseUrl + '/change-password', data);
-  }
-
   logout() {
     localStorage.removeItem(this.tokenKey);
     this.userSubject.next(null);
     this.router.navigate(['/login']);
   }
 
-  isAuthenticated(): boolean {
-    return !!this.userSubject.value;
-  }
+  isAuthenticated(): boolean { return !!this.userSubject.value; }
+  
+  hasRole(role: string): boolean { return this.userSubject.value?.role === role; }
 
-  hasRole(role: string): boolean {
-      const user = this.userSubject.value;
-      return user && user.role === role;
-  }
-
-  getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
-  }
+  getToken(): string | null { return localStorage.getItem(this.tokenKey); }
 }`;
       files.push({ name: 'auth.service.ts', path: `${appRoot}/services/auth.service.ts`, content: authService, language: 'typescript' });
 
+      // 2. Auth Guard
       const authGuard = `import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
@@ -201,14 +179,15 @@ export const authGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
 
   if (!auth.isAuthenticated()) {
-    return router.parseUrl('/login');
+    return router.createUrlTree(['/login']);
   }
 
+  // Check Role requirements defined in route data
   const expectedRoles = route.data['roles'] as Array<string>;
   if (expectedRoles && expectedRoles.length > 0) {
       const userRole = auth.userSubject.value?.role;
-      if (!expectedRoles.includes(userRole)) {
-          return router.parseUrl('/forbidden');
+      if (!userRole || !expectedRoles.includes(userRole)) {
+          return router.createUrlTree(['/forbidden']);
       }
   }
 
@@ -216,6 +195,7 @@ export const authGuard: CanActivateFn = (route, state) => {
 };`;
       files.push({ name: 'auth.guard.ts', path: `${appRoot}/guards/auth.guard.ts`, content: authGuard, language: 'typescript' });
 
+      // 3. Auth Interceptor
       const authInterceptor = `import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
@@ -226,9 +206,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   if (token) {
     req = req.clone({
-      setHeaders: {
-        Authorization: \`Bearer \${token}\`
-      }
+      setHeaders: { Authorization: \`Bearer \${token}\` }
     });
   }
 
