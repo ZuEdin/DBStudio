@@ -77,10 +77,10 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
 };`;
   files.push({ name: 'Modal.tsx', path: `${root}/src/components/Modal.tsx`, content: modalComponent, language: 'typescript' });
 
-  // 1.2 User Picker Modal Component (UPDATED: Fixed Data Access)
+  // 1.2 User Picker Modal Component
   const userPickerModal = `import React, { useState, useEffect } from 'react';
-import { X, User, Search, Check, Loader2, ShieldAlert } from 'lucide-react';
-import { api } from '../services/api'; // Axios instance
+import { X, User, Search, Check, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
 
 interface AdUser {
     username: string;
@@ -114,9 +114,6 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
         setError(null);
         try {
             const res = await api.get('/ad/me');
-            // The api wrapper returns response.data directly.
-            // If it's a paged response, it wraps it. If it's a raw object (like user), it returns it as-is.
-            // Safe check:
             const userData = (res as any).data || res;
             setMe(userData);
         } catch (e) {
@@ -190,391 +187,10 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
 };`;
   files.push({ name: 'UserPickerModal.tsx', path: `${root}/src/components/UserPickerModal.tsx`, content: userPickerModal, language: 'typescript' });
 
-  // 2. Auth Components & Context (Shortened for brevity, mostly same)
-  if (useAuth) {
-      // Auth Context with decoding
-      const authContext = `import React, { createContext, useContext, useState, useEffect } from 'react';
-import { loginUser, logoutUser } from '../services/api';
-
-interface User {
-    id: string;
-    username: string;
-    role: string;
-}
-
-interface AuthContextType {
-    isAuthenticated: boolean;
-    user: User | null;
-    login: (creds: any) => Promise<void>;
-    logout: () => void;
-    loading: boolean;
-}
-
-const AuthContext = createContext<AuthContextType>({} as any);
-
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    const decodeToken = (token: string) => {
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return {
-                id: payload.nameid || payload.id || payload.sub,
-                username: payload.unique_name || payload.sub,
-                role: payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'User'
-            };
-        } catch { return null; }
-    };
-
-    useEffect(() => {
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-            const u = decodeToken(token);
-            if (u) setUser(u);
-        }
-        setLoading(false);
-    }, []);
-
-    const login = async (creds: any) => {
-        const data = await loginUser(creds);
-        if (data.token) {
-            const u = decodeToken(data.token);
-            setUser(u);
-        }
-    };
-
-    const logout = () => {
-        logoutUser();
-        setUser(null);
-    };
-
-    return (
-        <AuthContext.Provider value={{ isAuthenticated: !!user, user, login, logout, loading }}>
-            {!loading && children}
-        </AuthContext.Provider>
-    );
-};
-
-export const useAuth = () => useContext(AuthContext);`;
-      files.push({ name: 'AuthContext.tsx', path: `${root}/src/context/AuthContext.tsx`, content: authContext, language: 'typescript' });
-
-      // Protected Route
-      const protectedRoute = `import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { Layout } from './Layout';
-
-interface ProtectedRouteProps {
-    allowedRoles?: string[];
-}
-
-export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
-    const { isAuthenticated, user } = useAuth();
-    
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
-
-    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-        return <Navigate to="/forbidden" replace />;
-    }
-
-    return <Layout><Outlet /></Layout>;
-};`;
-      files.push({ name: 'ProtectedRoute.tsx', path: `${root}/src/components/ProtectedRoute.tsx`, content: protectedRoute, language: 'typescript' });
-
-      // Pages
-      const loginPage = `import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
-
-export const Login = () => {
-    const { login } = useAuth();
-    const navigate = useNavigate();
-    const [creds, setCreds] = useState({ username: '', password: '' });
-    const [error, setError] = useState('');
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try { await login(creds); navigate('/'); } catch (err) { setError('Login failed'); }
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded shadow-md w-96">
-                <h2 className="text-2xl font-bold mb-4 dark:text-white">Login</h2>
-                {error && <p className="text-red-500 mb-2">{error}</p>}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input className="w-full border p-2 rounded" placeholder="Benutzername oder E-Mail" value={creds.username} onChange={e => setCreds({...creds, username: e.target.value})} />
-                    <input className="w-full border p-2 rounded" type="password" placeholder="Passwort" value={creds.password} onChange={e => setCreds({...creds, password: e.target.value})} />
-                    <div className="text-right text-xs"><Link to="/forgot-password" class="text-blue-500">Passwort vergessen?</Link></div>
-                    <button className="w-full bg-blue-600 text-white p-2 rounded">Anmelden</button>
-                </form>
-                <div className="mt-4 text-center"><Link to="/register" className="text-blue-500">Registrieren</Link></div>
-            </div>
-        </div>
-    );
-};`;
-      files.push({ name: 'Login.tsx', path: `${root}/src/pages/auth/Login.tsx`, content: loginPage, language: 'typescript' });
-      
-      const registerPage = `import React, { useState } from 'react';
-import { registerUser } from '../../services/api';
-import { useNavigate, Link } from 'react-router-dom';
-
-export const Register = () => {
-    const navigate = useNavigate();
-    const [data, setData] = useState({ username: '', password: '', email: '' });
-    const [error, setError] = useState('');
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try { 
-            await registerUser(data); 
-            navigate('/login'); 
-        } catch { setError('Registrierung fehlgeschlagen.'); }
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded shadow-md w-96">
-                <h2 className="text-2xl font-bold mb-4 dark:text-white">Registrieren</h2>
-                {error && <p className="text-red-500 mb-2">{error}</p>}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input className="w-full border p-2 rounded" placeholder="Benutzername" value={data.username} onChange={e => setData({...data, username: e.target.value})} />
-                    <input className="w-full border p-2 rounded" placeholder="E-Mail" value={data.email} onChange={e => setData({...data, email: e.target.value})} />
-                    <input className="w-full border p-2 rounded" type="password" placeholder="Passwort" value={data.password} onChange={e => setData({...data, password: e.target.value})} />
-                    <button className="w-full bg-green-600 text-white p-2 rounded">Konto erstellen</button>
-                </form>
-                <div className="mt-4 text-center"><Link to="/login" className="text-blue-500">Zum Login</Link></div>
-            </div>
-        </div>
-    );
-};`;
-      files.push({ name: 'Register.tsx', path: `${root}/src/pages/auth/Register.tsx`, content: registerPage, language: 'typescript' });
-
-      // Forgot Password
-      files.push({
-          name: 'ForgotPassword.tsx',
-          path: `${root}/src/pages/auth/ForgotPassword.tsx`,
-          content: `import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-
-export const ForgotPassword = () => {
-    const [email, setEmail] = useState('');
-    const handleSend = (e: React.FormEvent) => {
-        e.preventDefault();
-        alert('Ein Link zum Zurücksetzen wurde an ' + email + ' gesendet (Simuliert).');
-    };
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="bg-white p-8 rounded shadow-md w-96">
-                <h2 className="text-2xl font-bold mb-4">Passwort vergessen</h2>
-                <form onSubmit={handleSend} className="space-y-4">
-                    <input className="w-full border p-2 rounded" placeholder="E-Mail Adresse" value={email} onChange={e => setEmail(e.target.value)} required />
-                    <button className="w-full bg-blue-600 text-white p-2 rounded">Link senden</button>
-                </form>
-                <div className="mt-4 text-center"><Link to="/login" className="text-blue-500">Zurück zum Login</Link></div>
-            </div>
-        </div>
-    );
-};`,
-          language: 'typescript'
-      });
-
-      // Forbidden
-      files.push({
-          name: 'Forbidden.tsx',
-          path: `${root}/src/pages/auth/Forbidden.tsx`,
-          content: `import React from 'react';
-import { Link } from 'react-router-dom';
-
-export const Forbidden = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-            <h1 className="text-4xl font-bold text-red-600 mb-4">403</h1>
-            <h2 className="text-2xl font-bold mb-2">Zugriff verweigert</h2>
-            <p className="mb-6">Sie haben keine Berechtigung für diese Seite.</p>
-            <Link to="/" className="text-blue-600 hover:underline">Zum Dashboard</Link>
-        </div>
-    </div>
-);`,
-          language: 'typescript'
-      });
-
-      // Profile (Full Implementation)
-      files.push({
-          name: 'Profile.tsx',
-          path: `${root}/src/pages/auth/Profile.tsx`,
-          content: `import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { changePassword, get, post, put } from '../../services/api';
-import { User, Lock, Save, MapPin, Phone, Briefcase } from 'lucide-react';
-
-export const Profile = () => {
-    const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<'details' | 'security'>('details');
-    
-    // Profile Data
-    const [profile, setProfile] = useState<any>({
-        firstName: '', lastName: '', company: '', street: '', city: '', zip: '', phone: ''
-    });
-    const [profileId, setProfileId] = useState<number | null>(null);
-
-    // Password Data
-    const [pass, setPass] = useState({ old: '', new: '' });
-    const [msg, setMsg] = useState({ text: '', type: '' });
-
-    useEffect(() => {
-        loadProfile();
-    }, [user]);
-
-    const loadProfile = async () => {
-        if(!user?.id) return;
-        try {
-            // Fetch ALL profiles and filter by userId (in a real scenario, use /api/me/profile)
-            const res = await get<any>('sysUserProfiles');
-            // Safe access for data
-            const allProfiles = (res as any).data || res;
-            const myProfile = Array.isArray(allProfiles) ? allProfiles.find((p: any) => String(p.userId) === String(user.id)) : null;
-            if (myProfile) {
-                setProfile(myProfile);
-                setProfileId(myProfile.id);
-            }
-        } catch (e) { console.error("Could not load profile", e); }
-    };
-
-    const handleSaveProfile = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const payload = { ...profile, userId: Number(user?.id) };
-            if (profileId) {
-                await put('sysUserProfiles/' + profileId, payload);
-            } else {
-                const res = await post('sysUserProfiles', payload);
-                setProfileId(res.id);
-            }
-            setMsg({ text: 'Profil erfolgreich gespeichert.', type: 'success' });
-        } catch { setMsg({ text: 'Fehler beim Speichern.', type: 'error' }); }
-    };
-
-    const handlePwChange = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await changePassword({ oldPassword: pass.old, newPassword: pass.new });
-            setMsg({ text: 'Passwort geändert.', type: 'success' });
-            setPass({ old: '', new: '' });
-        } catch { setMsg({ text: 'Fehler beim Ändern. Altes Passwort falsch?', type: 'error' }); }
-    };
-
-    return (
-        <div className="max-w-4xl mx-auto p-8">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 border-b dark:border-slate-700 flex items-center gap-4">
-                    <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold">
-                        {user?.username.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold dark:text-white">{user?.username}</h1>
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{user?.role}</span>
-                    </div>
-                </div>
-
-                <div className="flex border-b dark:border-slate-700">
-                    <button 
-                        onClick={() => setActiveTab('details')}
-                        className={\`px-6 py-3 font-medium text-sm flex items-center gap-2 \${activeTab === 'details' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}\`}
-                    >
-                        <User size={16}/> Stammdaten
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('security')}
-                        className={\`px-6 py-3 font-medium text-sm flex items-center gap-2 \${activeTab === 'security' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}\`}
-                    >
-                        <Lock size={16}/> Sicherheit
-                    </button>
-                </div>
-
-                <div className="p-8">
-                    {msg.text && (
-                        <div className={\`p-4 rounded mb-6 \${msg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}\`}>
-                            {msg.text}
-                        </div>
-                    )}
-
-                    {activeTab === 'details' && (
-                        <form onSubmit={handleSaveProfile} className="space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">Vorname</label>
-                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.firstName || ''} onChange={e => setProfile({...profile, firstName: e.target.value})} />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">Nachname</label>
-                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.lastName || ''} onChange={e => setProfile({...profile, lastName: e.target.value})} />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold mb-1 dark:text-slate-300 flex items-center gap-1"><Briefcase size={14}/> Firma</label>
-                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.company || ''} onChange={e => setProfile({...profile, company: e.target.value})} />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold mb-1 dark:text-slate-300 flex items-center gap-1"><MapPin size={14}/> Straße</label>
-                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.street || ''} onChange={e => setProfile({...profile, street: e.target.value})} />
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-6">
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">PLZ</label>
-                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.zip || ''} onChange={e => setProfile({...profile, zip: e.target.value})} />
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-bold mb-1 dark:text-slate-300">Stadt</label>
-                                    <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.city || ''} onChange={e => setProfile({...profile, city: e.target.value})} />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold mb-1 dark:text-slate-300 flex items-center gap-1"><Phone size={14}/> Telefon</label>
-                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" value={profile.phone || ''} onChange={e => setProfile({...profile, phone: e.target.value})} />
-                            </div>
-
-                            <div className="flex justify-end pt-4 border-t dark:border-slate-700">
-                                <button className="bg-blue-600 text-white px-6 py-2 rounded flex items-center gap-2 hover:bg-blue-700"><Save size={18}/> Speichern</button>
-                            </div>
-                        </form>
-                    )}
-
-                    {activeTab === 'security' && (
-                        <form onSubmit={handlePwChange} className="max-w-md space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold mb-1 dark:text-slate-300">Altes Passwort</label>
-                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" type="password" value={pass.old} onChange={e => setPass({...pass, old: e.target.value})} required />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-1 dark:text-slate-300">Neues Passwort</label>
-                                <input className="w-full border p-2 rounded dark:bg-slate-700 dark:border-slate-600" type="password" value={pass.new} onChange={e => setPass({...pass, new: e.target.value})} required />
-                            </div>
-                            <div className="flex justify-start pt-4">
-                                <button className="bg-slate-800 text-white px-6 py-2 rounded flex items-center gap-2 hover:bg-black">Passwort ändern</button>
-                            </div>
-                        </form>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};`,
-          language: 'typescript'
-      });
-  }
-
-  // 3. Navigation / Sidebar (Updated to hide Admin links)
+  // 3. Navigation / Sidebar
   const sidebarTsx = `import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Table, Layout, FileText, Search, Database, Moon, Sun, X, Menu, LogOut, Shield, User } from 'lucide-react';
+import { Table, Layout, FileText, Search, Database, Moon, Sun, X, Menu, LogOut, Shield, User, PieChart } from 'lucide-react';
 import { useTheme } from './theme-provider';
 ${useAuth ? "import { useAuth } from '../context/AuthContext';" : ""}
 
@@ -600,6 +216,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Tables */}
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Daten</div>
                 <div className="space-y-1">
@@ -607,7 +224,6 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                     const isSystem = t.name.startsWith('sys_');
                     const cond = isSystem && useAuth ? `{user?.role === 'Admin' && (` : ``;
                     const closeCond = isSystem && useAuth ? `)}` : ``;
-                    
                     return `${cond}
                     <Link to="/${toCamelCase(t.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
                         ${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} ${t.name}
@@ -616,21 +232,31 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 </div>
             </div>
             
-            ${queries.length > 0 ? `
+            {/* Queries */}
+            {${queries.filter(q => q.type === 'SELECT').length} > 0 && (
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Abfragen</div>
                 <div className="space-y-1">
-                ${queries.filter(q => q.type === 'SELECT').map(q => `<Link to="/queries/${toCamelCase(q.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}><Search size={16}/> ${q.name}</Link>`).join('\n')}
+                ${queries.filter(q => q.type === 'SELECT').map(q => `
+                    <Link to="/queries/${toCamelCase(q.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
+                        <Search size={16}/> ${q.name}
+                    </Link>`).join('\n')}
                 </div>
-            </div>` : ''}
+            </div>
+            )}
 
-            ${reports.length > 0 ? `
+            {/* Reports */}
+            {${reports.length} > 0 && (
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Berichte</div>
                 <div className="space-y-1">
-                ${reports.map(r => `<Link to="/reports/${toPascalCase(r.name).toLowerCase()}Report" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/reports/${toPascalCase(r.name).toLowerCase()}Report')}\`}><FileText size={16}/> ${r.name}</Link>`).join('\n')}
+                ${reports.map(r => `
+                    <Link to="/reports/${toCamelCase(r.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/reports/${toCamelCase(r.name)}')}\`}>
+                        <FileText size={16}/> ${r.name}
+                    </Link>`).join('\n')}
                 </div>
-            </div>` : ''}
+            </div>
+            )}
         </div>
 
         <div className="p-4 border-t border-white/10 text-center space-y-2">
@@ -657,7 +283,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 };`;
   files.push({ name: 'Sidebar.tsx', path: `${root}/src/components/Sidebar.tsx`, content: sidebarTsx, language: 'typescript' });
 
-  // 4. Layout Wrapper (Standard)
+  // 4. Layout Wrapper
   const layoutTsx = `import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Menu } from 'lucide-react';
@@ -686,7 +312,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 };`;
   files.push({ name: 'Layout.tsx', path: `${root}/src/components/Layout.tsx`, content: layoutTsx, language: 'typescript' });
 
-  // 5. Register Routes with Roles
+  // 5. Register Routes
+  
+  // Table Routes
   tables.forEach(table => {
       const pascalName = toPascalCase(table.name);
       const camelName = toCamelCase(table.name);
@@ -703,23 +331,25 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       }
   });
 
-  // Forms, Reports, Queries default to authenticated (User)
+  // Custom Form Routes
   forms.forEach(form => {
       const compName = `${toPascalCase(form.name)}Form`;
       imports.push(`import { ${compName} } from './pages/forms/${compName}';`);
       routes.push(`<Route path="/forms/${toPascalCase(form.name).toLowerCase()}Form/:id" element={<${compName} />} />`);
   });
 
-  reports.forEach(report => {
-      const compName = `${toPascalCase(report.name)}Report`;
-      imports.push(`import { ${compName} } from './pages/reports/${compName}';`);
-      routes.push(`<Route path="/reports/${toPascalCase(report.name).toLowerCase()}Report" element={<${compName} />} />`);
-  });
-
+  // Query Routes
   queries.filter(q => q.type === 'SELECT').forEach(q => {
-      const compName = `${toPascalCase(q.name)}Query`;
+      const compName = `${toPascalCase(q.name)}QueryPage`;
       imports.push(`import { ${compName} } from './pages/queries/${compName}';`);
       routes.push(`<Route path="/queries/${toCamelCase(q.name)}" element={<${compName} />} />`);
+  });
+
+  // Report Routes
+  reports.forEach(r => {
+      const compName = `${toPascalCase(r.name)}ReportPage`;
+      imports.push(`import { ${compName} } from './pages/reports/${compName}';`);
+      routes.push(`<Route path="/reports/${toCamelCase(r.name)}" element={<${compName} />} />`);
   });
 
   if (useAuth) {
@@ -751,7 +381,6 @@ function App() {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/forbidden" element={<Forbidden />} />
                 
-                {/* Default Protected Route (All User Roles) */}
                 <Route element={<ProtectedRoute />}>
                     <Route path="/profile" element={<Profile />} />
                 ` : `<Route element={<Layout><Outlet /></Layout>}>`}
@@ -761,11 +390,9 @@ function App() {
                             <p className="text-slate-500 dark:text-slate-400 max-w-md">Wählen Sie einen Eintrag aus dem Menü, um zu starten.</p>
                         </div>
                     } />
-                    {/* Public/Standard Routes */}
-                    ${queries.length > 0 || reports.length > 0 ? `<Route path="/queries/*" />` : ''}
                 ${useAuth ? `</Route>` : `</Route>`}
                 
-                {/* Specific Table Routes (includes Admin checks) */}
+                {/* Generated Routes */}
                 ${routes.join('\n                ')}
             </Routes>
         </BrowserRouter>
@@ -779,7 +406,6 @@ export default App;`;
   
   files.push({ name: 'main.tsx', path: `${root}/src/main.tsx`, content: `import React from 'react'; import ReactDOM from 'react-dom/client'; import App from './App'; import './index.css'; ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);`, language: 'typescript' });
   
-  // Clean index.html (NO CDN!)
   files.push({ 
       name: 'index.html', 
       path: `${root}/index.html`, 
