@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Briefcase, ShieldCheck, Globe, Database, Key } from 'lucide-react';
+import { Briefcase, ShieldCheck, Globe, Database, Key, Layers } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,12 @@ export const ProjectTab: React.FC<ProjectTabProps> = ({ onAction }) => {
             icon={<ShieldCheck className="text-emerald-600" />} 
             label={t('ribbon.actions.security')} 
             onClick={() => onAction('security_manager')} 
+            size="large"
+        />
+        <RibbonButton 
+            icon={<Layers className="text-sky-600" />} 
+            label="Navigation / Menü" 
+            onClick={() => onAction('navigation_designer')} 
             size="large"
         />
       </RibbonGroup>

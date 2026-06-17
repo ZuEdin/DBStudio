@@ -17,6 +17,7 @@ import { ApiImportView } from '../features/tools/ApiImportView';
 import { ChartView } from '../features/charts/ChartView';
 import { WorkflowDesigner } from '../features/workflows/WorkflowDesigner';
 import { SchedulerView } from '../features/scheduler/SchedulerView'; 
+import { NavigationDesigner } from '../features/navigation/NavigationDesigner';
 import { useAppController } from '../hooks/useAppController'; // Need context types or pass down
 
 interface ViewRouterProps {
@@ -238,6 +239,18 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 backendConfig={backendConfig}
                 onUpdateConfig={onUpdateBackendConfig}
             />
+        );
+      case 'navigation_designer':
+        return (
+          <NavigationDesigner 
+            tables={tables}
+            queries={queries}
+            reports={reports}
+            forms={forms}
+            backendConfig={backendConfig}
+            onUpdateBackendConfig={onUpdateBackendConfig!}
+            showMessage={showMessage}
+          />
         );
       default:
         return null;

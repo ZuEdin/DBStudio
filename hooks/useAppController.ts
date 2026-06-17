@@ -389,6 +389,7 @@ export const useAppController = () => {
         
         case 'electron_settings': ui.setShowElectronSettings(true); break;
         case 'security_manager': ui.setShowSecurityManager(true); break;
+        case 'navigation_designer': handleSetView({ type: 'navigation_designer' }); break;
         case 'open_app_info': handleSetView({ type: 'app_info' }); break;
         case 'open_whitelabel': ui.setShowWhitelabelModal(true); break;
         

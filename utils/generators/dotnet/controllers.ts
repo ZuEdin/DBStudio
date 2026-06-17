@@ -64,7 +64,17 @@ namespace ${config.projectName}.Controllers
       files.push({ name: 'AdController.cs', path: `${root}/Controllers/AdController.cs`, content: adControllerContent, language: 'csharp' });
   }
 
-  const pagedResultClass = `namespace ${config.projectName}.Models { public class PagedResult<T> { public IEnumerable<T> Data { get; set; } = new List<T>(); public int Total { get; set; } public int Page { get; set; } public int PageSize { get; set; } public int TotalPages { get; set; } } }`;
+  const pagedResultClass = `namespace ${config.projectName}.Models
+{
+    public class PagedResult<T>
+    {
+        public IEnumerable<T> Data { get; set; } = new List<T>();
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+    }
+}`;
   files.push({ name: 'PagedResult.cs', path: `${root}/Models/PagedResult.cs`, content: pagedResultClass, language: 'csharp' });
 
   // Generic CRUD Controllers with Audit

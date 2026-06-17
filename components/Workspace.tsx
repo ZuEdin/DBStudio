@@ -107,6 +107,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
       switch (currentView.type) {
          case 'relationships': return 'Beziehungen';
          case 'backend_generator': return 'App Generator';
+         case 'navigation_designer': return 'Navigations-Designer';
          case 'scheduler': return 'Zeitplaner';
          case 'api_import': return 'API Import';
          default: return '';

@@ -393,6 +393,20 @@ export interface LicensingConfig {
     validateOnline: boolean;
 }
 
+export interface NavigationItem {
+  id: string;
+  type: 'page' | 'folder';
+  title: string;
+  icon: string;
+  route: string;
+  requiredRoles: string[];
+  targetId?: string;
+  targetType?: 'table' | 'query' | 'form' | 'report' | 'custom';
+  children?: NavigationItem[];
+  badgeCountQuery?: string;
+  translations?: { de?: string; en?: string; fr?: string };
+}
+
 export interface BackendConfig {
   language: BackendLanguage;
   backendVersion?: string;
@@ -413,6 +427,8 @@ export interface BackendConfig {
   whitelabel?: WhitelabelConfig;
   multiTenancy?: MultiTenancyConfig;
   licensing?: LicensingConfig;
+  navigationConfig?: NavigationItem[];
+  navigationPreset?: 'sidebar' | 'top_nav' | 'double_rail';
 }
 
 export interface ProjectData {
@@ -520,6 +536,7 @@ export type ViewType =
   | { type: 'workflow_designer', workflowId: string }
   | { type: 'scheduler' } 
   | { type: 'backend_generator' }
+  | { type: 'navigation_designer' }
   | { type: 'api_import' }; 
 
 export const FIELD_HEIGHT = 28;

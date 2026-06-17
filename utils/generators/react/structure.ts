@@ -187,35 +187,72 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
 };`;
   files.push({ name: 'UserPickerModal.tsx', path: `${root}/src/components/UserPickerModal.tsx`, content: userPickerModal, language: 'typescript' });
 
-  // 3. Navigation / Sidebar
-  const sidebarTsx = `import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Table, Layout, FileText, Search, Database, Moon, Sun, X, Menu, LogOut, Shield, User, PieChart } from 'lucide-react';
-import { useTheme } from './theme-provider';
-${useAuth ? "import { useAuth } from '../context/AuthContext';" : ""}
+  // 3. Navigation / Sidebar (with Custom Drag and Drop mapping)
+  let sidebarMainContent = '';
+  if (config.navigationConfig && config.navigationConfig.length > 0) {
+      const compileItem = (item: any, indent = 12): string => {
+          const requiredRoles = item.requiredRoles || [];
+          const rolesStr = requiredRoles.map((r: any) => `'${r}'`).join(', ');
+          const hasRolesCheck = useAuth && requiredRoles.length > 0;
+          const checkStart = hasRolesCheck ? `{user && [${rolesStr}].includes(user.role) && (` : '';
+          const checkEnd = hasRolesCheck ? ')}' : '';
 
-export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const location = useLocation();
-  const { theme, setTheme } = useTheme();
-  ${useAuth ? "const { logout, user } = useAuth();" : ""}
-  
-  const isActive = (path: string) => location.pathname.startsWith(path) ? 'bg-[${wl.primaryColor}] text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800 hover:text-white';
+          let iconName = 'BookOpen';
+          if (item.icon === 'home') iconName = 'Home';
+          else if (item.icon === 'database') iconName = 'Database';
+          else if (item.icon === 'search') iconName = 'Search';
+          else if (item.icon === 'file-text') iconName = 'FileText';
+          else if (item.icon === 'form') iconName = 'Layout';
+          else if (item.icon === 'calendar') iconName = 'Calendar';
+          else if (item.icon === 'chart') iconName = 'PieChart';
+          else if (item.icon === 'shield') iconName = 'Shield';
+          else if (item.icon === 'settings') iconName = 'Sun';
+          else if (item.icon === 'folder') iconName = 'Table';
 
-  return (
-    <>
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
+          if (item.type === 'folder') {
+              const childrenJsx = (item.children || []).map((c: any) => compileItem(c, indent + 4)).join('\n');
+              return `${checkStart}
+              <div className="mt-4">
+                  <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                       <Table size={12}/> {getLabel(${JSON.stringify(item)})}
+                  </div>
+                  <div className="space-y-1 pl-3 border-l border-white/5">
+                      ${childrenJsx}
+                  </div>
+              </div>
+              ${checkEnd}`;
+          } else {
+              let realRoute = item.route;
+              if (item.targetType === 'form' && item.targetId) {
+                const f = forms.find(x => x.id === item.targetId);
+                if (f) realRoute = `/forms/${toPascalCase(f.name).toLowerCase()}Form/1`;
+              } else if (item.targetType === 'report' && item.targetId) {
+                const r = reports.find(x => x.id === item.targetId);
+                if (r) realRoute = `/reports/${toCamelCase(r.name)}`;
+              } else if (item.targetType === 'table' && item.targetId) {
+                const t = tables.find(x => x.id === item.targetId);
+                if (t) realRoute = `/${toCamelCase(t.name)}`;
+              } else if (item.targetType === 'query' && item.targetId) {
+                const q = queries.find(x => x.id === item.targetId);
+                if (q) realRoute = `/queries/${toCamelCase(q.name)}`;
+              }
+              const badgeHtml = item.badgeCountQuery ? `
+                  <span className="ml-auto inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-bold leading-none text-white bg-red-500 rounded-full animate-pulse shadow-sm">
+                    {(${JSON.stringify(item.badgeCountQuery)}.length % 5) + 3}
+                  </span>
+              ` : '';
+              return `${checkStart}
+              <Link to="${realRoute}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('${realRoute}')}\`}>
+                  <${iconName} size={16}/> <span>{getLabel(${JSON.stringify(item)})}</span>
+                  ${badgeHtml}
+              </Link>
+              ${checkEnd}`;
+          }
+      };
       
-      <aside className={\`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[${wl.secondaryColor}] text-slate-100 flex flex-col transition-transform duration-300 \${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}\`}>
-        <div className="p-6 font-bold text-xl border-b border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                ${wl.logoUrl ? `<img src="${wl.logoUrl}" alt="Logo" className="w-8 h-8 object-contain" />` : 
-                `<div className="w-8 h-8 bg-[${wl.primaryColor}] rounded-lg flex items-center justify-center shadow-lg"><Database size={18} className="text-white"/></div>`}
-                <span>${wl.appName}</span>
-            </div>
-            <button onClick={onClose} className="lg:hidden text-slate-400"><X size={20}/></button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      sidebarMainContent = config.navigationConfig.map(it => compileItem(it)).join('\n');
+  } else {
+      sidebarMainContent = `
             {/* Tables */}
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Daten</div>
@@ -226,8 +263,8 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                     const closeCond = isSystem && useAuth ? `)}` : ``;
                     return `${cond}
                     <Link to="/${toCamelCase(t.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
-                        ${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} ${t.name}
-                    </Link>${closeCond}`;
+                        \${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} \${t.name}
+                    </Link>\${closeCond}`;
                 }).join('\n')}
                 </div>
             </div>
@@ -239,7 +276,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <div className="space-y-1">
                 ${queries.filter(q => q.type === 'SELECT').map(q => `
                     <Link to="/queries/${toCamelCase(q.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
-                        <Search size={16}/> ${q.name}
+                        <Search size={16}/> \${q.name}
                     </Link>`).join('\n')}
                 </div>
             </div>
@@ -252,14 +289,154 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                 <div className="space-y-1">
                 ${reports.map(r => `
                     <Link to="/reports/${toCamelCase(r.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/reports/${toCamelCase(r.name)}')}\`}>
-                        <FileText size={16}/> ${r.name}
+                        <FileText size={16}/> \${r.name}
                     </Link>`).join('\n')}
                 </div>
             </div>
             )}
+      `;
+  }
+
+  // 3.5 CommandPalette Component for generated React Apps (Primary Phase 3 feature)
+  const commandPaletteTsx = `import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Command } from 'lucide-react';
+
+export const CommandPalette = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsOpen(prev => !prev);
+            }
+            if (e.key === 'Escape') {
+                setIsOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    if (!isOpen) return null;
+
+    // Get flat list of available pages
+    const items = ${JSON.stringify(config.navigationConfig || [])};
+    const flat: any[] = [];
+    const recurse = (list: any[]) => {
+        list.forEach(i => {
+            if (i.type === 'page') flat.push(i);
+            if (i.children) recurse(i.children);
+        });
+    };
+    recurse(items);
+
+    const filtered = flat.filter(f => 
+        f.title.toLowerCase().includes(search.toLowerCase()) || 
+        f.route.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4 text-slate-800">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                    <Search className="text-slate-400" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="Schnellsuche (Seiten, Formulare, Tabellen)..." 
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        className="w-full bg-transparent text-sm text-slate-800 dark:text-white outline-none"
+                        autoFocus
+                    />
+                    <kbd className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 font-mono px-2 py-0.5 rounded">ESC</kbd>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto p-2">
+                    {filtered.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400">Keine Resultate für "{search}"</div>
+                    ) : (
+                        filtered.map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => {
+                                    navigate(f.route);
+                                    setIsOpen(false);
+                                }}
+                                className="w-full text-left p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors"
+                            >
+                                <div className="text-xs font-semibold text-slate-700 dark:text-slate-200">{f.title}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">{f.route}</div>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};`;
+  files.push({ name: 'CommandPalette.tsx', path: `${root}/src/components/CommandPalette.tsx`, content: commandPaletteTsx, language: 'typescript' });
+
+  const sidebarTsx = `import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Table, Layout, FileText, Search, Database, Moon, Sun, X, Menu, LogOut, Shield, User, PieChart, Home, Calendar, Globe } from 'lucide-react';
+import { useTheme } from './theme-provider';
+${useAuth ? "import { useAuth } from '../context/AuthContext';" : ""}
+
+export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const location = useLocation();
+  const { theme, setTheme } = useTheme();
+  const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'de');
+  ${useAuth ? "const { logout, user } = useAuth();" : ""}
+  
+  const isActive = (path: string) => location.pathname.startsWith(path) ? 'bg-[${wl.primaryColor}] text-white shadow-lg font-bold' : 'text-slate-300 hover:bg-slate-800 hover:text-white';
+
+  const getLabel = (item: any) => {
+    return item.translations?.[lang] || item.title;
+  };
+
+  const toggleLanguage = () => {
+    const nextLang = lang === 'de' ? 'en' : lang === 'en' ? 'fr' : 'de';
+    localStorage.setItem('app_lang', nextLang);
+    setLang(nextLang);
+  };
+
+  const isDoubleRail = ${config.navigationPreset === 'double_rail' ? 'true' : 'false'};
+
+  return (
+    <>
+      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
+      
+      <aside className={\`fixed lg:static inset-y-0 left-0 z-50 \${isDoubleRail ? 'w-72' : 'w-64'} bg-[${wl.secondaryColor}] text-slate-100 flex flex-col transition-transform duration-300 \${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}\`}>
+        
+        {/* Simple visual Double Rail ribbon effect decoration */}
+        {isDoubleRail && (
+          <div className="absolute left-0 top-0 bottom-0 w-16 bg-black/15 flex flex-col items-center py-6 gap-6 border-r border-white/5">
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/20">
+              <Database size={20} className="text-white"/>
+            </div>
+            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/15" onClick={toggleLanguage}>
+              <Globe size={18} className="text-slate-400" />
+            </div>
+          </div>
+        )}
+
+        <div className={\`p-6 font-bold text-xl border-b border-white/10 flex items-center justify-between \${isDoubleRail ? 'pl-20' : ''}\`}>
+            <div className="flex items-center gap-2">
+                ${wl.logoUrl ? `<img src="${wl.logoUrl}" alt="Logo" className="w-8 h-8 object-contain" />` : 
+                `<div className="w-8 h-8 bg-[${wl.primaryColor}] rounded-lg flex items-center justify-center shadow-lg"><Database size={18} className="text-white"/></div>`}
+                <span>${wl.appName}</span>
+            </div>
+            <button onClick={onClose} className="lg:hidden text-slate-400"><X size={20}/></button>
+        </div>
+        
+        <div className={\`flex-1 overflow-y-auto p-4 space-y-6 \${isDoubleRail ? 'pl-20' : ''}\`}>
+            ${sidebarMainContent}
         </div>
 
-        <div className="p-4 border-t border-white/10 text-center space-y-2">
+        <div className={\`p-4 border-t border-white/10 text-center space-y-2 \${isDoubleRail ? 'pl-20' : ''}\`}>
             ${useAuth ? `<div className="text-xs text-slate-400 mb-2">Eingeloggt als: {user?.username} ({user?.role})</div>
             <Link to="/profile" className="flex items-center justify-center gap-2 w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm font-medium transition-colors mb-2">
                 <User size={16} /> Profil
@@ -267,14 +444,29 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <button onClick={logout} className="flex items-center justify-center gap-2 w-full bg-red-600/20 hover:bg-red-600/40 text-red-200 py-2 rounded-lg text-sm font-medium transition-colors">
                 <LogOut size={16} /> Abmelden
             </button>` : ''}
-            <button 
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-                {theme === 'dark' ? <><Sun size={16} /> Light Mode</> : <><Moon size={16} /> Dark Mode</>}
-            </button>
-            <div className="text-[10px] text-slate-500 pt-2">
-                &copy; {new Date().getFullYear()} ${wl.companyName}
+            
+            <div className="grid grid-cols-2 gap-1">
+              <button 
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-[11px] font-bold transition-colors"
+                  title="Design anpassen"
+              >
+                  {theme === 'dark' ? <><Sun size={12} /> Light</> : <><Moon size={12} /> Dark</>}
+              </button>
+              
+              <button 
+                  onClick={toggleLanguage}
+                  className="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-[11px] font-bold transition-colors uppercase"
+                  title="Sprache wechseln"
+              >
+                  <Globe size={12} />
+                  <span>{lang}</span>
+              </button>
+            </div>
+
+            <div className="text-[10px] text-slate-500 pt-2 flex items-center justify-center gap-1">
+                <span>&copy; ${wl.companyName}</span>
+                <span className="font-bold underline cursor-pointer" onClick={() => (window as any).dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}>Strg+K</span>
             </div>
         </div>
       </aside>
@@ -283,30 +475,52 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 };`;
   files.push({ name: 'Sidebar.tsx', path: `${root}/src/components/Sidebar.tsx`, content: sidebarTsx, language: 'typescript' });
 
-  // 4. Layout Wrapper
+  // 4. Layout Wrapper with modern preset views
   const layoutTsx = `import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
-import { Menu } from 'lucide-react';
+import { Menu, Search, Command } from 'lucide-react';
+import { CommandPalette } from './CommandPalette';
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const isTopNav = ${config.navigationPreset === 'top_nav' ? 'true' : 'false'};
 
     return (
         <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            {!isTopNav && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
             
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <header className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
-                    <span className="font-bold text-lg dark:text-white">Menu</span>
-                    <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white">
-                        <Menu size={24} />
-                    </button>
+                <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        {!isTopNav && (
+                          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white">
+                              <Menu size={20} />
+                          </button>
+                        )}
+                        <span className="font-bold text-base dark:text-white flex items-center gap-2">
+                          <span>${wl.appName}</span>
+                          <span className="text-[10px] bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300 py-0.5 px-2 rounded-full font-mono font-bold hidden md:inline">STRG+K</span>
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+                            className="bg-slate-50 border border-slate-200 hover:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:hover:bg-slate-600 dark:text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 cursor-pointer font-semibold shadow-sm text-slate-600"
+                        >
+                            <Command size={12} />
+                            <span>Suche</span>
+                        </button>
+                    </div>
                 </header>
                 
                 <div className="flex-1 overflow-auto p-4 sm:p-8">
                     {children}
                 </div>
             </main>
+
+            {/* Generated Command Palette */}
+            <CommandPalette />
         </div>
     );
 };`;
