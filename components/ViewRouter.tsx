@@ -18,6 +18,7 @@ import { ChartView } from '../features/charts/ChartView';
 import { WorkflowDesigner } from '../features/workflows/WorkflowDesigner';
 import { SchedulerView } from '../features/scheduler/SchedulerView'; 
 import { NavigationDesigner } from '../features/navigation/NavigationDesigner';
+import { ThemeDesigner } from '../features/themes/ThemeDesigner';
 import { useAppController } from '../hooks/useAppController'; // Need context types or pass down
 
 interface ViewRouterProps {
@@ -250,6 +251,14 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
             backendConfig={backendConfig}
             onUpdateBackendConfig={onUpdateBackendConfig!}
             showMessage={showMessage}
+          />
+        );
+      case 'theme_designer':
+        return (
+          <ThemeDesigner 
+             config={backendConfig}
+             onUpdateConfig={onUpdateBackendConfig!}
+             showMessage={showMessage}
           />
         );
       default:

@@ -623,9 +623,47 @@ export default App;`;
   files.push({ 
       name: 'index.html', 
       path: `${root}/index.html`, 
-      content: `<!doctype html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${wl.appName}</title>${wl.faviconUrl ? `<link rel="icon" type="image/x-icon" href="${wl.faviconUrl}">` : ''}</head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`, 
+      content: `<!doctype html><html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${wl.appName}</title>
+    ${wl.faviconUrl ? `<link rel="icon" type="image/x-icon" href="${wl.faviconUrl}">` : ''}
+    ${wl.pwaConfiguration?.enabled ? `<link rel="manifest" href="/manifest.json" />` : ''}
+    ${wl.pwaConfiguration?.themeColor ? `<meta name="theme-color" content="${wl.pwaConfiguration.themeColor}" />` : ''}
+</head>
+<body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`, 
       language: 'html' 
   });
+
+  if (wl.pwaConfiguration?.enabled) {
+      const pwaManifest = {
+        name: wl.appName,
+        short_name: wl.appName,
+        start_url: '/',
+        display: 'standalone',
+        background_color: wl.pwaConfiguration.backgroundColor || '#ffffff',
+        theme_color: wl.pwaConfiguration.themeColor || wl.primaryColor || '#3b82f6',
+        icons: [
+            {
+                src: wl.logoUrl || "logo192.png",
+                sizes: "192x192",
+                type: "image/png"
+            },
+            {
+                src: wl.logoUrl || "logo512.png",
+                sizes: "512x512",
+                type: "image/png"
+            }
+        ]
+      };
+      files.push({
+          name: 'manifest.json',
+          path: `${root}/public/manifest.json`,
+          content: JSON.stringify(pwaManifest, null, 2),
+          language: 'json'
+      });
+  }
 
   return files;
 };

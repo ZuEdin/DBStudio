@@ -71,14 +71,35 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
 
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: ${fePort} } });`, language: 'typescript' });
   
+  const wl = config.whitelabel || { primaryColor: '#3b82f6', secondaryColor: '#1e293b' };
+  
   files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `export default { 
   darkMode: 'class',
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"], 
   theme: { 
     extend: {
+      fontFamily: {
+        sans: ['${wl.fontFamily || 'Inter'}', 'sans-serif'],
+      },
       colors: {
-        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
-        dark: { 800: '#1f2937', 900: '#111827', 950: '#030712' }
+        primary: { 
+          DEFAULT: '${wl.primaryColor || '#3b82f6'}',
+          dark: '${wl.darkModeColors?.primary || wl.primaryColor || '#3b82f6'}'
+        },
+        secondary: '${wl.secondaryColor || '#1e293b'}',
+        accent: '${wl.accentColor || '#8b5cf6'}',
+        success: '${wl.successColor || '#10b981'}',
+        warning: '${wl.warningColor || '#f59e0b'}',
+        danger: '${wl.errorColor || '#ef4444'}',
+        dark: { background: '${wl.darkModeColors?.background || '#0f172a'}' }
+      },
+      boxShadow: {
+        'theme-sm': '${wl.elevation === 'none' ? 'none' : '0 1px 2px 0 rgb(0 0 0 / 0.05)'}',
+        'theme-md': '${wl.elevation === 'none' ? 'none' : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'}',
+        'theme-lg': '${wl.elevation === 'none' ? 'none' : '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)'}'
+      },
+      borderRadius: {
+        'theme': '${wl.borderRadius === 'none' ? '0' : wl.borderRadius === 'sm' ? '0.25rem' : wl.borderRadius === 'lg' ? '0.75rem' : wl.borderRadius === 'full' ? '9999px' : '0.5rem'}'
       }
     } 
   }, 

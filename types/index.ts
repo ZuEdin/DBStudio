@@ -377,6 +377,29 @@ export interface WhitelabelConfig {
     logoUrl?: string;
     primaryColor: string; // Hex
     secondaryColor: string; // Hex
+    accentColor?: string;
+    successColor?: string;
+    warningColor?: string;
+    errorColor?: string;
+    fontFamily?: string;
+    borderRadius?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+    elevation?: 'none' | 'sm' | 'md' | 'lg';
+    darkModeColors?: {
+        primary?: string;
+        secondary?: string;
+        background?: string;
+    };
+    emailTemplates?: {
+        id: string;
+        name: string;
+        subject: string;
+        bodyHtml: string;
+    }[];
+    pwaConfiguration?: {
+        enabled: boolean;
+        themeColor?: string;
+        backgroundColor?: string;
+    };
     faviconUrl?: string;
     removeBranding: boolean;
 }
@@ -537,7 +560,8 @@ export type ViewType =
   | { type: 'scheduler' } 
   | { type: 'backend_generator' }
   | { type: 'navigation_designer' }
-  | { type: 'api_import' }; 
+  | { type: 'api_import' }
+  | { type: 'theme_designer' }; 
 
 export const FIELD_HEIGHT = 28;
 export const HEADER_HEIGHT = 40;
