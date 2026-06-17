@@ -4,7 +4,7 @@ import { Ribbon } from './components/Ribbon';
 import { Sidebar } from './components/Sidebar';
 import { Workspace } from './components/Workspace';
 import { StatusBar } from './components/StatusBar';
-import { DatabaseSelector } from './views/DatabaseSelector';
+import { DatabaseSelector } from './features/backend/DatabaseSelector';
 import { AppHeader } from './components/AppHeader';
 import { ModalLayer } from './components/ModalLayer';
 import { ToastContainer } from './components/Toast';
@@ -62,7 +62,7 @@ export default function App() {
           toggleSidebar={() => app.setIsSidebarOpen(!app.isSidebarOpen)}
         />
         
-        <div className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300" style={{ marginRight: app.isChatOpen ? '320px' : '0' }}>
+        <div className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
           <Workspace 
             currentView={app.currentView}
             tables={db.tables}

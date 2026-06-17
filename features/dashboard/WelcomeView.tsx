@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Query, Report, Form } from '../types/index';
+import { Table, Query, Report, Form } from '../../types/index';
 import { 
   Database, Table as TableIcon, Search, FileText, Layout, 
   Activity, HardDrive, Plus, ArrowRight, Clock

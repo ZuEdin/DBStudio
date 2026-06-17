@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { QueryColumn, Table, AggregateFunction } from '../../../types/index';
 import { Trash2, GripVertical, Plus } from 'lucide-react';
@@ -124,11 +125,11 @@ export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, onUpdateC
 
           {showTotals && (
              <tr>
-                <th className="border border-slate-300 p-1 font-semibold text-left">Funktion:</th>
+                <th className="border border-slate-300 p-1 font-semibold text-left bg-yellow-50/50">Funktion:</th>
                 {columns.map(col => (
-                  <td key={col.id} className="border border-slate-300 p-0">
+                  <td key={col.id} className="border border-slate-300 p-0 bg-yellow-50/30">
                     <select 
-                      className="w-full h-full p-1 border-none bg-transparent"
+                      className="w-full h-full p-1 border-none bg-transparent font-semibold text-slate-700"
                       value={col.aggregate || 'GROUP_BY'}
                       onChange={e => updateColumn(col.id, { aggregate: e.target.value as AggregateFunction })}
                     >
@@ -136,8 +137,10 @@ export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, onUpdateC
                       <option value="SUM">Summe</option>
                       <option value="COUNT">Anzahl</option>
                       <option value="AVG">Mittelwert</option>
-                      <option value="MIN">Min</option>
-                      <option value="MAX">Max</option>
+                      <option value="MIN">Minimum</option>
+                      <option value="MAX">Maximum</option>
+                      <option value="FIRST">Erster Wert</option>
+                      <option value="LAST">Letzter Wert</option>
                       <option value="EXPRESSION">Ausdruck</option>
                     </select>
                   </td>

@@ -10,11 +10,9 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
   const strValue = String(value !== null && value !== undefined ? value : '').toLowerCase();
   
   // DATE LOGIC
-  // Resolve Keywords
   let targetDate = new Date();
   let isDateComparison = false;
   let operator = '=';
-  let compareVal = crit;
 
   // Check for keywords
   if (crit.includes('today') || crit.includes('heute')) {
@@ -29,12 +27,9 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
       targetDate.setDate(targetDate.getDate() + 1);
       targetDate.setHours(0,0,0,0);
   } else {
-      // Check for explicit date strings (basic ISO or german)
-      // Remove operators to parse date
       const cleanDateStr = crit.replace(/(>=|<=|>|<|=)/, '').trim();
       if (cleanDateStr.match(/^\d{4}-\d{2}-\d{2}$/) || cleanDateStr.match(/^\d{2}\.\d{2}\.\d{4}$/)) {
           isDateComparison = true;
-          // Normalize german to iso for parsing
           const iso = cleanDateStr.includes('.') ? cleanDateStr.split('.').reverse().join('-') : cleanDateStr;
           targetDate = new Date(iso);
           targetDate.setHours(0,0,0,0);
@@ -42,13 +37,11 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
   }
 
   if (isDateComparison) {
-      // Determine operator
       if (crit.startsWith('>=')) operator = '>=';
       else if (crit.startsWith('<=')) operator = '<=';
       else if (crit.startsWith('>')) operator = '>';
       else if (crit.startsWith('<')) operator = '<';
       
-      // Parse Value (Handle Timestamp or String)
       let valDate = new Date();
       if (typeof value === 'number') {
           valDate = new Date(value > 10000000000 ? value : value * 1000);
@@ -56,8 +49,8 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
           valDate = new Date(value);
       }
       
-      if (isNaN(valDate.getTime())) return false; // Invalid date value
-      valDate.setHours(0,0,0,0); // Compare dates only
+      if (isNaN(valDate.getTime())) return false;
+      valDate.setHours(0,0,0,0);
 
       const t1 = valDate.getTime();
       const t2 = targetDate.getTime();
@@ -71,7 +64,6 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
       }
   }
 
-  // Handle IS NULL / IS NOT NULL / NULL
   if (crit === 'is null' || crit === 'null') {
       return value === null || value === undefined || value === '' || String(value).trim() === '';
   }
@@ -79,7 +71,6 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
       return value !== null && value !== undefined && value !== '' && String(value).trim() !== '';
   }
 
-  // Between
   if (crit.startsWith('zwischen') || crit.includes(' and ')) {
     const parts = crit.replace('zwischen', '').split('und');
     if (parts.length === 2) {
@@ -90,7 +81,6 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
     }
   }
 
-  // Standard Operators
   if (crit.startsWith('>=')) return parseFloat(value) >= parseFloat(crit.substring(2).trim());
   if (crit.startsWith('<=')) return parseFloat(value) <= parseFloat(crit.substring(2).trim());
   if (crit.startsWith('>')) return parseFloat(value) > parseFloat(crit.substring(1).trim());
@@ -102,7 +92,6 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
       return strValue == target.replace(/^["']|["']$/g, '').toLowerCase();
   }
 
-  // Like
   if (crit.startsWith('wie') || crit.includes('*') || crit.includes('%')) {
     const pattern = crit.replace('wie', '').trim().replace(/\*/g, '.*').replace(/%/g, '.*');
     try {
@@ -111,12 +100,10 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
     } catch (e) { return false; } 
   }
 
-  // Exact match (default)
   if ((crit.startsWith('"') && crit.endsWith('"')) || (crit.startsWith("'") && crit.endsWith("'"))) {
     return strValue === crit.substring(1, crit.length - 1).toLowerCase();
   }
   
-  // Numeric compare if possible
   if (!isNaN(Number(crit)) && !isNaN(Number(value))) {
       return Number(value) === Number(crit);
   }
@@ -124,7 +111,6 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
   return strValue === crit;
 };
 
-// Helper to resolve calculated fields
 const resolveExpression = (row: Record<string, any>, expression: string): any => {
   if (!expression) return null;
   let result = expression;
@@ -156,6 +142,7 @@ const resolveExpression = (row: Record<string, any>, expression: string): any =>
 export const executeSelectQuery = (query: SelectQuery, tables: Table[], relationships: Relationship[]): Record<string, any>[] => {
     if (query.nodes.length === 0 || query.columns.length === 0) return [];
 
+    // 1. Prepare Data (Cartesian Product / Join)
     let workingData: Record<string, any>[] = [];
     const queryTableIds = new Set(query.nodes.map(n => n.tableId));
     const initialTableId = query.nodes[0].tableId;
@@ -205,14 +192,20 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         }
     }
 
+    // 2. Add Calculated Fields (Pre-Aggregation)
     query.columns.filter(c => c.isCalculated && c.expression).forEach(col => {
         workingData.forEach(row => {
             row[`CALC_${col.id}`] = resolveExpression(row, col.expression!);
         });
     });
 
+    // 3. Filter (WHERE)
     let filteredData = workingData.filter(row => {
         for (const col of query.columns) {
+            // Apply filter only if column is part of Group By OR there is no aggregation
+            // We do a simplified approach: Filter applied before aggregation
+            if (col.aggregate && col.aggregate !== 'GROUP_BY' && col.aggregate !== 'EXPRESSION') continue;
+
             const validCriteria = col.criteria.filter(c => c && c.trim() !== '');
             if (validCriteria.length > 0) {
                 let cellValue;
@@ -229,15 +222,20 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         return true;
     });
 
-    const hasAggregation = query.columns.some(c => c.aggregate && c.aggregate !== 'EXPRESSION');
-    if (hasAggregation) {
+    // 4. Aggregation / Grouping
+    const hasAggregation = query.columns.some(c => c.aggregate && c.aggregate !== 'EXPRESSION' && c.aggregate !== 'GROUP_BY'); // Fix check logic
+    // Check strict: If ANY aggregate function exists (Sum, Count), we must group.
+    const strictAggregation = query.columns.some(c => ['SUM','COUNT','AVG','MIN','MAX'].includes(c.aggregate || ''));
+
+    if (strictAggregation) {
         const groups: Record<string, any[]> = {};
         const groupByCols = query.columns.filter(c => c.aggregate === 'GROUP_BY');
         
         filteredData.forEach(row => {
-            const groupKey = groupByCols.map(c => {
+            // If no group by columns, everything is one group
+            const groupKey = groupByCols.length > 0 ? groupByCols.map(c => {
                  return c.isCalculated ? row[`CALC_${c.id}`] : row[`${c.tableName}.${c.fieldName}`];
-            }).join('|||');
+            }).join('|||') : 'ALL';
             
             if (!groups[groupKey]) groups[groupKey] = [];
             groups[groupKey].push(row);
@@ -247,7 +245,8 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
             const resultRow: Record<string, any> = {};
             query.columns.forEach(col => {
                 const key = col.isCalculated ? `CALC_${col.id}` : `${col.tableName}.${col.fieldName}`;
-                
+                const outputKey = key; // Keep internal key structure for now, map to alias later
+
                 if (col.aggregate === 'GROUP_BY') {
                     resultRow[key] = groupRows[0][key];
                 } else if (col.aggregate === 'COUNT') {
@@ -256,12 +255,18 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
                     resultRow[key] = groupRows.reduce((sum, r) => sum + (parseFloat(r[key]) || 0), 0);
                 } else if (col.aggregate === 'AVG') {
                     const sum = groupRows.reduce((s, r) => s + (parseFloat(r[key]) || 0), 0);
-                    resultRow[key] = groupRows.length ? sum / groupRows.length : 0;
+                    resultRow[key] = groupRows.length ? Number((sum / groupRows.length).toFixed(2)) : 0;
                 } else if (col.aggregate === 'MIN') {
                     resultRow[key] = groupRows.reduce((min, r) => (r[key] < min ? r[key] : min), groupRows[0][key]);
                 } else if (col.aggregate === 'MAX') {
                     resultRow[key] = groupRows.reduce((max, r) => (r[key] > max ? r[key] : max), groupRows[0][key]);
+                } else if (col.aggregate === 'FIRST') {
+                    resultRow[key] = groupRows[0][key];
+                } else if (col.aggregate === 'LAST') {
+                    resultRow[key] = groupRows[groupRows.length - 1][key];
                 } else {
+                     // Non-aggregated field in a Group By query - technically invalid SQL usually, 
+                     // but in local engine we just pick first value
                      resultRow[key] = groupRows[0][key]; 
                 }
             });
@@ -269,6 +274,7 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         });
     }
 
+    // 5. Sorting
     if (query.columns.some(c => c.sort)) {
         filteredData.sort((a, b) => {
             for (const col of query.columns) {
@@ -276,7 +282,16 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
                     const key = col.isCalculated ? `CALC_${col.id}` : `${col.tableName}.${col.fieldName}`;
                     const valA = a[key]; 
                     const valB = b[key];
+                    
+                    if (valA === valB) continue;
+
                     const direction = col.sort.toUpperCase() === 'DESC' ? -1 : 1;
+                    
+                    // Numeric Sort
+                    if (!isNaN(Number(valA)) && !isNaN(Number(valB))) {
+                        return (Number(valA) - Number(valB)) * direction;
+                    }
+                    // String Sort
                     if (valA < valB) return -1 * direction;
                     if (valA > valB) return 1 * direction;
                 }
@@ -285,6 +300,7 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         });
     }
 
+    // 6. Projection (Aliases)
     const finalData = filteredData.map(row => {
         const newRow: Record<string, any> = {};
         query.columns.filter(c => c.show).forEach(col => {

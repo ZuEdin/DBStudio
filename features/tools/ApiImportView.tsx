@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
 import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server, GitFork } from 'lucide-react';
-import { VirtualTable } from '../components/VirtualTable';
+import { VirtualTable } from '../../components/VirtualTable';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Table, Field, ApiQueryParam, BackendConfig } from '../types/index';
-import { InputModal } from '../components/InputModal';
-import { fetchApiData, inferFieldType } from '../utils/apiImportHelper';
-import { ArrayExtractionModal } from '../features/tools/ArrayExtractionModal';
+import { Table, Field, ApiQueryParam, BackendConfig } from '../../types/index';
+import { InputModal } from '../../components/InputModal';
+import { fetchApiData, inferFieldType } from '../../utils/apiImportHelper';
+import { ArrayExtractionModal } from './ArrayExtractionModal';
 
 interface ApiImportViewProps {
     onSaveTable?: (table: Table) => void;

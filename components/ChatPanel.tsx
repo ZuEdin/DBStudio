@@ -39,7 +39,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-80 h-full border-l border-slate-300 bg-white flex flex-col shadow-xl absolute right-0 top-0 z-50 transition-transform">
+    <div className="flex flex-col fixed bottom-6 right-6 w-80 h-[500px] bg-white border border-slate-300 shadow-2xl z-[9999] rounded-xl overflow-hidden shadow-black/20">
         
         {/* Header */}
         <div className="bg-slate-800 text-white p-3 flex justify-between items-center shrink-0 h-10">

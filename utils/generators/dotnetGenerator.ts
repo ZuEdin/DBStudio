@@ -89,7 +89,8 @@ namespace ${config.projectName}
   }
 
   // Data Layer
-  files.push(generateDbContext(tables, queries, config, root));
+  // FIX: Passed relationships to generateDbContext
+  files.push(generateDbContext(tables, relationships, queries, config, root));
   files.push(generateDbInitializer(tables, config, root)); 
   files.push(...generateModels(tables, relationships, queries, config, root));
   

@@ -5,11 +5,29 @@ import { quoteIdentifier, toPascalCase } from './generators/common';
 export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType): string => {
     if (columns.length === 0 || nodes.length === 0) return '';
     
+    // Check if any aggregation is used
+    const hasAggregation = columns.some(c => c.aggregate && c.aggregate !== 'GROUP_BY' && c.aggregate !== 'EXPRESSION');
+    const groupByColumns = columns.filter(c => c.aggregate === 'GROUP_BY');
+
     const selectClause = columns.filter(c => c.show).map(c => {
         const alias = c.alias ? toPascalCase(c.alias) : toPascalCase(c.fieldName);
-        if (c.isCalculated) return `  (${c.expression}) AS ${quoteIdentifier(alias, dbType)}`;
+        const quotedAlias = quoteIdentifier(alias, dbType);
+        
+        let fieldExpr = '';
+        
+        if (c.isCalculated) {
+            fieldExpr = `(${c.expression})`;
+        } else {
+            fieldExpr = `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
+        }
+
+        // Wrap in Aggregate Function if needed
+        if (c.aggregate && c.aggregate !== 'GROUP_BY' && c.aggregate !== 'EXPRESSION' && c.aggregate !== 'FIRST' && c.aggregate !== 'LAST') {
+            fieldExpr = `${c.aggregate}(${fieldExpr})`;
+        }
+
         // Use alias if defined, else default name
-        return `  ${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}${c.alias ? ` AS ${quoteIdentifier(alias, dbType)}` : ''}`;
+        return `  ${fieldExpr}${c.alias || hasAggregation ? ` AS ${quotedAlias}` : ''}`;
     }).join(',\n');
 
     const fromTable = tables.find(t => t.id === nodes[0].tableId);
@@ -42,34 +60,30 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     
     const whereConditions = columns
       .map(c => {
+        // Only include criteria for fields that are EITHER:
+        // 1. Not aggregated (standard WHERE)
+        // 2. Part of GROUP BY (standard WHERE)
+        // Note: HAVING clause for aggregated fields (e.g. SUM(x) > 100) is omitted for simplicity in this version, 
+        // as the UI doesn't separate WHERE vs HAVING yet. We treat criteria as Pre-Aggregation filter (WHERE) by default.
+        
+        if (c.aggregate && c.aggregate !== 'GROUP_BY' && c.aggregate !== 'EXPRESSION') return null;
+
         const validCriteria = c.criteria.filter(crit => crit.trim() !== '');
         if (validCriteria.length === 0) return null;
         
-        // Handling calculated fields in WHERE usually requires wrapping the query or repeating expression
-        // For simplicity in this generator, we repeat expression or field name
         const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
         
         const conditions = validCriteria.map(crit => {
             let criteria = crit.trim();
-            
-            // Fix string literals: replace double quotes with single quotes for SQL compatibility
-            if (criteria.includes('"')) {
-                criteria = criteria.replace(/"/g, "'");
-            }
-
-            // Handle Keywords like TODAY
+            if (criteria.includes('"')) criteria = criteria.replace(/"/g, "'");
             if (criteria.includes('TODAY')) {
-                // SQL Server: CAST(GETDATE() AS DATE), MySQL: CURDATE(), SQLite: DATE('now')
                 const todaySql = dbType === DbType.SQL ? "CAST(GETDATE() AS DATE)" : (dbType === DbType.SQLite ? "DATE('now')" : "CURDATE()");
                 criteria = criteria.replace(/TODAY/g, todaySql);
             }
-
-            // AUTO-FIX: Handle "NULL" entered without "IS"
             if (criteria.toUpperCase() === 'NULL') return `${fieldRef} IS NULL`;
             if (criteria.toUpperCase() === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
-
             if (criteria.toUpperCase() === 'IS NULL' || criteria.toUpperCase() === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
-            return `${fieldRef} ${criteria}`; // Basic append (e.g. "> 5")
+            return `${fieldRef} ${criteria}`; 
         });
         return conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0];
       }).filter(Boolean);
@@ -77,5 +91,25 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     let whereClause = '';
     if (whereConditions.length > 0) whereClause = `\nWHERE\n  ${whereConditions.join('\n  AND ')}`;
     
-    return `SELECT\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause}`;
+    let groupByClause = '';
+    if (hasAggregation && groupByColumns.length > 0) {
+        const groups = groupByColumns.map(c => {
+            if (c.isCalculated) return `(${c.expression})`;
+            return `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
+        }).join(', ');
+        groupByClause = `\nGROUP BY ${groups}`;
+    }
+
+    // ORDER BY
+    const orderByCols = columns.filter(c => c.sort).map(c => {
+        // Use Alias if available in ORDER BY for cleaner SQL, or expression
+        const ref = c.alias ? quoteIdentifier(toPascalCase(c.alias), dbType) : (
+            c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`
+        );
+        return `${ref} ${c.sort}`;
+    }).join(', ');
+    
+    const orderByClause = orderByCols ? `\nORDER BY ${orderByCols}` : '';
+    
+    return `SELECT\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause}${groupByClause}${orderByClause}`;
 };

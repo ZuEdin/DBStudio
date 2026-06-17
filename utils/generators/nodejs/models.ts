@@ -116,15 +116,22 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
       const parent = tables.find(t => t.id === rel.fromTableId);
       const child = tables.find(t => t.id === rel.toTableId);
       const childField = child?.fields.find(f => f.id === rel.toFieldId);
+      
       if (parent && child && childField) {
           const parentModel = toPascalCase(parent.name);
           const childModel = toPascalCase(child.name);
+          
+          let opts = `{ foreignKey: '${childField.name}'`;
+          if (rel.onDelete && rel.onDelete !== 'NO ACTION') opts += `, onDelete: '${rel.onDelete}'`;
+          if (rel.onUpdate && rel.onUpdate !== 'NO ACTION') opts += `, onUpdate: '${rel.onUpdate}'`;
+          opts += ' }';
+
           if (rel.type === '1:n') {
-              content += `db.${parentModel}.hasMany(db.${childModel}, { foreignKey: '${childField.name}' });\n`;
-              content += `db.${childModel}.belongsTo(db.${parentModel}, { foreignKey: '${childField.name}' });\n`;
+              content += `db.${parentModel}.hasMany(db.${childModel}, ${opts});\n`;
+              content += `db.${childModel}.belongsTo(db.${parentModel}, ${opts});\n`;
           } else {
-              content += `db.${parentModel}.hasOne(db.${childModel}, { foreignKey: '${childField.name}' });\n`;
-              content += `db.${childModel}.belongsTo(db.${parentModel}, { foreignKey: '${childField.name}' });\n`;
+              content += `db.${parentModel}.hasOne(db.${childModel}, ${opts});\n`;
+              content += `db.${childModel}.belongsTo(db.${parentModel}, ${opts});\n`;
           }
       }
   });

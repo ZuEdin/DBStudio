@@ -81,7 +81,7 @@ export interface Relationship {
   onUpdate?: ReferentialAction;
 }
 
-export type AggregateFunction = 'GROUP_BY' | 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX' | 'EXPRESSION';
+export type AggregateFunction = 'GROUP_BY' | 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX' | 'FIRST' | 'LAST' | 'EXPRESSION';
 
 export interface QueryColumn {
   id: string;

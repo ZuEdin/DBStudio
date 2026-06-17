@@ -1,5 +1,6 @@
 {
   "name": "DB Studio Pro",
   "description": "Eine professionelle Datenbank-Management-Anwendung mit visuellem Abfrage-Designer und Beziehungs-Manager.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

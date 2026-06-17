@@ -1,8 +1,8 @@
 
 import React, { useEffect } from 'react';
 import { ViewType, Table, Query, Report, Form, Relationship, SelectQuery, BackendConfig, TableNode, Chart, Workflow, EnvironmentConfig } from '../types/index';
-import { WelcomeView } from '../views/WelcomeView';
-import { AppInfoView } from '../views/AppInfoView'; // Import
+import { WelcomeView } from '../features/dashboard/WelcomeView';
+import { AppInfoView } from '../features/dashboard/AppInfoView'; // Import
 import { TableDesigner } from '../features/tables/TableDesigner';
 import { TableView } from '../features/tables/TableView';
 import { RelationshipsView } from '../features/relationships/RelationshipsView';
@@ -13,7 +13,7 @@ import { ReportDesignerView } from '../features/reports/ReportDesignerView';
 import { FormView } from '../features/forms/FormView';
 import { FormDesignerView } from '../features/forms/FormDesignerView';
 import { BackendView } from '../features/backend/BackendView';
-import { ApiImportView } from '../views/ApiImportView';
+import { ApiImportView } from '../features/tools/ApiImportView';
 import { ChartView } from '../features/charts/ChartView';
 import { WorkflowDesigner } from '../features/workflows/WorkflowDesigner';
 import { SchedulerView } from '../features/scheduler/SchedulerView'; 

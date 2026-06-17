@@ -120,6 +120,21 @@ SESSION_LIFETIME=120
           return `            $table->${laravelType}('${f.name}')${modifiers};`;
       }).join('\n');
 
+      // Add Relationships (Foreign Keys)
+      const tableRels = relationships.filter(r => r.toTableId === table.id);
+      const fkConstraints = tableRels.map(rel => {
+          const parentTable = tables.find(t => t.id === rel.fromTableId);
+          const fkField = table.fields.find(f => f.id === rel.toFieldId);
+          if (!parentTable || !fkField) return '';
+          
+          let constraint = `            $table->foreign('${fkField.name}')->references('${relationships.find(r => r.id === rel.id)?.fromFieldId ? parentTable.fields.find(f => f.id === rel.fromFieldId)?.name : 'id'}')->on('${toSnakeCase(parentTable.name)}')`;
+          
+          if (rel.onDelete && rel.onDelete !== 'NO ACTION') constraint += `->onDelete('${rel.onDelete.toLowerCase()}')`;
+          if (rel.onUpdate && rel.onUpdate !== 'NO ACTION') constraint += `->onUpdate('${rel.onUpdate.toLowerCase()}')`;
+          
+          return constraint + ';';
+      }).join('\n');
+
       const migrationContent = `<?php
 
 use Illuminate\\Database\\Migrations\\Migration;
@@ -132,6 +147,7 @@ return new class extends Migration
     {
         Schema::create('${tableName}', function (Blueprint $table) {
 ${schemaFields}
+${fkConstraints}
             $table->timestamps();
         });
     }

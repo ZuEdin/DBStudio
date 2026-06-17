@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Database, Plus, Upload, FolderOpen, Clock, Trash2, Shield, Code, Briefcase, Package, Layout, Monitor, PlayCircle, Smartphone, Users, Cloud, HardDrive, Wifi, RefreshCw } from 'lucide-react';
-import { DbType, Project, BackendLanguage, AuthConfig, BackendConfig, ProjectData } from '../types/index';
-import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage } from '../services/storageService';
-import { cloudService } from '../services/cloudService';
-import { getTemplates } from '../data/templates/index';
-import { LanguageSelector } from '../components/LanguageSelector';
+import { DbType, Project, BackendLanguage, AuthConfig, BackendConfig, ProjectData } from '../../types/index';
+import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage } from '../../services/storageService';
+import { cloudService } from '../../services/cloudService';
+import { getTemplates } from '../../data/templates/index';
+import { LanguageSelector } from '../../components/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 
 interface ProjectSelectionViewProps {

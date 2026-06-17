@@ -3,7 +3,7 @@ import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery, Va
 import { DATA_TYPES } from '../../../config/dataTypes';
 import { resolveType, toPascalCase, isNullable } from '../common';
 
-export const generateDbContext = (tables: Table[], queries: Query[], config: BackendConfig, root: string): VirtualFile => {
+export const generateDbContext = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile => {
   const dbSets = tables.map(t => `        public DbSet<${toPascalCase(t.name)}> ${toPascalCase(t.name)}s { get; set; }`).join('\n');
   const queryDbSets = queries
     .filter(q => q.type === 'SELECT')
@@ -14,6 +14,39 @@ export const generateDbContext = (tables: Table[], queries: Query[], config: Bac
   const queryMappings = queries
     .filter(q => q.type === 'SELECT')
     .map(q => `            modelBuilder.Entity<${toPascalCase(q.name)}>().ToView("${toPascalCase(q.name)}").HasNoKey();`).join('\n');
+
+  // Relationship Configuration (Fluent API for DeleteBehavior)
+  const relationshipConfigs = relationships.map(rel => {
+      const parentTable = tables.find(t => t.id === rel.fromTableId);
+      const childTable = tables.find(t => t.id === rel.toTableId);
+      const childField = childTable?.fields.find(f => f.id === rel.toFieldId);
+
+      if (!parentTable || !childTable || !childField) return '';
+
+      const parentName = toPascalCase(parentTable.name);
+      const childName = toPascalCase(childTable.name);
+      const fkName = childField.name;
+
+      let deleteBehavior = 'DeleteBehavior.ClientSetNull'; // Default safe
+      if (rel.onDelete === 'CASCADE') deleteBehavior = 'DeleteBehavior.Cascade';
+      else if (rel.onDelete === 'SET NULL') deleteBehavior = 'DeleteBehavior.SetNull';
+      else if (rel.onDelete === 'RESTRICT') deleteBehavior = 'DeleteBehavior.Restrict';
+      else if (rel.onDelete === 'NO ACTION') deleteBehavior = 'DeleteBehavior.NoAction';
+
+      // Warning comment if OnUpdate is set, as EF Core Fluent API doesn't support .OnUpdate() natively
+      let onUpdateComment = '';
+      if (rel.onUpdate && rel.onUpdate !== 'NO ACTION') {
+          onUpdateComment = `
+                // NOTE: OnUpdate action '${rel.onUpdate}' is defined in design but EF Core Fluent API does not support .OnUpdate(). 
+                // To enforce this, use raw SQL migration or database-specific configuration.`;
+      }
+
+      return `            modelBuilder.Entity<${childName}>()
+                .HasOne(d => d.${parentName})
+                .WithMany(p => p.${childName}s)
+                .HasForeignKey(d => d.${fkName})
+                .OnDelete(${deleteBehavior});${onUpdateComment}`;
+  }).join('\n\n');
 
   // Multi-Tenancy Logic
   let tenantServiceInjection = '';
@@ -94,6 +127,9 @@ ${onConfiguring}
 
 ${tableMappings}
 ${queryMappings}
+
+            // Relationships
+${relationshipConfigs}
 
             // Multi-Tenancy Filters
 ${tenantFilters}
