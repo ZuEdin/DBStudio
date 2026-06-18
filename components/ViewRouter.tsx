@@ -227,7 +227,16 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
             />
           );
       case 'relationships':
-        return <RelationshipsView nodes={canvasNodes} tables={tables} relationships={relationships} onMoveNode={onMoveRelationshipNode} onConnect={handleConnect} onDeleteRelationship={onDeleteRelationship} onUpdateRelationship={onUpdateRelationship} />;
+        return <RelationshipsView 
+            nodes={canvasNodes} 
+            tables={tables} 
+            relationships={relationships} 
+            onMoveNode={onMoveRelationshipNode} 
+            onConnect={handleConnect} 
+            onDeleteRelationship={onDeleteRelationship} 
+            onUpdateRelationship={onUpdateRelationship} 
+            onNodeDoubleClick={(tId) => onSetView({ type: 'table_designer', tableId: tId })}
+        />;
       case 'query_designer':
         if (activeObject && 'nodes' in activeObject) {
            return <QueryDesignerView query={activeObject as SelectQuery} onQueryChange={onActiveObjectChange as any} tables={tables} relationships={relationships} dbType={backendConfig.dbType} />;

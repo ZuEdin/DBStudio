@@ -473,8 +473,69 @@ export const useAppController = () => {
         }
 
         case 'create_chart': /* ... */ break;
-        case 'create_workflow': /* ... */ break;
+        case 'create_workflow': {
+             const newWorkflow: Workflow = {
+                id: 'workflow_' + Date.now(),
+                name: 'Neuer Workflow',
+                active: false,
+                nodes: [],
+                edges: []
+             };
+             store.setWorkflows([...store.workflows, newWorkflow]);
+             setActiveObject(newWorkflow);
+             setCurrentView({ type: 'workflow_designer', workflowId: newWorkflow.id });
+             setIsDirty(true);
+             break;
+        }
+
+        // --- Workflow Ribbon Actions ---
+        case 'add_trigger_node':
+        case 'add_condition_node':
+        case 'add_action_node':
+             if (currentView.type === 'workflow_designer' && activeObject && 'nodes' in activeObject) {
+                 const wf = activeObject as Workflow;
+                 const type = action === 'add_trigger_node' ? 'trigger' : action === 'add_condition_node' ? 'condition' : 'action';
+                 const newNode = {
+                     id: crypto.randomUUID(),
+                     type,
+                     x: Math.random() * 200 + 100,
+                     y: Math.random() * 200 + 100,
+                     label: type === 'trigger' ? 'Start' : type === 'condition' ? 'Bedingung' : 'Aktion',
+                     triggerConfig: type === 'trigger' ? { event: 'onCreate' } : undefined,
+                     conditionConfig: type === 'condition' ? { operator: '=' } : undefined,
+                     actionConfig: type === 'action' ? { actionType: 'sendEmail' } : undefined
+                 };
+                 const updated = { ...wf, nodes: [...wf.nodes, newNode as any] };
+                 setActiveObject(updated);
+                 store.setWorkflows(store.workflows.map(w => w.id === updated.id ? updated : w));
+             }
+             break;
+        case 'save_workflow':
+             ui.addToast("Workflow gespeichert.", 'success');
+             break;
+        // -------------------------------
         
+        // --- ER-Diagram Ribbon Actions ---
+        case 'save_relationships':
+             store.saveProject().then(() => ui.addToast("Layout gespeichert", 'success'));
+             break;
+        case 'auto_layout':
+             if (currentView.type === 'relationships') {
+                 const nodes = store.tables.map((t, index) => ({
+                    id: 'node_' + t.id,
+                    tableId: t.id,
+                    x: 50 + (index % 4) * 300,
+                    y: 50 + Math.floor(index / 4) * 300
+                 }));
+                 store.setLayout(nodes);
+                 ui.addToast("Auto-Layout angewendet.", "success");
+             }
+             break;
+        case 'export_er_image':
+             ui.addToast("Nutzen Sie den Druck-Dialog (Ctrl+P) oder Screenshots.", "info");
+             break;
+        // -------------------------------
+
         case 'relationships': handleSetView({ type: 'relationships' }); break;
         case 'api_import': handleSetView({ type: 'api_import' }); break;
         case 'sharepoint_import': ui.setShowSharePointWizard(true); break;

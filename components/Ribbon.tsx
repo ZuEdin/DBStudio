@@ -13,6 +13,8 @@ import { ExternalDataTab } from './ribbon/tabs/ExternalDataTab';
 import { DeployTab } from './ribbon/tabs/DeployTab';
 import { FormDesignTab } from './ribbon/tabs/FormDesignTab';
 import { ReportDesignTab } from './ribbon/tabs/ReportDesignTab';
+import { WorkflowDesignTab } from './ribbon/tabs/WorkflowDesignTab';
+import { ERDiagramTab } from './ribbon/tabs/ERDiagramTab';
 
 interface RibbonProps {
   onAction: (action: string, payload?: any) => void;
@@ -46,6 +48,10 @@ export const Ribbon: React.FC<RibbonProps> = ({
       setActiveTab('form_design');
     } else if (currentView.type === 'report_designer') {
       setActiveTab('report_design');
+    } else if (currentView.type === 'workflow_designer') {
+      setActiveTab('workflow_design');
+    } else if (currentView.type === 'relationships') {
+      setActiveTab('er_diagram');
     }
   }, [currentView.type, setActiveTab]);
 
@@ -73,6 +79,10 @@ export const Ribbon: React.FC<RibbonProps> = ({
         return <FormDesignTab onAction={onAction} />;
       case 'report_design':
         return <ReportDesignTab onAction={onAction} />;
+      case 'workflow_design':
+        return <WorkflowDesignTab onAction={onAction} />;
+      case 'er_diagram':
+        return <ERDiagramTab onAction={onAction} />;
       default:
         return null; // Fallback normally to HomeTab based on logic
     }
@@ -129,6 +139,22 @@ export const Ribbon: React.FC<RibbonProps> = ({
                 className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-purple-500 ${activeTab === 'report_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-purple-900 hover:bg-purple-800'}`}
             >
                 {t('ribbon.report_design')}
+            </button>
+            )}
+            {currentView.type === 'workflow_designer' && (
+            <button 
+                onClick={() => setActiveTab('workflow_design')}
+                className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-emerald-500 ${activeTab === 'workflow_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-emerald-900 hover:bg-emerald-800'}`}
+            >
+                Workflow Design
+            </button>
+            )}
+            {currentView.type === 'relationships' && (
+            <button 
+                onClick={() => setActiveTab('er_diagram')}
+                className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-blue-500 ${activeTab === 'er_diagram' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-blue-900 hover:bg-blue-800'}`}
+            >
+                ER-Diagramm
             </button>
             )}
         </div>

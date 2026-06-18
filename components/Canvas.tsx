@@ -12,6 +12,7 @@ interface CanvasProps {
   onConnect?: (sourceTableId: string, sourceFieldId: string, targetTableId: string, targetFieldId: string) => void;
   isInteractive?: boolean;
   onRelationshipContextMenu?: (event: React.MouseEvent, relId: string) => void;
+  onNodeDoubleClick?: (tableId: string) => void;
 }
 
 type DragState = { 
@@ -31,6 +32,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   onConnect,
   isInteractive = false,
   onRelationshipContextMenu,
+  onNodeDoubleClick,
 }) => {
   const [dragState, setDragState] = useState<DragState>(null);
   const [connectionStart, setConnectionStart] = useState<{ tableId: string, fieldId: string, nodeId: string } | null>(null);
@@ -216,7 +218,10 @@ export const Canvas: React.FC<CanvasProps> = ({
               }}
               onMouseDown={(e) => handleDragStart(e, node.id)}
             >
-              <div className="node-header h-10 bg-gradient-to-b from-slate-100 to-slate-200 border-b border-slate-300 px-2 flex items-center justify-between cursor-move">
+              <div 
+                className="node-header h-10 bg-gradient-to-b from-slate-100 to-slate-200 border-b border-slate-300 px-2 flex items-center justify-between cursor-move"
+                onDoubleClick={() => onNodeDoubleClick && onNodeDoubleClick(table.id)}
+              >
                 <div className="flex items-center gap-2 truncate">
                     {/* Icon based on table type (API vs DB) */}
                     {table.isApiImport ? (

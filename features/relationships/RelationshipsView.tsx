@@ -12,6 +12,7 @@ interface RelationshipsViewProps {
   onConnect: (t1: string, f1: string, t2: string, f2: string) => void;
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
+  onNodeDoubleClick?: (tableId: string) => void;
 }
 
 export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
@@ -22,6 +23,7 @@ export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
   onConnect,
   onDeleteRelationship,
   onUpdateRelationship,
+  onNodeDoubleClick,
 }) => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; relId: string } | null>(null);
   const [editingRel, setEditingRel] = useState<Relationship | null>(null);
@@ -64,6 +66,7 @@ export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
         onMoveNode={onMoveNode}
         onConnect={onConnect}
         onRelationshipContextMenu={handleRelationshipContextMenu}
+        onNodeDoubleClick={onNodeDoubleClick}
         isInteractive={true}
       />
       {contextMenu && (
