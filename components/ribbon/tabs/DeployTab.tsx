@@ -83,6 +83,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         onChange={e => setBackendConfig({ ...backendConfig, backendVersion: e.target.value })}
                         title="Wähle die installierte .NET SDK Version"
                     >
+                        <option value="10.0">10.0</option>
                         <option value="9.0">9.0</option>
                         <option value="8.0">8.0 (LTS)</option>
                         <option value="7.0">7.0</option>
@@ -111,6 +112,22 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                     <option value="angular">Angular</option>
                     <option value="blazor">Blazor (WASM)</option>
                     <option value="none">Keins (Nur API)</option>
+                </select>
+             </div>
+
+             <div className="w-24">
+                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Styling</label>
+                <select 
+                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
+                    value={backendConfig.stylingFramework || 'tailwind'}
+                    onChange={e => {
+                        const fw = e.target.value as any;
+                        setBackendConfig({ ...backendConfig, stylingFramework: fw });
+                    }}
+                >
+                    <option value="tailwind">Tailwind CSS</option>
+                    <option value="bootstrap">Bootstrap</option>
+                    <option value="none">Keins / Custom</option>
                 </select>
              </div>
 

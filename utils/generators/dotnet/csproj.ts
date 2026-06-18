@@ -7,7 +7,8 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
   const packageVersion = `${version}.0`; 
   
   let openApiVersion = '8.0.0';
-  if (version === '9.0') openApiVersion = '9.0.0';
+  if (version === '10.0') openApiVersion = '10.0.0';
+  else if (version === '9.0') openApiVersion = '9.0.0';
   else if (version === '7.0') openApiVersion = '7.0.0';
   else if (version === '6.0') openApiVersion = '6.0.0';
 
@@ -15,7 +16,8 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
 
   let dbPackage = '';
   if (config.dbType === DbType.MySQL) {
-      dbPackage = `<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="${version === '9.0' ? '8.0.0' : '7.0.0'}" />`;
+      const pomeloVersion = (version === '10.0' || version === '9.0') ? '8.0.0' : '7.0.0';
+      dbPackage = `<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="${pomeloVersion}" />`;
   } else if (config.dbType === DbType.SQLite) {
       dbPackage = `<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="${packageVersion}" />`;
   } else {

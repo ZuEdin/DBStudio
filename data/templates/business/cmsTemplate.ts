@@ -142,15 +142,19 @@ export const getCmsTemplate = (lang: string): ProjectTemplate => {
                 sourceId: '',
                 sourceType: 'table',
                 mode: 'edit',
-                layout: {
-                   id: 'cms_login_root', type: 'container', className: 'p-8 max-w-sm mx-auto bg-white rounded-xl shadow-md border border-slate-200 mt-10', children: [
-                       { id: 'cms_log_1', type: 'label', label: 'CMS System Login', className: 'text-2xl font-bold text-center text-slate-800 mb-2' },
-                       { id: 'cms_log_2', type: 'label', label: 'Bitte authentifizieren Sie sich (JWT)', className: 'text-sm text-center text-slate-500 mb-6 font-normal' },
-                       { id: 'cms_log_3', type: 'field', fieldId: 'username', label: 'E-Mail', className: 'mb-4', widgetType: 'text' },
-                       { id: 'cms_log_4', type: 'field', fieldId: 'password', label: 'Passwort', className: 'mb-6', widgetType: 'text' },
-                       { id: 'cms_log_5', type: 'button', label: 'Einloggen', className: 'w-full bg-slate-800 hover:bg-slate-900 focus:ring focus:ring-slate-300 text-white font-bold py-2.5 px-4 rounded-lg transition-colors', actions: [] }
-                   ]
-                }
+               layout: {
+                  id: 'cms_login_root', type: 'container', className: 'p-8 max-w-sm mx-auto bg-white rounded-xl shadow-md border border-slate-200 mt-10', children: [
+                      { id: 'cms_log_1', type: 'label', label: 'CMS System Login', className: 'text-2xl font-bold text-center text-slate-800 mb-2' },
+                      { id: 'cms_log_2', type: 'label', label: 'Bitte authentifizieren Sie sich (JWT)', className: 'text-sm text-center text-slate-500 mb-6 font-normal' },
+                      { id: 'cms_log_3', type: 'field', fieldId: 'username', label: 'E-Mail', className: 'mb-4', widgetType: 'text' },
+                      { id: 'cms_log_4', type: 'field', fieldId: 'password', label: 'Passwort', className: 'mb-6', widgetType: 'text' },
+                      { id: 'cms_log_5', type: 'button', label: 'Einloggen', className: 'w-full bg-slate-800 hover:bg-slate-900 focus:ring focus:ring-slate-300 text-white font-bold py-2.5 px-4 rounded-lg transition-colors', actions: [] },
+                      { id: 'cms_log_6', type: 'container', className: 'flex justify-between mt-6 text-sm', children: [
+                          { id: 'cms_log_7', type: 'label', label: 'Passwort vergessen?', className: 'text-slate-500 hover:text-slate-800 cursor-pointer transition-colors' },
+                          { id: 'cms_log_8', type: 'label', label: 'Registrieren', className: 'text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer transition-colors' }
+                      ]}
+                  ]
+               }
              },
              {
                 id: 'cms_post_editor',

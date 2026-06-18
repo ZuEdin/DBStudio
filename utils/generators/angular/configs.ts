@@ -19,7 +19,53 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
       if (stagingEnv && stagingEnv.apiUrl) stagingApiUrl = stagingEnv.apiUrl;
   }
 
-  files.push({ name: 'package.json', path: `${root}/package.json`, content: `{"name":"angular-client","version":"0.0.0","scripts":{"start":"ng serve","build":"ng build","build:staging":"ng build --configuration staging","build:prod":"ng build --configuration production"},"dependencies":{"@angular/common":"^18.0.0","@angular/core":"^18.0.0","@angular/forms":"^18.0.0","@angular/platform-browser":"^18.0.0", "@angular/platform-browser-dynamic":"^18.0.0","@angular/router":"^18.0.0","rxjs":"~7.8.0","tslib":"^2.3.0","zone.js":"~0.14.0"},"devDependencies":{"@angular-devkit/build-angular":"^18.0.0","@angular/cli":"^18.0.0","@angular/compiler-cli":"^18.0.0","typescript":"~5.4.2","tailwindcss":"^3.4.4","postcss":"^8.4.38","autoprefixer":"^10.4.19"}}`, language: 'json' });
+  const isTailwind = config.stylingFramework === 'tailwind' || !config.stylingFramework;
+  const isBootstrap = config.stylingFramework === 'bootstrap';
+
+  // Build package.json dependencies
+  const dependencies: any = {
+      "@angular/common":"^18.0.0",
+      "@angular/core":"^18.0.0",
+      "@angular/forms":"^18.0.0",
+      "@angular/platform-browser":"^18.0.0", 
+      "@angular/platform-browser-dynamic":"^18.0.0",
+      "@angular/router":"^18.0.0",
+      "rxjs":"~7.8.0",
+      "tslib":"^2.3.0",
+      "zone.js":"~0.14.0"
+  };
+
+  const devDependencies: any = {
+      "@angular-devkit/build-angular":"^18.0.0",
+      "@angular/cli":"^18.0.0",
+      "@angular/compiler-cli":"^18.0.0",
+      "typescript":"~5.4.2"
+  };
+
+  if (isBootstrap) {
+      dependencies["bootstrap"] = "^5.3.3";
+  }
+
+  if (isTailwind) {
+      devDependencies["tailwindcss"] = "^3.4.4";
+      devDependencies["postcss"] = "^8.4.38";
+      devDependencies["autoprefixer"] = "^10.4.19";
+  }
+
+  const packageJsonContent = {
+    "name":"angular-client",
+    "version":"0.0.0",
+    "scripts":{
+      "start":"ng serve",
+      "build":"ng build",
+      "build:staging":"ng build --configuration staging",
+      "build:prod":"ng build --configuration production"
+    },
+    "dependencies": dependencies,
+    "devDependencies": devDependencies
+  };
+
+  files.push({ name: 'package.json', path: `${root}/package.json`, content: JSON.stringify(packageJsonContent, null, 2), language: 'json' });
   
   const angularJson = {
     "version": 1,
@@ -112,9 +158,16 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   files.push({ name: 'tsconfig.json', path: `${root}/tsconfig.json`, content: JSON.stringify({ "compileOnSave": false, "compilerOptions": { "baseUrl": "./", "outDir": "./dist/out-tsc", "forceConsistentCasingInFileNames": true, "strict": true, "noImplicitOverride": true, "noPropertyAccessFromIndexSignature": true, "noImplicitReturns": true, "noFallthroughCasesInSwitch": true, "sourceMap": true, "declaration": false, "downlevelIteration": true, "experimentalDecorators": true, "moduleResolution": "node", "importHelpers": true, "target": "ES2022", "module": "ES2022", "useDefineForClassFields": false, "lib": ["ES2022", "dom"] }, "angularCompilerOptions": { "enableI18nLegacyMessageIdFormat": false, "strictInjectionParameters": true, "strictInputAccessModifiers": true, "strictTemplates": true } }, null, 2), language: 'json' });
   files.push({ name: 'tsconfig.app.json', path: `${root}/tsconfig.app.json`, content: JSON.stringify({ "extends": "./tsconfig.json", "compilerOptions": { "outDir": "./dist/out-tsc/app", "types": [] }, "files": ["src/main.ts", "src/polyfills.ts"], "include": ["src/**/*.d.ts"] }, null, 2), language: 'json' });
   
-  files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nmodule.exports = {\n  content: ["./src/**/*.{html,ts}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
-  files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
-  files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;`, language: 'css' });
+  if (isTailwind) {
+      files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nmodule.exports = {\n  content: ["./src/**/*.{html,ts}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
+      files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
+      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8fafc;\n  color: #0f172a;\n}`, language: 'css' });
+  } else if (isBootstrap) {
+      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+  } else {
+      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n  background-color: #f8fafc;\n  color: #0f172a;\n}`, language: 'css' });
+  }
+
   files.push({ name: 'polyfills.ts', path: `${root}/src/polyfills.ts`, content: `import 'zone.js';`, language: 'typescript' });
   
   const mainTsContent = `import { bootstrapApplication } from '@angular/platform-browser';

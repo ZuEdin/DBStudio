@@ -400,7 +400,10 @@ export const useAppController = () => {
                        { id: crypto.randomUUID(), type: 'field', fieldId: 'username_field', label: 'E-Mail', className: 'mb-4', widgetType: 'text' },
                        { id: crypto.randomUUID(), type: 'field', fieldId: 'password_field', label: 'Passwort', className: 'mb-6', widgetType: 'text' },
                        { id: crypto.randomUUID(), type: 'button', label: 'Anmelden', className: 'w-full bg-blue-600 hover:bg-blue-700 focus:ring focus:ring-blue-300 text-white font-bold py-2.5 px-4 rounded-lg transition-colors', actions: [] },
-                       { id: crypto.randomUUID(), type: 'label', label: 'Passwort vergessen?', className: 'text-sm text-center text-blue-600 mt-4 cursor-pointer hover:underline font-medium' }
+                       { id: crypto.randomUUID(), type: 'container', className: 'flex justify-between mt-6 text-sm', children: [
+                           { id: crypto.randomUUID(), type: 'label', label: 'Passwort vergessen?', className: 'text-slate-500 hover:text-slate-800 cursor-pointer transition-colors' },
+                           { id: crypto.randomUUID(), type: 'label', label: 'Registrieren', className: 'text-blue-600 hover:text-blue-800 font-semibold cursor-pointer transition-colors' }
+                       ]}
                    ]
                 }
              };

@@ -526,7 +526,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                             <label className="flex items-center gap-2 cursor-pointer mb-2">
                                 <input 
                                     type="checkbox" 
-                                    checked={authConfig.useWindowsAuth}
+                                    checked={!!authConfig.useWindowsAuth}
                                     onChange={e => setAuthConfig({...authConfig, useWindowsAuth: e.target.checked})}
                                     className="rounded w-5 h-5 text-emerald-600"
                                 />
@@ -541,7 +541,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input 
                                             type="checkbox" 
-                                            checked={authConfig.useAdGroups}
+                                            checked={!!authConfig.useAdGroups}
                                             onChange={e => setAuthConfig({...authConfig, useAdGroups: e.target.checked})}
                                             className="rounded"
                                         />
@@ -608,7 +608,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                     <label className="flex items-center gap-2 cursor-pointer mt-4">
                                         <input 
                                             type="checkbox" 
-                                            checked={authConfig.useActiveDirectoryMgmt}
+                                            checked={!!authConfig.useActiveDirectoryMgmt}
                                             onChange={e => setAuthConfig({...authConfig, useActiveDirectoryMgmt: e.target.checked})}
                                             className="rounded"
                                         />
@@ -627,7 +627,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                             <label className="flex items-center gap-2 cursor-pointer mb-2">
                                 <input 
                                     type="checkbox" 
-                                    checked={authConfig.useUserLogin}
+                                    checked={!!authConfig.useUserLogin}
                                     onChange={e => setAuthConfig({...authConfig, useUserLogin: e.target.checked})}
                                     className="rounded w-5 h-5 text-emerald-600"
                                 />
@@ -641,7 +641,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                     <label className="flex items-center gap-2 cursor-pointer text-sm">
                                         <input 
                                             type="checkbox" 
-                                            checked={authConfig.isMobileReady}
+                                            checked={!!authConfig.isMobileReady}
                                             onChange={e => setAuthConfig({...authConfig, isMobileReady: e.target.checked})}
                                             className="rounded"
                                         />
@@ -655,7 +655,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input 
                                     type="checkbox" 
-                                    checked={authConfig.devBypass}
+                                    checked={!!authConfig.devBypass}
                                     onChange={e => setAuthConfig({...authConfig, devBypass: e.target.checked})}
                                     className="rounded"
                                 />

@@ -624,6 +624,43 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       imports.push(`import { ForgotPassword } from './pages/auth/ForgotPassword';`);
       imports.push(`import { Profile } from './pages/auth/Profile';`);
       imports.push(`import { Forbidden } from './pages/auth/Forbidden';`);
+      
+      const forbiddenCode = `import React from 'react';
+import { ShieldAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+export const Forbidden = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 p-4 font-sans">
+        <ShieldAlert size={80} className="text-red-500 mb-6 drop-shadow-md" />
+        <h1 className="text-5xl font-black text-slate-800 dark:text-white tracking-widest mb-2 uppercase">NO ACCESS</h1>
+        <p className="text-lg font-medium text-slate-500 dark:text-slate-400 mb-8 max-w-sm text-center">Sie haben keine Berechtigung, auf diese Seite zuzugreifen. Bitte kontaktieren Sie einen Administrator.</p>
+        <Link to="/" className="px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-red-600/30 transform hover:-translate-y-1">
+            Zurück zur Startseite
+        </Link>
+    </div>
+);`;
+      files.push({ name: 'Forbidden.tsx', path: `${root}/src/pages/auth/Forbidden.tsx`, content: forbiddenCode, language: 'typescript' });
+
+      // Note: Full auth implementation (Login, Register, Context) is abstracted here due to scope, but skeleton is added
+      // We will provide a simple ProtectedRoute that checks roles and redirects to Forbidden
+      const protectedRouteCode = `import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { Layout } from './Layout';
+
+export const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
+    const { user, loading } = useAuth() || { user: { role: 'User' }, loading: false }; // Mock fallback for demo
+    
+    if (loading) return <div>Lade...</div>;
+    if (!user) return <Navigate to="/login" replace />;
+    
+    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+        return <Navigate to="/forbidden" replace />;
+    }
+    
+    return <Layout><Outlet /></Layout>;
+};`;
+      files.push({ name: 'ProtectedRoute.tsx', path: `${root}/src/components/ProtectedRoute.tsx`, content: protectedRouteCode, language: 'typescript' });
   }
 
   // App.tsx

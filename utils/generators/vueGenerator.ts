@@ -41,6 +41,22 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
   
   const wl = config.whitelabel || { appName: config.projectName || 'App', companyName: 'My Company', primaryColor: '#3b82f6', secondaryColor: '#1e293b', removeBranding: false };
 
+  const isTailwind = config.stylingFramework === 'tailwind' || !config.stylingFramework;
+  const isBootstrap = config.stylingFramework === 'bootstrap';
+
+  const dependencies: any = { "vue": "^3.3.4", "vue-router": "^4.2.4", "axios": "^1.6.0", "lucide-vue-next": "^0.294.0" };
+  const devDependencies: any = { "@vitejs/plugin-vue": "^4.2.3", "typescript": "^5.0.2", "vite": "^4.4.5", "vue-tsc": "^1.8.5" };
+
+  if (isBootstrap) {
+      dependencies["bootstrap"] = "^5.3.3";
+  }
+
+  if (isTailwind) {
+      devDependencies["tailwindcss"] = "^3.3.0";
+      devDependencies["postcss"] = "^8.4.0";
+      devDependencies["autoprefixer"] = "^10.4.0";
+  }
+
   // 1. Configs & Base (package.json, index.html, main.ts, router)
   files.push({
       name: 'package.json', path: `${root}/package.json`,
@@ -49,8 +65,8 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
           "version": "1.0.0",
           "type": "module",
           "scripts": { "dev": "vite", "build": "vue-tsc && vite build", "preview": "vite preview" },
-          "dependencies": { "vue": "^3.3.4", "vue-router": "^4.2.4", "axios": "^1.6.0", "lucide-vue-next": "^0.294.0" },
-          "devDependencies": { "@vitejs/plugin-vue": "^4.2.3", "typescript": "^5.0.2", "vite": "^4.4.5", "vue-tsc": "^1.8.5", "tailwindcss": "^3.3.0", "postcss": "^8.4.0", "autoprefixer": "^10.4.0" }
+          "dependencies": dependencies,
+          "devDependencies": devDependencies
       }, null, 2),
       language: 'json'
   });
@@ -58,8 +74,15 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite';\nimport vue from '@vitejs/plugin-vue';\nimport path from 'path';\n\nexport default defineConfig({\n  plugins: [vue()],\n  resolve: { alias: { '@': path.resolve(__dirname, './src') } },\n  server: { port: 3000 }\n});`, language: 'typescript' });
   
   // Tailwind & PostCSS Configs
-  files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
-  files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
+  if (isTailwind) {
+      files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
+      files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
+      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;`, language: 'css' });
+  } else if (isBootstrap) {
+      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+  } else {
+      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n}`, language: 'css' });
+  }
 
   // Clean Index HTML (No CDN)
   files.push({ name: 'index.html', path: `${root}/index.html`, content: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>${wl.appName}</title></head><body><div id="app"></div><script type="module" src="/src/main.ts"></script></body></html>`, language: 'html' });
@@ -225,7 +248,6 @@ const save = async () => { if(isNew) await post('${c}', data.value); else await 
 
   // Base files (Sidebar, App, style)
   files.push({ name: 'main.ts', path: `${root}/src/main.ts`, content: `import { createApp } from 'vue';\nimport './style.css';\nimport App from './App.vue';\nimport router from './router';\n\ncreateApp(App).use(router).mount('#app');`, language: 'typescript' });
-  files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;`, language: 'css' });
   
   // UPDATED: Added withCredentials: true
   const apiContent = "import axios from 'axios';\nconst API_URL = 'http://localhost:" + config.port + "/api';\nconst api = axios.create({ baseURL: API_URL, withCredentials: true });\nexport const get = async (e: string, p?: any) => (await api.get(e, { params: p })).data;\nexport const post = async (e: string, d: any) => (await api.post(e, d)).data;\nexport const put = async (e: string, d: any) => (await api.put(e, d)).data;\nexport const remove = async (e: string) => await api.delete(e);";

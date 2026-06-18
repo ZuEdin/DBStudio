@@ -199,5 +199,36 @@ export class UserPickerComponent implements OnChanges {
     files.push({ name: 'user-picker.component.html', path: `${appRoot}/components/user-picker/user-picker.component.html`, content: userPickerHtml, language: 'html' });
     files.push({ name: 'user-picker.component.ts', path: `${appRoot}/components/user-picker/user-picker.component.ts`, content: userPickerTs, language: 'typescript' });
 
+    if (config.authConfig?.useUserLogin) {
+        const forbiddenHtml = `
+<div class="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4 font-sans text-center">
+    <!-- Inline SVG instead of lucide-react to reduce deps -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500 mb-6 drop-shadow-md">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="m9 12 2 2 4-4"/>
+    </svg>
+    <h1 class="text-5xl font-black text-slate-800 tracking-widest mb-2 uppercase">NO ACCESS</h1>
+    <p class="text-lg font-medium text-slate-500 mb-8 max-w-sm">Sie haben keine Berechtigung, auf diese Seite zuzugreifen. Bitte kontaktieren Sie einen Administrator.</p>
+    <a routerLink="/" class="px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-lg hover:shadow-red-600/30 transform hover:-translate-y-1 inline-block">
+        Zurück zur Startseite
+    </a>
+</div>
+        `;
+        const forbiddenTs = `
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
+
+@Component({
+  selector: 'app-forbidden',
+  standalone: true,
+  imports: [CommonModule, RouterLink],
+  template: \`${forbiddenHtml}\`
+})
+export class ForbiddenComponent {}
+        `;
+        files.push({ name: 'forbidden.component.ts', path: `${appRoot}/pages/auth/forbidden.component.ts`, content: forbiddenTs, language: 'typescript' });
+    }
+
     return files;
 };

@@ -30,26 +30,29 @@ export const FormView: React.FC<FormViewProps> = ({
   const [subformModal, setSubformModal] = useState<{ isOpen: boolean; formId: string; parentField: string; childField: string; linkValue: any } | null>(null);
 
   const sourceTable = allTables.find(t => t.id === form.sourceId);
-  const isReadOnly = form.mode === 'readonly' || form.sourceType === 'query' || !sourceTable;
+  const isUnbound = !form.sourceId || form.sourceId === '';
+  const isReadOnly = form.mode === 'readonly' || form.sourceType === 'query' || (!sourceTable && !isUnbound);
   
   const data = isSubform ? (filteredData || []) : (sourceTable?.data || []);
   
-  const currentRecord = isCreating ? tempRecord : (data[currentIndex] || {});
+  const currentRecord = (isCreating || isUnbound) ? tempRecord : (data[currentIndex] || {});
 
   useEffect(() => {
-    if (!isCreating) {
+    if (!isCreating && !isUnbound) {
         if (currentIndex >= data.length && data.length > 0) setCurrentIndex(data.length - 1);
         else if (data.length === 0) setCurrentIndex(0);
     }
-  }, [data.length, isCreating]);
+  }, [data.length, isCreating, isUnbound]);
 
   const handleInputChange = (fieldName: string, value: any) => {
-      if (isReadOnly || !sourceTable) return;
+      if (isReadOnly) return;
 
-      if (isCreating) {
+      if (isCreating || isUnbound) {
           setTempRecord(prev => ({ ...prev, [fieldName]: value }));
           return;
       }
+
+      if (!sourceTable) return;
 
       const originalIndex = isSubform 
         ? sourceTable.data?.findIndex(row => JSON.stringify(row) === JSON.stringify(currentRecord)) 
@@ -411,7 +414,7 @@ export const FormView: React.FC<FormViewProps> = ({
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6">
-                {(data.length > 0 || isCreating) ? (form.layout ? renderElement(form.layout) : <div>Kein Layout definiert.</div>) : (
+                {(isUnbound || data.length > 0 || isCreating) ? (form.layout ? renderElement(form.layout) : <div>Kein Layout definiert.</div>) : (
                     <div className="h-full flex flex-col items-center justify-center text-slate-400">
                         <p className="mb-4">Keine Daten vorhanden.</p>
                         {!isReadOnly && !isCreating && (
@@ -424,39 +427,41 @@ export const FormView: React.FC<FormViewProps> = ({
             </div>
 
             {/* Footer */}
-            <div className={`p-3 border-t border-slate-200 flex justify-between shrink-0 rounded-b-lg ${isCreating ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                {isCreating ? (
-                    <div className="flex justify-end gap-2 w-full">
-                        <button onClick={cancelCreate} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 flex items-center gap-2 text-sm font-medium">
-                            <XCircle size={16} /> Abbrechen
-                        </button>
-                        <button onClick={saveNewRecord} className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center gap-2 text-sm font-medium shadow-sm">
-                            <CheckCircle size={16} /> Speichern
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        <div className="flex gap-2">
-                            {!isReadOnly && (
-                                <>
-                                    <button className="p-2 hover:bg-slate-200 rounded text-blue-600" onClick={startCreate} title="Neuer Datensatz (Inline)">
-                                        <Plus size={20}/>
-                                    </button>
-                                    <button className="p-2 hover:bg-slate-200 rounded text-red-500 disabled:opacity-50" onClick={deleteCurrentRecord} disabled={data.length === 0} title="Löschen">
-                                        <Trash2 size={18}/>
-                                    </button>
-                                </>
-                            )}
+            {!isUnbound && (
+                <div className={`p-3 border-t border-slate-200 flex justify-between shrink-0 rounded-b-lg ${isCreating ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                    {isCreating ? (
+                        <div className="flex justify-end gap-2 w-full">
+                            <button onClick={cancelCreate} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 flex items-center gap-2 text-sm font-medium">
+                                <XCircle size={16} /> Abbrechen
+                            </button>
+                            <button onClick={saveNewRecord} className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center gap-2 text-sm font-medium shadow-sm">
+                                <CheckCircle size={16} /> Speichern
+                            </button>
                         </div>
-                        <div className="flex gap-2">
-                            <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(0)} disabled={currentIndex === 0}><ChevronsLeft size={18}/></button>
-                            <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}><ChevronLeft size={18}/></button>
-                            <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.min(data.length - 1, currentIndex + 1))} disabled={currentIndex >= data.length - 1}><ChevronRight size={18}/></button>
-                            <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(data.length - 1)} disabled={currentIndex >= data.length - 1}><ChevronsRight size={18}/></button>
-                        </div>
-                    </>
-                )}
-            </div>
+                    ) : (
+                        <>
+                            <div className="flex gap-2">
+                                {!isReadOnly && (
+                                    <>
+                                        <button className="p-2 hover:bg-slate-200 rounded text-blue-600" onClick={startCreate} title="Neuer Datensatz (Inline)">
+                                            <Plus size={20}/>
+                                        </button>
+                                        <button className="p-2 hover:bg-slate-200 rounded text-red-500 disabled:opacity-50" onClick={deleteCurrentRecord} disabled={data.length === 0} title="Löschen">
+                                            <Trash2 size={18}/>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(0)} disabled={currentIndex === 0}><ChevronsLeft size={18}/></button>
+                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}><ChevronLeft size={18}/></button>
+                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.min(data.length - 1, currentIndex + 1))} disabled={currentIndex >= data.length - 1}><ChevronRight size={18}/></button>
+                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(data.length - 1)} disabled={currentIndex >= data.length - 1}><ChevronsRight size={18}/></button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
         {renderLookupModal()}
         {renderSubformModal()}

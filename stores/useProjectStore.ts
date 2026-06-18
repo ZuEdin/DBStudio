@@ -37,7 +37,7 @@ const initialData: ProjectData = {
     tables: [], queries: [], reports: [], forms: [], charts: [], workflows: [], relationships: [], layout: [],
     backendConfig: { 
         language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, 
-        dbConnection: '', useSwagger: true, frontendFramework: 'react' 
+        dbConnection: '', useSwagger: true, frontendFramework: 'react', stylingFramework: 'tailwind'
     },
     lastSnapshot: []
 };

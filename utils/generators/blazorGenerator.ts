@@ -10,18 +10,22 @@ export const generateBlazor = (tables: Table[], relationships: Relationship[], q
   const useAuth = config.authConfig?.useUserLogin;
   const clientPort = config.port + 2;
 
+  const version = config.backendVersion || '9.0';
+  const targetFramework = `net${version}`;
+  const packageVersion = `${version}.0`; 
+
   // 1. CSPROJ
   const csprojContent = `<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>${targetFramework}</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.0" PrivateAssets="all" />
-    ${useAuth ? `<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="9.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="${packageVersion}" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="${packageVersion}" PrivateAssets="all" />
+    ${useAuth ? `<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="${packageVersion}" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="${packageVersion}" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />` : ''}
   </ItemGroup>
 </Project>`;
@@ -85,10 +89,10 @@ builder.Services.AddScoped<AuthService>();
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    <div class="p-4 text-center">
-                        <h3 class="text-danger">Zugriff verweigert</h3>
-                        <p>Sie haben keine Berechtigung für diese Seite.</p>
-                        <a href="login" class="btn btn-primary">Zum Login</a>
+                    <div class="d-flex flex-column align-items-center justify-content-center min-vh-100 bg-light p-4 font-sans text-center">
+                        <h1 class="display-1 fw-bold text-danger mb-2">NO ACCESS</h1>
+                        <p class="fs-5 text-secondary mb-4">Sie haben keine Berechtigung für diese Seite.</p>
+                        <a href="login" class="btn btn-danger btn-lg fw-bold shadow-sm">Zum Login</a>
                     </div>
                 </NotAuthorized>
             </AuthorizeRouteView>

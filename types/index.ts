@@ -325,6 +325,7 @@ export interface Workflow {
 
 export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron';
 export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'vue' | 'electron' | 'none';
+export type StylingFramework = 'tailwind' | 'bootstrap' | 'none';
 
 export interface AuthConfig {
     useWindowsAuth: boolean;
@@ -504,6 +505,7 @@ export interface BackendConfig {
   dbConnection: string;
   useSwagger: boolean;
   frontendFramework: FrontendFramework;
+  stylingFramework?: StylingFramework;
   authConfig?: AuthConfig;
   electronSettings?: ElectronSettings;
   deploymentConfig?: DeploymentConfig;
