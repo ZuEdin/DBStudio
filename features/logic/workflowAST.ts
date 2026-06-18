@@ -82,6 +82,28 @@ export const generateTypeScriptCode = (ast: ASTNode[]): string => {
                  const actionType = astNode.node.actionConfig?.actionType || "run";
                  code += `${indent}await executeAction("${actionType}");\n`;
                  visit(astNode.next, indentLevel);
+            } else if (astNode.type === 'api') {
+                 const method = astNode.node.apiConfig?.method || "GET";
+                 const url = astNode.node.apiConfig?.url || "https://api.example.com";
+                 code += `${indent}// API Call to endpoint
+${indent}const response_${astNode.id} = await fetch("${url}", {
+${indent}    method: "${method}",
+${indent}    headers: ${astNode.node.apiConfig?.headers ? astNode.node.apiConfig.headers.replace(/\n/g, '\n' + indent + '    ') : '{}'},
+${indent}    body: ${astNode.node.apiConfig?.body && (method === 'POST' || method === 'PUT') ? 'JSON.stringify(' + astNode.node.apiConfig.body.replace(/\n/g, '\n' + indent + '    ') + ')' : 'undefined'}
+${indent}});
+${indent}const data_${astNode.id} = await response_${astNode.id}.json();
+`;
+                 visit(astNode.next, indentLevel);
+            } else if (astNode.type === 'upload') {
+                 const tableId = astNode.node.fileUploadConfig?.tableId || "default_table";
+                 const fileTypes = astNode.node.fileUploadConfig?.fileTypes || "*";
+                 code += `${indent}// File upload connection to Table: ${tableId}
+${indent}await uploadFileToTable("${tableId}", { allowedTypes: "${fileTypes}" });
+`;
+                 visit(astNode.next, indentLevel);
+            } else if (astNode.type === 'group') {
+                 // Group frames are visual layout wrappers; just pass through
+                 visit(astNode.next, indentLevel);
             }
         }
     };
@@ -114,6 +136,28 @@ export const generateCSharpCode = (ast: ASTNode[]): string => {
             } else if (astNode.type === 'action') {
                  const actionType = astNode.node.actionConfig?.actionType || "run";
                  code += `${indent}await ExecuteActionAsync("${actionType}");\n`;
+                 visit(astNode.next, indentLevel);
+            } else if (astNode.type === 'api') {
+                 const method = astNode.node.apiConfig?.method || "GET";
+                 const url = astNode.node.apiConfig?.url || "https://api.example.com";
+                 code += `${indent}// API Call to endpoint
+${indent}using (var client = new HttpClient()) {
+${indent}    var request = new HttpRequestMessage(HttpMethod.${method.charAt(0).toUpperCase() + method.slice(1).toLowerCase()}, "${url}");
+${indent}    // Headers: ${astNode.node.apiConfig?.headers ? astNode.node.apiConfig.headers.replace(/\n/g, ' ') : '{}'}
+${indent}    // Body: ${astNode.node.apiConfig?.body && (method === 'POST' || method === 'PUT') ? astNode.node.apiConfig.body.replace(/\n/g, ' ') : 'None'}
+${indent}    var response = await client.SendAsync(request);
+${indent}    var responseString = await response.Content.ReadAsStringAsync();
+${indent}}
+`;
+                 visit(astNode.next, indentLevel);
+            } else if (astNode.type === 'upload') {
+                 const tableId = astNode.node.fileUploadConfig?.tableId || "default_table";
+                 code += `${indent}// File upload connection to Table ID: ${tableId}
+${indent}await UploadFileToTableAsync("${tableId}");
+`;
+                 visit(astNode.next, indentLevel);
+            } else if (astNode.type === 'group') {
+                 // Group frames are visual layout wrappers; just pass through
                  visit(astNode.next, indentLevel);
             }
         }

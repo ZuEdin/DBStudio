@@ -12,9 +12,10 @@ interface SchedulerViewProps {
 export const SchedulerView: React.FC<SchedulerViewProps> = ({ workflows, onUpdateWorkflow }) => {
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
 
-  // Filter workflows that have at least one schedule trigger node
-  const scheduledWorkflows = workflows.filter(w => 
-      w.nodes.some(n => n.type === 'trigger' && n.triggerConfig?.event === 'schedule')
+  // Filter workflows that have at least one schedule trigger node, and deduplicate by ID to prevent duplicate keys
+  const scheduledWorkflows = workflows.filter((w, index, self) => 
+      w.nodes.some(n => n.type === 'trigger' && n.triggerConfig?.event === 'schedule') &&
+      self.findIndex(t => t.id === w.id) === index
   );
 
   const getCronExpression = (wf: Workflow) => {
@@ -84,10 +85,10 @@ export const SchedulerView: React.FC<SchedulerViewProps> = ({ workflows, onUpdat
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {scheduledWorkflows.map(wf => {
+                            {scheduledWorkflows.map((wf, index) => {
                                 const cron = getCronExpression(wf);
                                 return (
-                                    <tr key={wf.id} className="hover:bg-slate-50 group">
+                                    <tr key={`${wf.id}-${index}`} className="hover:bg-slate-50 group">
                                         <td className="p-4 font-medium text-slate-800 flex items-center gap-2">
                                             <Play size={16} className="text-blue-500"/> {wf.name}
                                         </td>
