@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH } from '../types/index';
-import { X, Globe, Table as TableIcon, Hash } from 'lucide-react';
+import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface CanvasProps {
   nodes: TableNode[];
@@ -41,6 +41,19 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  const handleZoomIn = () => {
+    setScale(prev => Math.min(2, Math.round(prev * 1.15 * 100) / 100));
+  };
+
+  const handleZoomOut = () => {
+    setScale(prev => Math.max(0.2, Math.round((prev / 1.15) * 100) / 100));
+  };
+
+  const handleZoomReset = () => {
+    setScale(1);
+    setPan({ x: 0, y: 0 });
+  };
 
   // Safe Arrays to prevent "e.find is not a function" errors during fast state updates
   const safeNodes = Array.isArray(nodes) ? nodes : [];
@@ -283,6 +296,31 @@ export const Canvas: React.FC<CanvasProps> = ({
             </div>
           );
         })}
+      </div>
+      {/* Zoom Controls Overlay */}
+      <div className="absolute bottom-4 left-4 bg-white rounded shadow border border-slate-300 p-1 flex items-center gap-1 z-30 select-none">
+        <button 
+          onClick={handleZoomIn}
+          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"
+          title="Zoom vergrößern"
+        >
+          <ZoomIn size={16} />
+        </button>
+        <button 
+          onClick={handleZoomOut}
+          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"
+          title="Zoom verkleinern"
+        >
+          <ZoomOut size={16} />
+        </button>
+        <button 
+          onClick={handleZoomReset}
+          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors flex items-center gap-1.5 text-xs font-semibold border-l border-slate-200 pl-2 bg-slate-50"
+          title="Zoom zurücksetzen"
+        >
+          <RotateCcw size={14} />
+          <span>{Math.round(scale * 100)}%</span>
+        </button>
       </div>
     </div>
   );

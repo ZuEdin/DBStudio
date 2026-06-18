@@ -83,6 +83,15 @@ const WorkflowDesignerContent: React.FC<WorkflowDesignerProps> = ({ workflow, ta
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
+  // Fit view once on load
+  useEffect(() => {
+    if (reactFlowInstance) {
+      setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2 });
+      }, 50);
+    }
+  }, [reactFlowInstance]);
+
   // Sync ReactFlow state with our App State
   const initialNodes: Node[] = React.useMemo(() => workflow.nodes.map(n => ({
     id: n.id,
@@ -113,12 +122,13 @@ const WorkflowDesignerContent: React.FC<WorkflowDesignerProps> = ({ workflow, ta
       id: n.id,
       type: n.type,
       position: { x: n.x, y: n.y },
+      selected: n.id === selectedNodeId,
       data: { 
         label: n.label,
         onDelete: () => removeNode(n.id)
       }
     })));
-  }, [workflow.nodes, setNodes]);
+  }, [workflow.nodes, selectedNodeId, setNodes]);
 
   useEffect(() => {
     setEdges(workflow.edges.map(e => ({
@@ -243,7 +253,7 @@ const WorkflowDesignerContent: React.FC<WorkflowDesignerProps> = ({ workflow, ta
   const selectedNode = workflow.nodes.find(n => n.id === selectedNodeId);
 
     return (
-    <div className="flex h-full bg-slate-100 font-sans">
+    <div className="flex h-full w-full overflow-hidden bg-slate-100 font-sans">
         
         {/* Toolbox */}
         <div className="w-60 bg-white border-r border-slate-300 flex flex-col z-10 shadow-sm">
@@ -266,7 +276,7 @@ const WorkflowDesignerContent: React.FC<WorkflowDesignerProps> = ({ workflow, ta
         </div>
 
         {/* Canvas */}
-        <div className="flex-1 relative bg-slate-50 wrapper h-[calc(100vh-140px)]" ref={(ref) => ref && reactFlowInstance?.fitView()}>
+        <div className="flex-1 h-full min-h-0 relative bg-slate-50">
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -277,9 +287,12 @@ const WorkflowDesignerContent: React.FC<WorkflowDesignerProps> = ({ workflow, ta
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 onNodeDragStop={onNodeDragStop}
-                onSelectionChange={onSelectionChange}
+                onNodeClick={(event, node) => setSelectedNodeId(node.id)}
+                onPaneClick={() => setSelectedNodeId(null)}
                 onEdgesDelete={onEdgesDelete}
                 nodeTypes={nodeTypes}
+                snapToGrid={true}
+                snapGrid={[15, 15]}
                 fitView
                 defaultEdgeOptions={{ type: 'smoothstep' }}
             >

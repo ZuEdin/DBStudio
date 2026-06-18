@@ -152,7 +152,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
          </button>
       </div>
 
-      <div className="flex-1 relative overflow-auto print:overflow-visible">
+      <div className="flex-1 relative overflow-hidden flex flex-col min-h-0 print:overflow-visible">
         <ViewRouter 
             currentView={currentView}
             tables={tables}
