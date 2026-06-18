@@ -7,11 +7,10 @@ import { useTranslation } from 'react-i18next';
 
 // Tabs
 import { FileTab } from './ribbon/tabs/FileTab';
+import { HomeTab } from './ribbon/tabs/HomeTab';
 import { CreateTab } from './ribbon/tabs/CreateTab';
-import { ProjectTab } from './ribbon/tabs/ProjectTab'; 
-import { ToolsTab } from './ribbon/tabs/ToolsTab';
-import { IntegrationTab } from './ribbon/tabs/IntegrationTab'; // NEW
-import { BackendTab } from './ribbon/tabs/BackendTab';
+import { ExternalDataTab } from './ribbon/tabs/ExternalDataTab';
+import { DeployTab } from './ribbon/tabs/DeployTab';
 import { FormDesignTab } from './ribbon/tabs/FormDesignTab';
 import { ReportDesignTab } from './ribbon/tabs/ReportDesignTab';
 
@@ -54,18 +53,16 @@ export const Ribbon: React.FC<RibbonProps> = ({
     switch (activeTab) {
       case 'file':
         return <FileTab onAction={onAction} currentDbType={currentDbType} />;
+      case 'home':
+        return <HomeTab onAction={onAction} />;
       case 'create':
         return <CreateTab onAction={onAction} />;
-      case 'project':
-        return <ProjectTab onAction={onAction} />;
-      case 'tools':
-        return <ToolsTab onAction={onAction} />;
-      case 'integration': // NEW
-        return <IntegrationTab onAction={onAction} />;
-      case 'backend':
+      case 'external':
+        return <ExternalDataTab onAction={onAction} />;
+      case 'deploy':
         if (!backendConfig || !setBackendConfig) return null;
         return (
-          <BackendTab 
+          <DeployTab 
             onAction={onAction} 
             backendConfig={backendConfig} 
             setBackendConfig={setBackendConfig} 
@@ -77,7 +74,7 @@ export const Ribbon: React.FC<RibbonProps> = ({
       case 'report_design':
         return <ReportDesignTab onAction={onAction} />;
       default:
-        return null;
+        return null; // Fallback normally to HomeTab based on logic
     }
   };
 
@@ -93,34 +90,28 @@ export const Ribbon: React.FC<RibbonProps> = ({
             {t('ribbon.file')}
             </button>
             <button 
+            onClick={() => setActiveTab('home')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'home' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            >
+            Start
+            </button>
+            <button 
             onClick={() => setActiveTab('create')}
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'create' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
             {t('ribbon.create')}
             </button>
             <button 
-            onClick={() => setActiveTab('project')}
-            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'project' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            onClick={() => setActiveTab('external')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'external' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
-            {t('ribbon.project')}
+            Externe Daten
             </button>
             <button 
-            onClick={() => setActiveTab('tools')}
-            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'tools' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            onClick={() => setActiveTab('deploy')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-green-500 ${activeTab === 'deploy' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
-            {t('ribbon.tools')}
-            </button>
-            <button 
-            onClick={() => setActiveTab('integration')}
-            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-purple-500 ${activeTab === 'integration' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
-            >
-            Integration
-            </button>
-            <button 
-            onClick={() => setActiveTab('backend')}
-            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-green-500 ${activeTab === 'backend' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
-            >
-            {t('ribbon.generator')}
+            Bereitstellung & Generator
             </button>
             
             {/* Context Tabs */}

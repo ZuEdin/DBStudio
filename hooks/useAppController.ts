@@ -16,7 +16,7 @@ export const useAppController = () => {
   const chat = useChatState();
   
   const [currentView, setCurrentView] = useState<ViewType>({ type: 'welcome' });
-  const [activeTab, setActiveTab] = useState('create');
+  const [activeTab, setActiveTab] = useState('home');
   const [activeObject, setActiveObject] = useState<Table | Query | Report | Form | Chart | Workflow | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [savePrompt, setSavePrompt] = useState<{show: boolean, targetView?: ViewType}>({show: false});

@@ -1,12 +1,11 @@
-
 import React from 'react';
-import { Settings, Play, Download, AppWindow } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
 
-interface BackendTabProps {
+interface DeployTabProps {
   onAction: (action: string) => void;
   backendConfig: BackendConfig;
   setBackendConfig: (config: BackendConfig) => void;
@@ -18,18 +17,17 @@ const getDefaultPort = (framework: FrontendFramework): number => {
         case 'angular': return 4200;
         case 'vue': return 5173;
         case 'blazor': return 5002;
-        default: return 3000; // react, electron, none
+        default: return 3000;
     }
 };
 
-export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig, setBackendConfig, onOpenSettings }) => {
+export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, setBackendConfig, onOpenSettings }) => {
   const { t } = useTranslation();
   return (
     <div className="flex gap-4 items-start h-full">
         {/* Settings Group */}
         <div className="flex flex-col px-2 border-r border-slate-300 pr-4 h-full justify-between py-1">
            <div className="flex gap-2">
-             {/* 1. Database (Foundation) */}
              <div className="w-24">
                 <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Datenbank</label>
                 <select 
@@ -44,7 +42,6 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                 </select>
              </div>
 
-             {/* 2. Backend (Logic) */}
              <div className="w-24">
                 <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Backend</label>
                 <select 
@@ -60,7 +57,6 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                                 target: 'electron'
                             };
                         } else if (backendConfig.language === 'electron') {
-                            // Swapped away from Electron backend, reset frontend from electron to react
                             updatedConfig.frontendFramework = 'react';
                             if (backendConfig.deploymentConfig?.target === 'electron') {
                                 updatedConfig.deploymentConfig = {
@@ -80,7 +76,6 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                 </select>
              </div>
 
-             {/* 2.1 .NET Version Selector (Conditional) */}
              {backendConfig.language === 'dotnet' && (
                  <div className="w-16 animate-in fade-in slide-in-from-left-1">
                     <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Version</label>
@@ -98,9 +93,8 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                  </div>
              )}
 
-             {/* 3. Frontend (UI) */}
              <div className="w-24">
-                <label className="block text--[10px] text-slate-500 font-bold mb-0.5">Frontend</label>
+                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Frontend</label>
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
                     value={backendConfig.frontendFramework}
@@ -118,7 +112,6 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                                 target: 'electron'
                             };
                         } else if (backendConfig.frontendFramework === 'electron') {
-                            // Swapped away from Electron frontend, reset language to nodejs
                             updatedConfig.language = 'nodejs';
                             if (backendConfig.deploymentConfig?.target === 'electron') {
                                 updatedConfig.deploymentConfig = {
@@ -139,7 +132,6 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                 </select>
              </div>
 
-             {/* 4. Ports */}
              <div className="w-20 flex flex-col gap-1">
                 <div className="flex gap-1 items-center">
                     <label className="text-[9px] text-slate-500 font-bold w-6">API:</label>
@@ -180,17 +172,37 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                     </button>
                )}
            </div>
-           <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">{t('ribbon.groups.settings')}</span>
+           <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">Generator Settings</span>
         </div>
 
-        {/* Actions Group */}
-        <RibbonGroup label={t('ribbon.groups.actions')}>
-            <RibbonButton icon={<Play className="text-green-600"/>} label={t('ribbon.actions.generate')} onClick={() => onAction('backend_generate')} size="large" />
+        {/* Extensions Group */}
+        <RibbonGroup label="Extensions">
+            <RibbonButton 
+                icon={<CircuitBoard className="text-purple-600" />} 
+                label="Integrations Hub" 
+                onClick={() => onAction('open_integrations')} 
+                size="large"
+            />
+            <div className="flex flex-col gap-1">
+                <button onClick={() => onAction('open_integrations')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-2 text-slate-600">
+                    <CloudLightning size={12}/> AI & LLM
+                </button>
+                <button onClick={() => onAction('open_integrations')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-2 text-slate-600">
+                    <Radio size={12}/> Chat / Realtime
+                </button>
+            </div>
         </RibbonGroup>
-        
-        {/* Source Download Group */}
-        <RibbonGroup label={t('ribbon.groups.export')} isLast>
-            <RibbonButton icon={<Download />} label={t('ribbon.actions.download_zip')} onClick={() => onAction('backend_export')} />
+
+        {/* Cloud Group */}
+        <RibbonGroup label="Cloud & DevOps">
+            <RibbonButton icon={<Server className="text-teal-600" />} label="Umgebungen" onClick={() => onAction('open_envs')} />
+            <RibbonButton icon={<UploadCloud className="text-indigo-600" />} label="Deployment" onClick={() => onAction('open_deployment_modal')} />
+        </RibbonGroup>
+
+        {/* Export Group */}
+        <RibbonGroup label="Export" isLast>
+            <RibbonButton icon={<Play className="text-green-600"/>} label="Live-Preview" onClick={() => onAction('backend_generate')} />
+            <RibbonButton icon={<Download className="text-slate-600"/>} label="App als ZIP" onClick={() => onAction('backend_export')} />
         </RibbonGroup>
     </div>
   );

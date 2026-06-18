@@ -1,29 +1,25 @@
-
 import React from 'react';
-import { Network, FileSpreadsheet, Database, Wand2 } from 'lucide-react';
+import { FileSpreadsheet, Database, Globe, Share2 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
 
-interface ToolsTabProps {
+interface ExternalDataTabProps {
   onAction: (action: string) => void;
 }
 
-export const ToolsTab: React.FC<ToolsTabProps> = ({ onAction }) => {
+export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) => {
   const { t } = useTranslation();
   return (
     <div className="flex gap-4 h-full">
-      <RibbonGroup label={t('ribbon.groups.database')}>
-        <RibbonButton icon={<Network />} label={t('ribbon.actions.relationships')} onClick={() => onAction('relationships')} size="large" />
-      </RibbonGroup>
-      
-      <RibbonGroup label="Import & Migration">
+      <RibbonGroup label="Lokaler Import">
         <RibbonButton icon={<FileSpreadsheet className="text-green-600" />} label="Excel Import" onClick={() => onAction('import_excel')} />
         <RibbonButton icon={<Database className="text-red-700" />} label="Access (XML)" onClick={() => onAction('import_access')} />
       </RibbonGroup>
 
-      <RibbonGroup label="Testing" isLast>
-        <RibbonButton icon={<Wand2 className="text-purple-600" />} label="Testdaten" onClick={() => onAction('generate_dummy')} />
+      <RibbonGroup label="Cloud & APIs" isLast>
+        <RibbonButton icon={<Globe className="text-blue-600" />} label="API Import" onClick={() => onAction('api_import')} />
+        <RibbonButton icon={<Share2 className="text-teal-600" />} label="SharePoint" onClick={() => onAction('sharepoint_import')} />
       </RibbonGroup>
     </div>
   );
