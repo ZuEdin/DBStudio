@@ -51,13 +51,11 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         const lang = e.target.value as any;
                         const updatedConfig = { ...backendConfig, language: lang };
                         if (lang === 'electron') {
-                            updatedConfig.frontendFramework = 'electron';
                             updatedConfig.deploymentConfig = {
                                 ...(backendConfig.deploymentConfig || { target: 'electron' }),
                                 target: 'electron'
                             };
                         } else if (backendConfig.language === 'electron') {
-                            updatedConfig.frontendFramework = 'react';
                             if (backendConfig.deploymentConfig?.target === 'electron') {
                                 updatedConfig.deploymentConfig = {
                                     ...backendConfig.deploymentConfig,
@@ -105,21 +103,6 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                             frontendFramework: fw,
                             frontendPort: getDefaultPort(fw)
                         };
-                        if (fw === 'electron') {
-                            updatedConfig.language = 'electron';
-                            updatedConfig.deploymentConfig = {
-                                ...(backendConfig.deploymentConfig || { target: 'electron' }),
-                                target: 'electron'
-                            };
-                        } else if (backendConfig.frontendFramework === 'electron') {
-                            updatedConfig.language = 'nodejs';
-                            if (backendConfig.deploymentConfig?.target === 'electron') {
-                                updatedConfig.deploymentConfig = {
-                                    ...backendConfig.deploymentConfig,
-                                    target: 'docker'
-                                };
-                            }
-                        }
                         setBackendConfig(updatedConfig);
                     }}
                 >
@@ -127,7 +110,6 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                     <option value="vue">Vue.js</option>
                     <option value="angular">Angular</option>
                     <option value="blazor">Blazor (WASM)</option>
-                    <option value="electron">Electron</option>
                     <option value="none">Keins (Nur API)</option>
                 </select>
              </div>

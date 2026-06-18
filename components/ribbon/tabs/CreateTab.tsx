@@ -11,6 +11,7 @@ interface CreateTabProps {
 
 export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
   const [showWizardDropdown, setShowWizardDropdown] = useState(false);
+  const [showFormWizardDropdown, setShowFormWizardDropdown] = useState(false);
   const [showActionQueryDropdown, setShowActionQueryDropdown] = useState(false);
   const { t } = useTranslation();
 
@@ -52,6 +53,16 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
       {/* Forms Group */}
       <RibbonGroup label={t('ribbon.groups.forms')}>
         <RibbonButton icon={<Layout />} label={t('ribbon.actions.form')} onClick={() => onAction('create_form')} />
+        <div className="relative" onMouseLeave={() => setShowFormWizardDropdown(false)}>
+             <RibbonButton icon={<Wand2 className="text-indigo-600" />} label="Security Forms" onClick={() => setShowFormWizardDropdown(p => !p)} />
+             {showFormWizardDropdown && (
+             <div className="absolute top-full left-0 bg-white shadow-lg border border-slate-200 rounded z-50 text-sm w-48 mt-1">
+                 <button onClick={() => { onAction('create_login_form'); setShowFormWizardDropdown(false); }} className="flex items-center gap-2 w-full p-2 py-2 hover:bg-slate-50 text-left text-slate-700">Login Formular</button>
+                 <button onClick={() => { onAction('create_usermgmt_form'); setShowFormWizardDropdown(false); }} className="flex items-center gap-2 w-full p-2 py-2 hover:bg-slate-50 text-left text-slate-700 border-t border-slate-100">User Management</button>
+                 <button onClick={() => { onAction('create_register_form'); setShowFormWizardDropdown(false); }} className="flex items-center gap-2 w-full p-2 py-2 hover:bg-slate-50 text-left text-slate-700 border-t border-slate-100">Registrierung</button>
+             </div>
+             )}
+         </div>
       </RibbonGroup>
 
       {/* Reports Group */}

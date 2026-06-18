@@ -385,6 +385,90 @@ export const useAppController = () => {
         case 'wizard_delete': ui.setActiveWizard('delete'); break;
         case 'create_report': ui.setShowReportWizard(true); break;
         case 'create_form': ui.setShowFormWizard(true); break;
+        
+        case 'create_login_form': {
+             const loginForm: Form = {
+                id: 'sys_login_' + Date.now(),
+                name: 'Login',
+                sourceId: '',
+                sourceType: 'table',
+                mode: 'edit',
+                layout: {
+                   id: crypto.randomUUID(), type: 'container', className: 'p-8 max-w-sm mx-auto bg-white rounded-xl shadow-md border border-slate-200 mt-10', children: [
+                       { id: crypto.randomUUID(), type: 'label', label: 'Willkommen', className: 'text-xl font-bold text-center text-slate-800 mb-2' },
+                       { id: crypto.randomUUID(), type: 'label', label: 'Bitte loggen Sie sich ein, um fortzufahren.', className: 'text-sm text-center text-slate-500 mb-6 font-normal' },
+                       { id: crypto.randomUUID(), type: 'field', fieldId: 'username_field', label: 'E-Mail', className: 'mb-4', widgetType: 'text' },
+                       { id: crypto.randomUUID(), type: 'field', fieldId: 'password_field', label: 'Passwort', className: 'mb-6', widgetType: 'text' },
+                       { id: crypto.randomUUID(), type: 'button', label: 'Anmelden', className: 'w-full bg-blue-600 hover:bg-blue-700 focus:ring focus:ring-blue-300 text-white font-bold py-2.5 px-4 rounded-lg transition-colors', actions: [] },
+                       { id: crypto.randomUUID(), type: 'label', label: 'Passwort vergessen?', className: 'text-sm text-center text-blue-600 mt-4 cursor-pointer hover:underline font-medium' }
+                   ]
+                }
+             };
+             store.setForms([...store.forms, loginForm]);
+             setActiveObject(loginForm);
+             setCurrentView({ type: 'form_designer', formId: loginForm.id });
+             setIsDirty(true);
+             break;
+        }
+
+        case 'create_usermgmt_form': {
+             const usrForm: Form = {
+                id: 'sys_usr_' + Date.now(),
+                name: 'Benutzerverwaltung',
+                sourceId: store.tables.find(t => t.name.includes('user'))?.id || '',
+                sourceType: 'table',
+                mode: 'edit',
+                layout: {
+                   id: crypto.randomUUID(), type: 'container', className: 'p-6 max-w-4xl max-h-full mx-auto bg-white rounded-xl shadow border border-slate-200 mt-4', children: [
+                       { id: crypto.randomUUID(), type: 'label', label: 'Benutzer & Rechte verwalten', className: 'text-2xl font-bold mb-4 text-slate-800' },
+                       { id: crypto.randomUUID(), type: 'container', className: 'grid grid-cols-2 gap-6', children: [
+                           { id: crypto.randomUUID(), type: 'container', className: '', children: [
+                                { id: crypto.randomUUID(), type: 'field', fieldId: 'new_usr_email', label: 'E-Mail', className: 'mb-4', widgetType: 'text' },
+                                { id: crypto.randomUUID(), type: 'field', fieldId: 'new_usr_role', label: 'Rolle zuweisen', className: 'mb-4', widgetType: 'select' },
+                                { id: crypto.randomUUID(), type: 'field', fieldId: 'new_usr_active', label: 'Aktiv', className: 'mb-6', widgetType: 'checkbox' },
+                                { id: crypto.randomUUID(), type: 'button', label: 'Benutzer speichern', className: 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded', actions: [] }
+                           ]},
+                           { id: crypto.randomUUID(), type: 'container', className: 'bg-slate-50 p-4 border rounded border-slate-200', children: [
+                                { id: crypto.randomUUID(), type: 'label', label: 'Sicherheits-Informationen', className: 'font-semibold mb-2' },
+                                { id: crypto.randomUUID(), type: 'label', label: 'Hier können Sie Administratoren und Standardbenutzer festlegen. Logins werden über die zentrale IAM-Policy geregelt.', className: 'text-sm text-slate-600' }
+                           ]}
+                       ]}
+                   ]
+                }
+             };
+             store.setForms([...store.forms, usrForm]);
+             setActiveObject(usrForm);
+             setCurrentView({ type: 'form_designer', formId: usrForm.id });
+             setIsDirty(true);
+             break;
+        }
+
+        case 'create_register_form': {
+             const regForm: Form = {
+                id: 'sys_reg_' + Date.now(),
+                name: 'Registrierung',
+                sourceId: '',
+                sourceType: 'table',
+                mode: 'edit',
+                layout: {
+                   id: crypto.randomUUID(), type: 'container', className: 'p-8 max-w-md mx-auto bg-white rounded-xl shadow-md border border-slate-200 mt-10', children: [
+                       { id: crypto.randomUUID(), type: 'label', label: 'Account erstellen', className: 'text-xl font-bold text-center text-slate-800 mb-6' },
+                       { id: crypto.randomUUID(), type: 'field', fieldId: 'reg_name', label: 'Vollständiger Name', className: 'mb-4', widgetType: 'text' },
+                       { id: crypto.randomUUID(), type: 'field', fieldId: 'reg_email', label: 'E-Mail Adresse', className: 'mb-4', widgetType: 'text' },
+                       { id: crypto.randomUUID(), type: 'field', fieldId: 'reg_pass', label: 'Passwort', className: 'mb-4', widgetType: 'text' },
+                       { id: crypto.randomUUID(), type: 'field', fieldId: 'reg_pass2', label: 'Passwort bestätigen', className: 'mb-6', widgetType: 'text' },
+                       { id: crypto.randomUUID(), type: 'button', label: 'Jetzt Registrieren', className: 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg', actions: [] },
+                       { id: crypto.randomUUID(), type: 'label', label: 'Bereits ein Account? Zurück zum Login.', className: 'text-sm text-center text-slate-500 mt-4 cursor-pointer hover:underline font-medium' }
+                   ]
+                }
+             };
+             store.setForms([...store.forms, regForm]);
+             setActiveObject(regForm);
+             setCurrentView({ type: 'form_designer', formId: regForm.id });
+             setIsDirty(true);
+             break;
+        }
+
         case 'create_chart': /* ... */ break;
         case 'create_workflow': /* ... */ break;
         

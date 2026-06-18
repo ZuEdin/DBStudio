@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Form, Table, FormElement, Relationship } from '../../types/index';
-import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus } from 'lucide-react';
+import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
@@ -316,16 +316,32 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       
       if (el.type === 'field') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} bg-white p-2 pl-6 rounded border border-slate-200 group shadow-sm`} {...commonProps}>
+              <div key={el.id} className={`${baseClass} ${el.className} bg-white p-3 pr-4 pl-8 rounded-lg border border-slate-200 group shadow-sm hover:shadow transition-shadow`} {...commonProps}>
                   <GripHandle />
-                  <label className="block text-sm font-semibold text-slate-600 mb-1 pointer-events-none">{el.label}</label>
-                  <div className="flex gap-2">
-                    <div className="h-8 bg-slate-50 border border-slate-200 rounded w-full flex items-center px-2 text-xs text-slate-400 pointer-events-none">
-                        {el.widgetType === 'select' ? 'Dropdown' : (el.widgetType || 'Text Input')}
-                    </div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5 pointer-events-none">{el.label}</label>
+                  <div className="flex gap-2 relative pointer-events-none">
+                    {el.widgetType === 'select' ? (
+                         <div className="w-full relative pointer-events-none">
+                             <select className="w-full appearance-none bg-white border border-slate-300 text-slate-600 text-sm rounded px-3 py-2 shadow-sm pointer-events-none" disabled>
+                                 <option>Auswählen...</option>
+                             </select>
+                             <div className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                <ChevronDown size={14} />
+                             </div>
+                         </div>
+                    ) : el.widgetType === 'textarea' ? (
+                         <textarea className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none min-h-[80px]" placeholder="Text eingeben..." readOnly />
+                    ) : el.widgetType === 'checkbox' ? (
+                         <div className="flex items-center gap-2 pointer-events-none py-1.5">
+                             <input type="checkbox" className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" readOnly />
+                             <span className="text-sm text-slate-600">Aktivieren</span>
+                         </div>
+                    ) : (
+                         <input type="text" className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none" placeholder="Eingabe..." readOnly />
+                    )}
                     {el.widgetType === 'select' && el.lookup?.allowQuickCreate && (
-                        <div className="h-8 w-8 bg-emerald-100 border border-emerald-300 rounded flex items-center justify-center text-emerald-700 shadow-sm" title="Quick Create aktiv">
-                            <Plus size={16} strokeWidth={3} />
+                        <div className="h-9 w-9 shrink-0 bg-emerald-50 border border-emerald-200 rounded flex items-center justify-center text-emerald-600 shadow-sm pointer-events-none" title="Quick Create aktiv">
+                            <Plus size={16} strokeWidth={2.5} />
                         </div>
                     )}
                   </div>
@@ -335,7 +351,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       
       if (el.type === 'label') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} pl-6 group`} {...commonProps}>
+              <div key={el.id} className={`${baseClass} ${el.className} pl-8 py-2 group`} {...commonProps}>
                   <GripHandle />
                   {el.label}
               </div>
@@ -344,13 +360,13 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
       if (el.type === 'button') {
           return (
-              <div key={el.id} className={`${baseClass} pl-6 group inline-block mr-2`} {...commonProps}>
+              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2`} {...commonProps}>
                   <GripHandle />
-                  <button className={`${el.className} pointer-events-none opacity-80 min-w-[100px]`}>
+                  <button className={`${el.className} pointer-events-none opacity-90 shadow-sm transition-all focus:ring`}>
                       {el.label || 'Button'}
                   </button>
                   {el.actions && el.actions.length > 0 && (
-                      <div className="absolute -top-2 -right-2 bg-purple-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
+                      <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow border border-white">
                           {el.actions.length}
                       </div>
                   )}
