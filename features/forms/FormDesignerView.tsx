@@ -20,6 +20,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   const [linkingSubform, setLinkingSubform] = useState<Form | null>(null);
   const [showLookupModal, setShowLookupModal] = useState(false);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'layout' | 'validation'>('layout');
   
   const mainFormTable = allTables.find(t => t.id === form.sourceId);
 
@@ -105,6 +106,9 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
         if (actionTrigger.action === 'form_add_label') {
             newEl.type = 'label'; newEl.label = 'Neues Label'; newEl.className = 'font-bold text-lg mb-2';
+        } else if (actionTrigger.action === 'form_add_button') {
+            newEl.type = 'button'; newEl.label = 'Aktion ausführen'; newEl.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded';
+            newEl.actions = [];
         } else if (actionTrigger.action === 'form_add_container') {
             newEl.type = 'container'; newEl.className = 'p-4 border border-dashed border-slate-300 rounded bg-slate-50 min-h-[60px]';
         } else if (actionTrigger.action === 'form_add_2col') {
@@ -338,6 +342,22 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
           );
       }
 
+      if (el.type === 'button') {
+          return (
+              <div key={el.id} className={`${baseClass} pl-6 group inline-block mr-2`} {...commonProps}>
+                  <GripHandle />
+                  <button className={`${el.className} pointer-events-none opacity-80 min-w-[100px]`}>
+                      {el.label || 'Button'}
+                  </button>
+                  {el.actions && el.actions.length > 0 && (
+                      <div className="absolute -top-2 -right-2 bg-purple-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
+                          {el.actions.length}
+                      </div>
+                  )}
+              </div>
+          );
+      }
+
       if (el.type === 'subform') {
           return (
               <div key={el.id} className={`${baseClass} ${el.className} p-4 pl-6 group`} {...commonProps}>
@@ -372,15 +392,155 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
          <div className="max-w-4xl mx-auto">
             <div className="bg-white min-h-[600px] shadow-lg rounded-lg overflow-hidden flex flex-col border border-slate-300">
                 <div className="p-4 bg-slate-800 text-white font-bold flex justify-between items-center shrink-0">
-                    <span>{form.name}</span>
+                    <div className="flex gap-4 items-center">
+                        <span>{form.name}</span>
+                        <div className="flex bg-black/20 rounded p-1">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setActiveTab('layout'); }} 
+                                className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'layout' ? 'bg-white text-slate-900 font-bold' : 'text-white/70 hover:text-white'}`}
+                            >
+                                Layout
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setActiveTab('validation'); }} 
+                                className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${activeTab === 'validation' ? 'bg-white text-slate-900 font-bold' : 'text-white/70 hover:text-white'}`}
+                            >
+                                <Monitor size={14}/> UX & Logik
+                            </button>
+                        </div>
+                    </div>
                     <div className="flex gap-2">
-                        <button onClick={() => onFormChange({...form, mode: form.mode === 'edit' ? 'readonly' : 'edit'})} className="text-xs bg-slate-700 px-2 py-1 rounded">
+                        <button onClick={(e) => { e.stopPropagation(); onFormChange({...form, mode: form.mode === 'edit' ? 'readonly' : 'edit'}); }} className="text-xs bg-slate-700 px-2 py-1 rounded">
                             {form.mode === 'edit' ? 'Modus: Bearbeiten' : 'Modus: Lesen'}
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 p-6 relative">
-                    {form.layout ? renderElement(form.layout) : <div className="text-slate-400 text-center mt-20">Kein Layout.</div>}
+                <div className="flex-1 overflow-auto relative">
+                    {activeTab === 'layout' ? (
+                        <div className="p-6">
+                            {form.layout ? renderElement(form.layout) : <div className="text-slate-400 text-center mt-20">Kein Layout.</div>}
+                        </div>
+                    ) : (
+                        <div className="p-6 animate-in fade-in space-y-6">
+                            <div className="bg-slate-100 p-4 border border-slate-200 rounded-lg">
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-2"><Type size={18} /> Cross-Field Validation</h3>
+                                <p className="text-xs text-slate-600 mb-4">Spezifische Sichtbarkeits- und Pflichtfeld-Regeln für das User Interface.</p>
+                                
+                                <div className="space-y-2">
+                                    {(form.crossFieldValidations || []).map((rule, idx) => (
+                                        <div key={rule.id} className="flex flex-wrap gap-2 sm:gap-3 items-center bg-white border border-slate-200 rounded p-3 text-sm shadow-sm">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-semibold text-slate-700">Wenn</span>
+                                                <select 
+                                                     className="border rounded p-1.5 bg-slate-50 text-xs font-bold text-blue-600 max-w-[150px]"
+                                                     value={rule.triggerFieldId}
+                                                     onChange={e => {
+                                                         const updated = [...(form.crossFieldValidations || [])];
+                                                         updated[idx].triggerFieldId = e.target.value;
+                                                         onFormChange({...form, crossFieldValidations: updated});
+                                                     }}
+                                                 >
+                                                    {mainFormTable?.fields.map(f => (
+                                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                                    ))}
+                                                 </select>
+                                                <select 
+                                                    className="border rounded p-1.5 bg-slate-50 text-xs"
+                                                    value={rule.condition}
+                                                    onChange={e => {
+                                                        const updated = [...(form.crossFieldValidations || [])];
+                                                        updated[idx].condition = e.target.value as any;
+                                                        onFormChange({...form, crossFieldValidations: updated});
+                                                    }}
+                                                >
+                                                    <option value="equals">=(gleich)</option>
+                                                    <option value="not_equals">!=(ungleich)</option>
+                                                    <option value="greater_than">&gt;(größer als)</option>
+                                                    <option value="less_than">&lt;(kleiner als)</option>
+                                                    <option value="not_empty">ist gefüllt</option>
+                                                    <option value="is_empty">ist leer</option>
+                                                    <option value="is_true">ist angehakt</option>
+                                                    <option value="is_false">ist nicht angehakt</option>
+                                                </select>
+                                                {(rule.condition === 'equals' || rule.condition === 'not_equals' || rule.condition === 'greater_than' || rule.condition === 'less_than') && (
+                                                    <input 
+                                                        type="text" 
+                                                        className="border rounded p-1.5 w-24 text-xs" 
+                                                        placeholder="Wert..."
+                                                        value={rule.triggerValue || ''}
+                                                        onChange={e => {
+                                                            const updated = [...(form.crossFieldValidations || [])];
+                                                            updated[idx].triggerValue = e.target.value;
+                                                            onFormChange({...form, crossFieldValidations: updated});
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
+                                            
+                                            <span className="text-slate-400 font-bold hidden sm:inline">»</span>
+                                            
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-semibold text-slate-700">dann mache</span>
+                                                <select 
+                                                     className="border rounded p-1.5 bg-slate-50 text-xs font-bold text-indigo-600 max-w-[150px]"
+                                                     value={rule.targetFieldId}
+                                                     onChange={e => {
+                                                         const updated = [...(form.crossFieldValidations || [])];
+                                                         updated[idx].targetFieldId = e.target.value;
+                                                         onFormChange({...form, crossFieldValidations: updated});
+                                                     }}
+                                                 >
+                                                    {mainFormTable?.fields.map(f => (
+                                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                                    ))}
+                                                 </select>
+                                                <select 
+                                                    className="border rounded p-1.5 bg-slate-50 text-xs"
+                                                    value={rule.action}
+                                                    onChange={e => {
+                                                        const updated = [...(form.crossFieldValidations || [])];
+                                                        updated[idx].action = e.target.value as any;
+                                                        onFormChange({...form, crossFieldValidations: updated});
+                                                    }}
+                                                >
+                                                    <option value="require">zum Pflichtfeld</option>
+                                                    <option value="hide">unsichtbar</option>
+                                                    <option value="disable">gesperrt (readonly)</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <button 
+                                                className="text-red-500 hover:bg-red-50 p-1.5 rounded ml-auto text-xs font-bold shrink-0 self-start sm:self-auto"
+                                                onClick={() => {
+                                                    const updated = (form.crossFieldValidations || []).filter(r => r.id !== rule.id);
+                                                    onFormChange({...form, crossFieldValidations: updated});
+                                                }}
+                                            >
+                                                Löschen
+                                            </button>
+                                        </div>
+                                    ))}
+
+                                    <button 
+                                        className="mt-4 flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-bold"
+                                        onClick={() => {
+                                            const newRule = {
+                                                id: crypto.randomUUID(),
+                                                triggerFieldId: mainFormTable?.fields[0]?.id || '',
+                                                condition: 'equals' as const,
+                                                triggerValue: '',
+                                                targetFieldId: mainFormTable?.fields[1]?.id || '',
+                                                action: 'require' as const
+                                            };
+                                            onFormChange({...form, crossFieldValidations: [...(form.crossFieldValidations || []), newRule]});
+                                        }}
+                                    >
+                                        <Plus size={16}/> Neue UX Regel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
          </div>

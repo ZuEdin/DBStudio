@@ -150,6 +150,112 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                </div>
             )}
 
+            {selectedElement.type === 'button' && (
+                <div className="border border-purple-200 bg-purple-50 rounded p-2 text-xs space-y-2">
+                    <div className="font-bold text-purple-800 mb-2">Actions (Flows)</div>
+                    {(selectedElement.actions || []).map((action, actionIdx) => (
+                        <div key={action.id} className="bg-white border rounded p-2 mb-2 shadow-sm space-y-2">
+                            <select 
+                                value={action.trigger}
+                                onChange={e => {
+                                    const newActions = [...(selectedElement.actions || [])];
+                                    newActions[actionIdx].trigger = e.target.value as any;
+                                    onPropertyChange('actions', newActions);
+                                }}
+                                className="w-full border rounded p-1 mb-1 font-bold"
+                            >
+                                <option value="OnClick">Bei Klick (OnClick)</option>
+                                <option value="OnChange">Bei Änderung (OnChange)</option>
+                                <option value="OnPageLoad">Beim Laden (OnPageLoad)</option>
+                            </select>
+                            
+                            <select 
+                                value={action.actionType}
+                                onChange={e => {
+                                    const newActions = [...(selectedElement.actions || [])];
+                                    newActions[actionIdx].actionType = e.target.value as any;
+                                    onPropertyChange('actions', newActions);
+                                }}
+                                className="w-full border rounded p-1"
+                            >
+                                <option value="ShowToast">Toast anzeigen</option>
+                                <option value="OpenModal">Modal / Formular öffnen</option>
+                                <option value="Navigate">Navigieren zu Route</option>
+                                <option value="ExecuteAPI">API Call ausführen</option>
+                                <option value="SetState">Global State setzen</option>
+                            </select>
+
+                            {action.actionType === 'ShowToast' && (
+                                <div className="space-y-1">
+                                    <input type="text" placeholder="Nachricht..." value={action.toastMessage || ''} onChange={e => {
+                                        const newActions = [...(selectedElement.actions || [])];
+                                        newActions[actionIdx].toastMessage = e.target.value;
+                                        onPropertyChange('actions', newActions);
+                                    }} className="w-full border p-1 rounded" />
+                                    <select value={action.toastType || 'success'} onChange={e => {
+                                        const newActions = [...(selectedElement.actions || [])];
+                                        newActions[actionIdx].toastType = e.target.value as any;
+                                        onPropertyChange('actions', newActions);
+                                    }} className="w-full border p-1 rounded">
+                                        <option value="success">Erfolg (Grün)</option>
+                                        <option value="error">Fehler (Rot)</option>
+                                        <option value="info">Info (Blau)</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            {action.actionType === 'OpenModal' && (
+                                <select value={action.modalId || ''} onChange={e => {
+                                        const newActions = [...(selectedElement.actions || [])];
+                                        newActions[actionIdx].modalId = e.target.value;
+                                        onPropertyChange('actions', newActions);
+                                    }} className="w-full border p-1 rounded">
+                                    <option value="">Formular wählen...</option>
+                                    {allForms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                            )}
+
+                            {action.actionType === 'Navigate' && (
+                                <input type="text" placeholder="/route/path" value={action.routeUrl || ''} onChange={e => {
+                                    const newActions = [...(selectedElement.actions || [])];
+                                    newActions[actionIdx].routeUrl = e.target.value;
+                                    onPropertyChange('actions', newActions);
+                                }} className="w-full border p-1 rounded" />
+                            )}
+                            
+                            {action.actionType === 'SetState' && (
+                                <div className="flex gap-1">
+                                    <input type="text" placeholder="State ID" value={action.stateVariableId || ''} onChange={e => {
+                                        const newActions = [...(selectedElement.actions || [])];
+                                        newActions[actionIdx].stateVariableId = e.target.value;
+                                        onPropertyChange('actions', newActions);
+                                    }} className="w-1/2 border p-1 rounded" />
+                                    <input type="text" placeholder="Wert" value={action.stateValue || ''} onChange={e => {
+                                        const newActions = [...(selectedElement.actions || [])];
+                                        newActions[actionIdx].stateValue = e.target.value;
+                                        onPropertyChange('actions', newActions);
+                                    }} className="w-1/2 border p-1 rounded" />
+                                </div>
+                            )}
+
+                            <button onClick={() => {
+                                const newActions = (selectedElement.actions || []).filter(a => a.id !== action.id);
+                                onPropertyChange('actions', newActions);
+                            }} className="text-red-500 hover:underline w-full text-center">Entfernen</button>
+                        </div>
+                    ))}
+                    <button 
+                        onClick={() => {
+                            const newActions = [...(selectedElement.actions || []), { id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'ShowToast' }];
+                            onPropertyChange('actions', newActions);
+                        }}
+                        className="text-purple-600 bg-purple-100 hover:bg-purple-200 w-full rounded py-1 font-bold"
+                    >
+                        + Action Hinzufügen
+                    </button>
+                </div>
+            )}
+
             <div>
               <label className="block font-bold text-slate-700 mb-1">CSS Klassen (Tailwind)</label>
               <textarea 

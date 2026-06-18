@@ -17,6 +17,11 @@ export const generateReactPages = (tables: Table[], forms: Form[], reports: Repo
       const createLink = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/new` : `/${camelName}/new`;
       const editLinkPrefix = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/` : `/${camelName}/`;
 
+      const fmtRules = (table.conditionalFormatting || []).map(r => {
+          const f = table.fields.find(fi => fi.id === r.fieldId);
+          return { ...r, propName: f ? toCamelCase(f.name) : '' };
+      });
+
       const content = `import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ${pascalName} } from '../../types';
@@ -28,6 +33,7 @@ export const ${listName} = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  ${table.enableMassUpdates ? `const [selectedIds, setSelectedIds] = useState<string[]>([]);` : ''}
 
   useEffect(() => { setPage(1); }, [searchTerm]);
   useEffect(() => { loadItems(); }, [searchTerm, page]);
@@ -44,11 +50,44 @@ export const ${listName} = () => {
     if (confirm('Löschen?')) { await remove(\`${camelName}/\${id}\`); loadItems(); }
   };
 
+  const getRowStyle = (item: any) => {
+      const rules = ${JSON.stringify(fmtRules)};
+      for(const r of rules) {
+          if(!r.propName) continue;
+          const val = String(item[r.propName]);
+          if(r.operator === 'eq' && val === r.value) return r.style;
+          if(r.operator === 'neq' && val !== r.value) return r.style;
+          if(r.operator === 'contains' && val.includes(r.value)) return r.style;
+          if(r.operator === 'gt' && Number(val) > Number(r.value)) return r.style;
+          if(r.operator === 'lt' && Number(val) < Number(r.value)) return r.style;
+      }
+      return {};
+  };
+
+  ${table.enableMassUpdates ? `
+  const handleMassDelete = async () => {
+      if(selectedIds.length === 0) return;
+      if(confirm(\`Wirklich \${selectedIds.length} Einträge löschen?\`)) {
+          // Fallback to multiple requests for generator demo
+          for(const id of selectedIds) {
+              await remove(\`${camelName}/\${id}\`);
+          }
+          setSelectedIds([]);
+          loadItems();
+      }
+  };` : ''}
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
           <h1 className="text-3xl font-bold dark:text-white flex items-center gap-2">${table.name}</h1>
           <div className="flex gap-4 w-full sm:w-auto">
+              ${table.enableMassUpdates ? `
+              {selectedIds.length > 0 && (
+                  <button onClick={handleMassDelete} className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-700 transition">
+                      <Trash2 size={18}/> <span>{selectedIds.length} löschen</span>
+                  </button>
+              )}` : ''}
               <div className="relative flex-1 sm:flex-initial">
                   <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
                   <input 
@@ -70,14 +109,31 @@ export const ${listName} = () => {
             <table className="w-full text-left">
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-700 text-slate-500 uppercase text-xs font-semibold">
                     <tr>
+                        ${table.enableMassUpdates ? `<th className="p-4 w-12"><input type="checkbox" onChange={(e) => { const ids = e.target.checked ? data.data.map(i => i.${pk}) : []; setSelectedIds(ids); }} /></th>` : ''}
                         ${table.fields.map(f => `<th className="p-4">${f.name}</th>`).join('')}
                         <th className="p-4 text-right">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                     {data.data.length > 0 ? data.data.map(i => (
-                        <tr key={i.${pk}} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                            ${table.fields.map(f => `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(i.${toCamelCase(f.name)} ?? '')}</td>`).join('')}
+                        <tr key={i.${pk}} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" style={getRowStyle(i)}>
+                            ${table.enableMassUpdates ? `<td className="p-4"><input type="checkbox" checked={selectedIds.includes(i.${pk} as string)} onChange={(e) => { if(e.target.checked) setSelectedIds([...selectedIds, i.${pk} as string]); else setSelectedIds(selectedIds.filter(id => id !== i.${pk})); }} /></td>` : ''}
+                            ${table.fields.map(f => {
+                                const val = `i.${toCamelCase(f.name)}`;
+                                if (f.rendererType === 'progress') {
+                                    return `<td className="p-4"><div className="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-700"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: \`\${Math.min(100, Math.max(0, Number(${val}))) }%\` }}></div></div></td>`;
+                                }
+                                if (f.rendererType === 'status_pill') {
+                                    return `<td className="p-4 text-sm"><span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">{String(${val} ?? '')}</span></td>`;
+                                }
+                                if (f.rendererType === 'avatar') {
+                                    return `<td className="p-4 text-sm flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">{String(${val} ?? '-').charAt(0).toUpperCase()}</div><span>{String(${val} ?? '')}</span></td>`;
+                                }
+                                if (f.rendererType === 'currency') {
+                                    return `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 font-mono">€ {Number(${val} || 0).toFixed(2)}</td>`;
+                                }
+                                return `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(${val} ?? '')}</td>`;
+                            }).join('')}
                             <td className="p-4 text-right">
                                 <div className="flex justify-end gap-2">
                                     <Link to={'${editLinkPrefix}' + i.${pk}} className="p-2 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-slate-700"><Edit size={16}/></Link>
@@ -172,6 +228,7 @@ import { get, post, put } from '../../services/api';
 import { Save, ArrowLeft, Loader2, Plus, Layout, User, Search } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { UserPickerModal } from '../../components/UserPickerModal';
+import { useGlobalState } from '../../context/GlobalStateContext';
 
 const SubFormWrapper = ({ children, onSave }: any) => {
     const [subData, setData] = useState<any>({});
@@ -184,7 +241,28 @@ export const ${compName} = () => {
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [modals, setModals] = useState<Record<string, boolean>>({});
+  const { states, setGlobalState, addToast } = useGlobalState() || { states: {}, setGlobalState: () => {}, addToast: () => {} };
   
+  const UXRules = ${JSON.stringify(form.crossFieldValidations || [])};
+
+  // Phase 5: Cross-field rule evaluator
+  const evaluateUXRule = (rule: any, currentData: any) => {
+      const val = currentData[rule.triggerFieldId];
+      if(rule.condition === 'equals') return String(val) === String(rule.triggerValue);
+      if(rule.condition === 'not_equals') return String(val) !== String(rule.triggerValue);
+      if(rule.condition === 'greater_than') return Number(val) > Number(rule.triggerValue);
+      if(rule.condition === 'less_than') return Number(val) < Number(rule.triggerValue);
+      if(rule.condition === 'not_empty') return val !== undefined && val !== null && val !== '';
+      if(rule.condition === 'is_empty') return val === undefined || val === null || val === '';
+      if(rule.condition === 'is_true') return !!val === true;
+      if(rule.condition === 'is_false') return !!val === false;
+      return false;
+  };
+
+  const isFieldRequired = (fieldId: string) => UXRules.some((r: any) => r.targetFieldId === fieldId && r.action === 'require' && evaluateUXRule(r, data));
+  const isFieldHidden = (fieldId: string) => UXRules.some((r: any) => r.targetFieldId === fieldId && r.action === 'hide' && evaluateUXRule(r, data));
+  const isFieldDisabled = (fieldId: string) => UXRules.some((r: any) => r.targetFieldId === fieldId && r.action === 'disable' && evaluateUXRule(r, data));
+
   ${lookups.map(l => `const [${l.variableName}, set${toPascalCase(l.variableName)}] = useState<any[]>([]);`).join('\n  ')}
   ${subformStateDecls}
 

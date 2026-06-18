@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Database, Code, Zap, Layers, ShieldCheck, Rocket, GitBranch, Layout, Server, Database as DbIcon, CheckCircle2, ArrowRight, Lock, Users, Cloud, HardDrive, Terminal, TrendingUp, ClipboardList, Briefcase as BriefcaseIcon, Mail, MapPin, Globe, Cpu } from 'lucide-react';
+import { Database, Code, Zap, Layers, ShieldCheck, Rocket, GitBranch, Layout, Server, Database as DbIcon, CheckCircle2, ArrowRight, Lock, Users, Cloud, HardDrive, Terminal, TrendingUp, ClipboardList, Briefcase as BriefcaseIcon, Mail, MapPin, Globe, Cpu, Monitor, Cpu as CpuIcon, Sparkles } from 'lucide-react';
 
 interface AppInfoViewProps {
     onNavigate: (view: string) => void;
@@ -10,7 +10,7 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
   return (
     <div className="h-full bg-slate-50 overflow-y-auto">
       {/* Hero Section */}
-      <div className="bg-slate-900 text-white pt-20 pb-24 px-8 relative overflow-hidden">
+      <div className="bg-slate-900 text-white pt-24 pb-28 px-8 relative overflow-hidden">
         {/* Background Decoration */}
         <div className="absolute top-0 right-0 opacity-5 pointer-events-none transform translate-x-1/3 -translate-y-1/3">
             <DbIcon size={600} />
@@ -20,27 +20,100 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
         </div>
 
         <div className="max-w-5xl mx-auto relative z-10 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-bold uppercase tracking-wider mb-6">
-                <Zap size={14} className="fill-current" /> Version 2.4 Enterprise
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+                <Sparkles size={12} className="animate-pulse" /> Neuheit: Tauri & Rust Desktop Support
             </div>
+            
             <h1 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight leading-tight">
-                Die Geschwindigkeit von <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500">Access</span>.<br/>
-                Die Power von <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Modern Web</span>.
+                Die Geschwindigkeit von <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 font-black">Access</span>.<br/>
+                Die Power von <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 font-black">Rust & Modern Web</span>.
             </h1>
-            <p className="text-xl text-slate-300 max-w-2xl mb-10 leading-relaxed md:mx-0 mx-auto">
-                DB Studio Pro eliminiert die repetitive Arbeit beim Starten neuer Projekte. 
-                Entwerfen Sie Ihr Datenmodell visuell, definieren Sie Logik und generieren Sie 
-                per Knopfdruck eine vollständige Full-Stack Anwendung – inkl. Source Code.
+            <p className="text-lg md:text-xl text-slate-300 max-w-2xl mb-10 leading-relaxed md:mx-0 mx-auto">
+                **DB Studio Pro (v1.0.0)** ist das weltweit führende visuelle CASE-Tool, das die Brücke zwischen klassischer Desktop-Produktivität und modernsten Cloud-Native Architekturen schlägt. Entwerfen Sie Tabellen, Beziehungen, Formulare und generieren Sie per Knopfdruck vollständige, produktionsreife IaC-Infrastrukturen und Quellcode.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                <button onClick={() => onNavigate('create_table')} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-3 shadow-lg hover:shadow-blue-500/30 transition-all transform hover:-translate-y-1">
-                    <Rocket size={24}/> Jetzt starten
+                <button onClick={() => onNavigate('create_table')} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-3 shadow-lg hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-1 text-sm md:text-base">
+                    <Rocket size={20}/> Visuellen Designer starten
                 </button>
-                <button onClick={() => onNavigate('backend_generate')} className="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-3 transition-all">
-                    <Code size={24}/> Code generieren
+                <button onClick={() => onNavigate('backend_generate')} className="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-3 transition-all text-sm md:text-base">
+                    <Code size={20}/> Blueprint Center öffnen
                 </button>
             </div>
         </div>
+      </div>
+
+      {/* NEW: Platform Architecture Highlight Section (Electron vs Tauri) */}
+      <div className="bg-slate-100 border-y border-slate-200 py-16">
+          <div className="max-w-6xl mx-auto px-6">
+              <div className="text-center mb-12">
+                  <div className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider mb-3">
+                      High-Performance Desktop Targets
+                  </div>
+                  <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Vollwertige native Desktop-Applikation</h2>
+                  <p className="text-slate-500 text-sm max-w-2xl mx-auto mt-2">
+                      Wählen Sie im Integration-Center Ihre bevorzugte Desktop-Runtime aus: Die traditionelle Reichweite von Electron oder den hochmodernen, ressourceneffizienten Kern von Tauri.
+                  </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Electron Box */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                      <div>
+                          <div className="flex items-center gap-3 mb-4">
+                              <span className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                                  <Monitor size={22} />
+                              </span>
+                              <div>
+                                  <h3 className="font-bold text-slate-800 text-lg">Electron Ecosystem Build</h3>
+                                  <p className="text-[11px] text-slate-500 font-semibold">Stabilität & Bewährte Reichweite</p>
+                              </div>
+                          </div>
+                          <p className="text-slate-600 text-xs leading-relaxed mb-4">
+                              Generiert ein einsatzbereites JS-Desktop-Projekt mit <code>main.js</code>, <code>preload.js</code> und konfigurierter <code>electron-builder</code>-Verpackung. Perfekt geeignet für plattformübergreifende Software mit tiefen, klassischen NodeJS-Integrationen.
+                          </p>
+                          <ul className="space-y-2 text-[11px] text-slate-500 mb-6">
+                              <li className="flex items-center gap-2">✓ Voller Zugriff auf das gesamte NPM-Ecosystem im Backend</li>
+                              <li className="flex items-center gap-2">✓ Bewährtes Modell für traditionelle Windows & macOS Installer</li>
+                              <li className="flex items-center gap-2">✓ Schneller Einstieg ohne C++ oder Rust Compiler</li>
+                          </ul>
+                      </div>
+                      <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400 font-medium">Standard-Bundle: ~85MB</span>
+                          <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono font-bold">NodeJS Wrapper</span>
+                      </div>
+                  </div>
+
+                  {/* Tauri Box */}
+                  <div className="bg-slate-900 text-slate-100 p-6 rounded-2xl border border-slate-800 shadow-md flex flex-col justify-between">
+                      <div>
+                          <div className="flex items-center gap-3 mb-4">
+                              <span className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                                  <Terminal size={22} />
+                              </span>
+                              <div>
+                                  <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                                      Tauri (Rust-Powered)
+                                      <span className="bg-amber-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Neu in v1.0</span>
+                                  </h3>
+                                  <p className="text-[11px] text-amber-300 font-semibold">Maximum Performance & Minimum RAM</p>
+                              </div>
+                          </div>
+                          <p className="text-slate-300 text-xs leading-relaxed mb-4">
+                              Kompiliert das Web-Frontend in ein native Rust-Executable über das OS-eigene Webview. Das Backend läuft komplett in Rust – für unübertroffene Laufzeitgeschwindigkeit, kompromisslose Speichersicherheit und minimale Setup-Größen.
+                          </p>
+                          <ul className="space-y-2 text-[11px] text-slate-400 mb-6">
+                              <li className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Enorm kleiner RAM-Verbrauch (&lt;40MB) und App-Größe (&lt;15MB)</li>
+                              <li className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Typsichere IPC Tauri Commands (Rust <code>#[tauri::command]</code>)</li>
+                              <li className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Integrierter lokaler Socket-Ping-Test direkt im nativen Rust Core</li>
+                          </ul>
+                      </div>
+                      <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-medium">Standard-Bundle: &lt;15MB</span>
+                          <span className="bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">Rust Native</span>
+                      </div>
+                  </div>
+              </div>
+          </div>
       </div>
 
       {/* The "Access" Comparison Section */}
@@ -52,11 +125,11 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                           Prototyping neu gedacht
                       </div>
                       <h2 className="text-3xl font-bold text-slate-800 mb-6">Das Beste aus beiden Welten</h2>
-                      <p className="text-slate-600 text-lg leading-relaxed mb-6">
-                          Erinnern Sie sich an <strong>Microsoft Access</strong>? Es ermöglichte es jedem, schnell Datenbank-Anwendungen zusammenzuklicken. Aber es war schwer zu warten, schlecht im Web und proprietär.
+                      <p className="text-slate-600 text-sm md:text-base leading-relaxed mb-6">
+                          Erinnern Sie sich an <strong>Microsoft Access</strong>? Es ermöglichte es jedem, schnell relationale Datenbanken zusammenzuklicken und sofort zu betreiben. Aber es war proprietär, schwer zu verwalten, im Web nahezu unbenutzbar und litt unter starker Altersermüdung.
                       </p>
-                      <p className="text-slate-600 text-lg leading-relaxed">
-                          <strong>DB Studio Pro</strong> bringt dieses Gefühl von Produktivität zurück – aber für moderne Architekturen. Kein Vendor-Lock-in. Sie erhalten echten, sauberen Source Code (.NET, React, Node), den jeder Entwickler liebt.
+                      <p className="text-slate-600 text-sm md:text-base leading-relaxed">
+                          <strong>DB Studio Pro</strong> bringt dieses legendäre Gefühl von Produktivität zurück – aber mit modernsten Webtechnologien. Kein Vendor-Lock-in, kein proprietäres Dateiformat. Sie erhalten echten, sauberen Source Code, den jeder Entwickler liebt und sofort erweitern kann.
                       </p>
                   </div>
                   
@@ -65,21 +138,21 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                           <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600 shrink-0"><Database size={24}/></div>
                           <div>
                               <h4 className="font-bold text-slate-800 text-lg">Visueller Designer</h4>
-                              <p className="text-slate-600 mt-1">Wie der Tabellen-Editor von früher, aber mit SQL, NoSQL & Relations-Support.</p>
+                              <p className="text-slate-600 text-xs mt-1">Wie der Tabellen-Editor von früher, aber mit SQL, NoSQL & Relations-Support.</p>
                           </div>
                       </div>
                       <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm flex gap-4">
                           <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0"><Layout size={24}/></div>
                           <div>
                               <h4 className="font-bold text-slate-800 text-lg">Formulare & Berichte</h4>
-                              <p className="text-slate-600 mt-1">Drag & Drop UI-Builder für Eingabemasken und PDF-Reports ohne CSS-Kampf.</p>
+                              <p className="text-slate-600 text-xs mt-1">Drag & Drop UI-Builder für Eingabemasken und PDF-Reports ohne CSS-Kampf.</p>
                           </div>
                       </div>
                       <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm flex gap-4">
                           <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center text-green-600 shrink-0"><CheckCircle2 size={24}/></div>
                           <div>
                               <h4 className="font-bold text-slate-800 text-lg">100% Exportierbar</h4>
-                              <p className="text-slate-600 mt-1">Keine Black-Box. Generieren Sie VS Code Projekte für C#, TypeScript & PHP.</p>
+                              <p className="text-slate-600 text-xs mt-1">Keine Black-Box. Generieren Sie VS Code Projekte für C#, TypeScript & PHP.</p>
                           </div>
                       </div>
                   </div>
@@ -91,10 +164,9 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
       <div className="bg-slate-50 py-20">
           <div className="max-w-6xl mx-auto px-4">
               <div className="text-center mb-16">
-                  <h2 className="text-3xl font-bold text-slate-800 mb-4">Enterprise Features inklusive</h2>
-                  <p className="text-slate-500 max-w-2xl mx-auto text-lg">
-                      Wir bauen nicht nur "Hello World" Apps. DB Studio Pro generiert die komplexe Infrastruktur, 
-                      die Unternehmensanwendungen benötigen.
+                  <h2 className="text-3xl font-bold text-slate-800 mb-4">Umfassende Enterprise Features inklusive</h2>
+                  <p className="text-slate-500 max-w-2xl mx-auto text-sm md:text-base">
+                      Wir bauen keine simplen "Hello World"-Beispiele. DB Studio Pro entwirft und konfiguriert die komplexe, relationale Logik und die Infrastruktur, die moderne Teams benötigen.
                   </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -103,10 +175,9 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                       <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-6">
                           <ShieldCheck size={32} />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-3">Sicherheit & RBAC</h3>
-                      <p className="text-slate-600 leading-relaxed">
-                          Integrierte Rollenverwaltung (Admin, User, Guest) und Rechte-Matrix bis auf Feldebene. 
-                          Inklusive Unterstützung für <strong>Windows Authentication (AD)</strong> und JWT.
+                      <h3 className="text-lg font-bold text-slate-800 mb-3">Sicherheit & RBAC</h3>
+                      <p className="text-slate-600 text-xs leading-relaxed">
+                          Integrierte Rollenverwaltung (Admin, User, Guest) und fein granulierte Rechte-Matrix bis auf Tabellenebene. Voller Support für moderne JWT, API Keys oder relationale Benutzerkontrollen.
                       </p>
                   </div>
                   {/* Feature 2 */}
@@ -114,21 +185,19 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                       <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6">
                           <Globe size={32} />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-3">Multi-Tenancy</h3>
-                      <p className="text-slate-600 leading-relaxed">
-                          Bauen Sie SaaS-Anwendungen. Der Generator unterstützt <strong>Mandantenfähigkeit</strong> 
-                          sowohl über Discriminator-Columns als auch über separate Datenbanken pro Kunde.
+                      <h3 className="text-lg font-bold text-slate-800 mb-3">Multi-Tenancy</h3>
+                      <p className="text-slate-600 text-xs leading-relaxed">
+                          Bauen Sie vollwertige SaaS-Anwendungen. Der Code-Generator unterstützt performante Mandantenfähigkeit wahlweise über diskriminierende Spalten oder komplett getrennte Datenbankinstanzen.
                       </p>
                   </div>
                   {/* Feature 3 */}
                   <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-all hover:-translate-y-1">
                       <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
-                          <Cpu size={32} />
+                          <CpuIcon size={32} />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-3">Workflows & Jobs</h3>
-                      <p className="text-slate-600 leading-relaxed">
-                          Definieren Sie Geschäftslogik visuell. Der integrierte <strong>Scheduler</strong> generiert 
-                          Cron-Jobs (Node.js) oder Hosted Services (.NET) für automatisierte Aufgaben.
+                      <h3 className="text-lg font-bold text-slate-800 mb-3">Automatisierte Deployments</h3>
+                      <p className="text-slate-600 text-xs leading-relaxed">
+                          Erzeugt automatisierte **Terraform Infrastructure as Code (AWS)** Skripte, Azure Bicep Deployment Schemata, Multi-Stage Dockerfiles sowie vollständige Continuous Integration mit GitHub Actions Workflows.
                       </p>
                   </div>
               </div>
@@ -144,44 +213,44 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                   {/* Card 1: IT */}
                   <div className="p-6 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-slate-800 text-white rounded-lg"><Terminal size={20} /></div>
-                          <h3 className="font-bold text-slate-800">Entwickler</h3>
+                          <div className="p-2 bg-slate-800 text-white rounded-lg"><Terminal size={18} /></div>
+                          <h3 className="font-bold text-slate-800 text-sm">Entwickler</h3>
                       </div>
-                      <p className="text-sm text-slate-600">
-                          Der ultimative <strong>Boilerplate-Killer</strong>. Sparen Sie Wochen an Setup-Zeit. Generieren Sie sauberen Code als Basis.
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                          Der ultimative **Boilerplate-Killer**. Sparen Sie Tage an Setup-Zeit. Generieren Sie fehlerfreie Blueprint-Dateien nach Industriestandard.
                       </p>
                   </div>
 
                   {/* Card 2: Business Analysts */}
                   <div className="p-6 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-blue-600 text-white rounded-lg"><TrendingUp size={20} /></div>
-                          <h3 className="font-bold text-slate-800">Analysten</h3>
+                          <div className="p-2 bg-blue-600 text-white rounded-lg"><TrendingUp size={18} /></div>
+                          <h3 className="font-bold text-slate-800 text-sm">Analysten</h3>
                       </div>
-                      <p className="text-sm text-slate-600">
-                          Modellieren Sie Datenbeziehungen visuell. Erstellen Sie Ad-hoc Berichte ohne SQL-Kenntnisse.
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                          Modellieren Sie Datenbeziehungen visuell. Entwerfen Sie anspruchsvolle Architekturen ganz ohne manuelle SQL-Befehle schreiben zu müssen.
                       </p>
                   </div>
 
                   {/* Card 3: Project Management */}
                   <div className="p-6 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-orange-500 text-white rounded-lg"><ClipboardList size={20} /></div>
-                          <h3 className="font-bold text-slate-800">Projektleiter</h3>
+                          <div className="p-2 bg-orange-500 text-white rounded-lg"><ClipboardList size={18} /></div>
+                          <h3 className="font-bold text-slate-800 text-sm">Projektleiter</h3>
                       </div>
-                      <p className="text-sm text-slate-600">
-                          Erstellen Sie <strong>lebendige Spezifikationen</strong>. Zeigen Sie Stakeholdern echte Formulare statt Wireframes.
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                          Erstellen Sie interaktive, lauffähige Prototypen. Zeigen Sie Stakeholdern echte Eingabemasken direkt im Browser.
                       </p>
                   </div>
 
                   {/* Card 4: Departments */}
                   <div className="p-6 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-emerald-600 text-white rounded-lg"><BriefcaseIcon size={20} /></div>
-                          <h3 className="font-bold text-slate-800">Fachabteilung</h3>
+                          <div className="p-2 bg-emerald-600 text-white rounded-lg"><BriefcaseIcon size={18} /></div>
+                          <h3 className="font-bold text-slate-800 text-sm">Fachabteilung</h3>
                       </div>
-                      <p className="text-sm text-slate-600">
-                          Ersetzen Sie unübersichtliche <strong>Excel-Listen</strong> durch echte, sichere Datenbank-Anwendungen.
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                          Ersetzen Sie unübersichtliche und ungesicherte Excel-Dateien durch echte relationale, typisierte Datenbanken im Team.
                       </p>
                   </div>
               </div>
@@ -199,16 +268,15 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                   </div>
                   <div className="relative z-10">
                       <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                          <CheckCircle2 className="text-emerald-500"/> 100% Local-First
+                          <CheckCircle2 className="text-emerald-500" size={20}/> 100% Local-First
                       </h3>
-                      <p className="text-slate-600 mb-6 leading-relaxed">
-                          Wir nehmen Datenschutz ernst. DB Studio Pro arbeitet nach dem Prinzip der Datenhoheit. 
-                          Alle Ihre Projekte, Tabellen und Daten werden ausschließlich <strong>lokal in Ihrem Browser</strong> (IndexedDB) gespeichert.
+                      <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                          Ihre Daten gehören Ihnen. DB Studio Pro arbeitet komplett im Sandbox-Verfahren. Alle Ihre Tabellen, Konfigurationen und Exporte werden ausschließlich lokal in den IndexedDB-Datenbanken Ihres Webbrowsers gesichert.
                       </p>
-                      <ul className="space-y-3 text-sm text-slate-600 font-medium">
-                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Keine Cloud-Speicherung Ihrer Entwürfe.</li>
-                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Ideal für sensible Firmendaten & NDAs.</li>
-                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Funktioniert komplett offline.</li>
+                      <ul className="space-y-3 text-xs text-slate-600 font-medium">
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Keine unerwünschte Cloud-Übertragung.</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Optimal für vertrauliche Geschäftsmodelle &amp; NDAs.</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Vollständig offline einsatzbereit.</li>
                       </ul>
                   </div>
               </div>
@@ -220,17 +288,17 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                   </div>
                   <div className="relative z-10">
                       <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                          <Cloud className="text-blue-400"/> Integrations Hub
+                          <Cloud className="text-blue-400" size={20}/> Integrations Hub
                       </h3>
-                      <p className="text-slate-300 mb-6 leading-relaxed">
-                          Ihre Daten leben nicht im Vakuum. Nutzen Sie unsere Wizards, um bestehende Silos aufzubrechen.
+                      <p className="text-slate-300 text-sm mb-6 leading-relaxed">
+                          Daten-Ökosysteme aufbrechen: Nutzen Sie unsere Assistenten, um klassische Legacy-Anbindungen in moderne Services zu transformieren.
                       </p>
                       <div className="flex flex-wrap gap-2">
                           <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold border border-white/10">SharePoint Listen</span>
-                          <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold border border-white/10">Excel / CSV</span>
-                          <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold border border-white/10">REST APIs</span>
-                          <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold border border-white/10">MS Access XML</span>
-                          <span className="bg-blue-500/20 text-blue-200 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/30">Neu: AI Generation</span>
+                          <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold border border-white/10">Excel / CSV Dataseeds</span>
+                          <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold border border-white/10">REST API Brücken</span>
+                          <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold border border-white/10">MS Access XML Schema</span>
+                          <span className="bg-blue-500/20 text-blue-200 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/30">Neu: Tauri-Commands (Rust)</span>
                       </div>
                   </div>
               </div>
@@ -241,10 +309,10 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
       {/* Tech Stack Banner */}
       <div className="py-16 bg-slate-50 border-t border-slate-200">
           <div className="max-w-4xl mx-auto px-4 text-center">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">Unterstützte Technologien</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">Unterstützte Technologien</h3>
               <div className="flex flex-wrap justify-center gap-3">
-                  {['.NET 9 API', 'Node.js Express', 'PHP Native', 'Laravel', 'React + Vite', 'Angular', 'Vue.js', 'Blazor WASM', 'Electron', 'Docker', 'SQL Server', 'MySQL', 'MongoDB', 'SQLite'].map(tech => (
-                      <span key={tech} className="bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-600 shadow-sm hover:border-blue-300 hover:text-blue-600 transition-colors cursor-default">
+                  {['.NET 9 API', 'Node.js Express', 'PHP Native', 'Laravel', 'React + Vite', 'Angular', 'Vue.js', 'Blazor WASM', 'Tauri Desktop (Rust)', 'Electron Desktop', 'Docker', 'SQL Server', 'MySQL', 'MongoDB', 'SQLite'].map(tech => (
+                      <span key={tech} className="bg-white border border-slate-200 px-4 py-2 rounded-full text-xs font-medium text-slate-600 shadow-sm hover:border-blue-300 hover:text-blue-600 transition-colors cursor-default">
                           {tech}
                       </span>
                   ))}
@@ -255,12 +323,11 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
       {/* Footer CTA */}
       <div className="bg-slate-900 text-white p-16 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Bereit, Zeit zu sparen?</h2>
-          <p className="text-slate-300 mb-10 max-w-xl mx-auto text-lg">
-              Nutzen Sie DB Studio Pro für Ihr nächstes Projekt, Hackathon oder POC. 
-              Vom Konzept zur laufenden App in unter 5 Minuten.
+          <p className="text-slate-300 mb-10 max-w-xl mx-auto text-sm md:text-base">
+              Starten Sie jetzt mit DB Studio Pro Version 1.0. Vom ersten visuellen Entwurf über lauffähige UI-Eingaben bis hin zur fertigen Tauri/Electron-App in unter 5 Minuten.
           </p>
-          <button onClick={() => onNavigate('create_table')} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-lg font-bold shadow-lg shadow-emerald-900/50 transition-all transform hover:scale-105">
-              <GitBranch size={24}/> Neues Projekt starten
+          <button onClick={() => onNavigate('create_table')} className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-8 py-4 rounded-lg font-bold shadow-lg shadow-emerald-950/50 transition-all transform hover:scale-105">
+              <GitBranch size={20}/> Jetzt ersten Entwurf anlegen
           </button>
       </div>
 
@@ -272,17 +339,17 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
                       <DbIcon size={20} className="text-blue-500"/>
                       <span className="font-bold text-slate-200 text-lg">DB Studio Pro</span>
                   </div>
-                  <p className="max-w-xs text-xs text-slate-500">
-                      Die moderne Lösung für schnelles Prototyping und Generierung von Unternehmensanwendungen.
-                      Built with ❤️ and Code.
+                  <p className="max-w-xs text-xs text-slate-500 leading-relaxed">
+                      Die professionelle Komplettlösung für schnelles Datenmodellierungs-Prototyping und native Anwendungsgenerierungen.
+                      Built with ❤️ and high-performance blueprints.
                   </p>
               </div>
               
               <div className="text-center md:text-right">
                   <h4 className="font-bold text-slate-200 mb-2 uppercase tracking-wider text-xs">Kontakt & Impressum</h4>
                   <p className="font-medium text-slate-300">Edin Zubovic</p>
-                  <p className="flex items-center justify-center md:justify-end gap-1"><MapPin size={12}/> Birkenstraße 23, 4600 Wels</p>
-                  <a href="mailto:edin.zubovic@hotmail.de" className="flex items-center justify-center md:justify-end gap-2 text-blue-400 hover:text-blue-300 mt-2 transition-colors">
+                  <p className="flex items-center justify-center md:justify-end gap-1 text-xs"><MapPin size={12}/> Birkenstraße 23, 4600 Wels</p>
+                  <a href="mailto:edin.zubovic@hotmail.de" className="flex items-center justify-center md:justify-end gap-2 text-blue-400 hover:text-blue-300 mt-2 transition-colors text-xs">
                       <Mail size={14}/> edin.zubovic@hotmail.de
                   </a>
               </div>

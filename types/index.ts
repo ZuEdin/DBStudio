@@ -20,6 +20,9 @@ export interface Field {
   precision?: number;
   scale?: number;
   displayFormat?: string;
+  // Grid/UI Rendering Phase 5
+  rendererType?: 'text' | 'progress' | 'status_pill' | 'avatar' | 'currency' | 'date';
+  inlineEditable?: boolean;
 }
 
 export interface ValidationRule {
@@ -58,6 +61,20 @@ export interface Table {
   isApiImport?: boolean;
   apiConfig?: ApiConfig;
   validationRules?: ValidationRule[];
+  // Grid features Phase 5
+  enableInlineEditing?: boolean;
+  enableMassUpdates?: boolean;
+  conditionalFormatting?: {
+    id: string;
+    fieldId: string;
+    operator: 'eq' | 'neq' | 'gt' | 'lt' | 'contains';
+    value: string;
+    style: {
+      backgroundColor?: string;
+      color?: string;
+      fontWeight?: string;
+    };
+  }[];
 }
 
 export interface TableNode {
@@ -191,9 +208,22 @@ export interface Subform {
     canDelete?: boolean;
 }
 
+export interface ActionFlow {
+  id: string;
+  trigger: 'OnClick' | 'OnChange' | 'OnPageLoad';
+  actionType: 'ShowToast' | 'OpenModal' | 'Navigate' | 'ExecuteAPI' | 'SetState';
+  toastMessage?: string;
+  toastType?: 'success' | 'error' | 'info';
+  modalId?: string; 
+  routeUrl?: string; 
+  apiEndpoint?: string; 
+  stateVariableId?: string; 
+  stateValue?: string; 
+}
+
 export interface FormElement {
   id: string;
-  type: 'container' | 'field' | 'label' | 'subform';
+  type: 'container' | 'field' | 'label' | 'subform' | 'button';
   fieldId?: string;
   label?: string; 
   className?: string;
@@ -201,6 +231,7 @@ export interface FormElement {
   widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select' | 'ad-search' | 'current-user';
   lookup?: LookupConfig;
   subform?: Subform;
+  actions?: ActionFlow[];
 }
 
 export interface FormField {
@@ -213,6 +244,16 @@ export interface FormSettings {
     showEditToggle?: boolean;
 }
 
+export interface CrossFieldValidation {
+  id: string;
+  triggerFieldId: string;
+  condition: 'equals' | 'not_equals' | 'not_empty' | 'is_true';
+  triggerValue?: string;
+  targetFieldId: string;
+  action: 'require' | 'hide' | 'disable' | 'validate_after';
+  errorMessage?: string;
+}
+
 export interface Form {
   id: string;
   name: string;
@@ -223,6 +264,8 @@ export interface Form {
   fields: FormField[];
   subform?: Subform;
   settings?: FormSettings;
+  // Phase 5 validation
+  crossFieldValidations?: CrossFieldValidation[];
 }
 
 export type ChartType = 'bar' | 'line' | 'area' | 'pie';
@@ -299,7 +342,7 @@ export interface ElectronSettings {
     targetUrl?: string;
 }
 
-export type DeploymentTarget = 'docker' | 'ftp' | 'azure' | 'aws';
+export type DeploymentTarget = 'docker' | 'ftp' | 'azure' | 'aws' | 'github' | 'electron' | 'tauri';
 
 export interface DeploymentConfig {
     target: DeploymentTarget;
@@ -430,6 +473,26 @@ export interface NavigationItem {
   translations?: { de?: string; en?: string; fr?: string };
 }
 
+export interface GlobalStateVariable {
+  id: string;
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'date';
+  defaultValue: any;
+}
+
+export interface ProductTourStep {
+  targetSelector: string;
+  title: string;
+  content: string;
+}
+
+export interface ProductTour {
+  id: string;
+  name: string;
+  activeOnRoute?: string;
+  steps: ProductTourStep[];
+}
+
 export interface BackendConfig {
   language: BackendLanguage;
   backendVersion?: string;
@@ -452,6 +515,9 @@ export interface BackendConfig {
   licensing?: LicensingConfig;
   navigationConfig?: NavigationItem[];
   navigationPreset?: 'sidebar' | 'top_nav' | 'double_rail';
+  // Phase 6 Features
+  globalStates?: GlobalStateVariable[];
+  productTours?: ProductTour[];
 }
 
 export interface ProjectData {
@@ -561,7 +627,8 @@ export type ViewType =
   | { type: 'backend_generator' }
   | { type: 'navigation_designer' }
   | { type: 'api_import' }
-  | { type: 'theme_designer' }; 
+  | { type: 'theme_designer' }
+  | { type: 'logic_designer' }; 
 
 export const FIELD_HEIGHT = 28;
 export const HEADER_HEIGHT = 40;

@@ -306,11 +306,22 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <ConfirmationModal 
           title={confirmationModal.title}
           message={confirmationModal.message}
+          confirmText={confirmationModal.confirmText}
+          cancelText={confirmationModal.cancelText}
+          alternateText={confirmationModal.alternateText}
+          confirmClass={confirmationModal.confirmClass}
           onConfirm={() => {
             confirmationModal.onConfirm();
             setConfirmationModal(null);
           }}
-          onCancel={() => setConfirmationModal(null)}
+          onCancel={() => {
+            if (confirmationModal.onCancel) confirmationModal.onCancel();
+            setConfirmationModal(null);
+          }}
+          onAlternate={confirmationModal.onAlternate ? () => {
+            confirmationModal.onAlternate?.();
+            setConfirmationModal(null);
+          } : undefined}
         />
       )}
 

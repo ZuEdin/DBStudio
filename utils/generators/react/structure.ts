@@ -17,6 +17,56 @@ export const generateReactStructure = (tables: Table[], forms: Form[], reports: 
       removeBranding: false
   };
 
+  // --- Phase 6: Global State Context ---
+  const globalStates = config.globalStates || [];
+  const stateDefaults = globalStates.reduce((acc: any, s) => {
+      acc[s.name] = s.defaultValue;
+      return acc;
+  }, {});
+  
+  files.push({
+      name: 'GlobalStateContext.tsx',
+      path: `${root}/src/context/GlobalStateContext.tsx`,
+      language: 'typescript',
+      content: `import React, { createContext, useContext, useState } from 'react';
+
+export const GlobalStateContext = createContext<any>(null);
+
+export const GlobalStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [states, setStates] = useState<Record<string, any>>(${JSON.stringify(stateDefaults, null, 2)});
+  
+  const setGlobalState = (key: string, value: any) => {
+      setStates(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Phase 6 Toast
+  const [toasts, setToasts] = useState<any[]>([]);
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      const id = Date.now();
+      setToasts(prev => [...prev, { id, message, type }]);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  };
+  
+  return (
+      <GlobalStateContext.Provider value={{ states, setGlobalState, addToast }}>
+          {children}
+          {/* Toast Container */}
+          <div className="fixed bottom-4 right-4 z-[9999] space-y-2">
+            {toasts.map(t => (
+                <div key={t.id} className={\`px-4 py-3 rounded-lg shadow-xl text-white \${t.type === 'error' ? 'bg-red-600' : t.type === 'success' ? 'bg-green-600' : 'bg-blue-600'} flex items-center gap-2 animate-in slide-in-from-right-4\`}>
+                    {t.message}
+                </div>
+            ))}
+          </div>
+      </GlobalStateContext.Provider>
+  );
+};
+
+export const useGlobalState = () => useContext(GlobalStateContext);
+`
+  });
+  imports.push(`import { GlobalStateProvider } from './context/GlobalStateContext';`);
+
   // 1. Theme Context (No Changes)
   const themeContext = `import React, { createContext, useContext, useEffect, useState } from "react";
 type Theme = "dark" | "light" | "system";
@@ -581,12 +631,25 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './components/theme-provider';
 import { Layout } from './components/Layout';
+${config.productTours && config.productTours.length > 0 ? "import Joyride, { Step } from 'react-joyride';" : ""}
 ${imports.join('\n')}
+
+${config.productTours && config.productTours.length > 0 ? `
+const toursData: Record<string, Step[]> = ${JSON.stringify(config.productTours.reduce((acc, tour) => {
+    acc[tour.id] = tour.steps.map(s => ({ target: s.targetSelector, content: s.content, title: s.title }));
+    return acc;
+}, {} as any), null, 2)};
+` : ""}
 
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="app-theme">
+        <GlobalStateProvider>
         ${useAuth ? "<AuthProvider>" : ""}
+        ${config.productTours && config.productTours.length > 0 ? `
+        {/* Render first tour for demonstration - in real app triggered dynamically */}
+        <Joyride steps={toursData['${config.productTours[0].id}']} continuous showProgress showSkipButton />
+        ` : ""}
         <BrowserRouter>
             <Routes>
                 ${useAuth ? `
@@ -611,6 +674,7 @@ function App() {
             </Routes>
         </BrowserRouter>
         ${useAuth ? "</AuthProvider>" : ""}
+        </GlobalStateProvider>
     </ThemeProvider>
   );
 }

@@ -32,7 +32,15 @@ export const useUIState = () => {
   } | null>(null);
 
   const [confirmationModal, setConfirmationModal] = useState<{
-    title: string; message: string; onConfirm: () => void;
+    title: string; 
+    message: string; 
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    onAlternate?: () => void;
+    alternateText?: string;
+    confirmClass?: string;
   } | null>(null);
 
   // Wizards & Features Modals

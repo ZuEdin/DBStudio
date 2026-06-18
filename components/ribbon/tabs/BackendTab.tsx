@@ -50,7 +50,27 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                 <select 
                     className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
                     value={backendConfig.language}
-                    onChange={e => setBackendConfig({ ...backendConfig, language: e.target.value as any })}
+                    onChange={e => {
+                        const lang = e.target.value as any;
+                        const updatedConfig = { ...backendConfig, language: lang };
+                        if (lang === 'electron') {
+                            updatedConfig.frontendFramework = 'electron';
+                            updatedConfig.deploymentConfig = {
+                                ...(backendConfig.deploymentConfig || { target: 'electron' }),
+                                target: 'electron'
+                            };
+                        } else if (backendConfig.language === 'electron') {
+                            // Swapped away from Electron backend, reset frontend from electron to react
+                            updatedConfig.frontendFramework = 'react';
+                            if (backendConfig.deploymentConfig?.target === 'electron') {
+                                updatedConfig.deploymentConfig = {
+                                    ...backendConfig.deploymentConfig,
+                                    target: 'docker'
+                                };
+                            }
+                        }
+                        setBackendConfig(updatedConfig);
+                    }}
                 >
                     <option value="dotnet">.NET API</option>
                     <option value="nodejs">Node.js</option>
@@ -86,17 +106,35 @@ export const BackendTab: React.FC<BackendTabProps> = ({ onAction, backendConfig,
                     value={backendConfig.frontendFramework}
                     onChange={e => {
                         const fw = e.target.value as FrontendFramework;
-                        setBackendConfig({ 
+                        const updatedConfig = { 
                             ...backendConfig, 
                             frontendFramework: fw,
                             frontendPort: getDefaultPort(fw)
-                        });
+                        };
+                        if (fw === 'electron') {
+                            updatedConfig.language = 'electron';
+                            updatedConfig.deploymentConfig = {
+                                ...(backendConfig.deploymentConfig || { target: 'electron' }),
+                                target: 'electron'
+                            };
+                        } else if (backendConfig.frontendFramework === 'electron') {
+                            // Swapped away from Electron frontend, reset language to nodejs
+                            updatedConfig.language = 'nodejs';
+                            if (backendConfig.deploymentConfig?.target === 'electron') {
+                                updatedConfig.deploymentConfig = {
+                                    ...backendConfig.deploymentConfig,
+                                    target: 'docker'
+                                };
+                            }
+                        }
+                        setBackendConfig(updatedConfig);
                     }}
                 >
                     <option value="react">React</option>
                     <option value="vue">Vue.js</option>
                     <option value="angular">Angular</option>
                     <option value="blazor">Blazor (WASM)</option>
+                    <option value="electron">Electron</option>
                     <option value="none">Keins (Nur API)</option>
                 </select>
              </div>

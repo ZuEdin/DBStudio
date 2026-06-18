@@ -34,6 +34,10 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   // Extraction State
   const [extractColumn, setExtractColumn] = useState<string | null>(null);
 
+  // Schema Mapping State
+  const [schemaOverrides, setSchemaOverrides] = useState<Record<string, Field['type']>>({});
+  const [activeViewTab, setActiveViewTab] = useState<'data' | 'schema'>('data');
+
   // --- Parameter Logic ---
   const addParam = () => {
       setQueryParams([...queryParams, {
@@ -113,7 +117,8 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
       const fields: Field[] = columns.map(col => {
           const sampleVal = sampleRow[col];
-          const type = Array.isArray(sampleVal) ? 'TEXT' : inferFieldType(sampleVal); // Fallback for arrays inside main table
+          const inferredType = Array.isArray(sampleVal) ? 'TEXT' : inferFieldType(sampleVal);
+          const type = schemaOverrides[col] || inferredType;
           const isId = col.toLowerCase() === 'id';
           
           return {
@@ -147,12 +152,23 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
       const savedUrl = getEffectiveUrl();
 
-      // Clean data for saving (stringify remaining arrays)
+      // Clean data for saving (stringify remaining arrays, cast types)
       const cleanData = data.map(row => {
           const newRow = { ...row };
           for (const key in newRow) {
+              const override = schemaOverrides[key];
               if (Array.isArray(newRow[key])) {
                   newRow[key] = JSON.stringify(newRow[key]); // Flatten for storage
+              } else if (override === 'INTEGER' && newRow[key] !== null && newRow[key] !== undefined) {
+                  const parsed = parseInt(newRow[key], 10);
+                  newRow[key] = isNaN(parsed) ? null : parsed;
+              } else if (override === 'REAL' && newRow[key] !== null && newRow[key] !== undefined) {
+                  const parsed = parseFloat(newRow[key]);
+                  newRow[key] = isNaN(parsed) ? null : parsed;
+              } else if (override === 'BOOLEAN' && newRow[key] !== null && newRow[key] !== undefined) {
+                  newRow[key] = (newRow[key] === 'true' || newRow[key] === true || newRow[key] === 1 || newRow[key] === '1') ? 1 : 0;
+              } else if (override === 'TEXT' && newRow[key] !== null && newRow[key] !== undefined) {
+                  newRow[key] = String(newRow[key]);
               }
           }
           return newRow;
@@ -411,15 +427,81 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
           </div>
       )}
 
+      {/* TABS */}
+      {data.length > 0 && (
+         <div className="flex border-b border-slate-200 px-4 bg-white shrink-0">
+             <button onClick={() => setActiveViewTab('data')} className={`px-4 py-2 text-sm font-bold border-b-2 flex items-center gap-2 ${activeViewTab === 'data' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                 <TableIcon size={16} /> Daten-Vorschau
+             </button>
+             <button onClick={() => setActiveViewTab('schema')} className={`px-4 py-2 text-sm font-bold border-b-2 flex items-center gap-2 ${activeViewTab === 'schema' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                 <Sliders size={16} /> Datentyp-Mapper / Schema
+             </button>
+         </div>
+      )}
+
       {/* Data Table */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative bg-slate-50">
           {data.length > 0 ? (
+             activeViewTab === 'data' ? (
               <VirtualTable 
                 data={data}
                 headers={getColumns()}
                 renderRow={renderRow}
                 rowHeight={35}
               />
+             ) : (
+                <div className="p-4 h-full overflow-auto bg-slate-50">
+                    <h3 className="text-lg font-bold text-slate-700 mb-2">Schema & Datentyp Mapping</h3>
+                    <p className="text-sm text-slate-600 mb-6 max-w-4xl">
+                        Alle Felder wurden basierend auf dem ersten Datensatz automatisch erkannt. Sie können jedoch explizit erzwingen, dass bestimmte Felder als Zahl, Text oder Datum konvertiert werden sollen. Dies ist besonders nützlich, wenn Ihre API Zahlen als Text-Strings liefert und Sie diese für Berechnungen oder Filterung umwandeln müssen.
+                    </p>
+                    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm max-w-4xl">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-100 border-b border-slate-200 text-slate-600">
+                                <tr>
+                                    <th className="px-4 py-3">Spaltenname (API)</th>
+                                    <th className="px-4 py-3">Beispielwert</th>
+                                    <th className="px-4 py-3">Erkannter / Gewählter Typ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y border-slate-100">
+                                {getColumns().map(col => {
+                                    const sampleVal = data[0][col];
+                                    const currentType = schemaOverrides[col] || (Array.isArray(sampleVal) ? 'TEXT' : inferFieldType(sampleVal));
+                                    
+                                    return (
+                                        <tr key={col} className="hover:bg-slate-50">
+                                            <td className="px-4 py-3 font-mono font-bold text-slate-700">{col}</td>
+                                            <td className="px-4 py-3 text-slate-500 truncate max-w-[200px]" title={String(sampleVal)}>
+                                                {Array.isArray(sampleVal) ? `[Array mit ${sampleVal.length} Elementen]` : String(sampleVal ?? 'null')}
+                                            </td>
+                                            <td className="px-4 py-3 flex items-center gap-2">
+                                                <select 
+                                                    value={currentType}
+                                                    onChange={e => setSchemaOverrides(prev => ({ ...prev, [col]: e.target.value as Field['type'] }))}
+                                                    className={`border rounded px-2 py-1.5 text-sm w-full max-w-[200px] outline-none ${schemaOverrides[col] ? 'border-orange-400 bg-orange-50 font-bold text-orange-800' : 'border-slate-300 bg-white text-slate-700'}`}
+                                                >
+                                                    <option value="TEXT">Text (VARCHAR)</option>
+                                                    <option value="INTEGER">Ganzzahl (INTEGER)</option>
+                                                    <option value="REAL">Dezimalzahl (REAL)</option>
+                                                    <option value="BOOLEAN">Wahrheitswert (BOOLEAN)</option>
+                                                    <option value="DATE">Datum (DATE)</option>
+                                                    <option value="DATETIME">Datum & Zeit (DATETIME)</option>
+                                                </select>
+                                                {schemaOverrides[col] ? (
+                                                    <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded">Manuell geändert</span>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400 italic">Automatisch erkannt</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+             )
           ) : (
               !isLoading && (
                   <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">

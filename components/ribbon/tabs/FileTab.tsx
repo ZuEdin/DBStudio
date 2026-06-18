@@ -25,7 +25,11 @@ export const FileTab: React.FC<FileTabProps> = ({ onAction, currentDbType }) => 
         <Save className="w-8 h-8 text-green-600 mb-1" />
         <span className="text-xs">{t('ribbon.actions.save')}</span>
       </div>
-      
+      <div className="flex flex-col items-center group cursor-pointer p-2 hover:bg-slate-200 rounded text-red-600 hover:text-red-700" onClick={() => onAction('close_project')}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        <span className="text-xs">Projekt schließen</span>
+      </div>
+
       <div className="flex gap-1 border-l border-r border-slate-300 px-2 h-12 items-center">
           <button 
             onClick={undo} 

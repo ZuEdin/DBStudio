@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Briefcase, ShieldCheck, Globe, Database, Key, Layers } from 'lucide-react';
+import { Briefcase, ShieldCheck, Globe, Database, Key, Layers, Settings } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -22,12 +22,14 @@ export const ProjectTab: React.FC<ProjectTabProps> = ({ onAction }) => {
             onClick={() => onAction('security_manager')} 
             size="large"
         />
-        <RibbonButton 
-            icon={<Layers className="text-sky-600" />} 
-            label="Navigation / Menü" 
-            onClick={() => onAction('navigation_designer')} 
-            size="large"
-        />
+        <div className="flex flex-col gap-1">
+             <button onClick={() => onAction('navigation_designer')} className="text-xs text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-2">
+                 <Layers size={12}/> Navigation
+             </button>
+             <button onClick={() => onAction('logic_designer')} className="text-xs text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-2">
+                 <Settings size={12}/> Global Logic & State
+             </button>
+        </div>
       </RibbonGroup>
 
       {/* Business Group */}

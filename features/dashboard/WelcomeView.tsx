@@ -152,7 +152,7 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Version</span>
-                    <span className="font-mono text-slate-700">2.4.0 Pro</span>
+                    <span className="font-mono text-slate-700">1.0.0 Pro</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Engine</span>

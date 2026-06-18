@@ -13,7 +13,7 @@ interface TableDesignerProps {
 }
 
 export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy, currentUserId }) => {
-  const [activeTab, setActiveTab] = useState<'fields' | 'validation'>('fields');
+  const [activeTab, setActiveTab] = useState<'fields' | 'validation' | 'grid'>('fields');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAi, setShowAi] = useState(false);
@@ -220,6 +220,12 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                     className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'fields' ? 'bg-white text-slate-900 font-bold' : 'text-white/70 hover:text-white'}`}
                   >
                       Felder
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('grid')} 
+                    className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${activeTab === 'grid' ? 'bg-white text-slate-900 font-bold' : 'text-white/70 hover:text-white'}`}
+                  >
+                      Grid UX
                   </button>
                   <button 
                     onClick={() => setActiveTab('validation')} 
@@ -450,6 +456,139 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                     </button>
                 )}
               </>
+          ) : activeTab === 'grid' ? (
+              <div className="max-w-4xl animate-in fade-in space-y-6">
+                <div className="bg-slate-100 p-4 border border-slate-200 rounded-lg">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-2"><CheckSquare size={18} /> Excel-Like Data Grid</h3>
+                    <p className="text-xs text-slate-600 mb-4">Erweiterte Tabellenfunktionen für den Endanwender in der fertig generierten Application.</p>
+                    
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                            <input type="checkbox" checked={table.enableInlineEditing || false} disabled={isReadOnly} onChange={e => onTableChange({...table, enableInlineEditing: e.target.checked})} />
+                            Inline Editing erlauben (Doppelklick zum Bearbeiten)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                            <input type="checkbox" checked={table.enableMassUpdates || false} disabled={isReadOnly} onChange={e => onTableChange({...table, enableMassUpdates: e.target.checked})} />
+                            Mass Updates & Checkboxes erlauben
+                        </label>
+                    </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-lg p-4">
+                    <h3 className="font-bold text-slate-800 mb-4">Spalten-Formatierung (Custom Renderer)</h3>
+                    <div className="space-y-2">
+                        {fields.map(field => (
+                             <div key={field.id} className="flex gap-4 items-center bg-slate-50 p-2 rounded">
+                                 <div className="w-1/3 flex items-center gap-2">
+                                    <span className="font-mono text-sm font-bold text-slate-700">{field.name}</span>
+                                    <span className="text-[10px] bg-slate-200 px-1 rounded text-slate-500">{field.type}</span>
+                                 </div>
+                                 <div className="flex-1">
+                                    <select 
+                                        value={field.rendererType || 'text'}
+                                        disabled={isReadOnly}
+                                        onChange={e => updateField(field.id, { rendererType: e.target.value as any })}
+                                        className="w-full text-sm border p-1.5 rounded disabled:bg-slate-100 bg-white"
+                                    >
+                                        <option value="text">Standard-Text</option>
+                                        <option value="progress">Progress-Bar (%)</option>
+                                        <option value="status_pill">Status-Badge (Pill)</option>
+                                        <option value="avatar">Avatar (mit Name/Email)</option>
+                                        <option value="currency">Währung / Currency</option>
+                                    </select>
+                                 </div>
+                             </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-lg p-4">
+                    <h3 className="font-bold text-slate-800 mb-4">Bedingte Formatierung (Zeilen)</h3>
+                    <div className="space-y-2">
+                        {(table.conditionalFormatting || []).map((rule, idx) => (
+                            <div key={rule.id} className="flex gap-2 items-center bg-white border border-slate-200 rounded p-2 text-sm shadow-sm">
+                                <span>Wenn Feld</span>
+                                <select 
+                                    className="border rounded p-1 bg-slate-50 text-xs"
+                                    value={rule.fieldId}
+                                    onChange={e => {
+                                        const updated = [...(table.conditionalFormatting || [])];
+                                        updated[idx].fieldId = e.target.value;
+                                        onTableChange({...table, conditionalFormatting: updated});
+                                    }}
+                                >
+                                    {(fields || []).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                                <select 
+                                    className="border rounded p-1 bg-slate-50 text-xs"
+                                    value={rule.operator}
+                                    onChange={e => {
+                                        const updated = [...(table.conditionalFormatting || [])];
+                                        updated[idx].operator = e.target.value as any;
+                                        onTableChange({...table, conditionalFormatting: updated});
+                                    }}
+                                >
+                                    <option value="eq">ist gleich</option>
+                                    <option value="neq">ist ungleich</option>
+                                    <option value="contains">enthält</option>
+                                    <option value="gt">größer als</option>
+                                    <option value="lt">kleiner als</option>
+                                </select>
+                                <input 
+                                    type="text" 
+                                    className="border rounded p-1 w-20 text-xs" 
+                                    placeholder="Wert..."
+                                    value={rule.value || ''}
+                                    onChange={e => {
+                                        const updated = [...(table.conditionalFormatting || [])];
+                                        updated[idx].value = e.target.value;
+                                        onTableChange({...table, conditionalFormatting: updated});
+                                    }}
+                                />
+                                <span className="text-slate-400 font-bold">»</span>
+                                
+                                <span className="text-xs text-slate-600">Zeile einfärben:</span>
+                                <input type="color" value={rule.style.backgroundColor || '#ffffff'} onChange={e => {
+                                    const updated = [...(table.conditionalFormatting || [])];
+                                    updated[idx].style = { ...updated[idx].style, backgroundColor: e.target.value };
+                                    onTableChange({...table, conditionalFormatting: updated});
+                                }} className="h-6 w-6 rounded border cursor-pointer"/>
+                                                                
+                                <input type="color" value={rule.style.color || '#000000'} onChange={e => {
+                                    const updated = [...(table.conditionalFormatting || [])];
+                                    updated[idx].style = { ...updated[idx].style, color: e.target.value };
+                                    onTableChange({...table, conditionalFormatting: updated});
+                                }} className="h-6 w-6 rounded border cursor-pointer"/>
+
+                                <button 
+                                    className="text-red-500 hover:bg-red-50 p-1 rounded ml-auto text-xs font-bold"
+                                    onClick={() => {
+                                        const updated = (table.conditionalFormatting || []).filter(r => r.id !== rule.id);
+                                        onTableChange({...table, conditionalFormatting: updated});
+                                    }}
+                                >
+                                    X
+                                </button>
+                            </div>
+                        ))}
+                        <button 
+                            className="mt-4 flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-bold"
+                            onClick={() => {
+                                const newRule = {
+                                    id: crypto.randomUUID(),
+                                    fieldId: fields[0]?.id || '',
+                                    operator: 'eq' as const,
+                                    value: '',
+                                    style: { backgroundColor: '#fee2e2', color: '#991b1b' }
+                                };
+                                onTableChange({...table, conditionalFormatting: [...(table.conditionalFormatting || []), newRule]});
+                            }}
+                        >
+                            <Plus size={16}/> Neue Regel
+                        </button>
+                    </div>
+                </div>
+              </div>
           ) : (
               <div className="max-w-4xl animate-in fade-in slide-in-from-right-4">
                   <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">

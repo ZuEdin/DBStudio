@@ -68,7 +68,7 @@ export const generateBackendCode = (
   } else if (activeConfig.frontendFramework === 'vue') {
     const vueFiles = generateVue(tables, relationships, queries, activeConfig);
     files = [...files, ...vueFiles];
-  } else if (activeConfig.frontendFramework === 'electron') {
+  } else if (activeConfig.frontendFramework === 'electron' || activeConfig.language === 'electron') {
     const electronFiles = generateElectron(tables, relationships, queries, activeConfig, forms, reports);
     files = [...files, ...electronFiles];
   }

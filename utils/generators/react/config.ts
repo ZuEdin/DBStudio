@@ -34,7 +34,8 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
         "react-router-dom": "^6.28.0", 
         "lucide-react": "^0.460.0", 
         "clsx": "^2.1.1", 
-        "tailwind-merge": "^2.3.0" 
+        "tailwind-merge": "^2.3.0",
+        "react-joyride": "^2.8.2"
     },
     "devDependencies": { 
         "@types/react": "^18.3.3", 

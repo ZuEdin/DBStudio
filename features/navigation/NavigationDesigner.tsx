@@ -493,7 +493,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Sparkles size={18} className="text-yellow-500 fill-yellow-100" />
-              Navigations- & Menü-Designer <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Phase 3 Power-Ups</span>
+              Navigations- & Menü-Designer
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               Definieren Sie Icons, AD-Rollen mapping, i18n Übersetzungen, dynamische Live-Badges und tastaturbereite Command Paletten.
@@ -792,7 +792,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                       Sichtbarkeit & Rollen (Userlevels)
                     </span>
                     <p className="text-[10px] text-slate-400 leading-normal font-medium text-slate-500 mb-1">
-                      Zuweisung der Sichtbarkeit an Admin/Editor etc. oder Mappings aus Phase 1.
+                      Zuweisung der Sichtbarkeit an Admin, Editor, etc.
                     </p>
 
                     <div className="flex flex-col gap-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
