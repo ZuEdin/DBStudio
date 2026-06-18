@@ -604,6 +604,21 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                             </div>
                                         </div>
                                     )}
+
+                                    <label className="flex items-center gap-2 cursor-pointer mt-4">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={authConfig.useActiveDirectoryMgmt}
+                                            onChange={e => setAuthConfig({...authConfig, useActiveDirectoryMgmt: e.target.checked})}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm font-semibold text-slate-800">Domain Controller API verwenden</span>
+                                    </label>
+                                    {authConfig.useActiveDirectoryMgmt && (
+                                         <p className="text-xs text-slate-500 mt-1 pl-6">
+                                            Aktiviert .NET System.DirectoryServices. Erlaubt dem Backend, Active-Directory User, SIDs und Berechtigungen programmgesteuert zu überwachen und zu steuern, anstatt sich nur auf Passiv-Authentication zu verlassen.
+                                         </p>
+                                    )}
                                 </div>
                             )}
                         </div>

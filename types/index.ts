@@ -329,6 +329,7 @@ export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'vue' | 'electr
 export interface AuthConfig {
     useWindowsAuth: boolean;
     useAdGroups: boolean;
+    useActiveDirectoryMgmt?: boolean;
     adGroups?: string; // Legacy string format
     adMapping?: { groupName: string; roleName: string }[]; // New Mapping
     useUserLogin: boolean;
