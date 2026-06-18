@@ -144,31 +144,31 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
       );
   }
 
-  if (widget === 'select' && element.lookup) {
-      const options = getLookupOptions(element.lookup);
+  if (widget === 'select') {
+      const options = element.lookup ? getLookupOptions(element.lookup) : [{ value: '', label: '(Keine Datenquelle konfiguriert)' }];
       return (
           <div className={element.className}>
-              <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+              <label htmlFor={elementId} className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
               <div className="flex gap-2">
                 <select
                     id={elementId}
-                    disabled={isReadOnly}
+                    disabled={isReadOnly || !element.lookup}
                     value={value || ''}
                     onChange={e => onChange(fieldName, e.target.value)}
-                    className="flex-1 border border-slate-300 rounded p-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="flex-1 shrink-0 appearance-none bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
                 >
-                    <option value="">Bitte wählen...</option>
+                    <option value="">Auswählen...</option>
                     {options.map((opt, idx) => (
                         <option key={`${opt.value}-${idx}`} value={opt.value}>{opt.label}</option>
                     ))}
                 </select>
-                {element.lookup.allowQuickCreate && onOpenLookupModal && !isReadOnly && (
+                {element.lookup && element.lookup.allowQuickCreate && onOpenLookupModal && !isReadOnly && (
                     <button 
                         onClick={() => element.lookup && onOpenLookupModal(element.lookup.tableId, fieldName, element.lookup.quickCreateFormId)}
-                        className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-300 rounded px-3 flex items-center justify-center transition-colors"
+                        className="shrink-0 h-9 w-9 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded flex items-center justify-center transition-colors shadow-sm focus:ring focus:ring-indigo-200"
                         title="Neuen Eintrag erstellen (+)"
                     >
-                        <Plus size={18} strokeWidth={3} />
+                        <Plus size={16} strokeWidth={2.5} />
                     </button>
                 )}
               </div>
