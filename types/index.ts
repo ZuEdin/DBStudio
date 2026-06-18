@@ -287,7 +287,7 @@ export interface Chart {
 
 export interface WorkflowNode {
     id: string;
-    type: 'trigger' | 'condition' | 'action';
+    type: 'trigger' | 'condition' | 'action' | 'api' | 'upload' | 'group';
     x: number;
     y: number;
     label: string;
@@ -306,6 +306,22 @@ export interface WorkflowNode {
         emailTo?: string;
         emailSubject?: string;
     };
+    apiConfig?: {
+        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        url: string;
+        headers?: string;
+        body?: string;
+    };
+    fileUploadConfig?: {
+        tableId?: string;
+        fileTypes?: string;
+        maxSizeBytes?: number;
+    };
+    parentId?: string;
+    extent?: 'parent';
+    style?: React.CSSProperties;
+    width?: number;
+    height?: number;
 }
 
 export interface WorkflowEdge {
