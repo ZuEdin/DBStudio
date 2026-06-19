@@ -228,6 +228,305 @@ import { RouterLink } from '@angular/router';
 export class ForbiddenComponent {}
         `;
         files.push({ name: 'forbidden.component.ts', path: `${appRoot}/pages/auth/forbidden.component.ts`, content: forbiddenTs, language: 'typescript' });
+
+        const loginTs = `
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [CommonModule, FormsModule, RouterLink],
+  template: \`
+    <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+      <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-md border border-slate-200">
+        <h2 class="text-3xl font-black text-slate-800 text-center mb-6">Anmelden</h2>
+        
+        <div *ngIf="error" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
+          {{error}}
+        </div>
+        
+        <form (ngSubmit)="onSubmit()" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Benutzername</label>
+            <input type="text" [(ngModel)]="username" name="username" required
+              class="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Passwort</label>
+            <input type="password" [(ngModel)]="password" name="password" required
+              class="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          
+          <button type="submit" [disabled]="loading"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+            {{ loading ? 'Melde an...' : 'Einloggen' }}
+          </button>
+        </form>
+        
+        <div class="mt-6 pt-6 border-t border-slate-100 flex justify-between text-xs text-blue-600 font-medium">
+          <a routerLink="/forgot-password" class="hover:underline">Passwort vergessen?</a>
+          <a routerLink="/register" class="hover:underline">Neues Konto erstellen</a>
+        </div>
+      </div>
+    </div>
+  \`
+})
+export class LoginComponent {
+  username = '';
+  password = '';
+  error = '';
+  loading = false;
+
+  constructor(private auth: AuthService, private router: Router) {}
+
+  onSubmit() {
+    this.loading = true;
+    this.error = '';
+    this.auth.login({ username: this.username, password: this.password }).subscribe({
+      next: () => {
+        this.loading = false;
+        this.router.navigate(['/']);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = 'Invalide Anmeldedaten oder Verbindung fehlgeschlagen.';
+      }
+    });
+  }
+}
+        `;
+        files.push({ name: 'login.component.ts', path: `${appRoot}/pages/auth/login.component.ts`, content: loginTs, language: 'typescript' });
+
+        const registerTs = `
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
+
+@Component({
+  selector: 'app-register',
+  standalone: true,
+  imports: [CommonModule, FormsModule, RouterLink],
+  template: \`
+    <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+      <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-md border border-slate-200">
+        <h2 class="text-3xl font-black text-slate-800 text-center mb-6">Registrieren</h2>
+        
+        <div *ngIf="error" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
+          {{error}}
+        </div>
+        <div *ngIf="success" class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
+          Registrierung erfolgreich! Sie werden zur Anmeldung weitergeleitet.
+        </div>
+        
+        <form (ngSubmit)="onSubmit()" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Benutzername</label>
+            <input type="text" [(ngModel)]="username" name="username" required
+              class="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">E-Mail</label>
+            <input type="email" [(ngModel)]="email" name="email" required
+              class="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Passwort</label>
+            <input type="password" [(ngModel)]="password" name="password" required
+              class="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          
+          <button type="submit" [disabled]="loading"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+            {{ loading ? 'Registriere...' : 'Konto erstellen' }}
+          </button>
+        </form>
+        
+        <div class="mt-6 text-center text-xs text-blue-600 font-medium">
+          <a routerLink="/login" class="hover:underline">Bereits registriert? Zum Login</a>
+        </div>
+      </div>
+    </div>
+  \`
+})
+export class RegisterComponent {
+  username = '';
+  email = '';
+  password = '';
+  error = '';
+  success = false;
+  loading = false;
+
+  constructor(private auth: AuthService, private router: Router) {}
+
+  onSubmit() {
+    this.loading = true;
+    this.error = '';
+    this.auth.register({ username: this.username, email: this.email, password: this.password }).subscribe({
+      next: () => {
+        this.loading = false;
+        this.success = true;
+        setTimeout(() => this.router.navigate(['/login']), 2000);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = 'Registrierung fehlgeschlagen. Der Benutzername wird eventuell bereits verwendet.';
+      }
+    });
+  }
+}
+        `;
+    files.push({ name: 'register.component.ts', path: `${appRoot}/pages/auth/register.component.ts`, content: registerTs, language: 'typescript' });
+
+    const forgotPasswordTs = `
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+
+@Component({
+  selector: 'app-forgot-password',
+  standalone: true,
+  imports: [CommonModule, FormsModule, RouterLink],
+  template: \`
+    <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+      <div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-md border border-slate-200">
+        <h2 class="text-3xl font-black text-slate-800 text-center mb-4">Passwort zurücksetzen</h2>
+        <p class="text-slate-500 text-sm text-center mb-6">Geben Sie Ihren Namen oder Ihre E-Mail ein, um Ihr Passwort zurückzusetzen.</p>
+        
+        <div *ngIf="success" class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
+          Eine Zurücksetzungsanleitung wurde an Ihre E-Mail gesendet.
+        </div>
+        
+        <form (ngSubmit)="onSubmit()" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Benutzername oder E-Mail</label>
+            <input type="text" [(ngModel)]="username" name="username" required
+              class="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          
+          <button type="submit" [disabled]="loading"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+            {{ loading ? 'Sende...' : 'Zurücksetzen anfordern' }}
+          </button>
+        </form>
+        
+        <div class="mt-6 text-center text-xs text-blue-600 font-medium">
+          <a routerLink="/login" class="hover:underline">Zurück zum Login</a>
+        </div>
+      </div>
+    </div>
+  \`
+})
+export class ForgotPasswordComponent {
+  username = '';
+  loading = false;
+  success = false;
+
+  onSubmit() {
+    this.loading = true;
+    setTimeout(() => {
+      this.loading = false;
+      this.success = true;
+    }, 1000);
+  }
+}
+        `;
+    files.push({ name: 'forgot-password.component.ts', path: `${appRoot}/pages/auth/forgot-password.component.ts`, content: forgotPasswordTs, language: 'typescript' });
+
+    const profileTs = `
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../services/auth.service';
+
+@Component({
+  selector: 'app-profile',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: \`
+    <div class="p-8 max-w-2xl mx-auto font-sans">
+      <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+        <div class="p-6 bg-slate-800 text-white">
+          <h2 class="text-2xl font-bold flex items-center gap-2">Profilübersicht</h2>
+        </div>
+        
+        <div class="p-6 space-y-6">
+          <div class="flex items-center gap-4 border-b pb-6">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold shadow-inner">
+              {{(user?.username || 'U').substring(0, 2).toUpperCase()}}
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-800">{{user?.username}}</h3>
+              <p class="text-slate-500 text-sm">Rolle: <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-bold ml-1">{{user?.role}}</span></p>
+            </div>
+          </div>
+          
+          <div class="pt-4">
+            <h4 class="text-md font-bold text-slate-800 mb-4">Passwort ändern</h4>
+            <div class="space-y-4">
+                <div>
+                   <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Neues Passwort</label>
+                   <input type="password" [(ngModel)]="newPassword" class="w-full border rounded p-2 text-sm" />
+                </div>
+                <button (click)="changePassword()" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 transition-colors">
+                   Passwort aktualisieren
+                </button>
+            </div>
+          </div>
+          
+          <div class="border-t pt-6 flex justify-end">
+              <button (click)="logout()" class="px-6 py-2 border rounded-lg text-red-600 hover:bg-slate-50 transition-colors flex items-center gap-2">
+                 Ausloggen
+              </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  \`
+})
+export class ProfileComponent implements OnInit {
+  user: any = null;
+  newPassword = '';
+  error = '';
+  success = false;
+  loading = false;
+
+  constructor(private auth: AuthService) {}
+
+  ngOnInit() {
+    this.auth.user$.subscribe(user => this.user = user);
+  }
+
+  logout() {
+    this.auth.logout();
+  }
+
+  changePassword() {
+    if (!this.newPassword) return;
+    this.loading = true;
+    this.error = '';
+    this.success = false;
+    this.auth.changePassword({ newPassword: this.newPassword }).subscribe({
+      next: () => {
+        this.loading = false;
+        this.success = true;
+        this.newPassword = '';
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = 'Passwortänderung fehlgeschlagen.';
+      }
+    });
+  }
+}
+        `;
+    files.push({ name: 'profile.component.ts', path: `${appRoot}/pages/auth/profile.component.ts`, content: profileTs, language: 'typescript' });
     }
 
     return files;
