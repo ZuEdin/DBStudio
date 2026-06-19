@@ -1,12 +1,58 @@
 
-import { Table, BackendConfig, VirtualFile, DbType } from '../../../types/index';
+import { Table, BackendConfig, VirtualFile, DbType, Relationship } from '../../../types/index';
 import { toPascalCase, quoteIdentifier } from '../common';
 
-export const generateDbInitializer = (tables: Table[], config: BackendConfig, root: string): VirtualFile => {
+export const sortTablesByDependencies = (tables: Table[], relationships: Relationship[]): Table[] => {
+    const dependencyMap = new Map<string, Set<string>>();
+    tables.forEach(t => dependencyMap.set(t.id, new Set<string>()));
+    
+    relationships.forEach(rel => {
+        const parentId = rel.fromTableId;
+        const childId = rel.toTableId;
+        if (dependencyMap.has(childId) && dependencyMap.has(parentId) && childId !== parentId) {
+            dependencyMap.get(childId)!.add(parentId);
+        }
+    });
+
+    const sorted: Table[] = [];
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+
+    const visit = (tableId: string) => {
+        if (visited.has(tableId)) return;
+        if (visiting.has(tableId)) return; // Break cycle
+        
+        visiting.add(tableId);
+        const deps = dependencyMap.get(tableId);
+        if (deps) {
+            deps.forEach(depId => visit(depId));
+        }
+        visiting.delete(tableId);
+        visited.add(tableId);
+
+        const table = tables.find(t => t.id === tableId);
+        if (table) {
+            sorted.push(table);
+        }
+    };
+
+    tables.forEach(t => {
+        if (!visited.has(t.id)) {
+            visit(t.id);
+        }
+    });
+
+    return sorted;
+};
+
+export const generateDbInitializer = (tables: Table[], relationships: Relationship[], config: BackendConfig, root: string): VirtualFile => {
     let seedLogic = '';
     const dbType = config.dbType;
 
-    tables.forEach(table => {
+    // Sort tables so dependent tables are seeded after their referenced tables (parent tables)
+    const sortedTables = sortTablesByDependencies(tables, relationships || []);
+
+    sortedTables.forEach(table => {
         if (!table.data || table.data.length === 0) return;
 
         const tableName = quoteIdentifier(toPascalCase(table.name), dbType);

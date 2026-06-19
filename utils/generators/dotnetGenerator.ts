@@ -91,7 +91,7 @@ namespace ${config.projectName}
   // Data Layer
   // FIX: Passed relationships to generateDbContext
   files.push(generateDbContext(tables, relationships, queries, config, root));
-  files.push(generateDbInitializer(tables, config, root)); 
+  files.push(generateDbInitializer(tables, relationships, config, root)); 
   files.push(...generateModels(tables, relationships, queries, config, root));
   
   // API Layer
