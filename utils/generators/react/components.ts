@@ -50,6 +50,8 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], data
                     isNumeric = true;
                 }
                 else if (f.type === 'DATE') fieldType = 'date';
+                else if (f.type === 'TIME') fieldType = 'time';
+                else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') fieldType = 'datetime-local';
                 else if (f.type === 'BOOLEAN') fieldType = 'checkbox';
                 break;
             }

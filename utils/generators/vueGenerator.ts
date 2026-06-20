@@ -20,6 +20,8 @@ const generateVueTemplateForLayout = (element: any, tables: Table[]): string => 
                 fieldName = f.name;
                 if (f.type === 'INTEGER' || f.type === 'DECIMAL') inputType = 'number';
                 if (f.type === 'DATE') inputType = 'date';
+                else if (f.type === 'TIME') inputType = 'time';
+                else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') inputType = 'datetime-local';
                 break;
             }
         }

@@ -154,7 +154,7 @@ const generateValidationLogic = (rules: ValidationRule[], table: Table): string 
             compareExp = toPascalCase(otherField.name);
         } else {
             if (field.type === 'VARCHAR' || field.type === 'TEXT') compareExp = `"${rule.compareValue}"`;
-            else if (field.type === 'DATE' || field.type === 'DATETIME') compareExp = `DateTime.Parse("${rule.compareValue}")`;
+            else if (field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') compareExp = `DateTime.Parse("${rule.compareValue}")`;
             else compareExp = rule.compareValue; 
         }
 

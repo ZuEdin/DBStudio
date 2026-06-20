@@ -110,5 +110,32 @@ export const DATA_TYPES: Record<string, DataTypeDefinition> = {
       typescript: "Date",
       sql: { type: () => "DATETIME" }
     }
+  },
+  TINYINT: {
+    label: "TinyInt",
+    mappings: {
+      csharp: { type: "byte" },
+      sequelize: { type: () => "DataTypes.TINYINT" },
+      typescript: "number",
+      sql: { type: () => "TINYINT" }
+    }
+  },
+  TIMESTAMP: {
+    label: "Timestamp",
+    mappings: {
+      csharp: { type: "DateTime" },
+      sequelize: { type: () => "DataTypes.DATE" },
+      typescript: "Date",
+      sql: { type: () => "TIMESTAMP" }
+    }
+  },
+  TIME: {
+    label: "Uhrzeit (Time)",
+    mappings: {
+      csharp: { type: "TimeSpan" },
+      sequelize: { type: () => "DataTypes.TIME" },
+      typescript: "string",
+      sql: { type: () => "TIME" }
+    }
   }
 };

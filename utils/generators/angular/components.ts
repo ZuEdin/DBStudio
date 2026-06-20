@@ -242,6 +242,8 @@ export class ${pascalName}ListComponent implements OnInit {
                   let type = 'text';
                   if (f.type === 'INTEGER' || f.type === 'DECIMAL') type = 'number';
                   if (f.type === 'DATE') type = 'date';
+                  else if (f.type === 'TIME') type = 'time';
+                  else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') type = 'datetime-local';
                   input = `<label class="block text-sm font-bold mb-1">${f.name}</label><input type="${type}" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="w-full border rounded p-2" />`;
               }
               return `<div class="mb-4">${input}</div>`;

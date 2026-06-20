@@ -22,14 +22,14 @@ export const DummyDataWizard: React.FC<DummyDataWizardProps> = ({ tables, onGene
 
       if (field.type === 'BOOLEAN') return Math.random() > 0.5;
       
-      if (field.type === 'INTEGER' || field.type === 'DECIMAL' || field.type === 'DOUBLE') {
+      if (field.type === 'INTEGER' || field.type === 'DECIMAL' || field.type === 'DOUBLE' || field.type === 'TINYINT') {
           if (name.includes('price') || name.includes('preis')) return (Math.random() * 1000).toFixed(2);
           if (name.includes('qty') || name.includes('menge') || name.includes('anzahl')) return Math.floor(Math.random() * 100);
           if (name.includes('id') && !field.isPrimaryKey) return 1; // FK Mock
           return Math.floor(Math.random() * 1000);
       }
 
-      if (field.type === 'DATE' || field.type === 'DATETIME') {
+      if (field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') {
           const start = new Date(2020, 0, 1);
           const end = new Date();
           const d = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));

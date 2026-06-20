@@ -163,6 +163,18 @@ export class AuthService {
     );
   }
 
+  loginWithSso(provider: string): Observable<any> {
+    // Optional: Integrates Firebase SDK directly in real app
+    return this.http.post<any>(this.baseUrl + '/sso-login', { provider }).pipe(
+      tap(response => {
+        if (response.token) {
+          localStorage.setItem(this.tokenKey, response.token);
+          this.decodeAndNotify(response.token);
+        }
+      })
+    );
+  }
+
   register(data: any): Observable<any> {
     return this.http.post<any>(this.baseUrl + '/register', data);
   }
@@ -206,8 +218,8 @@ export const authGuard: CanActivateFn = (route, state) => {
 
   const expectedRoles = route.data['roles'] as Array<string>;
   if (expectedRoles && expectedRoles.length > 0) {
-      const userRole = auth.userSubject.value?.role;
-      if (!expectedRoles.includes(userRole)) {
+      const hasAccess = expectedRoles.some(role => auth.hasRole(role));
+      if (!hasAccess) {
           return router.parseUrl('/forbidden');
       }
   }

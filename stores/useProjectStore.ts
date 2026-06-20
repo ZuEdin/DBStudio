@@ -94,7 +94,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                  { id: userPkId, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }, 
                  { id: crypto.randomUUID(), name: 'Username', type: 'VARCHAR', length: 50 }, 
                  { id: crypto.randomUUID(), name: 'Email', type: 'VARCHAR', length: 100 }, 
-                 { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255 }, 
+                 { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255, allowNull: true }, 
+                 { id: crypto.randomUUID(), name: 'FirebaseUid', type: 'VARCHAR', length: 128, allowNull: true },
+                 { id: crypto.randomUUID(), name: 'Provider', type: 'VARCHAR', length: 50, allowNull: true },
                  { id: roleFkId, name: 'RoleId', type: 'INTEGER' }
              ];
 

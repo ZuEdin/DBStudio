@@ -64,6 +64,40 @@ namespace ${config.projectName}.Controllers
       files.push({ name: 'AdController.cs', path: `${root}/Controllers/AdController.cs`, content: adControllerContent, language: 'csharp' });
   }
 
+  if (useAuth) {
+      const authControllerContent = `using Microsoft.AspNetCore.Mvc;
+
+namespace ${config.projectName}.Controllers
+{
+    [Route("api/auth")]
+    [ApiController]
+    public class AuthController : ControllerBase
+    {
+        public class LoginDto { public string? Username { get; set; } public string? Password { get; set; } }
+        public class SsoLoginDto { public string? Provider { get; set; } }
+
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginDto dto)
+        {
+            return Ok(new { token = "dummy-jwt-token-for-" + (dto.Username ?? "user"), user = new { username = dto.Username ?? "user", role = "Admin" } });
+        }
+
+        [HttpPost("register")]
+        public IActionResult Register([FromBody] LoginDto dto)
+        {
+            return StatusCode(201, new { message = "User registered successfully" });
+        }
+
+        [HttpPost("login-sso")]
+        public IActionResult LoginSso([FromBody] SsoLoginDto dto)
+        {
+            return Ok(new { token = "dummy-jwt-token-sso-" + (dto.Provider ?? "unknown"), user = new { username = dto.Provider + " User", role = "User" } });
+        }
+    }
+}`;
+      files.push({ name: 'AuthController.cs', path: `${root}/Controllers/AuthController.cs`, content: authControllerContent, language: 'csharp' });
+  }
+
   const pagedResultClass = `namespace ${config.projectName}.Models
 {
     public class PagedResult<T>

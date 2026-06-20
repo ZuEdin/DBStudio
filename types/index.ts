@@ -6,7 +6,7 @@ export enum DbType {
   NoSQL = 'NoSQL'
 }
 
-export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE';
+export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP';
 
 export interface Field {
   id: string;
@@ -380,7 +380,7 @@ export interface StorageConfig {
 }
 
 export interface SsoConfig {
-    provider: 'google' | 'microsoft';
+    provider: 'google' | 'microsoft' | 'apple' | 'github';
     clientId: string;
     clientSecret?: string;
     tenantId?: string;

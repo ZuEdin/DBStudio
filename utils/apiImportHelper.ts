@@ -15,8 +15,12 @@ export const inferFieldType = (value: any): FieldType => {
     // Simple Date check (YYYY-MM-DD or ISO)
     if (typeof value === 'string' && value.length > 5) {
         if (!isNaN(Date.parse(value)) && (value.includes('-') || value.includes('/') || value.includes('T'))) {
+            if (value.length <= 10 && !value.includes('T')) return 'DATE';
             return 'DATETIME'; 
         }
+    }
+    if (typeof value === 'string' && value.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+        return 'TIME';
     }
     return 'VARCHAR';
 };

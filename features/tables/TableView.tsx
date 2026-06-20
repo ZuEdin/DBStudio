@@ -16,16 +16,34 @@ interface TableViewProps {
   showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
 }
 
-const formatDateValue = (val: any, format?: string) => {
+const formatDateValue = (val: any, format?: string, type?: string) => {
     if (!val) return '';
+    
+    // For TIME fields without format string, or if value is just HH:mm
+    if (type === 'TIME' && typeof val === 'string' && val.length <= 8 && val.includes(':')) {
+        return format ? val : val.substring(0, 5); // Return HH:mm if just time
+    }
+
     let date: Date;
     if (typeof val === 'number') {
         date = new Date(val > 10000000000 ? val : val * 1000);
     } else {
-        date = new Date(val);
+        // If it’s just a time string, map it to today
+        if (type === 'TIME' && typeof val === 'string' && val.match(/^\d{2}:\d{2}/)) {
+            const [h, m, s] = val.split(':');
+            date = new Date();
+            date.setHours(parseInt(h || '0'), parseInt(m || '0'), parseInt(s || '0'), 0);
+        } else {
+            date = new Date(val);
+        }
     }
     if (isNaN(date.getTime())) return String(val);
-    if (!format) return date.toLocaleString();
+    
+    if (!format) {
+        if (type === 'TIME') return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (type === 'DATE') return date.toLocaleDateString();
+        return date.toLocaleString();
+    }
     const d = date.getDate().toString().padStart(2, '0');
     const m = (date.getMonth() + 1).toString().padStart(2, '0');
     const y = date.getFullYear();
@@ -83,7 +101,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
       } else if (field?.defaultValue !== undefined && field?.defaultValue !== '') {
           if (field.type === 'BOOLEAN') {
               acc[header] = field.defaultValue === 'true';
-          } else if ((field.type === 'DATE' || field.type === 'DATETIME') && field.defaultValue.toUpperCase() === 'NOW') {
+          } else if ((field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') && field.defaultValue.toUpperCase() === 'NOW') {
               acc[header] = new Date().toISOString();
           } else {
               acc[header] = field.defaultValue;
@@ -165,9 +183,9 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
           {headers.map(header => {
             const field = table.fields.find(f => f.name === header);
             const isAutoInc = field?.isAutoIncrement;
-            const isDate = field?.type === 'DATE' || field?.type === 'DATETIME';
+            const isDate = field?.type === 'DATE' || field?.type === 'TIME' || field?.type === 'DATETIME' || field?.type === 'TIMESTAMP';
             const rawVal = row[header] ?? '';
-            const displayVal = isDate ? formatDateValue(rawVal, field?.displayFormat) : rawVal;
+            const displayVal = isDate ? formatDateValue(rawVal, field?.displayFormat, field?.type) : rawVal;
             const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
             const isFK = !!rel;
             const showLink = isFK && rawVal;
@@ -295,7 +313,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                     const stats = columnStats[h];
                     const hasFilter = !!filters[h];
                     const field = table.fields.find(f => f.name === h);
-                    const isDate = field?.type === 'DATE' || field?.type === 'DATETIME';
+                    const isDate = field?.type === 'DATE' || field?.type === 'TIME' || field?.type === 'DATETIME' || field?.type === 'TIMESTAMP';
                     return (
                         <div key={h} className={`flex flex-col min-w-[120px] max-w-[200px] ${hasFilter ? 'bg-white rounded shadow-sm' : ''} p-1`}>
                             <label className="text-[10px] font-bold text-orange-700 mb-0.5 truncate px-1">{h}</label>

@@ -410,6 +410,51 @@ if (class_exists($controllerName)) {
 ?>`;
 
   files.push({ name: 'index.php', path: `${root}/index.php`, content: routerContent, language: 'php' });
+  
+  if (config.authConfig?.useUserLogin) {
+      const authControllerContent = `<?php
+namespace App\\Controllers;
+
+class AuthController {
+    private $db;
+
+    public function __construct($db) {
+        $this->db = $db;
+    }
+
+    public function processRequest($method, $action = null) {
+        if ($method !== 'POST') {
+            http_response_code(405);
+            echo json_encode(["message" => "Method not allowed"]);
+            return;
+        }
+
+        $data = json_decode(file_get_contents("php://input"));
+
+        if ($action === 'login') {
+            // Dummy authentication logic
+            echo json_encode([
+                "token" => "dummy-jwt-token-for-" . ($data->username ?? 'user'), 
+                "user" => ["username" => $data->username ?? 'user', "role" => "Admin"]
+            ]);
+        } elseif ($action === 'login-sso') {
+            echo json_encode([
+                "token" => "dummy-jwt-token-for-sso-" . ($data->provider ?? 'unknown'), 
+                "user" => ["username" => "SSO User", "role" => "User"]
+            ]);
+        } elseif ($action === 'register') {
+            // Dummy logic for registering
+            http_response_code(201);
+            echo json_encode(["message" => "User registered successfully"]);
+        } else {
+            http_response_code(400);
+            echo json_encode(["message" => "Bad request auth action"]);
+        }
+    }
+}
+?>`;
+      files.push({ name: 'AuthController.php', path: `${root}/controllers/AuthController.php`, content: authControllerContent, language: 'php' });
+  }
 
   // 6. Helper: .htaccess
   files.push({

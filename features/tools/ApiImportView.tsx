@@ -486,7 +486,10 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                                                     <option value="REAL">Dezimalzahl (REAL)</option>
                                                     <option value="BOOLEAN">Wahrheitswert (BOOLEAN)</option>
                                                     <option value="DATE">Datum (DATE)</option>
+                                                    <option value="TIME">Uhrzeit (TIME)</option>
                                                     <option value="DATETIME">Datum & Zeit (DATETIME)</option>
+                                                    <option value="TIMESTAMP">Zeitstempel (TIMESTAMP)</option>
+                                                    <option value="TINYINT">Winzige Ganzzahl (TINYINT)</option>
                                                 </select>
                                                 {schemaOverrides[col] ? (
                                                     <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded">Manuell geändert</span>

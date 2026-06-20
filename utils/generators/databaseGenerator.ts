@@ -82,7 +82,7 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
                     let defVal = f.defaultValue;
                     const isKeyword = ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase());
                     
-                    if (['INTEGER', 'BOOLEAN', 'DECIMAL', 'DOUBLE'].includes(f.type) || isKeyword) {
+                    if (['INTEGER', 'BOOLEAN', 'DECIMAL', 'DOUBLE', 'TINYINT'].includes(f.type) || isKeyword) {
                         if (isKeyword) {
                             defVal = config.dbType === DbType.SQL ? 'GETDATE()' : 'CURRENT_TIMESTAMP';
                         }

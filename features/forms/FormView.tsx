@@ -79,7 +79,7 @@ export const FormView: React.FC<FormViewProps> = ({
         if (field.defaultValue !== undefined && field.defaultValue !== '') {
             if (field.type === 'BOOLEAN') {
                 acc[field.name] = field.defaultValue === 'true';
-            } else if ((field.type === 'DATE' || field.type === 'DATETIME') && field.defaultValue.toUpperCase() === 'NOW') {
+            } else if ((field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') && field.defaultValue.toUpperCase() === 'NOW') {
                 acc[field.name] = new Date().toISOString();
             } else {
                 acc[field.name] = field.defaultValue;

@@ -249,7 +249,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
                                                     <option value="TEXT">Text (Lang)</option>
                                                     <option value="INTEGER">Ganzzahl</option>
                                                     <option value="DECIMAL">Kommazahl</option>
-                                                    <option value="DATE">Datum</option>
+                                                    <option value="DATE">Datum (DATE)</option>
+                                                    <option value="TIME">Uhrzeit (TIME)</option>
+                                                    <option value="DATETIME">Datum & Zeit (DATETIME)</option>
+                                                    <option value="TIMESTAMP">Zeitstempel (TIMESTAMP)</option>
                                                     <option value="BOOLEAN">Ja/Nein</option>
                                                 </select>
                                                 

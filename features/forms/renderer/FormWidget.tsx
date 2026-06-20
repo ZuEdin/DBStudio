@@ -46,6 +46,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   if (!widget && field) {
       if (field.type === 'BOOLEAN') widget = 'checkbox';
       else if (field.type === 'DATE') widget = 'date';
+      else if (field.type === 'TIME') widget = 'time';
+      else if (field.type === 'DATETIME' || field.type === 'TIMESTAMP') widget = 'datetime-local';
       else if (field.type === 'INTEGER' || field.type === 'DECIMAL') widget = 'number';
       else widget = 'text';
   }

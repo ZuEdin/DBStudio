@@ -283,6 +283,20 @@ ${integrations.sso.length > 0 ? `
 app.use(passport.initialize());
 ` : ""}
 
+// Auth Routes
+if (${config.authConfig?.useUserLogin !== undefined ? config.authConfig?.useUserLogin : false}) {
+app.post('/api/auth/login', (req, res) => {
+    res.json({ token: "dummy-jwt-token-for-" + (req.body.username || 'user'), user: { username: req.body.username || 'user', role: 'Admin' } });
+});
+app.post('/api/auth/register', (req, res) => {
+    res.status(201).json({ message: "User registered successfully" });
+});
+app.post('/api/auth/login-sso', (req, res) => {
+    const provider = req.body.provider || 'unknown';
+    res.json({ token: "dummy-jwt-token-sso-" + provider, user: { username: provider + ' User', role: 'User' } });
+});
+}
+
 // Routes
 ${routes}
 

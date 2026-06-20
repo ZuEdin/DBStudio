@@ -34,7 +34,11 @@ builder.Services.AddScoped<${config.projectName}.Services.IAdService, ${config.p
           namespaces += `\nusing ${config.projectName}.Services;`;
           authServices += `\nbuilder.Services.AddTransient<IClaimsTransformation, AdRoleTransformer>();\n`;
       }
-      authAppUse += `app.UseAuthentication(); app.UseAuthorization();`;
+      if (authConfig.devBypass) {
+          authAppUse += `app.UseAuthentication(); app.UseMiddleware<WindowsDevBypassMiddleware>(); app.UseAuthorization();`;
+      } else {
+          authAppUse += `app.UseAuthentication(); app.UseAuthorization();`;
+      }
   } else if (authConfig?.useUserLogin) {
       namespaces += `\nusing ${config.projectName}.Services;`;
       authServices += `\nbuilder.Services.AddScoped<IPermissionService, PermissionService>();\n`;
@@ -99,7 +103,32 @@ ${authAppUse}
 app.MapControllers();
 ${isBlazor ? 'app.MapFallbackToFile("index.html");' : 'app.MapFallbackToFile("index.html");'}
 
-app.Run();`;
+app.Run();
+
+#region Bypass Middleware
+public class WindowsDevBypassMiddleware
+{
+    private readonly RequestDelegate _next;
+    public WindowsDevBypassMiddleware(RequestDelegate next) { _next = next; }
+    public async Task InvokeAsync(HttpContext context)
+    {
+        if (context.User?.Identity?.IsAuthenticated != true)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, "Fronius\\\\HR LA Trainer Team User"),
+                new Claim(ClaimTypes.NameIdentifier, "S-1-5-21-dev-user-id"),
+                new Claim(ClaimTypes.Email, "dev-user@fronius.com"),
+                new Claim(ClaimTypes.Role, "User"),
+                new Claim(ClaimTypes.Role, "Admin")
+            };
+            var identity = new ClaimsIdentity(claims, "WindowsDevBypass");
+            context.User = new ClaimsPrincipal(identity);
+        }
+        await _next(context);
+    }
+}
+#endregion`;
 
   return { name: 'Program.cs', path: `${root}/Program.cs`, content: content, language: 'csharp' };
 };

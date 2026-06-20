@@ -208,6 +208,8 @@ export const ${listName} = () => {
                   if (f.type === 'BOOLEAN') input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" name="${name}" value="true" className="w-4 h-4" /> <span className="text-sm">Aktivieren</span></div>`;
                   else if (f.type === 'INTEGER' || f.type === 'DECIMAL') input = `<input type="number" name="${name}" className="w-full border p-2 rounded" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
                   else if (f.type === 'DATE') input = `<input type="date" name="${name}" className="w-full border p-2 rounded" />`;
+                  else if (f.type === 'TIME') input = `<input type="time" name="${name}" className="w-full border p-2 rounded" />`;
+                  else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') input = `<input type="datetime-local" name="${name}" className="w-full border p-2 rounded" />`;
                   return `<div className="mb-3"><label className="block text-sm font-bold mb-1 text-slate-700">${label}</label>${input}</div>`;
               }).join('');
               

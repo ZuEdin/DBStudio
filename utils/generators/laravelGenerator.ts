@@ -108,6 +108,9 @@ SESSION_LIFETIME=120
           if (f.type === 'BOOLEAN') laravelType = 'boolean';
           if (f.type === 'DATE') laravelType = 'date';
           if (f.type === 'DATETIME') laravelType = 'dateTime';
+          if (f.type === 'TIME') laravelType = 'time';
+          if (f.type === 'TIMESTAMP') laravelType = 'timestamp';
+          if (f.type === 'TINYINT') laravelType = 'tinyInteger';
           if (f.type === 'TEXT') laravelType = 'text';
           if (f.type === 'DECIMAL' || f.type === 'DOUBLE') laravelType = 'decimal';
 
@@ -277,6 +280,32 @@ class ${controllerName} extends Controller
       apiRoutes += `Route::apiResource('${toCamelCase(table.name)}', ${modelName}Controller::class);\n`;
   });
 
+  // Docs
+  if (config.authConfig?.useUserLogin) {
+      const authControllerContent = `<?php
+
+namespace App\\Http\\Controllers;
+
+use Illuminate\\Http\\Request;
+
+class AuthController extends Controller
+{
+    public function login(Request $request) {
+        $username = $request->input('username', 'user');
+        return response()->json(['token' => 'dummy-jwt-token-for-'.$username, 'user' => ['username' => $username, 'role' => 'Admin']]);
+    }
+    public function register(Request $request) {
+        return response()->json(['message' => 'User registered successfully'], 201);
+    }
+    public function loginSso(Request $request) {
+        $provider = $request->input('provider', 'unknown');
+        return response()->json(['token' => 'dummy-jwt-token-sso-'.$provider, 'user' => ['username' => $provider.' User', 'role' => 'User']]);
+    }
+}`;
+      files.push({ name: `AuthController.php`, path: `${root}/app/Http/Controllers/AuthController.php`, content: authControllerContent, language: 'php' });
+      apiRoutes += `use App\\Http\\Controllers\\AuthController;\nRoute::post('auth/login', [AuthController::class, 'login']);\nRoute::post('auth/register', [AuthController::class, 'register']);\nRoute::post('auth/login-sso', [AuthController::class, 'loginSso']);\n`;
+  }
+  
   files.push({ name: 'api.php', path: `${root}/routes/api.php`, content: apiRoutes, language: 'php' });
 
   // Docs

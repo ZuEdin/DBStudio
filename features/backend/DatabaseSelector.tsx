@@ -46,6 +46,11 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
       isMobileReady: false,
       devBypass: true
   });
+  
+  const [useMultiTenancy, setUseMultiTenancy] = useState(false);
+  const [tenantField, setTenantField] = useState('ClubId');
+  
+  const [ssoProviders, setSsoProviders] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,7 +109,13 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                         : 'Server=.;Database=MyDb;Trusted_Connection=True;TrustServerCertificate=True;',
           useSwagger: true,
           frontendFramework: 'react',
-          authConfig: finalAuthConfig
+          authConfig: finalAuthConfig,
+          multiTenancy: useMultiTenancy ? { enabled: true, strategy: 'discriminator', tenantField } : undefined,
+          integrations: ssoProviders.length > 0 ? {
+              sso: ssoProviders.map(p => ({ provider: p as 'google' | 'microsoft' | 'apple' | 'github', clientId: '' })),
+              storage: { provider: 'local' },
+              webhooks: []
+          } : undefined
       };
       onCreateNew(newDbType, newProjectName, config);
     }
@@ -408,17 +419,70 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                     <span>{t('start.auth_user')}</span>
                                 </label>
                                 {authConfig.useUserLogin && (
-                                    <label className="flex items-center gap-2 cursor-pointer mt-2 ml-5">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={authConfig.isMobileReady} 
-                                            onChange={e => setAuthConfig({...authConfig, isMobileReady: e.target.checked})}
-                                            className="rounded text-indigo-600 focus:ring-indigo-500"
-                                        />
-                                        <span className="flex items-center gap-1"><Smartphone size={12}/> {t('start.auth_mobile')}</span>
-                                    </label>
+                                    <div className="ml-5 mt-2 space-y-2 animate-in slide-in-from-top-1">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={authConfig.isMobileReady} 
+                                                onChange={e => setAuthConfig({...authConfig, isMobileReady: e.target.checked})}
+                                                className="rounded text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="flex items-center gap-1"><Smartphone size={12}/> {t('start.auth_mobile')}</span>
+                                        </label>
+                                        
+                                        <div className="pt-2">
+                                            <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Single Sign-On (SSO)</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['google', 'microsoft', 'apple', 'github'].map(provider => (
+                                                    <label key={provider} className="flex items-center gap-1.5 cursor-pointer text-xs border border-slate-200 rounded px-2 py-1 hover:bg-slate-100 transition-colors">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={ssoProviders.includes(provider)}
+                                                            onChange={e => {
+                                                                if (e.target.checked) setSsoProviders([...ssoProviders, provider]);
+                                                                else setSsoProviders(ssoProviders.filter(p => p !== provider));
+                                                            }}
+                                                            className="rounded text-indigo-600"
+                                                        />
+                                                        <span className="capitalize">{provider}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
+                         </div>
+                     </div>
+
+                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4 mb-4">
+                         <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                            <Users size={16} className="text-blue-600" />
+                            Mandantenfähigkeit / SaaS (optional)
+                         </h3>
+                         <div className="space-y-3 text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={useMultiTenancy} 
+                                    onChange={e => setUseMultiTenancy(e.target.checked)}
+                                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span>Multi-Tenancy aktivieren (z.B. für Vereins-CMS, SaaS)</span>
+                            </label>
+                            
+                            {useMultiTenancy && (
+                                <div className="ml-5 mt-2 animate-in slide-in-from-top-1">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Name des Identifier-Feldes (z.B. ClubId, TenantId)</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full max-w-[200px] border border-slate-300 rounded p-1.5 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                                        value={tenantField}
+                                        onChange={e => setTenantField(e.target.value)}
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-0.5">Wird automatisch in die Nutzer-Tabelle integriert.</p>
+                                </div>
+                            )}
                          </div>
                      </div>
 

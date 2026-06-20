@@ -166,7 +166,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
           );
       }
 
-      if (field.type === 'DATE' || field.type === 'DATETIME') {
+      if (field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') {
           return (
             <div className="relative group">
                 <input 
@@ -314,7 +314,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                     <tbody className="divide-y divide-slate-200">
                     {fields.map((field, idx) => {
                         const typeConfig = DATA_TYPES[field.type];
-                        const isDate = field.type === 'DATE' || field.type === 'DATETIME';
+                        const isDate = field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP';
                         return (
                         <tr 
                             key={field.id} 

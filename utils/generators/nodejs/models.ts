@@ -77,7 +77,7 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
                 return `            if (!/${rule.compareValue}/.test(${fVal})) throw new Error("${rule.errorMessage || 'Invalid format'}");`;
             }
 
-            if (field.type === 'DATE' || field.type === 'DATETIME') {
+            if (field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') {
                const dVal = `new Date(${fVal})`;
                const cVal = rule.compareType === 'field' ? `new Date(${compareVal})` : `new Date('${rule.compareValue}')`;
                switch(rule.operator) {

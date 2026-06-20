@@ -22,6 +22,8 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                 fieldName = f.name;
                 if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') inputType = 'number';
                 if (f.type === 'DATE') inputType = 'date';
+                else if (f.type === 'TIME') inputType = 'time';
+                else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') inputType = 'datetime-local';
                 if (f.type === 'BOOLEAN') inputType = 'checkbox';
                 break;
             }
