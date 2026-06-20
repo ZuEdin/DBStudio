@@ -228,19 +228,30 @@ namespace App\\Models;
 class ${modelName} extends BaseModel {
     protected $collection_name = "${tableName}";
 
+    private function applyHashes(&$doc) {
+        foreach($doc as $k => $v) {
+            if(stripos($k, 'password') !== false && strlen($v) > 0 && strlen($v) != 32) {
+                $doc[$k] = md5($v);
+            }
+        }
+    }
+
     public function create($data) {
         $collection = $this->db->selectCollection($this->collection_name);
         // Cast object to array for MongoDB driver
         $doc = (array) $data;
+        $this->applyHashes($doc);
         $result = $collection->insertOne($doc);
         return $result->getInsertedCount() > 0;
     }
 
     public function update($id, $data) {
         $collection = $this->db->selectCollection($this->collection_name);
+        $doc = (array) $data;
+        $this->applyHashes($doc);
         $result = $collection->updateOne(
             ['_id' => new \\MongoDB\\BSON\\ObjectId($id)],
-            ['$set' => (array) $data]
+            ['$set' => $doc]
         );
         return $result->getModifiedCount() > 0;
     }
@@ -253,7 +264,12 @@ class ${modelName} extends BaseModel {
           const fieldsList = table.fields.map(f => f.name).filter(n => n !== pkName);
           const paramsStr = fieldsList.map(f => ":" + f).join(", ");
           const updateStr = fieldsList.map(f => `${f} = :${f}`).join(", ");
-          const bindParams = fieldsList.map(f => `$stmt->bindParam(":${f}", $data->${f});`).join("\n        ");
+          const bindParams = fieldsList.map(f => {
+              if (f.toLowerCase().includes('password')) {
+                  return `if(isset($data->${f}) && strlen($data->${f}) > 0 && strlen($data->${f}) != 32) { $data->${f} = md5($data->${f}); }\n        $stmt->bindParam(":${f}", $data->${f});`;
+              }
+              return `$stmt->bindParam(":${f}", $data->${f});`;
+          }).join("\n        ");
 
           modelContent = `<?php
 namespace App\\Models;

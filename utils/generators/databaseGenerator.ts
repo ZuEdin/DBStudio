@@ -122,8 +122,17 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
                             }
                             return (val === true || val === 'true') ? 'TRUE' : 'FALSE';
                         }
-                        // Strings/Dates
-                        return `'${String(val).replace(/'/g, "''")}'`;
+                        // Strings/Dates/Passwords
+                        let strVal = String(val).replace(/'/g, "''");
+                        if (f.name.toLowerCase().includes('password')) {
+                             if (config.dbType === DbType.MySQL) {
+                                 return `MD5('${strVal}')`;
+                             } else if (config.dbType === DbType.SQL) {
+                                 // SQL Server Hashbytes example (usually stored as varbinary, but if character then converts to hex)
+                                 return `CONVERT(VARCHAR(32), HashBytes('MD5', '${strVal}'), 2)`; 
+                             }
+                        }
+                        return `'${strVal}'`;
                     }).join(', ');
 
                     sql += `INSERT INTO ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (${columns}) VALUES (${values});\n`;

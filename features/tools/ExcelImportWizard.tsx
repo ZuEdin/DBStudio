@@ -5,6 +5,8 @@ import { Table, Field, FieldType } from '../../types/index';
 import { X, Upload, ArrowRight, Check, Database, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import { inferFieldType } from '../../utils/apiImportHelper';
 
+import md5 from 'md5';
+
 interface ExcelImportWizardProps {
   onSave: (table: Table) => void;
   onClose: () => void;
@@ -17,6 +19,7 @@ interface ColumnMapping {
   type: FieldType;
   selected: boolean;
   sampleValue: any;
+  md5Hash?: boolean;
 }
 
 export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, onClose }) => {
@@ -133,6 +136,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
               else if (m.type === 'BOOLEAN') val = (String(val).toLowerCase() === 'true' || val === 1);
               else val = String(val ?? '');
               
+              if (m.md5Hash) {
+                  val = md5(String(val));
+              }
+
               rowObj[m.targetName] = val;
           });
           return rowObj;
@@ -259,6 +266,18 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
                                                 <div className="text-[10px] text-slate-400 truncate" title={`Original: ${map.originalName}`}>
                                                     Orig: {map.originalName}
                                                 </div>
+                                                {(map.type === 'VARCHAR' || map.type === 'TEXT') && (
+                                                    <label className={`flex items-center gap-1 cursor-pointer select-none mt-1 ${!map.selected ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            disabled={!map.selected}
+                                                            checked={!!map.md5Hash}
+                                                            onChange={e => updateMapping(map.index, { md5Hash: e.target.checked })}
+                                                            className="rounded w-3 h-3 text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <span className="text-[10px] font-bold text-slate-600">MD5 Hash (Passwort)</span>
+                                                    </label>
+                                                )}
                                             </div>
                                         </th>
                                     ))}
