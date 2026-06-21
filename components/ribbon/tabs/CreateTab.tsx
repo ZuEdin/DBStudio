@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork, LayoutTemplate } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -63,6 +63,11 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
              </div>
              )}
          </div>
+      </RibbonGroup>
+
+      {/* Pages Group */}
+      <RibbonGroup label="Pages">
+        <RibbonButton icon={<LayoutTemplate className="text-amber-600"/>} label="Page" onClick={() => onAction('create_page')} />
       </RibbonGroup>
 
       {/* Reports Group */}

@@ -563,6 +563,22 @@ export interface TableGroup {
   comment?: string;
 }
 
+export type PageComponentType = 'container' | 'text' | 'button' | 'table_view' | 'form_view' | 'image' | 'divider' | 'dropdown' | 'chart_view' | 'html';
+
+export interface PageComponent {
+  id: string;
+  type: PageComponentType;
+  props: Record<string, any>;
+  children?: PageComponent[];
+}
+
+export interface CustomPage {
+  id: string;
+  name: string;
+  description?: string;
+  layout: PageComponent;
+}
+
 export interface ProjectData {
   tables: Table[];
   queries: Query[];
@@ -570,6 +586,7 @@ export interface ProjectData {
   forms: Form[];
   charts?: Chart[];
   workflows?: Workflow[];
+  pages?: CustomPage[];
   relationships: Relationship[];
   layout: TableNode[]; // Stores the visual position of tables in relationship view
   tableGroups: TableGroup[];
@@ -666,6 +683,8 @@ export type ViewType =
   | { type: 'form_view', formId: string }
   | { type: 'form_designer', formId: string }
   | { type: 'chart_view', chartId: string }
+  | { type: 'page_designer', pageId?: string }
+  | { type: 'page_view', pageId: string }
   | { type: 'workflow_designer', workflowId: string }
   | { type: 'scheduler' } 
   | { type: 'backend_generator' }

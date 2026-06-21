@@ -97,6 +97,8 @@ export const useAppController = () => {
         foundObject = freshState.reports.find(r => r.id === view.reportId) || null;
     } else if (view.type === 'chart_view') {
         foundObject = freshState.charts.find(c => c.id === view.chartId) || null;
+    } else if (view.type === 'page_designer' || view.type === 'page_view') {
+        foundObject = freshState.pages?.find(p => p.id === view.pageId) || null;
     } else if (view.type === 'workflow_designer') {
         foundObject = freshState.workflows.find(w => w.id === view.workflowId) || null;
     }
@@ -158,7 +160,7 @@ export const useAppController = () => {
               } else {
                   store.setQueries([...store.queries, activeObject as Query]);
               }
-          } else if ('layout' in activeObject) {
+          } else if ('layout' in activeObject && 'sourceType' in activeObject) {
               // Form
               const exists = store.forms.some(f => f.id === activeObject.id);
               if (exists) {
@@ -166,6 +168,15 @@ export const useAppController = () => {
                   store.setForms(forms);
               } else {
                   store.setForms([...store.forms, activeObject as Form]);
+              }
+          } else if ('layout' in activeObject && !('sourceType' in activeObject)) {
+              // CustomPage
+              const exists = store.pages?.some(p => p.id === activeObject.id);
+              if (exists) {
+                  const pages = (store.pages || []).map(p => p.id === activeObject.id ? activeObject as any : p);
+                  store.setPages(pages);
+              } else {
+                  store.setPages([...(store.pages || []), activeObject as any]);
               }
           } else if ('summaries' in activeObject) {
               // Report
@@ -224,6 +235,8 @@ export const useAppController = () => {
               objectName = store.reports.find(r => r.id === id)?.name || 'Bericht';
           } else if (type === 'workflow') {
               objectName = store.workflows.find(w => w.id === id)?.name || 'Workflow';
+          } else if (type === 'page') {
+              objectName = store.pages?.find(p => p.id === id)?.name || 'Page';
           }
 
           const baseMessage = `Möchten Sie "${objectName}" wirklich löschen?`;
@@ -244,6 +257,7 @@ export const useAppController = () => {
                   if (type === 'form') store.setForms(store.forms.filter(f => f.id !== id));
                   if (type === 'report') store.setReports(store.reports.filter(r => r.id !== id));
                   if (type === 'workflow') store.setWorkflows(store.workflows.filter(w => w.id !== id));
+                  if (type === 'page' && store.pages) store.setPages(store.pages.filter(p => p.id !== id));
                   
                   if (activeObject?.id === id) {
                       setActiveObject(null);
@@ -280,6 +294,10 @@ export const useAppController = () => {
               const obj = store.workflows.find(t => t.id === id);
               if (obj) store.setWorkflows([...store.workflows, { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
           }
+          if (type === 'page') {
+              const obj = store.pages?.find(t => t.id === id);
+              if (obj) store.setPages([...(store.pages || []), { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
+          }
           ui.addToast("Erfolgreich dupliziert.", 'success');
       }
 
@@ -301,6 +319,7 @@ export const useAppController = () => {
                   if (type === 'form') store.setForms(store.forms.map(f => f.id === id ? { ...f, name: newName } : f));
                   if (type === 'report') store.setReports(store.reports.map(r => r.id === id ? { ...r, name: newName } : r));
                   if (type === 'workflow') store.setWorkflows(store.workflows.map(w => w.id === id ? { ...w, name: newName } : w));
+                  if (type === 'page' && store.pages) store.setPages(store.pages.map(p => p.id === id ? { ...p, name: newName } : p));
                   ui.setNameInput(null);
               },
               onCancel: () => ui.setNameInput(null)
@@ -314,6 +333,7 @@ export const useAppController = () => {
           if (type === 'report') handleSetView({ type: 'report_designer', reportId: id });
           if (type === 'workflow') handleSetView({ type: 'workflow_designer', workflowId: id });
           if (type === 'chart') handleSetView({ type: 'chart_view', chartId: id });
+          if (type === 'page') handleSetView({ type: 'page_designer', pageId: id });
       }
 
       if (action === 'view_data') {
@@ -358,7 +378,8 @@ export const useAppController = () => {
               if (type === 'form') obj = store.forms.find(x => x.id === id);
               if (type === 'report') obj = store.reports.find(x => x.id === id);
               if (type === 'workflow') obj = store.workflows.find(x => x.id === id);
-              if (type === 'chart') obj = store.charts.find(x => x.id === id);
+              if (type === 'chart') obj = store.charts?.find(x => x.id === id);
+              if (type === 'page') obj = store.pages?.find(x => x.id === id);
 
               if (obj) {
                   const dataStr = JSON.stringify(obj, null, 2);
@@ -528,6 +549,18 @@ export const useAppController = () => {
         }
 
         case 'create_chart': /* ... */ break;
+        case 'create_page': {
+             const newPage: any = { // Use any for now or CustomPage from types
+                id: 'page_' + crypto.randomUUID(),
+                name: 'Neue Seite',
+                layout: { id: 'root', type: 'container', props: {}, children: [] }
+             };
+             store.setPages([...(store.pages || []), newPage]);
+             setActiveObject(newPage);
+             setCurrentView({ type: 'page_designer', pageId: newPage.id });
+             setIsDirty(true);
+             break;
+        }
         case 'create_workflow': {
              const newWorkflow: Workflow = {
                 id: 'workflow_' + Date.now(),
@@ -633,6 +666,8 @@ export const useAppController = () => {
         forms: store.forms,
         workflows: store.workflows,
         relationships: store.relationships,
+        pages: store.pages,
+        charts: store.charts,
         loadProject: store.loadProject,
         createNewDatabase: store.createNew,
         saveTable: (t: any, mode: any) => mode === 'create' ? store.addTable(t) : store.updateTable(t),

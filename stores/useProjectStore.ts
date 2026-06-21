@@ -24,6 +24,7 @@ interface ProjectStore extends ProjectData {
     setReports: (reports: Report[]) => void;
     setForms: (forms: Form[]) => void;
     setCharts: (charts: Chart[]) => void;
+    setPages: (pages: CustomPage[]) => void;
     setWorkflows: (workflows: Workflow[]) => void;
     setRelationships: (relationships: Relationship[]) => void;
     setBackendConfig: (config: BackendConfig) => void;
@@ -35,7 +36,7 @@ interface ProjectStore extends ProjectData {
 }
 
 const initialData: ProjectData = {
-    tables: [], queries: [], reports: [], forms: [], charts: [], workflows: [], relationships: [], layout: [], tableGroups: [],
+    tables: [], queries: [], reports: [], forms: [], charts: [], pages: [], workflows: [], relationships: [], layout: [], tableGroups: [],
     backendConfig: { 
         language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, 
         dbConnection: '', useSwagger: true, frontendFramework: 'react', stylingFramework: 'tailwind'
@@ -60,6 +61,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             reports: project.data.reports || [],
             forms: project.data.forms || [],
             charts: project.data.charts || [],
+            pages: project.data.pages || [],
             workflows: project.data.workflows || [],
             relationships: project.data.relationships || [],
             layout: project.data.layout || [], // Load layout
@@ -361,6 +363,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setReports: (reports) => { get().pushHistory(); set({ reports }); },
     setForms: (forms) => { get().pushHistory(); set({ forms }); },
     setCharts: (charts) => { get().pushHistory(); set({ charts }); },
+    setPages: (pages) => { get().pushHistory(); set({ pages }); },
     setWorkflows: (workflows) => { get().pushHistory(); set({ workflows }); },
     setRelationships: (relationships) => { get().pushHistory(); set({ relationships }); },
     
@@ -388,6 +391,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 reports: state.reports,
                 forms: state.forms,
                 charts: state.charts,
+                pages: state.pages,
                 workflows: state.workflows,
                 relationships: state.relationships,
                 layout: state.layout, 

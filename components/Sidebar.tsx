@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Table, Query, Report, Form, Chart, Workflow } from '../types/index';
+import { Table, Query, Report, Form, Chart, Workflow, CustomPage } from '../types/index';
 import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,15 +10,17 @@ interface SidebarProps {
   reports: Report[];
   forms: Form[];
   charts?: Chart[];
-  workflows?: Workflow[]; // NEW
+  workflows?: Workflow[];
+  pages?: CustomPage[];
   onSelectTable: (id: string) => void;
   onSelectQuery: (id: string) => void;
   onSelectReport: (id: string) => void;
   onSelectForm: (id: string) => void;
   onSelectChart?: (id: string) => void;
-  onSelectWorkflow?: (id: string) => void; // NEW
-  onSelectScheduler?: () => void; // NEW
-  onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow', id: string) => void;
+  onSelectWorkflow?: (id: string) => void;
+  onSelectPage?: (id: string) => void;
+  onSelectScheduler?: () => void;
+  onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow' | 'page', id: string) => void;
   isOpen: boolean;
   toggleSidebar: () => void;
 }
@@ -37,10 +39,10 @@ interface RenderNodeProps {
   colorClass: string; 
   bgClass: string;
   onSelect: ((id: string) => void) | undefined; 
-  type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow'; 
+  type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow' | 'page'; 
   openFolders: Record<string, boolean>;
   toggleFolder: (id: string) => void;
-  onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow', id: string) => void;
+  onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow' | 'page', id: string) => void;
   handleDragStart: (e: React.DragEvent, type: 'table' | 'query', id: string) => void;
 }
 
@@ -129,8 +131,8 @@ const RenderNode: React.FC<RenderNodeProps> = ({
   );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, charts = [], workflows = [], onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onSelectChart, onSelectWorkflow, onSelectScheduler, onItemContextMenu, isOpen, toggleSidebar }) => {
-  const [openGroups, setOpenGroups] = useState({ tables: true, queries: true, reports: true, forms: true, charts: true, workflows: true });
+export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, charts = [], workflows = [], pages = [], onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onSelectChart, onSelectWorkflow, onSelectPage, onSelectScheduler, onItemContextMenu, isOpen, toggleSidebar }) => {
+  const [openGroups, setOpenGroups] = useState({ tables: true, queries: true, reports: true, forms: true, charts: true, workflows: true, pages: true });
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const { t } = useTranslation();
 
@@ -291,6 +293,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
   const groupedForms = useMemo(() => buildRecursiveTree(forms || []), [forms]);
   const groupedCharts = useMemo(() => buildRecursiveTree(charts || []), [charts]);
   const groupedWorkflows = useMemo(() => buildRecursiveTree(workflows || []), [workflows]);
+  const groupedPages = useMemo(() => buildRecursiveTree(pages || []), [pages]);
 
   if (!isOpen) {
     return (
@@ -394,6 +397,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
                 </div>
                 
                 {groupedWorkflows.map(g => <RenderNode key={g.id} node={g} icon={GitFork} colorClass="text-purple-600" bgClass="hover:bg-purple-100 hover:text-purple-900" onSelect={onSelectWorkflow} type="workflow" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+             </div>
+          )}
+        </div>
+
+        {/* Pages (NEW) */}
+        <div>
+           <button onClick={() => toggleGroup('pages')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+            {openGroups.pages ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Pages
+          </button>
+          {openGroups.pages && (
+             <div className="ml-2 mt-1 space-y-1">
+                {groupedPages.map(g => <RenderNode key={g.id} node={g} icon={LayoutTemplate} colorClass="text-amber-600" bgClass="hover:bg-amber-100 hover:text-amber-900" onSelect={onSelectPage!} type="page" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
              </div>
           )}
         </div>

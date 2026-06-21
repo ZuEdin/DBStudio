@@ -21,6 +21,8 @@ import { SchedulerView } from '../features/scheduler/SchedulerView';
 import { NavigationDesigner } from '../features/navigation/NavigationDesigner';
 import { ThemeDesigner } from '../features/themes/ThemeDesigner';
 import { LogicDesigner } from '../features/logic/LogicDesigner';
+import { PageDesigner } from '../features/pages/PageDesigner';
+import { PageView } from '../features/pages/PageView';
 import { useAppController } from '../hooks/useAppController'; // Need context types or pass down
 
 interface ViewRouterProps {
@@ -232,6 +234,16 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
       case 'chart_view':
         if (activeObject && 'config' in activeObject) {
             return <ChartView chart={activeObject as Chart} tables={tables} queries={queries} onChartChange={onActiveObjectChange as any} />;
+        }
+        return null;
+      case 'page_designer':
+        if (activeObject && 'layout' in activeObject) {
+            return <PageDesigner page={activeObject as any} onPageChange={onActiveObjectChange as any} onSetView={onSetView} />;
+        }
+        return null;
+      case 'page_view':
+        if (activeObject && 'layout' in activeObject) {
+            return <PageView page={activeObject as any} onSetView={onSetView} />;
         }
         return null;
       case 'workflow_designer':

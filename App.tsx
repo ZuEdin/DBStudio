@@ -51,11 +51,13 @@ export default function App() {
           reports={db.reports} 
           forms={db.forms}
           workflows={db.workflows}
+          pages={db.pages}
           onSelectTable={(id) => app.handleSetView({ type: 'table_data', tableId: id })}
           onSelectQuery={(id) => app.handleSetView({ type: 'query_results', queryId: id })}
           onSelectReport={(id) => app.handleSetView({ type: 'report_view', reportId: id })}
           onSelectForm={(id) => app.handleSetView({ type: 'form_view', formId: id })}
           onSelectWorkflow={(id) => app.handleSetView({ type: 'workflow_designer', workflowId: id })}
+          onSelectPage={(id) => app.handleSetView({ type: 'page_designer', pageId: id })}
           onSelectScheduler={() => app.handleSetView({ type: 'scheduler' })}
           onItemContextMenu={(e, type, id) => { e.preventDefault(); app.setItemContextMenu({ type, id, x: e.clientX, y: e.clientY }); }}
           isOpen={app.isSidebarOpen}
