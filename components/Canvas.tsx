@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH, TableGroup } from '../types/index';
-import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw, Group, AlignLeft, AlignLeft as AlignLeftIcon } from 'lucide-react';
+import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw, Group, AlignLeft, AlignLeft as AlignLeftIcon, GripVertical } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 
 interface CanvasProps {
@@ -65,6 +65,43 @@ export const Canvas: React.FC<CanvasProps> = ({
   const safeNodes = Array.isArray(nodes) ? nodes : [];
   const safeTables = Array.isArray(tables) ? tables : [];
   const safeRelationships = Array.isArray(relationships) ? relationships : [];
+
+  const handleGroupDragStart = (e: React.MouseEvent, groupNodeIds: string[]) => {
+    if (!isInteractive) return;
+    e.stopPropagation();
+
+    // Select all nodes in the group if not already selected
+    let newSelection = [...selectedNodeIds];
+    if (!e.shiftKey) {
+        newSelection = Array.from(new Set([...newSelection, ...groupNodeIds]));
+    } else {
+        // Toggle group selection
+        const allSelected = groupNodeIds.every(id => newSelection.includes(id));
+        if (allSelected) {
+            newSelection = newSelection.filter(id => !groupNodeIds.includes(id));
+        } else {
+            newSelection = Array.from(new Set([...newSelection, ...groupNodeIds]));
+        }
+    }
+    
+    // Only drag if we have something to drag
+    if (newSelection.length > 0) {
+        setSelectedNodeIds(newSelection);
+
+        const initialPositions: { [id: string]: { x: number; y: number } } = {};
+        newSelection.forEach(id => {
+            const n = safeNodes.find(n => n.id === id);
+            if (n) initialPositions[id] = { x: n.x, y: n.y };
+        });
+
+        setDragState({
+            nodeIds: newSelection,
+            initialPositions,
+            mouseStartX: e.clientX,
+            mouseStartY: e.clientY,
+        });
+    }
+  };
 
   const handleDragStart = (e: React.MouseEvent, nodeId: string) => {
     const node = safeNodes.find(n => n.id === nodeId);
@@ -310,18 +347,27 @@ export const Canvas: React.FC<CanvasProps> = ({
                     className={`absolute rounded-xl transition-all duration-200 pointer-events-auto ${isSelected ? 'border-2 border-blue-400 bg-blue-50/80 shadow-md z-0' : 'border-2 border-slate-300 bg-slate-100 shadow-sm z-0'}`}
                     style={{ left: minX, top: minY, width, height }}
                 >
-                   <div className="absolute top-0 left-0 w-full px-4 py-3 cursor-pointer transition-opacity">
-                      <input 
-                         className={`bg-transparent font-semibold text-sm outline-none w-full mb-1 pointer-events-auto transition-colors ${isSelected ? 'text-blue-900 placeholder-blue-300' : 'text-slate-800 placeholder-slate-400'}`}
-                         value={group.name}
-                         placeholder="Gruppenname"
-                         onChange={(e) => {
-                             const newGroups = tableGroups.map(g => g.id === group.id ? { ...g, name: e.target.value } : g);
-                             setTableGroups(newGroups);
-                         }}
-                         onMouseDown={(e) => e.stopPropagation()}
-                      />
-                      {(isSelected || group.comment) && (
+                   <div className="absolute top-0 left-0 w-full px-4 py-3 transition-opacity flex flex-col pointer-events-none">
+                       <div className="flex items-center gap-1 mb-1 w-full relative -ml-1">
+                           <div 
+                               className="cursor-move text-slate-400 hover:text-slate-600 active:text-blue-500 p-1 rounded flex-shrink-0 pointer-events-auto"
+                               onMouseDown={(e) => handleGroupDragStart(e, groupNodes.map(n => n.id))}
+                               title="Gruppe verschieben"
+                           >
+                               <GripVertical size={16} />
+                           </div>
+                           <input 
+                              className={`bg-transparent font-semibold text-sm outline-none w-full pointer-events-auto transition-colors ${isSelected ? 'text-blue-900 placeholder-blue-300' : 'text-slate-800 placeholder-slate-400'}`}
+                              value={group.name}
+                              placeholder="Gruppenname"
+                              onChange={(e) => {
+                                  const newGroups = tableGroups.map(g => g.id === group.id ? { ...g, name: e.target.value } : g);
+                                  setTableGroups(newGroups);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                           />
+                       </div>
+                       {(isSelected || group.comment) && (
                           <textarea
                              className={`text-xs outline-none w-full resize-none pointer-events-auto leading-relaxed border rounded p-1.5 transition-colors ${isSelected ? 'bg-white/60 text-slate-700 border-blue-200 focus:border-blue-400 focus:bg-white placeholder-slate-400' : 'bg-transparent text-slate-600 border-transparent placeholder-slate-400'}`}
                              value={group.comment || ''}

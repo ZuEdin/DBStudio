@@ -255,9 +255,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             tables,
             relationships,
             forms,
-            charts: [],
-            workflows: [],
-            layout: [], // Init empty
+            charts: initialData?.charts || [],
+            workflows: initialData?.workflows || [],
+            layout: initialData?.layout || [],
+            tableGroups: initialData?.tableGroups || [],
             lastSnapshot: [], 
             history: { past: [], future: [] }
         } as any);
@@ -390,6 +391,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 workflows: state.workflows,
                 relationships: state.relationships,
                 layout: state.layout, 
+                tableGroups: state.tableGroups,
                 backendConfig: state.backendConfig,
                 lastSnapshot: state.lastSnapshot
             }
@@ -400,7 +402,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     executeQuery: (query) => {
         if (query.type !== 'SELECT') return [];
         try {
-            const sql = generateSqlSelect(query.nodes, query.columns, get().tables, get().relationships, DbType.SQLite);
+            const sql = generateSqlSelect(query.nodes, query.columns, get().tables, get().relationships, DbType.SQLite, true);
             if (!sql) return [];
             return executeRawSql(sql);
         } catch (e) {

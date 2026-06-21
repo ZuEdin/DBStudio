@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Table, Form, Report, BackendConfig, Field } from '../../types/index';
+import { Table, Form, Report, BackendConfig, Field, Query } from '../../types/index';
 import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type, Users, Key, Plus, UserCog, Wand2, RefreshCw } from 'lucide-react';
 
 interface SecurityManagerModalProps {
   tables: Table[];
+  queries: Query[];
   forms: Form[];
   reports: Report[];
   onUpdateTable: (table: Table) => void;
@@ -14,7 +15,7 @@ interface SecurityManagerModalProps {
   onUpdateBackendConfig?: (config: BackendConfig) => void;
 }
 
-export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tables, forms, reports, onUpdateTable, onCreateTable, onClose, backendConfig, onUpdateBackendConfig }) => {
+export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tables, queries, forms, reports, onUpdateTable, onCreateTable, onClose, backendConfig, onUpdateBackendConfig }) => {
   // Find system tables
   const rolesTable = tables.find(t => t.name === 'sys_roles');
   const permTable = tables.find(t => t.name === 'sys_permissions');
@@ -92,18 +93,18 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       contentTables.forEach(table => {
           // Admin (1): Full Access
           initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: true });
-          
-          // Manager (2): Full Access
           initialPerms.push({ Id: permCounter++, RoleId: 2, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: true });
-
-          // Editor (3): No Delete
           initialPerms.push({ Id: permCounter++, RoleId: 3, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: false });
-
-          // User (4): Read Only
           initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: false, CanDelete: false });
-
-          // Guest (5): No Access (Explicit Deny - entry ensures UI shows it as intentionally set)
           initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: table.id, CanRead: false, CanWrite: false, CanDelete: false });
+      });
+
+      queries?.forEach(query => {
+          initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+          initialPerms.push({ Id: permCounter++, RoleId: 2, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+          initialPerms.push({ Id: permCounter++, RoleId: 3, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+          initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+          initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Query', ObjectId: query.id, CanRead: false, CanWrite: false, CanDelete: false });
       });
 
       onCreateTable({
@@ -152,6 +153,15 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
               initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: false, CanDelete: false });
               initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: table.id, CanRead: false, CanWrite: false, CanDelete: false });
           });
+
+          queries?.forEach(query => {
+              initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+              initialPerms.push({ Id: permCounter++, RoleId: 2, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+              initialPerms.push({ Id: permCounter++, RoleId: 3, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+              initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
+              initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Query', ObjectId: query.id, CanRead: false, CanWrite: false, CanDelete: false });
+          });
+
           onUpdateTable({ ...permTable, data: initialPerms });
       } else {
           handleInitialize();
@@ -429,6 +439,43 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                                 </tr>
                                             ))}
                                         </React.Fragment>
+                                    );
+                                })}
+                                
+                                {/* Queries Section */}
+                                {queries?.length > 0 && (
+                                    <tr className="bg-slate-200/50 border-b-2 border-slate-300">
+                                        <td colSpan={roles.length + 1} className="p-3 pl-3 font-bold text-slate-700">
+                                            Abfragen (Queries)
+                                        </td>
+                                    </tr>
+                                )}
+                                {queries?.map((query) => {
+                                    return (
+                                        <tr key={query.id} className="hover:bg-slate-50 border-b border-slate-200 bg-white">
+                                            <td className="p-2 pl-6 border-r border-slate-200 bg-white sticky left-0 font-bold text-slate-800 flex items-center gap-2 z-10">
+                                                <div className="flex items-center gap-2">
+                                                    <Eye size={14} className="text-purple-600"/>
+                                                    {query.name}
+                                                </div>
+                                            </td>
+                                            {roles.map((role: any) => {
+                                                const p = getPerm(role.Id, 'Query', query.id);
+                                                return (
+                                                    <td key={role.Id} className="p-2 border-r border-slate-200 text-center align-middle hover:bg-slate-50 transition-colors">
+                                                        <div className="flex justify-center items-center gap-2 h-full">
+                                                            <button 
+                                                                onClick={() => togglePermission(role.Id, 'Query', query.id, 'CanRead')}
+                                                                className={`p-1.5 rounded-full transition-colors ${!!p.CanRead ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                                                title="Lesen"
+                                                            >
+                                                                <Eye size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
                                     );
                                 })}
                             </tbody>

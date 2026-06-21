@@ -2,15 +2,17 @@
 import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
 import { quoteIdentifier, toPascalCase } from './generators/common';
 
-export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType): string => {
+export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType, useRawNames: boolean = false): string => {
     if (columns.length === 0 || nodes.length === 0) return '';
     
     // Check if any aggregation is used
     const hasAggregation = columns.some(c => c.aggregate && c.aggregate !== 'GROUP_BY' && c.aggregate !== 'EXPRESSION');
     const groupByColumns = columns.filter(c => c.aggregate === 'GROUP_BY');
 
+    const formatIdentifier = (name: string) => useRawNames ? name : toPascalCase(name);
+
     const selectClause = columns.filter(c => c.show).map(c => {
-        const alias = c.alias ? toPascalCase(c.alias) : toPascalCase(c.fieldName);
+        const alias = c.alias ? formatIdentifier(c.alias) : formatIdentifier(c.fieldName);
         const quotedAlias = quoteIdentifier(alias, dbType);
         
         let fieldExpr = '';
@@ -18,7 +20,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         if (c.isCalculated) {
             fieldExpr = `(${c.expression})`;
         } else {
-            fieldExpr = `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
+            fieldExpr = `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
         }
 
         // Wrap in Aggregate Function if needed
@@ -26,14 +28,13 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
             fieldExpr = `${c.aggregate}(${fieldExpr})`;
         }
 
-        // Use alias if defined, else default name
-        return `  ${fieldExpr}${c.alias || hasAggregation ? ` AS ${quotedAlias}` : ''}`;
+        return `  ${fieldExpr} AS ${quotedAlias}`;
     }).join(',\n');
 
     const fromTable = tables.find(t => t.id === nodes[0].tableId);
     if (!fromTable) return '';
 
-    let fromClause = `FROM ${quoteIdentifier(toPascalCase(fromTable.name), dbType)}`;
+    let fromClause = `FROM ${quoteIdentifier(formatIdentifier(fromTable.name), dbType)}`;
     const joinedTables = new Set([fromTable.id]);
     let joins = '';
     const queryTableIds = new Set(nodes.map(n => n.tableId));
@@ -48,7 +49,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                  if (joinedTables.has(fromTId) && !joinedTables.has(toTId)) {
                     const fromT = tables.find(t => t.id === fromTId)!; const fromF = fromT.fields.find(f => f.id === fromFId)!;
                     const toT = tables.find(t => t.id === toTId)!; const toF = toT.fields.find(f => f.id === toFId)!;
-                    joins += `\nINNER JOIN ${quoteIdentifier(toPascalCase(toT.name), dbType)} ON ${quoteIdentifier(toPascalCase(fromT.name), dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(toPascalCase(toT.name), dbType)}.${quoteIdentifier(toF.name, dbType)}`;
+                    joins += `\nINNER JOIN ${quoteIdentifier(formatIdentifier(toT.name), dbType)} ON ${quoteIdentifier(formatIdentifier(fromT.name), dbType)}.${quoteIdentifier(formatIdentifier(fromF.name), dbType)} = ${quoteIdentifier(formatIdentifier(toT.name), dbType)}.${quoteIdentifier(formatIdentifier(toF.name), dbType)}`;
                     joinedTables.add(toTId);
                     madeProgress = true;
                 }
@@ -71,7 +72,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         const validCriteria = c.criteria.filter(crit => crit.trim() !== '');
         if (validCriteria.length === 0) return null;
         
-        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
+        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
         
         const conditions = validCriteria.map(crit => {
             let criteria = crit.trim();
@@ -95,7 +96,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     if (hasAggregation && groupByColumns.length > 0) {
         const groups = groupByColumns.map(c => {
             if (c.isCalculated) return `(${c.expression})`;
-            return `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
+            return `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
         }).join(', ');
         groupByClause = `\nGROUP BY ${groups}`;
     }
@@ -103,8 +104,8 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     // ORDER BY
     const orderByCols = columns.filter(c => c.sort).map(c => {
         // Use Alias if available in ORDER BY for cleaner SQL, or expression
-        const ref = c.alias ? quoteIdentifier(toPascalCase(c.alias), dbType) : (
-            c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(toPascalCase(c.tableName), dbType)}.${quoteIdentifier(c.fieldName, dbType)}`
+        const ref = c.alias ? quoteIdentifier(formatIdentifier(c.alias), dbType) : (
+            c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`
         );
         return `${ref} ${c.sort}`;
     }).join(', ');

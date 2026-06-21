@@ -231,6 +231,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {showSecurityManager && (
           <SecurityManagerModal 
             tables={tables}
+            queries={queries}
             forms={forms}
             reports={reports}
             onUpdateTable={onUpdateTable}
