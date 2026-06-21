@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Table, Query, Report, Form } from '../../types/index';
 import { 
   Database, Table as TableIcon, Search, FileText, Layout, 
   Activity, HardDrive, Plus, ArrowRight, Clock
 } from 'lucide-react';
+import { PromoView } from './PromoView';
 
 interface DashboardProps {
   tables: Table[];
@@ -14,6 +15,7 @@ interface DashboardProps {
 }
 
 export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports, forms, onNavigate }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'promo'>('promo');
   
   // Calculate some dummy stats
   const totalRows = tables.reduce((acc, t) => acc + (t.data?.length || 0), 0);
@@ -44,15 +46,61 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
     </button>
   );
 
+  if (activeTab === 'promo') {
+    return (
+      <div className="h-full overflow-y-auto bg-slate-900 scroll-smooth">
+        {/* Live Admin Workspace selector */}
+        <div className="bg-slate-950 px-8 py-3 border-b border-slate-800/80 flex flex-wrap justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-indigo-500 block animate-ping" />
+            <span className="text-xs text-indigo-300 font-extrabold tracking-wider uppercase">DB Studio Marketing Portal</span>
+          </div>
+          <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs">
+            <button 
+              onClick={() => setActiveTab('promo')} 
+              className="px-3.5 py-1.5 rounded-md font-bold text-white bg-indigo-600 shadow"
+            >
+              🚀 Promo-Website (Aktiv)
+            </button>
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              className="px-3.5 py-1.5 rounded-md font-bold text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              📊 Studio Dashboard
+            </button>
+          </div>
+        </div>
+        <PromoView tables={tables} queries={queries} reports={reports} forms={forms} onNavigate={onNavigate} />
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 h-full bg-slate-100 overflow-y-auto">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-6">
         
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
-          <p className="text-slate-500">Willkommen zurück in DB Studio Pro. Hier ist der aktuelle Status Ihrer Datenbank.</p>
+        {/* Header containing the Switcher */}
+        <div className="flex justify-between items-center flex-wrap gap-4 border-b border-slate-200 pb-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Dashboard</h1>
+            <p className="text-sm text-slate-500">Willkommen zurück in DB Studio Pro. Hier ist der aktuelle Status Ihrer Anwendung.</p>
+          </div>
+          <div className="flex bg-slate-250 p-1 bg-slate-200 rounded-lg text-xs font-semibold">
+            <button 
+              onClick={() => setActiveTab('promo')} 
+              className="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              🚀 Zur Promo-Site
+            </button>
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              className="px-3 py-1.5 rounded-md bg-white text-indigo-600 shadow-sm"
+            >
+              📊 Dashboard
+            </button>
+          </div>
         </div>
+
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
