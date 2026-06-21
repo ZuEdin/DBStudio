@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Report, Field, Table, Query, ReportColumn, Relationship } from '../../types/index';
-import { Eye, EyeOff, Settings, Columns, AlignJustify, GripVertical, Palette, LayoutTemplate } from 'lucide-react';
+import { Eye, EyeOff, Settings, Columns, AlignJustify, GripVertical, Palette, LayoutTemplate, Shield } from 'lucide-react';
 import { ReportFormattingPanel } from './designer/ReportFormattingPanel';
 import { ReportView } from './ReportView';
 import { executeSelectQuery } from '../queries/utils/queryExecution';
@@ -199,6 +199,22 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                           </div>
                       </div>
                   )}
+              </div>
+
+              {/* Security Settings */}
+              <div className="pt-4 border-t border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1"><Shield size={14}/> Sicherheit</h4>
+                  <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Erlaubte Rollen (kommasepariert)</label>
+                      <input 
+                         type="text" 
+                         placeholder="z.B. Admin, User" 
+                         value={report.allowedRoles?.join(', ') || ''} 
+                         onChange={e => onReportChange({ ...report, allowedRoles: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                         className="w-full border border-slate-300 rounded p-2 text-sm bg-white" 
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">Leer lassen, wenn für alle zugänglich.</p>
+                  </div>
               </div>
           </div>
       </div>

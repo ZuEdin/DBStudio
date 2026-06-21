@@ -180,7 +180,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                      const rep = reports.find(r => r.id === reportId);
                      if (rep) {
                          onActiveObjectChange(rep);
-                         onSetView('report_view' as any);
+                         onSetView({ type: 'report_view', reportId: rep.id });
                      }
                  };
                  return <DashboardDesigner report={report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} onOpenReport={handleOpenReport} />;
@@ -204,7 +204,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                       const rep = reports.find(r => r.id === reportId);
                       if (rep) {
                           onActiveObjectChange(rep);
-                          onSetView('report_designer' as any);
+                          onSetView({ type: 'report_designer', reportId: rep.id });
                       }
                   };
                   return <DashboardDesigner report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} onOpenReport={handleOpenReport} />;

@@ -203,6 +203,7 @@ export interface Report {
   styles?: ReportStyles;
   settings?: ReportSettings;
   dashboardWidgets?: DashboardWidget[];
+  allowedRoles?: string[];
 }
 
 export interface LookupConfig {

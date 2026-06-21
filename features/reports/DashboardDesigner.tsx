@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Report, Table, Query, Chart, ProjectData, DashboardWidget } from '../../types/index';
-import { Plus, X, LayoutTemplate, Settings, ExternalLink } from 'lucide-react';
+import { Plus, X, LayoutTemplate, Settings, ExternalLink, Printer, Maximize2 } from 'lucide-react';
 import { ReportView } from './ReportView';
 import { useProjectStore } from '../../stores/useProjectStore';
 
@@ -134,20 +134,21 @@ export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, ta
                                     }}
                                     placeholder="Titel..."
                                 />
-                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-white px-2 shadow-sm rounded-md border border-slate-200">
                                     {rBase && onOpenReport && (
                                         <button 
-                                            title="Bericht öffnen"
+                                            title="Bericht öffnen / Drucken"
                                             onClick={() => onOpenReport(rBase.id)} 
-                                            className="text-slate-400 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50"
+                                            className="text-slate-500 hover:text-indigo-600 p-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider"
                                         >
-                                            <ExternalLink size={16} />
+                                            <Maximize2 size={14} /> Ansicht & Druck
                                         </button>
                                     )}
+                                    <div className="w-[1px] h-4 bg-slate-300 mx-1"></div>
                                     <button 
                                         title="Widget entfernen"
                                         onClick={() => removeWidget(widget.id)} 
-                                        className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 ml-1"
+                                        className="text-slate-400 hover:text-red-500 p-1.5 rounded hover:bg-red-50"
                                     >
                                         <X size={16} />
                                     </button>
