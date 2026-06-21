@@ -36,6 +36,7 @@ export const Canvas: React.FC<CanvasProps> = ({
 }) => {
   const [dragState, setDragState] = useState<DragState>(null);
   const [connectionStart, setConnectionStart] = useState<{ tableId: string, fieldId: string, nodeId: string } | null>(null);
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -119,6 +120,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleFieldMouseDown = (e: React.MouseEvent, tableId: string, fieldId: string, nodeId: string) => {
+    setActiveNodeId(nodeId);
     if (!isInteractive || onRemoveNode) return; // Prevent connection in query view
     e.stopPropagation();
     setConnectionStart({ tableId, fieldId, nodeId });
@@ -142,8 +144,11 @@ export const Canvas: React.FC<CanvasProps> = ({
   
   const getFieldPos = (node: TableNode, table: Table, fieldId: string, side: 'left' | 'right') => {
     const fieldIndex = table.fields.findIndex(f => f.id === fieldId);
-    // Adjusted calculation: Shifted up by 7px (-7) instead of -2 to correct visual alignment
-    const y = node.y + HEADER_HEIGHT + (fieldIndex * FIELD_HEIGHT) + (FIELD_HEIGHT / 2) - 7;
+    
+    // Calculate Y center of the field row
+    let y = node.y + HEADER_HEIGHT + (fieldIndex * FIELD_HEIGHT) + (FIELD_HEIGHT / 2);
+    if (onRemoveNode) y += FIELD_HEIGHT; // Offset for the '*' row in query designer
+
     const x = side === 'left' ? node.x : node.x + NODE_WIDTH;
     return { x, y };
   };
@@ -162,58 +167,73 @@ export const Canvas: React.FC<CanvasProps> = ({
         className="absolute top-0 left-0"
         style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: '0 0' }}
       >
-        <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none z-10">
-          <defs>
-            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
-            </marker>
-          </defs>
-          {safeRelationships.map(rel => {
-            const fromNode = safeNodes.find(n => n.tableId === rel.fromTableId);
-            const toNode = safeNodes.find(n => n.tableId === rel.toTableId);
-            const fromTable = safeTables.find(t => t.id === rel.fromTableId);
-            const toTable = safeTables.find(t => t.id === rel.toTableId);
+        <svg className="absolute top-0 left-0 w-[10000px] h-[10000px] pointer-events-none z-10 overflow-visible" style={{ left: -5000, top: -5000, pointerEvents: 'none' }}>
+          <g transform="translate(5000, 5000)">
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+              </marker>
+            </defs>
+            {safeRelationships.map(rel => {
+              const fromNode = safeNodes.find(n => n.tableId === rel.fromTableId);
+              const toNode = safeNodes.find(n => n.tableId === rel.toTableId);
+              const fromTable = safeTables.find(t => t.id === rel.fromTableId);
+              const toTable = safeTables.find(t => t.id === rel.toTableId);
 
-            if (!fromNode || !toNode || !fromTable || !toTable) return null;
+              if (!fromNode || !toNode || !fromTable || !toTable) return null;
 
-            // Determine orientation based on X position
-            const fromIsLeft = fromNode.x < toNode.x;
-            
-            const startSide = fromIsLeft ? 'right' : 'left';
-            const endSide = fromIsLeft ? 'left' : 'right';
+              // Determine orientation based on X position
+              const fromIsLeft = fromNode.x < toNode.x;
+              
+              // start is on the edge of the fromNode, end is on the edge of the toNode
+              const startSide = fromIsLeft ? 'right' : 'left';
+              const endSide = fromIsLeft ? 'left' : 'right';
 
-            const start = getFieldPos(fromNode, fromTable, rel.fromFieldId, startSide);
-            const end = getFieldPos(toNode, toTable, rel.toFieldId, endSide);
+              let start = getFieldPos(fromNode, fromTable, rel.fromFieldId, startSide);
+              let end = getFieldPos(toNode, toTable, rel.toFieldId, endSide);
 
-            // Control points for bezier curve
-            const controlOffset = 50;
-            const cx1 = fromIsLeft ? start.x + controlOffset : start.x - controlOffset;
-            const cx2 = fromIsLeft ? end.x - controlOffset : end.x + controlOffset;
+              // Fallback for missing fields (deleted but relation still exists)
+              if (fromTable.fields.findIndex(f => f.id === rel.fromFieldId) === -1) {
+                  start = { x: start.x, y: fromNode.y + HEADER_HEIGHT / 2 };
+              }
+              if (toTable.fields.findIndex(f => f.id === rel.toFieldId) === -1) {
+                  end = { x: end.x, y: toNode.y + HEADER_HEIGHT / 2 };
+              }
 
-            const d = `M ${start.x} ${start.y} C ${cx1} ${start.y}, ${cx2} ${end.y}, ${end.x} ${end.y}`;
-            const labelTo = rel.type === '1:1' ? '1' : '∞';
+              // Adjust the visual end of the path backwards by 10px so the marker base touches the shortened line precisely, and the tip reaches the table edge perfectly 
+              const adjustedEndX = fromIsLeft ? end.x - 10 : end.x + 10;
+              const bezierEnd = { x: adjustedEndX, y: end.y };
 
-            return (
-              <g 
-                key={rel.id} 
-                className="pointer-events-auto"
-                onContextMenu={(e) => onRelationshipContextMenu && onRelationshipContextMenu(e, rel.id)}
-              >
-                {/* Invisible wide path for easier clicking */}
-                <path d={d} stroke="transparent" strokeWidth="12" fill="none" className="cursor-pointer hover:stroke-slate-200/50" />
-                {/* Visible path */}
-                <path d={d} stroke="#64748b" strokeWidth="2" fill="none" markerEnd="url(#arrowhead)" className="pointer-events-none" strokeDasharray={rel.referentialIntegrity === false ? '4 2' : 'none'}/>
-                
-                {/* Connection Dots (Circles) */}
-                <circle cx={start.x} cy={start.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
-                <circle cx={end.x} cy={end.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
+              // Control points for bezier curve
+              const controlOffset = 50;
+              const cx1 = fromIsLeft ? start.x + controlOffset : start.x - controlOffset;
+              const cx2 = fromIsLeft ? bezierEnd.x - controlOffset : bezierEnd.x + controlOffset;
 
-                 {/* Labels */}
-                <text x={fromIsLeft ? start.x + 8 : start.x - 15} y={start.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">1</text>
-                <text x={fromIsLeft ? end.x - 15 : end.x + 8} y={end.y + 4} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">{labelTo}</text>
-              </g>
-            );
-          })}
+              const d = `M ${start.x} ${start.y} C ${cx1} ${start.y}, ${cx2} ${bezierEnd.y}, ${bezierEnd.x} ${bezierEnd.y}`;
+              const labelTo = rel.type === '1:1' ? '1' : '∞';
+
+              return (
+                <g 
+                  key={rel.id} 
+                  className="pointer-events-auto"
+                  onContextMenu={(e) => onRelationshipContextMenu && onRelationshipContextMenu(e, rel.id)}
+                >
+                  {/* Invisible wide path for easier clicking */}
+                  <path d={d} stroke="transparent" strokeWidth="12" fill="none" className="cursor-pointer hover:stroke-slate-200/50" />
+                  {/* Visible path */}
+                  <path d={d} stroke="#64748b" strokeWidth="2" fill="none" markerEnd="url(#arrowhead)" className="pointer-events-none" strokeDasharray={rel.referentialIntegrity === false ? '4 2' : 'none'}/>
+                  
+                  {/* Connection Dots (Circles) */}
+                  <circle cx={start.x} cy={start.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
+                  <circle cx={bezierEnd.x} cy={bezierEnd.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
+
+                   {/* Labels - positioned slightly above the line */}
+                  <text x={fromIsLeft ? start.x + 8 : start.x - 15} y={start.y - 6} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">1</text>
+                  <text x={fromIsLeft ? end.x - 18 : end.x + 10} y={end.y - 6} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">{labelTo}</text>
+                </g>
+              );
+            })}
+          </g>
         </svg>
 
         {safeNodes.map(node => {
@@ -223,13 +243,16 @@ export const Canvas: React.FC<CanvasProps> = ({
           return (
             <div
               key={node.id}
-              className="absolute bg-white border border-slate-400 shadow-md rounded-sm select-none z-20"
+              className={`absolute bg-white border border-slate-400 rounded-sm select-none transition-shadow ${activeNodeId === node.id ? 'z-30 shadow-xl' : 'z-20 shadow-md'}`}
               style={{ 
                 left: node.x, 
                 top: node.y, 
                 width: NODE_WIDTH,
               }}
-              onMouseDown={(e) => handleDragStart(e, node.id)}
+              onMouseDown={(e) => {
+                setActiveNodeId(node.id);
+                handleDragStart(e, node.id);
+              }}
             >
               <div 
                 className="node-header h-10 bg-gradient-to-b from-slate-100 to-slate-200 border-b border-slate-300 px-2 flex items-center justify-between cursor-move"
@@ -298,7 +321,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         })}
       </div>
       {/* Zoom Controls Overlay */}
-      <div className="absolute bottom-4 left-4 bg-white rounded shadow border border-slate-300 p-1 flex items-center gap-1 z-30 select-none">
+      <div className="absolute bottom-4 left-4 bg-white rounded shadow border border-slate-300 p-1 flex items-center gap-1 z-40 select-none">
         <button 
           onClick={handleZoomIn}
           className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"

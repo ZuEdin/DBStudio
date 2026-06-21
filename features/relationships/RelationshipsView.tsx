@@ -13,6 +13,7 @@ interface RelationshipsViewProps {
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
   onNodeDoubleClick?: (tableId: string) => void;
+  showConfirmation?: (title: string, message: string, onConfirm: () => void) => void;
 }
 
 export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
@@ -24,6 +25,7 @@ export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
   onDeleteRelationship,
   onUpdateRelationship,
   onNodeDoubleClick,
+  showConfirmation,
 }) => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; relId: string } | null>(null);
   const [editingRel, setEditingRel] = useState<Relationship | null>(null);
@@ -37,8 +39,23 @@ export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
 
   const handleDelete = () => {
     if (contextMenu) {
-      onDeleteRelationship(contextMenu.relId);
-      closeContextMenu();
+      const relId = contextMenu.relId;
+      const performDelete = () => {
+          onDeleteRelationship(relId);
+          closeContextMenu();
+      };
+      
+      if (showConfirmation) {
+          showConfirmation(
+              'Beziehung löschen?', 
+              'Möchten Sie diese Verknüpfung zwischen den Tabellen wirklich löschen? Dadurch könnten Abfragen und Formulare beeinträchtigt werden.', 
+              performDelete
+          );
+      } else if (window.confirm('Verknüpfung wirklich löschen?')) {
+          performDelete();
+      } else {
+          closeContextMenu();
+      }
     }
   };
 

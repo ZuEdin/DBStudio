@@ -236,6 +236,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
             onDeleteRelationship={onDeleteRelationship} 
             onUpdateRelationship={onUpdateRelationship} 
             onNodeDoubleClick={(tId) => onSetView({ type: 'table_designer', tableId: tId })}
+            showConfirmation={showConfirmation}
         />;
       case 'query_designer':
         if (activeObject && 'nodes' in activeObject) {

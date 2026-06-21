@@ -209,11 +209,37 @@ export const useAppController = () => {
       ui.setItemContextMenu(null);
 
       if (action === 'delete') {
+          let objectName = "Unbekannt";
+          let isUsedInRelationship = false;
+
+          if (type === 'table') {
+              const tableObj = store.tables.find(t => t.id === id);
+              objectName = tableObj?.name || 'Tabelle';
+              isUsedInRelationship = store.relationships.some(rel => rel.fromTableId === id || rel.toTableId === id);
+          } else if (type === 'query') {
+              objectName = store.queries.find(q => q.id === id)?.name || 'Abfrage';
+          } else if (type === 'form') {
+              objectName = store.forms.find(f => f.id === id)?.name || 'Formular';
+          } else if (type === 'report') {
+              objectName = store.reports.find(r => r.id === id)?.name || 'Bericht';
+          } else if (type === 'workflow') {
+              objectName = store.workflows.find(w => w.id === id)?.name || 'Workflow';
+          }
+
+          const baseMessage = `Möchten Sie "${objectName}" wirklich löschen?`;
+          const message = isUsedInRelationship 
+              ? `Die Tabelle "${objectName}" wird in einer oder mehreren Beziehungen (Tabellenverknüpfungen) verwendet. Wenn Sie sie löschen, werden diese Beziehungen möglicherweise ungültig. Möchten Sie die Tabelle trotzdem löschen?` 
+              : baseMessage;
+
           ui.setConfirmationModal({
               title: `${type === 'table' ? 'Tabelle' : 'Objekt'} löschen`,
-              message: `Möchten Sie "${type}" wirklich löschen?`,
+              message,
               onConfirm: () => {
-                  if (type === 'table') store.setTables(store.tables.filter(t => t.id !== id));
+                  if (type === 'table') {
+                      store.setTables(store.tables.filter(t => t.id !== id));
+                      // Optional: Clean up relationships where this table was involved
+                      store.setRelationships(store.relationships.filter(rel => rel.fromTableId !== id && rel.toTableId !== id));
+                  }
                   if (type === 'query') store.setQueries(store.queries.filter(q => q.id !== id));
                   if (type === 'form') store.setForms(store.forms.filter(f => f.id !== id));
                   if (type === 'report') store.setReports(store.reports.filter(r => r.id !== id));
