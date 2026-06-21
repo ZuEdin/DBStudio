@@ -203,7 +203,7 @@ export const useAppController = () => {
       return {success:true}; 
   };
 
-  const handleContextMenuAction = (action: 'view' | 'view_data' | 'export' | 'rename' | 'delete') => {
+  const handleContextMenuAction = (action: 'view' | 'view_data' | 'export' | 'rename' | 'duplicate' | 'delete') => {
       if (!ui.itemContextMenu) return;
       const { type, id } = ui.itemContextMenu;
       ui.setItemContextMenu(null);
@@ -228,6 +228,35 @@ export const useAppController = () => {
           });
       }
       
+      if (action === 'duplicate') {
+          const newId = crypto.randomUUID();
+          if (type === 'table') {
+              const obj = store.tables.find(t => t.id === id);
+              if (obj) store.setTables([...store.tables, { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
+          }
+          if (type === 'query') {
+              const obj = store.queries.find(t => t.id === id);
+              if (obj) store.setQueries([...store.queries, { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
+          }
+          if (type === 'form') {
+              const obj = store.forms.find(t => t.id === id);
+              if (obj) store.setForms([...store.forms, { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
+          }
+          if (type === 'report') {
+              const obj = store.reports.find(t => t.id === id);
+              if (obj) store.setReports([...store.reports, { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
+          }
+          if (type === 'chart') {
+              const obj = store.charts?.find(t => t.id === id);
+              if (obj) store.setCharts([...(store.charts || []), { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
+          }
+          if (type === 'workflow') {
+              const obj = store.workflows.find(t => t.id === id);
+              if (obj) store.setWorkflows([...store.workflows, { ...obj, id: newId, name: `${obj.name}_Kopie` }]);
+          }
+          ui.addToast("Erfolgreich dupliziert.", 'success');
+      }
+
       if (action === 'rename') {
           let currentName = '';
           if (type === 'table') currentName = store.tables.find(t => t.id === id)?.name || '';

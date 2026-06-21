@@ -6,12 +6,13 @@ export enum DbType {
   NoSQL = 'NoSQL'
 }
 
-export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP';
+export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP' | 'ENUM';
 
 export interface Field {
   id: string;
   name: string;
   type: FieldType;
+  comment?: string;
   isPrimaryKey?: boolean;
   isAutoIncrement?: boolean;
   allowNull?: boolean;
@@ -20,6 +21,7 @@ export interface Field {
   precision?: number;
   scale?: number;
   displayFormat?: string;
+  enumValues?: string[];
   // Grid/UI Rendering Phase 5
   rendererType?: 'text' | 'progress' | 'status_pill' | 'avatar' | 'currency' | 'date';
   inlineEditable?: boolean;
@@ -56,6 +58,7 @@ export interface ApiConfig {
 export interface Table {
   id: string;
   name: string;
+  description?: string;
   fields: Field[];
   data?: any[];
   isApiImport?: boolean;

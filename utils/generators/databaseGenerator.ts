@@ -62,7 +62,7 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
         // 1. Tables
         processingTables.forEach(table => {
             const fields = table.fields.map(f => {
-                let type = resolveType(f, 'sql');
+                let type = resolveType(f, 'sql', config.dbType);
                 if (config.dbType === DbType.SQLite) {
                     // SQLite specific auto increment syntax
                     if (f.isPrimaryKey && f.type === 'INTEGER' && f.isAutoIncrement) return `  ${quoteIdentifier(f.name, config.dbType)} INTEGER PRIMARY KEY AUTOINCREMENT`;

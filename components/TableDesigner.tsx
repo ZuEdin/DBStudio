@@ -13,10 +13,14 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAi, setShowAi] = useState(false);
   
-  const { name: tableName, fields } = table;
+  const { name: tableName, description: tableDescription, fields } = table;
 
   const setTableName = (name: string) => {
     onTableChange({ ...table, name });
+  }
+
+  const setTableDescription = (description: string) => {
+    onTableChange({ ...table, description });
   }
 
   const setFields = (fields: Field[]) => {
@@ -91,23 +95,36 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
         )}
 
         <div className="p-6">
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-slate-700 mb-1">Tabellenname</label>
-            <input 
-              type="text" 
-              value={tableName} 
-              onChange={(e) => setTableName(e.target.value)}
-              className="w-full max-w-md border border-slate-300 rounded p-2 font-mono text-sm"
-            />
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Tabellenname</label>
+              <input 
+                type="text" 
+                value={tableName} 
+                onChange={(e) => setTableName(e.target.value)}
+                className="w-full border border-slate-300 rounded p-2 font-mono text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Beschreibung (Optional)</label>
+              <input 
+                type="text" 
+                value={tableDescription || ''} 
+                onChange={(e) => setTableDescription(e.target.value)}
+                placeholder="Kommentar zur Tabelle"
+                className="w-full border border-slate-300 rounded p-2 text-sm"
+              />
+            </div>
           </div>
 
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
                 <th className="p-2 w-10 text-center">PK</th>
-                <th className="p-2 w-1/3">Feldname</th>
-                <th className="p-2 w-1/3">Datentyp</th>
-                <th className="p-2">Aktionen</th>
+                <th className="p-2 w-1/4">Feldname</th>
+                <th className="p-2 w-1/4">Datentyp</th>
+                <th className="p-2 w-1/4">Kommentar</th>
+                <th className="p-2 w-16 text-center">Aktionen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -130,19 +147,41 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                     />
                   </td>
                   <td className="p-2">
-                    <select 
-                      value={field.type}
-                      onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
-                      className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
-                    >
-                      <option value="INTEGER">Zahl (Integer)</option>
-                      <option value="VARCHAR">Kurzer Text (Varchar)</option>
-                      <option value="TEXT">Langer Text</option>
-                      <option value="DATE">Datum/Zeit</option>
-                      <option value="BOOLEAN">Ja/Nein</option>
-                    </select>
+                    <div className="flex flex-col gap-1">
+                      <select 
+                        value={field.type}
+                        onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
+                        className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
+                      >
+                        <option value="INTEGER">Zahl (Integer)</option>
+                        <option value="VARCHAR">Kurzer Text (Varchar)</option>
+                        <option value="TEXT">Langer Text</option>
+                        <option value="DATE">Datum/Zeit</option>
+                        <option value="BOOLEAN">Ja/Nein</option>
+                        <option value="ENUM">Auswahl (Enum)</option>
+                      </select>
+                      {field.type === 'ENUM' && (
+                        <input
+                          type="text"
+                          placeholder="Werte (z.B. draft, published)"
+                          value={field.enumValues?.join(', ') || ''}
+                          onChange={(e) => updateField(field.id, { enumValues: e.target.value.split(',').map(v => v.trim()).filter(v => v) })}
+                          title="Kommagetrennte Liste der erlaubten Werte"
+                          className="w-full border border-slate-300 focus:border-blue-500 rounded px-2 py-1 text-xs"
+                        />
+                      )}
+                    </div>
                   </td>
                   <td className="p-2">
+                    <input 
+                      type="text" 
+                      value={field.comment || ''}
+                      onChange={(e) => updateField(field.id, { comment: e.target.value })}
+                      placeholder="Optional"
+                      className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm"
+                    />
+                  </td>
+                  <td className="p-2 text-center text-slate-400">
                     <button 
                       onClick={() => removeField(field.id)}
                       className="text-slate-400 hover:text-red-600 p-1"

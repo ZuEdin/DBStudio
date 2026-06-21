@@ -55,6 +55,10 @@ const formatDateValue = (val: any, format?: string, type?: string) => {
 
 export const TableView: React.FC<TableViewProps> = ({ table, allTables, relationships, onTableChange, showConfirmation }) => {
   const headers = table.fields.map(field => field.name);
+  const headerTooltips = table.fields.reduce((acc, field) => {
+    if (field.comment) acc[field.name] = field.comment;
+    return acc;
+  }, {} as Record<string, string>);
   const rawData = table.data || [];
   
   const { filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats } = useDataFilter(rawData);
@@ -226,50 +230,55 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
     <div className="p-4 sm:p-8 bg-slate-50 h-full overflow-hidden flex flex-col">
       <div className="max-w-full mx-auto bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full w-full">
         <div className="bg-slate-800 text-white px-6 py-4 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold">Datenblatt: {table.name}</h2>
-              <div className="flex items-center gap-1 ml-4 bg-slate-700 rounded p-1">
-                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-white text-slate-800' : 'text-slate-400 hover:text-white'}`} title="Liste">
-                      <List size={16}/>
-                  </button>
-                  <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded transition-colors ${viewMode === 'kanban' ? 'bg-white text-slate-800' : 'text-slate-400 hover:text-white'}`} title="Kanban Board">
-                      <Layout size={16}/>
-                  </button>
-              </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">Datenblatt: {table.name}</h2>
+                <div className="flex items-center gap-1 ml-4 bg-slate-700 rounded p-1">
+                    <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-white text-slate-800' : 'text-slate-400 hover:text-white'}`} title="Liste">
+                        <List size={16}/>
+                    </button>
+                    <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded transition-colors ${viewMode === 'kanban' ? 'bg-white text-slate-800' : 'text-slate-400 hover:text-white'}`} title="Kanban Board">
+                        <Layout size={16}/>
+                    </button>
+                </div>
 
-              {viewMode === 'list' && (
-                  <div className="flex items-center gap-1 ml-4">
-                      <button 
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
-                        title="Filter anzeigen"
-                      >
-                          <Filter size={14} /> Filter {Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : ''}
-                      </button>
+                {viewMode === 'list' && (
+                    <div className="flex items-center gap-1 ml-4">
+                        <button 
+                          onClick={() => setShowFilters(!showFilters)}
+                          className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
+                          title="Filter anzeigen"
+                        >
+                            <Filter size={14} /> Filter {Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : ''}
+                        </button>
 
-                      {table.apiConfig && (
-                        <div className="flex items-center bg-slate-700 rounded ml-2 p-1">
-                            {queryParams.length > 0 && (
-                                <button 
-                                    onClick={() => setShowParams(!showParams)}
-                                    className={`p-1 px-2 rounded text-xs flex items-center gap-1 ${showParams ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-white'}`}
-                                    title="API Parameter"
-                                >
-                                    <Sliders size={14} /> {queryParams.length}
-                                </button>
-                            )}
-                            <button 
-                                onClick={handleApiRefresh} 
-                                disabled={isRefreshing}
-                                className={`flex items-center gap-1 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs ml-1 disabled:opacity-50 ${isRefreshing ? 'bg-blue-500' : 'bg-blue-600'}`}
-                            >
-                                {isRefreshing ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14} />}
-                                {isRefreshing ? 'Lädt...' : 'Refresh'}
-                            </button>
-                        </div>
-                      )}
-                  </div>
-              )}
+                        {table.apiConfig && (
+                          <div className="flex items-center bg-slate-700 rounded ml-2 p-1">
+                              {queryParams.length > 0 && (
+                                  <button 
+                                      onClick={() => setShowParams(!showParams)}
+                                      className={`p-1 px-2 rounded text-xs flex items-center gap-1 ${showParams ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-white'}`}
+                                      title="API Parameter"
+                                  >
+                                      <Sliders size={14} /> {queryParams.length}
+                                  </button>
+                              )}
+                              <button 
+                                  onClick={handleApiRefresh} 
+                                  disabled={isRefreshing}
+                                  className={`flex items-center gap-1 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs ml-1 disabled:opacity-50 ${isRefreshing ? 'bg-blue-500' : 'bg-blue-600'}`}
+                              >
+                                  {isRefreshing ? <Loader2 size={14} className="animate-spin"/> : <RefreshCw size={14} />}
+                                  {isRefreshing ? 'Lädt...' : 'Refresh'}
+                              </button>
+                          </div>
+                        )}
+                    </div>
+                )}
+            </div>
+            {table.description && (
+                <div className="text-slate-400 text-xs italic">{table.description}</div>
+            )}
           </div>
           <div className="flex gap-2">
             <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportCSV} />
@@ -348,7 +357,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
               <KanbanBoard table={table} onUpdateRow={handleDataChange} />
           ) : (
               headers.length > 0 ? (
-                  <VirtualTable data={filteredData} headers={headers} renderRow={renderRow} rowHeight={35} />
+                  <VirtualTable data={filteredData} headers={headers} headerTooltips={headerTooltips} renderRow={renderRow} rowHeight={35} />
               ) : (
                  <div className="p-6 text-center text-slate-500"><p>Die Tabelle "{table.name}" enthält keine Daten.</p></div>
               )

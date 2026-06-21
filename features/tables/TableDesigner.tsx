@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo } from '../../types/index';
+import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo, Relationship } from '../../types/index';
 import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
@@ -10,16 +10,18 @@ interface TableDesignerProps {
   onTableChange: (table: Table) => void;
   lockedBy?: LockInfo | null;
   currentUserId?: string;
+  relationships?: Relationship[];
+  showConfirmation?: (title: string, message: string, onConfirm: () => void) => void;
 }
 
-export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy, currentUserId }) => {
+export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy, currentUserId, relationships = [], showConfirmation }) => {
   const [activeTab, setActiveTab] = useState<'fields' | 'validation' | 'grid'>('fields');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
   
-  const { name: tableName, fields, validationRules = [] } = table;
+  const { name: tableName, description: tableDescription, fields, validationRules = [] } = table;
   
   const isLockedByMe = lockedBy?.userId === currentUserId;
   const isLockedByOther = lockedBy && !isLockedByMe;
@@ -28,6 +30,11 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const setTableName = (name: string) => {
     if(isReadOnly) return;
     onTableChange({ ...table, name });
+  }
+
+  const setTableDescription = (description: string) => {
+    if(isReadOnly) return;
+    onTableChange({ ...table, description });
   }
 
   const setFields = (fields: Field[]) => {
@@ -67,7 +74,37 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
 
   const removeField = (id: string) => {
     if(isReadOnly) return;
-    setFields(fields.filter(f => f.id !== id));
+    const fieldObj = fields.find(f => f.id === id);
+    const fieldName = fieldObj?.name || 'Unbekanntes Feld';
+
+    const isUsedInRelationship = relationships.some(rel => 
+      (rel.fromTableId === table.id && rel.fromFieldId === id) ||
+      (rel.toTableId === table.id && rel.toFieldId === id)
+    );
+
+    const performDelete = () => setFields(fields.filter(f => f.id !== id));
+
+    if (isUsedInRelationship) {
+        if (showConfirmation) {
+            showConfirmation(
+                'Feld löschen?',
+                `Das Feld "${fieldName}" wird in einer oder mehreren Beziehungen (Tabellenverknüpfungen) verwendet. Wenn Sie es löschen, werden diese Beziehungen möglicherweise ungültig oder beschädigt. Möchten Sie das Feld wirklich löschen?`,
+                performDelete
+            );
+        } else if (window.confirm(`Das Feld "${fieldName}" wird in einer Beziehung verwendet. Wirklich löschen?`)) {
+            performDelete();
+        }
+    } else {
+        if (showConfirmation) {
+            showConfirmation(
+                'Feld löschen?',
+                `Möchten Sie das Feld "${fieldName}" wirklich löschen?`,
+                performDelete
+            );
+        } else if (window.confirm(`Möchten Sie das Feld "${fieldName}" wirklich löschen?`)) {
+            performDelete();
+        }
+    }
   };
 
   // Drag and Drop Handlers
@@ -120,7 +157,12 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
 
   const removeValidationRule = (id: string) => {
       if(isReadOnly) return;
-      onTableChange({ ...table, validationRules: validationRules.filter(r => r.id !== id) });
+      const performDelete = () => onTableChange({ ...table, validationRules: validationRules.filter(r => r.id !== id) });
+      if (showConfirmation) {
+          showConfirmation('Regel löschen?', 'Möchten Sie diese Validierungsregel wirklich löschen?', performDelete);
+      } else if (window.confirm('Möchten Sie diese Validierungsregel wirklich löschen?')) {
+          performDelete();
+      }
   };
 
   const handleAiGenerate = async () => {
@@ -283,15 +325,28 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
         )}
 
         <div className="p-6 flex-1 overflow-auto">
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-slate-700 mb-1">Tabellenname</label>
-            <input 
-              type="text" 
-              value={tableName} 
-              disabled={isReadOnly}
-              onChange={(e) => setTableName(e.target.value)}
-              className="w-full max-w-md border border-slate-300 rounded p-2 font-mono text-sm disabled:bg-slate-100 disabled:text-slate-500"
-            />
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Tabellenname</label>
+              <input 
+                type="text" 
+                value={tableName} 
+                disabled={isReadOnly}
+                onChange={(e) => setTableName(e.target.value)}
+                className="w-full border border-slate-300 rounded p-2 font-mono text-sm disabled:bg-slate-100 disabled:text-slate-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Beschreibung (Optional)</label>
+              <input 
+                type="text" 
+                value={tableDescription || ''} 
+                disabled={isReadOnly}
+                onChange={(e) => setTableDescription(e.target.value)}
+                placeholder="Kommentar zur Tabelle"
+                className="w-full border border-slate-300 rounded p-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+              />
+            </div>
           </div>
 
           {activeTab === 'fields' ? (
@@ -307,7 +362,8 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         <th className="p-2 w-24">Formatierung</th>
                         <th className="p-2 w-16 text-center" title="Erlaubt NULL-Werte">Null</th>
                         <th className="p-2 w-16 text-center" title="Automatisch hochzählen (nur Integer)">Auto</th>
-                        <th className="p-2 flex-1">Standardwert</th>
+                        <th className="p-2 w-48">Standardwert</th>
+                        <th className="p-2 flex-1">Kommentar</th>
                         {!isReadOnly && <th className="p-2 w-10"></th>}
                     </tr>
                     </thead>
@@ -430,6 +486,16 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         </td>
                         <td className="p-2">
                             {renderDefaultValueInput(field)}
+                        </td>
+                        <td className="p-2">
+                            <input 
+                                type="text" 
+                                value={field.comment || ''}
+                                disabled={isReadOnly}
+                                onChange={(e) => updateField(field.id, { comment: e.target.value })}
+                                placeholder="Kommentar (Optional)"
+                                className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500"
+                            />
                         </td>
                         {!isReadOnly && (
                             <td className="p-2">

@@ -5,7 +5,7 @@ import { DATA_TYPES } from '../../config/dataTypes';
 
 export const isNullable = (field: Field) => field.allowNull !== false && !field.isPrimaryKey;
 
-export const resolveType = (field: Field, language: 'csharp' | 'sequelize' | 'typescript' | 'sql') => {
+export const resolveType = (field: Field, language: 'csharp' | 'sequelize' | 'typescript' | 'sql', dbType?: DbType) => {
     const config = DATA_TYPES[field.type];
     if (!config) return 'string'; 
 
@@ -15,7 +15,7 @@ export const resolveType = (field: Field, language: 'csharp' | 'sequelize' | 'ty
     const typeGen = (mapping as any).type;
     
     if (typeof typeGen === 'function') {
-        return typeGen({ length: field.length, precision: field.precision, scale: field.scale });
+        return typeGen({ length: field.length, precision: field.precision, scale: field.scale, enumValues: field.enumValues, field, dbType });
     }
     return typeGen;
 };

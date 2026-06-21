@@ -261,6 +261,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
                                                     <option value="DATETIME">Datum & Zeit (DATETIME)</option>
                                                     <option value="TIMESTAMP">Zeitstempel (TIMESTAMP)</option>
                                                     <option value="BOOLEAN">Ja/Nein</option>
+                                                    <option value="ENUM">Auswahl (Enum)</option>
                                                 </select>
                                                 
                                                 <div className="text-[10px] text-slate-400 truncate" title={`Original: ${map.originalName}`}>

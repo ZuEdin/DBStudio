@@ -358,6 +358,7 @@ export const SharePointImportWizard: React.FC<SharePointImportWizardProps> = ({ 
                                                 <option value="DECIMAL">Dezimal</option>
                                                 <option value="DATE">Datum</option>
                                                 <option value="BOOLEAN">Ja/Nein</option>
+                                                <option value="ENUM">Auswahl (Enum)</option>
                                             </select>
                                         </td>
                                     </tr>

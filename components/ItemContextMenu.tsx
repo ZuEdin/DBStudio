@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { Eye, Download, Edit3, Trash2, Sheet, FileText, Layout, PieChart, GitFork } from 'lucide-react';
+import { Eye, Download, Edit3, Trash2, Sheet, FileText, Layout, PieChart, GitFork, Copy } from 'lucide-react';
 
 interface ItemContextMenuProps {
   x: number;
   y: number;
   itemType: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow';
-  onAction: (action: 'view' | 'view_data' | 'export' | 'rename' | 'delete') => void;
+  onAction: (action: 'view' | 'view_data' | 'export' | 'rename' | 'duplicate' | 'delete') => void;
 }
 
 export const ItemContextMenu: React.FC<ItemContextMenuProps> = ({ x, y, itemType, onAction }) => {
@@ -52,6 +52,9 @@ export const ItemContextMenu: React.FC<ItemContextMenuProps> = ({ x, y, itemType
       </button>
       <button onClick={() => onAction('rename')} className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800">
         <Edit3 size={14} /><span>Umbenennen</span>
+      </button>
+      <button onClick={() => onAction('duplicate')} className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800">
+        <Copy size={14} /><span>Duplizieren</span>
       </button>
       <div className="my-1 border-t border-slate-200"></div>
       <button onClick={() => onAction('delete')} className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-red-50 text-red-600">

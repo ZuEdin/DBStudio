@@ -10,20 +10,34 @@ export interface DataTypeDefinition {
     csharp: {
       type: string;
       // Attributes are added above the property, e.g., [MaxLength(50)]
-      attributes?: (val: { length?: number, precision?: number, scale?: number }) => string[];
+      attributes?: (val: { length?: number, precision?: number, scale?: number, enumValues?: string[], field?: any, dbType?: any }) => string[];
     };
     sequelize: {
       // Function to generate the type string, e.g., "DataTypes.STRING(50)"
-      type: (val: { length?: number, precision?: number, scale?: number }) => string;
+      type: (val: { length?: number, precision?: number, scale?: number, enumValues?: string[], field?: any, dbType?: any }) => string;
     };
     typescript: string;
     sql: {
-        type: (val: { length?: number, precision?: number, scale?: number }) => string;
+        type: (val: { length?: number, precision?: number, scale?: number, enumValues?: string[], field?: any, dbType?: any }) => string;
     }
   };
 }
 
 export const DATA_TYPES: Record<string, DataTypeDefinition> = {
+  ENUM: {
+    label: "Auswahl (Enum)",
+    mappings: {
+      csharp: { type: "string" },
+      sequelize: { type: ({ enumValues }) => `DataTypes.ENUM(${enumValues?.map(v => `'${v.replace(/'/g, "''")}'`).join(', ') || "'unspecified'"})` },
+      typescript: "string",
+      sql: { type: ({ enumValues, dbType }) => {
+          if (dbType === 'MySQL') {
+             return `ENUM(${enumValues?.map(v => `'${v.replace(/'/g, "''")}'`).join(', ') || "'unspecified'"})`;
+          }
+          return "VARCHAR(50)";
+      }}
+    }
+  },
   INTEGER: {
     label: "Zahl (Integer)",
     mappings: {
