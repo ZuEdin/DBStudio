@@ -22,6 +22,7 @@ interface WorkspaceProps {
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
   onMoveRelationshipNode: (id: string, x: number, y: number) => void;
+  onUpdateRelationshipNodes?: (nodes: TableNode[]) => void;
   setRelationships: React.Dispatch<React.SetStateAction<Relationship[]>>;
   executeQuery: (query: Query) => Record<string, any>[];
   saveTable: (table: Table, mode: 'create' | 'edit') => void;
@@ -53,6 +54,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   onDeleteRelationship,
   onUpdateRelationship,
   onMoveRelationshipNode,
+  onUpdateRelationshipNodes,
   setRelationships,
   executeQuery,
   saveTable,
@@ -168,6 +170,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             onDeleteRelationship={onDeleteRelationship}
             onUpdateRelationship={onUpdateRelationship}
             onMoveRelationshipNode={onMoveRelationshipNode}
+            onUpdateRelationshipNodes={onUpdateRelationshipNodes}
             setRelationships={setRelationships}
             executeQuery={executeQuery}
             saveTable={saveTable}

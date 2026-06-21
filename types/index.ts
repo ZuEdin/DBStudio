@@ -85,6 +85,7 @@ export interface TableNode {
   tableId: string;
   x: number;
   y: number;
+  groupId?: string;
 }
 
 export type ReferentialAction = 'NO ACTION' | 'CASCADE' | 'SET NULL' | 'RESTRICT';
@@ -542,6 +543,13 @@ export interface BackendConfig {
   productTours?: ProductTour[];
 }
 
+export interface TableGroup {
+  id: string;
+  name: string;
+  color?: string;
+  comment?: string;
+}
+
 export interface ProjectData {
   tables: Table[];
   queries: Query[];
@@ -551,6 +559,7 @@ export interface ProjectData {
   workflows?: Workflow[];
   relationships: Relationship[];
   layout: TableNode[]; // Stores the visual position of tables in relationship view
+  tableGroups: TableGroup[];
   backendConfig: BackendConfig;
   lastSnapshot?: Table[];
 }

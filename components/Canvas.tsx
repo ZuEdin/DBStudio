@@ -1,13 +1,15 @@
 
 import React, { useRef, useState } from 'react';
-import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH } from '../types/index';
-import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH, TableGroup } from '../types/index';
+import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw, Group, AlignLeft, AlignLeft as AlignLeftIcon } from 'lucide-react';
+import { useProjectStore } from '../stores/useProjectStore';
 
 interface CanvasProps {
   nodes: TableNode[];
   tables: Table[];
   relationships?: Relationship[];
-  onMoveNode: (id: string, x: number, y: number) => void;
+  onMoveNode?: (id: string, x: number, y: number) => void;
+  onUpdateNodes?: (nodes: TableNode[]) => void;
   onRemoveNode?: (id: string) => void;
   onConnect?: (sourceTableId: string, sourceFieldId: string, targetTableId: string, targetFieldId: string) => void;
   isInteractive?: boolean;
@@ -16,9 +18,8 @@ interface CanvasProps {
 }
 
 type DragState = { 
-  nodeId: string; 
-  startX: number; 
-  startY: number; 
+  nodeIds: string[]; 
+  initialPositions: { [id: string]: { x: number; y: number } }; 
   mouseStartX: number; 
   mouseStartY: number; 
 } | null;
@@ -28,6 +29,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   tables, 
   relationships = [], 
   onMoveNode, 
+  onUpdateNodes,
   onRemoveNode,
   onConnect,
   isInteractive = false,
@@ -36,12 +38,15 @@ export const Canvas: React.FC<CanvasProps> = ({
 }) => {
   const [dragState, setDragState] = useState<DragState>(null);
   const [connectionStart, setConnectionStart] = useState<{ tableId: string, fieldId: string, nodeId: string } | null>(null);
-  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  const tableGroups = useProjectStore(state => state.tableGroups);
+  const setTableGroups = useProjectStore(state => state.setTableGroups);
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(2, Math.round(prev * 1.15 * 100) / 100));
@@ -67,10 +72,43 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     if ((e.target as HTMLElement).closest('.node-header')) {
       e.stopPropagation();
+
+      let newSelection = [...selectedNodeIds];
+      
+      if (e.shiftKey) {
+        if (newSelection.includes(nodeId)) {
+          newSelection = newSelection.filter(id => id !== nodeId);
+        } else {
+          newSelection.push(nodeId);
+        }
+      } else {
+        if (!newSelection.includes(nodeId)) {
+          newSelection = [nodeId];
+          // If the node belongs to a group, select all nodes in that group
+          if (node.groupId) {
+             const groupNodes = safeNodes.filter(n => n.groupId === node.groupId).map(n => n.id);
+             newSelection = Array.from(new Set([...newSelection, ...groupNodes]));
+          }
+        } else {
+          // It's already selected. If it has a group, ensure the whole group is selected too.
+          if (node.groupId) {
+             const groupNodes = safeNodes.filter(n => n.groupId === node.groupId).map(n => n.id);
+             newSelection = Array.from(new Set([...newSelection, ...groupNodes]));
+          }
+        }
+      }
+      
+      setSelectedNodeIds(newSelection);
+
+      const initialPositions: { [id: string]: { x: number; y: number } } = {};
+      newSelection.forEach(id => {
+        const n = safeNodes.find(n => n.id === id);
+        if (n) initialPositions[id] = { x: n.x, y: n.y };
+      });
+
       setDragState({
-        nodeId,
-        startX: node.x,
-        startY: node.y,
+        nodeIds: newSelection,
+        initialPositions,
         mouseStartX: e.clientX,
         mouseStartY: e.clientY,
       });
@@ -79,6 +117,7 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const handleContainerMouseDown = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && isInteractive) {
+      setSelectedNodeIds([]);
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
@@ -92,7 +131,21 @@ export const Canvas: React.FC<CanvasProps> = ({
     if (dragState) {
       const dx = (e.clientX - dragState.mouseStartX) / scale;
       const dy = (e.clientY - dragState.mouseStartY) / scale;
-      onMoveNode(dragState.nodeId, dragState.startX + dx, dragState.startY + dy);
+      
+      if (onUpdateNodes) {
+        const updatedNodes = safeNodes.map(n => {
+           if (dragState.nodeIds.includes(n.id)) {
+             return { ...n, x: dragState.initialPositions[n.id].x + dx, y: dragState.initialPositions[n.id].y + dy };
+           }
+           return n;
+        });
+        onUpdateNodes(updatedNodes);
+      } else if (onMoveNode) {
+        // Fallback for single node dragging
+        dragState.nodeIds.forEach(id => {
+          onMoveNode(id, dragState.initialPositions[id].x + dx, dragState.initialPositions[id].y + dy);
+        });
+      }
     }
   };
 
@@ -120,7 +173,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleFieldMouseDown = (e: React.MouseEvent, tableId: string, fieldId: string, nodeId: string) => {
-    setActiveNodeId(nodeId);
+    setSelectedNodeIds([nodeId]);
     if (!isInteractive || onRemoveNode) return; // Prevent connection in query view
     e.stopPropagation();
     setConnectionStart({ tableId, fieldId, nodeId });
@@ -153,6 +206,73 @@ export const Canvas: React.FC<CanvasProps> = ({
     return { x, y };
   };
 
+  const handleGroupSelected = () => {
+    if (!onUpdateNodes) return;
+    const groupId = crypto.randomUUID();
+    
+    // Add to TableGroups
+    const newGroups = [...(tableGroups || []), { id: groupId, name: 'Neue Gruppe' }];
+    setTableGroups(newGroups);
+
+    const updatedNodes = safeNodes.map(n => {
+       if (selectedNodeIds.includes(n.id)) {
+           return { ...n, groupId };
+       }
+       return n;
+    });
+    onUpdateNodes(updatedNodes);
+  };
+
+  const handleUngroupSelected = () => {
+    if (!onUpdateNodes) return;
+    const groupIdsToRemove = new Set(safeNodes.filter(n => selectedNodeIds.includes(n.id) && n.groupId).map(n => n.groupId));
+    
+    // Remove from TableGroups
+    if (groupIdsToRemove.size > 0 && tableGroups) {
+        setTableGroups(tableGroups.filter(g => !groupIdsToRemove.has(g.id)));
+    }
+
+    const updatedNodes = safeNodes.map(n => {
+       if (selectedNodeIds.includes(n.id)) {
+           return { ...n, groupId: undefined };
+       }
+       return n;
+    });
+    onUpdateNodes(updatedNodes);
+  };
+
+  const handleAlignTop = () => {
+    if (!onUpdateNodes) return;
+    const selectedNodes = safeNodes.filter(n => selectedNodeIds.includes(n.id));
+    if (selectedNodes.length === 0) return;
+    
+    const minY = Math.min(...selectedNodes.map(n => n.y));
+    
+    const updatedNodes = safeNodes.map(n => {
+       if (selectedNodeIds.includes(n.id)) {
+           return { ...n, y: minY };
+       }
+       return n;
+    });
+    onUpdateNodes(updatedNodes);
+  };
+
+  const handleAlignLeft = () => {
+    if (!onUpdateNodes) return;
+    const selectedNodes = safeNodes.filter(n => selectedNodeIds.includes(n.id));
+    if (selectedNodes.length === 0) return;
+    
+    const minX = Math.min(...selectedNodes.map(n => n.x));
+    
+    const updatedNodes = safeNodes.map(n => {
+       if (selectedNodeIds.includes(n.id)) {
+           return { ...n, x: minX };
+       }
+       return n;
+    });
+    onUpdateNodes(updatedNodes);
+  };
+
   return (
     <div 
       className="relative w-full h-full overflow-hidden canvas-grid bg-slate-50 cursor-grab"
@@ -167,6 +287,57 @@ export const Canvas: React.FC<CanvasProps> = ({
         className="absolute top-0 left-0"
         style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: '0 0' }}
       >
+        {tableGroups && tableGroups.map(group => {
+            const groupNodes = safeNodes.filter(n => n.groupId === group.id);
+            if (groupNodes.length === 0) return null;
+            
+            const minX = Math.min(...groupNodes.map(n => n.x)) - 24;
+            const minY = Math.min(...groupNodes.map(n => n.y)) - 100; 
+            const maxX = Math.max(...groupNodes.map(n => n.x + NODE_WIDTH)) + 24;
+            const maxY = Math.max(...groupNodes.map(n => {
+               const t = safeTables.find(t => t.id === n.tableId);
+               const h = t ? HEADER_HEIGHT + t.fields.length * FIELD_HEIGHT + (onRemoveNode ? FIELD_HEIGHT : 0) : 200;
+               return n.y + h;
+            })) + 24;
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const isSelected = groupNodes.some(n => selectedNodeIds.includes(n.id));
+
+            return (
+                <div 
+                    key={group.id}
+                    className={`absolute rounded-xl transition-all duration-200 pointer-events-auto ${isSelected ? 'border-2 border-blue-400 bg-blue-50/80 shadow-md z-0' : 'border-2 border-slate-300 bg-slate-100 shadow-sm z-0'}`}
+                    style={{ left: minX, top: minY, width, height }}
+                >
+                   <div className="absolute top-0 left-0 w-full px-4 py-3 cursor-pointer transition-opacity">
+                      <input 
+                         className={`bg-transparent font-semibold text-sm outline-none w-full mb-1 pointer-events-auto transition-colors ${isSelected ? 'text-blue-900 placeholder-blue-300' : 'text-slate-800 placeholder-slate-400'}`}
+                         value={group.name}
+                         placeholder="Gruppenname"
+                         onChange={(e) => {
+                             const newGroups = tableGroups.map(g => g.id === group.id ? { ...g, name: e.target.value } : g);
+                             setTableGroups(newGroups);
+                         }}
+                         onMouseDown={(e) => e.stopPropagation()}
+                      />
+                      {(isSelected || group.comment) && (
+                          <textarea
+                             className={`text-xs outline-none w-full resize-none pointer-events-auto leading-relaxed border rounded p-1.5 transition-colors ${isSelected ? 'bg-white/60 text-slate-700 border-blue-200 focus:border-blue-400 focus:bg-white placeholder-slate-400' : 'bg-transparent text-slate-600 border-transparent placeholder-slate-400'}`}
+                             value={group.comment || ''}
+                             placeholder={isSelected ? "Kommentar hinzufügen..." : ""}
+                             rows={2}
+                             onChange={(e) => {
+                                 const newGroups = tableGroups.map(g => g.id === group.id ? { ...g, comment: e.target.value } : g);
+                                 setTableGroups(newGroups);
+                             }}
+                             onMouseDown={(e) => e.stopPropagation()}
+                          />
+                      )}
+                   </div>
+                </div>
+            );
+        })}
         <svg className="absolute top-0 left-0 w-[10000px] h-[10000px] pointer-events-none z-10 overflow-visible" style={{ left: -5000, top: -5000, pointerEvents: 'none' }}>
           <g transform="translate(5000, 5000)">
             <defs>
@@ -243,14 +414,16 @@ export const Canvas: React.FC<CanvasProps> = ({
           return (
             <div
               key={node.id}
-              className={`absolute bg-white border border-slate-400 rounded-sm select-none transition-shadow ${activeNodeId === node.id ? 'z-30 shadow-xl' : 'z-20 shadow-md'}`}
+              className={`absolute bg-white border border-slate-400 rounded-sm select-none transition-shadow ${selectedNodeIds.includes(node.id) ? 'z-30 shadow-xl border-blue-500' : 'z-20 shadow-md'}`}
               style={{ 
                 left: node.x, 
                 top: node.y, 
                 width: NODE_WIDTH,
               }}
               onMouseDown={(e) => {
-                setActiveNodeId(node.id);
+                if (!selectedNodeIds.includes(node.id) && !e.shiftKey) {
+                  setSelectedNodeIds([node.id]);
+                }
                 handleDragStart(e, node.id);
               }}
             >
@@ -320,6 +493,54 @@ export const Canvas: React.FC<CanvasProps> = ({
           );
         })}
       </div>
+      
+      {/* Multi-Selection Toolbar */}
+      {selectedNodeIds.length > 1 && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg border border-slate-300 p-1 flex items-center gap-1 z-50">
+          <button 
+            onClick={handleGroupSelected}
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            title="Zu einer Gruppe zusammenfassen"
+          >
+            <Group size={16} className="text-slate-500" />
+            <span>Gruppieren</span>
+          </button>
+          
+          <div className="w-px h-5 bg-slate-300 mx-1"></div>
+          
+          <button 
+            onClick={handleUngroupSelected}
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            title="Gruppierung aufheben"
+          >
+            <Group size={16} className="text-slate-500 opacity-50" />
+            <span>Aufheben</span>
+          </button>
+
+          <div className="w-px h-5 bg-slate-300 mx-1"></div>
+
+          <button 
+            onClick={handleAlignTop}
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            title="An der höchsten Tabelle ausrichten"
+          >
+            <AlignLeftIcon size={16} className="text-slate-500 rotate-90" />
+            <span>Oben ausrichten</span>
+          </button>
+          
+          <div className="w-px h-5 bg-slate-300 mx-1"></div>
+
+          <button 
+            onClick={handleAlignLeft}
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            title="Am weitesten links stehenden Tabelle ausrichten"
+          >
+            <AlignLeftIcon size={16} className="text-slate-500" />
+            <span>Links ausrichten</span>
+          </button>
+        </div>
+      )}
+
       {/* Zoom Controls Overlay */}
       <div className="absolute bottom-4 left-4 bg-white rounded shadow border border-slate-300 p-1 flex items-center gap-1 z-40 select-none">
         <button 

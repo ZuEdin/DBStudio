@@ -37,6 +37,7 @@ interface ViewRouterProps {
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
   onMoveRelationshipNode: (id: string, x: number, y: number) => void;
+  onUpdateRelationshipNodes?: (nodes: TableNode[]) => void;
   setRelationships: React.Dispatch<React.SetStateAction<Relationship[]>>;
   executeQuery: (query: Query) => Record<string, any>[];
   saveTable: (table: Table, mode: 'create' | 'edit') => void;
@@ -72,6 +73,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
   onDeleteRelationship,
   onUpdateRelationship,
   onMoveRelationshipNode,
+  onUpdateRelationshipNodes,
   setRelationships,
   executeQuery,
   saveTable,
@@ -232,6 +234,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
             tables={tables} 
             relationships={relationships} 
             onMoveNode={onMoveRelationshipNode} 
+            onUpdateNodes={onUpdateRelationshipNodes}
             onConnect={handleConnect} 
             onDeleteRelationship={onDeleteRelationship} 
             onUpdateRelationship={onUpdateRelationship} 

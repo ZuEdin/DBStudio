@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { Canvas } from '../../components/Canvas';
-import { TableNode, Table, Relationship } from '../../types/index';
+import { TableNode, Table, Relationship, TableGroup } from '../../types/index';
 import { EditRelationshipModal } from './components/EditRelationshipModal';
 import { RelationshipContextMenu } from './components/RelationshipContextMenu';
 
 interface RelationshipsViewProps {
   nodes: TableNode[];
   tables: Table[];
+  groups?: TableGroup[];
   relationships: Relationship[];
   onMoveNode: (id: string, x: number, y: number) => void;
+  onUpdateNodes?: (nodes: TableNode[]) => void;
+  onUpdateGroups?: (groups: TableGroup[]) => void;
   onConnect: (t1: string, f1: string, t2: string, f2: string) => void;
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
@@ -19,8 +22,11 @@ interface RelationshipsViewProps {
 export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
   nodes,
   tables,
+  groups,
   relationships,
   onMoveNode,
+  onUpdateNodes,
+  onUpdateGroups,
   onConnect,
   onDeleteRelationship,
   onUpdateRelationship,
@@ -79,8 +85,11 @@ export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
       <Canvas 
         nodes={nodes}
         tables={tables}
+        groups={groups}
         relationships={relationships}
         onMoveNode={onMoveNode}
+        onUpdateNodes={onUpdateNodes}
+        onUpdateGroups={onUpdateGroups}
         onConnect={onConnect}
         onRelationshipContextMenu={handleRelationshipContextMenu}
         onNodeDoubleClick={onNodeDoubleClick}
