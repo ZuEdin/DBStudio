@@ -181,16 +181,27 @@ export interface ReportSettings {
     groupMethod?: 'full' | 'firstLetter';
 }
 
+export interface DashboardWidget {
+    id: string;
+    sourceId: string;
+    sourceType: 'report' | 'chart' | 'query';
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
 export interface Report {
   id: string;
   name: string;
-  sourceType: 'table' | 'query';
+  sourceType: 'table' | 'query' | 'dashboard';
   sourceId: string;
   groupingFieldId?: string;
   columns?: ReportColumn[];
   summaries: ReportSummary[];
   styles?: ReportStyles;
   settings?: ReportSettings;
+  dashboardWidgets?: DashboardWidget[];
 }
 
 export interface LookupConfig {

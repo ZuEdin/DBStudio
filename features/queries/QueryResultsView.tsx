@@ -104,11 +104,11 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
                 </div>
                 {headers.map((h, i) => {
                     const key = dataKeys[i]; 
-                    const stats = columnStats[key];
+                    const stats = columnStats[key] || { uniqueValues: [], isLowCardinality: false };
                     const hasFilter = !!filters[key];
                     
                     return (
-                        <div key={key} className={`flex flex-col min-w-[120px] max-w-[200px] ${hasFilter ? 'bg-white rounded shadow-sm' : ''} p-1`}>
+                        <div key={`filter-${i}-${key}`} className={`flex flex-col min-w-[120px] max-w-[200px] ${hasFilter ? 'bg-white rounded shadow-sm' : ''} p-1`}>
                             <label className="text-[10px] font-bold text-orange-700 mb-0.5 truncate px-1">{h}</label>
                             {stats?.isLowCardinality ? (
                                 <select 
@@ -142,16 +142,16 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 shadow-sm z-10">
                 <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  {headers.map(header => (
-                    <th key={header} className="p-3 bg-slate-100 whitespace-nowrap">{header}</th>
+                  {headers.map((header, i) => (
+                    <th key={`hdr-${i}-${header}`} className="p-3 bg-slate-100 whitespace-nowrap">{header}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredData.map((row, rowIndex) => (
-                  <tr key={rowIndex} className="hover:bg-slate-50">
-                    {dataKeys.map(key => (
-                      <td key={`${rowIndex}-${key}`} className="p-3 text-slate-700 whitespace-nowrap">
+                  <tr key={`row-${rowIndex}`} className="hover:bg-slate-50">
+                    {dataKeys.map((key, colIndex) => (
+                      <td key={`cell-${rowIndex}-${colIndex}`} className="p-3 text-slate-700 whitespace-nowrap">
                         {String(row[key] ?? '')}
                       </td>
                     ))}

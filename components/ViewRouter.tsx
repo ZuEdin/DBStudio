@@ -10,6 +10,7 @@ import { QueryDesignerView } from '../features/queries/QueryDesignerView';
 import { QueryResultsView } from '../features/queries/QueryResultsView';
 import { ReportView } from '../features/reports/ReportView';
 import { ReportDesignerView } from '../features/reports/ReportDesignerView';
+import { DashboardDesigner } from '../features/reports/DashboardDesigner';
 import { FormView } from '../features/forms/FormView';
 import { FormDesignerView } from '../features/forms/FormDesignerView';
 import { BackendView } from '../features/backend/BackendView';
@@ -170,6 +171,13 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
       case 'report_view':
          if (activeObject && 'sourceType' in activeObject && !('fields' in activeObject) && !('config' in activeObject)) {
             const report = activeObject as Report;
+            if (report.sourceType === 'dashboard') {
+                 // The view mode for dashboard is similar to designer but without add/remove controls
+                 // We can either render a DashboardView, or just use DashboardDesigner without edit capabilities.
+                 // For now, returning DashboardDesigner is acceptable, but let's make sure it represents view mode well.
+                 // We'll reuse the designer but maybe it has everything we need to view.
+                 return <DashboardDesigner report={report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} />;
+            }
             let data: Record<string, any>[] = [];
             const sourceFields = getSourceFieldsForReport(report) as any[];
             if (report.sourceType === 'table') {
@@ -184,6 +192,9 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         return null;
       case 'report_designer':
           if (activeObject && 'sourceType' in activeObject && !('fields' in activeObject) && !('config' in activeObject)) {
+              if (activeObject.sourceType === 'dashboard') {
+                  return <DashboardDesigner report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} />;
+              }
               return <ReportDesignerView report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} onReportChange={onActiveObjectChange as any} />;
           }
           return null;

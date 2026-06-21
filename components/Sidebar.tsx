@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, Query, Report, Form, Chart, Workflow } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface SidebarProps {
@@ -50,6 +50,7 @@ const RenderNode: React.FC<RenderNodeProps> = ({
 }) => {
   const getIcon = (n: TreeNode<any>) => {
       if (type === 'table' && (n.item as Table).isApiImport) return Globe;
+      if (type === 'report' && (n.item as Report).sourceType === 'dashboard') return LayoutTemplate;
       return DefaultIcon;
   };
 

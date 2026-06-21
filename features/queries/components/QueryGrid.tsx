@@ -3,6 +3,67 @@ import React, { useState } from 'react';
 import { QueryColumn, Table, AggregateFunction } from '../../../types/index';
 import { Trash2, GripVertical, Plus } from 'lucide-react';
 
+const CalculatedFieldEditor: React.FC<{
+  column: QueryColumn;
+  tables: Table[];
+  onUpdate: (expr: string) => void;
+}> = ({ column, tables, onUpdate }) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <div className="relative w-full h-full">
+      <input 
+        type="text" 
+        className="w-full h-full p-1 border-none bg-blue-50 font-mono text-blue-900 outline-none focus:ring-1 focus:ring-blue-400" 
+        value={column.expression || ''} 
+        placeholder='"Tabelle"."Preis" * 1.2'
+        onChange={e => onUpdate(e.target.value)} 
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+      />
+      {isFocused && (
+        <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded z-50 text-xs p-2 whitespace-normal flex flex-col gap-2">
+            <div className="text-slate-500 font-semibold mb-1 border-b pb-1">SQL Berechnungsvorschläge</div>
+            
+            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                <p className="font-semibold text-slate-700 mb-1">Syntax Beispiele:</p>
+                <div className="font-mono text-[10px] text-blue-700 space-y-1">
+                    <div>"Tabelle"."Menge" * "Tabelle"."Preis"</div>
+                    <div>"Kunden"."Vorname" || ' ' || "Kunden"."Nachname"</div>
+                </div>
+                <p className="text-slate-500 mt-1">Klicken Sie auf ein Feld unten, um es einzufügen.</p>
+            </div>
+
+            <div className="font-semibold text-slate-700 mt-1">Verfügbare Felder:</div>
+            {tables.map(t => (
+                <div key={t.id} className="mb-2">
+                    <div className="font-bold text-slate-600 border-b border-slate-100">{t.name}</div>
+                    <div className="flex flex-col gap-0.5 mt-1">
+                        {t.fields.map(f => {
+                            const fieldStr = `"${t.name}"."${f.name}"`;
+                            return (
+                                <button 
+                                    key={f.id} 
+                                    className="text-left font-mono text-[10px] bg-slate-50 hover:bg-blue-50 hover:text-blue-700 text-slate-600 p-1 rounded" 
+                                    onClick={(e) => { 
+                                        e.preventDefault(); 
+                                        const prefix = column.expression?.trim() ? column.expression + ' ' : '';
+                                        onUpdate(prefix + fieldStr); 
+                                    }}
+                                >
+                                    + {fieldStr}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface QueryGridProps {
   columns: QueryColumn[];
   tables: Table[];
@@ -82,16 +143,13 @@ export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, onUpdateC
           <tr>
             <th className="border border-slate-300 p-1 font-semibold text-left">Feld:</th>
             {columns.map(col => (
-              <td key={col.id} className="border border-slate-300 p-0">
+              <td key={col.id} className="border border-slate-300 p-0 !overflow-visible">
                 {col.isCalculated ? (
-                   <input 
-                    type="text" 
-                    className="w-full h-full p-1 border-none bg-blue-50 font-mono text-blue-900" 
-                    value={col.expression || ''} 
-                    placeholder="Berechnung..."
-                    title="Beispiel: {{Tabelle.Feld}} & ' ' & {{Tabelle.Feld}}"
-                    onChange={e => updateColumn(col.id, { expression: e.target.value })} 
-                  />
+                   <CalculatedFieldEditor 
+                      column={col} 
+                      tables={tables} 
+                      onUpdate={(expr) => updateColumn(col.id, { expression: expr })} 
+                   />
                 ) : (
                   <div className="p-1 truncate" title={col.fieldName}>{col.fieldName}</div>
                 )}

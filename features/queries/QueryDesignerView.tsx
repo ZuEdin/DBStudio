@@ -131,7 +131,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     <div className="w-full h-full flex flex-col">
       <div className="bg-slate-100 border-b border-slate-300 p-1 flex gap-2">
          <button onClick={toggleTotals} className={`flex items-center gap-1 px-2 py-1 rounded text-xs border ${showTotals ? 'bg-slate-300 border-slate-400' : 'bg-white border-slate-300 hover:bg-slate-50'}`}>
-            <Sigma size={14}/> {showTotals ? 'Funktionen aus' : 'Funktionen (Gruppieren)'}
+            <Sigma size={14}/> {showTotals ? 'Aggregation aus' : 'Aggregation (Anzahl, Summe, ...)'}
          </button>
          <button onClick={addCalculatedColumn} className="flex items-center gap-1 px-2 py-1 rounded text-xs border bg-white border-slate-300 hover:bg-slate-50">
             <Calculator size={14}/> Berechnetes Feld

@@ -22,6 +22,7 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
   const [summaries, setSummaries] = useState<ReportSummary[]>([]);
 
   const dataSources = useMemo(() => [
+    { id: 'dashboard:none', name: 'Leeres Dashboard', type: 'Dashboard' },
     ...tables.map(t => ({ id: `table:${t.id}`, name: t.name, type: 'Tabelle' })),
     ...queries.map(q => ({ id: `query:${q.id}`, name: q.name, type: 'Abfrage' }))
   ], [tables, queries]);
@@ -88,11 +89,12 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
     const newReport: Report = {
       id: crypto.randomUUID(),
       name: reportName,
-      sourceType: sourceType as 'table' | 'query',
+      sourceType: sourceType as 'table' | 'query' | 'dashboard',
       sourceId,
       groupingFieldId: groupingFieldId || undefined,
       summaries,
-      columns: initialColumns
+      columns: initialColumns,
+      dashboardWidgets: sourceType === 'dashboard' ? [] : undefined
     };
     onSave(newReport);
   };
