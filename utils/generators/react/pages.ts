@@ -1,9 +1,9 @@
 
-import { Table, Form, Report, VirtualFile, Query, SelectQuery } from '../../../types/index';
+import { Table, Form, Report, VirtualFile, Query, SelectQuery, CustomPage } from '../../../types/index';
 import { toCamelCase, toPascalCase } from '../common';
 import { generateJsxForLayout, collectLookups } from './layoutHelper';
 
-export const generateReactPages = (tables: Table[], forms: Form[], reports: Report[], root: string, queries: Query[] = []): VirtualFile[] => {
+export const generateReactPages = (tables: Table[], forms: Form[], reports: Report[], root: string, queries: Query[] = [], pages: CustomPage[] = []): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
   // 1. Table Lists (Standard CRUD)
@@ -538,6 +538,204 @@ export const ${compName} = () => {
   );
 };`;
       files.push({ name: `${compName}.tsx`, path: `${root}/src/pages/reports/${compName}.tsx`, content, language: 'typescript' });
+  });
+
+  // 5. Custom Pages
+  pages.forEach(page => {
+      const compName = `${toPascalCase(page.name)}Page`;
+      
+      const states: string[] = [];
+      const effects: string[] = [];
+      const imports = new Set<string>(['React', 'useEffect', 'useState']);
+      
+      const generateNode = (node: any): string => {
+          if (!node) return '';
+          
+          let classNameStr = node.props?.className || '';
+          let styleStr = JSON.stringify(node.props?.style || {});
+          
+          switch(node.type) {
+              case 'container': {
+                  const childrenStr = (node.children || []).map((c: any) => generateNode(c)).join('\n');
+                  return `<div className="${classNameStr || 'p-4 border rounded'}" style={${styleStr}}>${childrenStr}</div>`;
+              }
+              case 'text': {
+                  return `<div className="break-words ${classNameStr}" style={${styleStr}}>${node.props?.text || ''}</div>`;
+              }
+              case 'button': {
+                  return `<button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition ${classNameStr}" style={${styleStr}}>${node.props?.label || 'Button'}</button>`;
+              }
+              case 'divider': {
+                  return `<hr className="border-slate-200 my-4 ${classNameStr}" style={${styleStr}} />`;
+              }
+              case 'image': {
+                  return `<img referrerPolicy="no-referrer" src="${node.props?.src || ''}" className="max-w-full h-auto rounded ${classNameStr}" style={${styleStr}} alt="${node.props?.alt || ''}" />`;
+              }
+              case 'html': {
+                  return `<div dangerouslySetInnerHTML={{ __html: ${HTML_SAFE(node.props?.html || '')} }} className="${classNameStr}" style={${styleStr}} />`;
+              }
+              case 'dropdown': {
+                  const stateName = `dropdownData_${node.id.replace(/-/g, '_')}`;
+                  const loadingState = `dropdownLoading_${node.id.replace(/-/g, '_')}`;
+                  states.push(`const [${stateName}, set_${stateName}] = useState<any[]>([]);`);
+                  states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
+                  
+                  let fetchUrl = '';
+                  if (node.props?.queryId) {
+                      const qObj = queries.find(q => q.id === node.props.queryId);
+                      if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                  } else if (node.props?.dataSourceId) {
+                      const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                      if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+                  }
+                  
+                  if (fetchUrl) {
+                      imports.add('get');
+                      effects.push(`
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        set_${loadingState}(true);
+        const res = await get<any>('${fetchUrl}');
+        set_${stateName}(res.data || res || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set_${loadingState}(false);
+      }
+    };
+    fetchDropdownData();
+  }, []);`);
+                  }
+                  
+                  const valueField = node.props?.valueField || 'id';
+                  const labelField = node.props?.labelField || 'name';
+                  
+                  return `
+                  <div className="p-2 ${classNameStr}" style={${styleStr}}>
+                      <select className="border border-slate-300 rounded px-3 py-2 bg-white w-full max-w-xs">
+                          <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
+                          {${loadingState} && <option disabled>Lade Daten...</option>}
+                          {!${loadingState} && ${stateName}.map((row, idx) => {
+                              const val = row['${valueField}'] || row.id || idx;
+                              const label = row['${labelField}'] || Object.values(row)[0] || '';
+                              return <option key={idx} value={val}>{String(label)}</option>;
+                          })}
+                      </select>
+                  </div>`;
+              }
+              case 'table_view': {
+                  const stateName = `tableData_${node.id.replace(/-/g, '_')}`;
+                  const loadingState = `tableLoading_${node.id.replace(/-/g, '_')}`;
+                  states.push(`const [${stateName}, set_${stateName}] = useState<any[]>([]);`);
+                  states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
+                  
+                  let fetchUrl = '';
+                  if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+                      const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                      if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+                  } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+                      const qObj = queries.find(q => q.id === node.props.dataSourceId);
+                      if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                  }
+                  
+                  if (fetchUrl) {
+                      imports.add('get');
+                      imports.add('Loader2');
+                      effects.push(`
+  useEffect(() => {
+    const fetchTableData = async () => {
+      try {
+        set_${loadingState}(true);
+        const res = await get<any>('${fetchUrl}', { pageSize: 100 });
+        set_${stateName}(res.data || res || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set_${loadingState}(false);
+      }
+    };
+    fetchTableData();
+  }, []);`);
+                  }
+                  
+                  const columnsStr = node.props?.columns || '';
+                  const columns = columnsStr ? columnsStr.split(',').map((c: string) => c.trim()) : [];
+                  
+                  let headerCells = '';
+                  let bodyCells = '';
+                  
+                  if (columns.length > 0) {
+                      headerCells = columns.map((col: string) => `<th key="${col}" className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">${col}</th>`).join('\n');
+                      bodyCells = columns.map((col: string) => `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600">{String(row['${col}'] || '')}</td>`).join('\n');
+                  } else {
+                      headerCells = `{${stateName}.length > 0 ? Object.keys(${stateName}[0]).map(k => (
+                          <th key={k} className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{k}</th>
+                      )) : <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Keine Daten</th>}`;
+                      
+                      bodyCells = `{Object.values(row).map((val: any, vIdx) => (
+                          <td key={vIdx} className="px-3 py-2 whitespace-nowrap text-sm text-slate-600">{String(val)}</td>
+                      ))}`;
+                  }
+                  
+                  return `
+                  <div className="p-4 w-full overflow-x-auto ${classNameStr}" style={${styleStr}}>
+                      {${loadingState} ? (
+                          <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-slate-400" /></div>
+                      ) : (
+                          <table className="min-w-full divide-y divide-slate-200">
+                              <thead className="bg-slate-50">
+                                  <tr>
+                                      ${headerCells}
+                                  </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-slate-200">
+                                  {${stateName}.map((row: any, idx: number) => (
+                                      <tr key={idx} className="hover:bg-slate-50">
+                                          ${bodyCells}
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      )}
+                  </div>`;
+              }
+              default:
+                  return `<div className="p-4 bg-slate-50 rounded border text-sm text-slate-400">${node.type} Component</div>`;
+          }
+      };
+      
+      const HTML_SAFE = (htmlStr: string) => {
+          return JSON.stringify(htmlStr);
+      };
+
+      const layoutHtml = generateNode(page.layout);
+      
+      const importsStr = Array.from(imports).map(imp => {
+          if (imp === 'React' || imp === 'useEffect' || imp === 'useState') return '';
+          if (imp === 'get') return "import { get } from '../../services/api';";
+          if (imp === 'Loader2') return "import { Loader2 } from 'lucide-react';";
+          return '';
+      }).filter(Boolean).join('\n');
+      
+      const content = `import React, { useEffect, useState } from 'react';
+${importsStr}
+
+export const ${compName} = () => {
+  ${states.join('\n  ')}
+
+  ${effects.join('\n  ')}
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold dark:text-white mb-6">${page.name}</h1>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-6">
+            ${layoutHtml}
+        </div>
+    </div>
+  );
+};`;
+      files.push({ name: `${compName}.tsx`, path: `${root}/src/pages/custom/${compName}.tsx`, content, language: 'typescript' });
   });
 
   return files;

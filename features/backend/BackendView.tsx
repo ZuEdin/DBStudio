@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report, IntegrationsConfig, EnvironmentConfig, DbType, WhitelabelConfig, MultiTenancyConfig, LicensingConfig } from '../../types/index';
+import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report, IntegrationsConfig, EnvironmentConfig, DbType, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, CustomPage } from '../../types/index';
 import Editor from '@monaco-editor/react';
 import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw, UploadCloud, GitBranch, CloudLightning, Globe, GitCommit, Briefcase } from 'lucide-react';
 import { generateBackendCode } from '../../utils/backendGenerators';
@@ -15,6 +15,7 @@ interface BackendViewProps {
   queries: Query[];
   forms?: Form[]; 
   reports?: Report[]; 
+  pages?: CustomPage[]; // NEW
   exportTrigger: number;
   generateTrigger: number;
   config: BackendConfig;
@@ -141,7 +142,7 @@ const FileTreeItem: React.FC<{
     );
 };
 
-export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], reports = [], exportTrigger, generateTrigger, config, showMessage, onOpenDeployment }) => {
+export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships, queries, forms = [], reports = [], pages = [], exportTrigger, generateTrigger, config, showMessage, onOpenDeployment }) => {
   const [generatedFiles, setGeneratedFiles] = useState<VirtualFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<VirtualFile | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -173,7 +174,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
 
   const handleGenerate = () => {
     try {
-        let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports);
+        let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages);
         
         if (localConfig.deploymentConfig) {
             const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);

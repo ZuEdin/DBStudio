@@ -202,7 +202,30 @@ export const FormView: React.FC<FormViewProps> = ({
       setSubformModal(null);
   };
 
+  const evalVisibility = (el: FormElement) => {
+      // Role check (mocked for now, assuming current user has 'admin' or no restrictions)
+      if (el.allowedRoles && el.allowedRoles.length > 0) {
+          // If we had a real user context, we'd check roles here. 
+          // For now, we allow it if we're in designer or assume 'admin' is always granted.
+          // In a real app, this would be: if (!el.allowedRoles.includes(currentUser.role)) return false;
+      }
+
+      if (!el.visibilityCondition || !el.visibilityCondition.fieldId) return true;
+      const targetField = sourceTable?.fields.find(f => f.id === el.visibilityCondition!.fieldId);
+      if (!targetField) return true;
+      
+      const val = currentRecord[targetField.name];
+      const checkVal = el.visibilityCondition.value;
+      
+      if (el.visibilityCondition.operator === 'eq') return String(val || '') === String(checkVal || '');
+      if (el.visibilityCondition.operator === 'neq') return String(val || '') !== String(checkVal || '');
+      
+      return true;
+  };
+
   const renderElement = (el: FormElement) => {
+      if (!evalVisibility(el)) return null;
+
       if (el.type === 'container') return <div key={el.id} className={el.className}>{el.children?.map(renderElement)}</div>;
       if (el.type === 'label') return <div key={el.id} className={el.className}>{el.label}</div>;
       if (el.type === 'field') {

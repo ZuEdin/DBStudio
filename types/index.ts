@@ -249,6 +249,8 @@ export interface FormElement {
   lookup?: LookupConfig;
   subform?: Subform;
   actions?: ActionFlow[];
+  allowedRoles?: string[];
+  visibilityCondition?: { fieldId: string, operator: 'eq' | 'neq', value: string };
 }
 
 export interface FormField {
@@ -283,6 +285,7 @@ export interface Form {
   settings?: FormSettings;
   // Phase 5 validation
   crossFieldValidations?: CrossFieldValidation[];
+  allowedRoles?: string[];
 }
 
 export type ChartType = 'bar' | 'line' | 'area' | 'pie';

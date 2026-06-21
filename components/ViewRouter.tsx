@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { ViewType, Table, Query, Report, Form, Relationship, SelectQuery, BackendConfig, TableNode, Chart, Workflow, EnvironmentConfig } from '../types/index';
+import { ViewType, Table, Query, Report, Form, Relationship, SelectQuery, BackendConfig, TableNode, Chart, Workflow, EnvironmentConfig, CustomPage } from '../types/index';
 import { WelcomeView } from '../features/dashboard/WelcomeView';
 import { AppInfoView } from '../features/dashboard/AppInfoView'; // Import
 import { TableDesigner } from '../features/tables/TableDesigner';
@@ -32,6 +32,7 @@ interface ViewRouterProps {
   reports: Report[];
   forms: Form[];
   workflows?: Workflow[]; 
+  pages?: CustomPage[]; // NEW
   canvasNodes: TableNode[];
   relationships: Relationship[];
   activeObject: Table | Query | Report | Form | Chart | Workflow | null;
@@ -68,6 +69,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
   reports,
   forms,
   workflows = [],
+  pages = [],
   canvasNodes,
   relationships,
   activeObject,
@@ -256,7 +258,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
       case 'backend_generator':
           return (
             <BackendView 
-                tables={tables} relationships={relationships} queries={queries} forms={forms} reports={reports} 
+                tables={tables} relationships={relationships} queries={queries} forms={forms} reports={reports} pages={pages} 
                 exportTrigger={exportTrigger} generateTrigger={generateTrigger} config={backendConfig} 
                 showMessage={showMessage} 
                 onOpenDeployment={() => { /* via hook */ }}

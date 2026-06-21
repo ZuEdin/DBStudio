@@ -17,6 +17,7 @@ interface DashboardDesignerProps {
 export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, tables, queries, relationships, reports, onReportChange, onOpenReport }) => {
   const [widgets, setWidgets] = useState<DashboardWidget[]>(report.dashboardWidgets || []);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState('');
   const executeQuery = useProjectStore(state => state.executeQuery);
 
   const getSourceFieldsForReport = (r: Report) => {
@@ -65,30 +66,50 @@ export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, ta
   return (
     <div className="flex h-full bg-slate-50 relative">
       <div className="flex-1 p-6 overflow-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-             <LayoutTemplate className="text-indigo-600 size-8" />
-             <h2 className="text-2xl font-bold text-slate-800">{report.name}</h2>
-             <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded font-bold uppercase">Dashboard (Multi-Bericht)</span>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="flex items-center gap-2 w-full md:w-auto">
+             <LayoutTemplate className="text-indigo-600 size-6 mr-1" />
+             <div>
+                <h2 className="text-lg font-bold text-slate-800 leading-tight">{report.name}</h2>
+                <span className="text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Dashboard (Multi-Bericht)</span>
+             </div>
           </div>
-          <div className="relative">
-             <button 
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 shadow"
-                onClick={() => setShowAddMenu(!showAddMenu)}
-             >
-                <Plus size={16} /> Widget hinzufügen
-             </button>
-             {showAddMenu && (
-                 <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 shadow-xl rounded-lg z-50 p-2 overflow-y-auto max-h-96">
-                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">Berichte</div>
-                     {availableReports.map(r => (
-                         <button key={r.id} onClick={() => addWidget(r.id, 'report')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 text-slate-700 rounded truncate">
-                             {r.name}
-                         </button>
-                     ))}
-                     {availableReports.length === 0 && <div className="px-3 py-2 text-xs text-slate-400 italic">Keine weiteren Berichte verfügbar</div>}
-                 </div>
-             )}
+          <div className="flex items-center gap-3 w-full md:w-auto">
+             {/* Dynamic Global Filter */}
+             <div className="relative flex-1 md:w-64">
+                <input 
+                    type="text" 
+                    value={globalFilter} 
+                    onChange={e => setGlobalFilter(e.target.value)} 
+                    placeholder="Widgets filtern (z.B. Name...)" 
+                    className="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-300 rounded text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium" 
+                />
+                {globalFilter && (
+                    <button onClick={() => setGlobalFilter('')} className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 text-[10px] font-bold">
+                        ✕
+                    </button>
+                )}
+             </div>
+
+             <div className="relative">
+                 <button 
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+                    onClick={() => setShowAddMenu(!showAddMenu)}
+                 >
+                    <Plus size={14} /> Widget
+                 </button>
+                 {showAddMenu && (
+                     <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 shadow-xl rounded-lg z-50 p-2 overflow-y-auto max-h-96">
+                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">Berichte</div>
+                         {availableReports.map(r => (
+                             <button key={r.id} onClick={() => addWidget(r.id, 'report')} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 text-slate-700 rounded truncate">
+                                 {r.name}
+                             </button>
+                         ))}
+                         {availableReports.length === 0 && <div className="px-3 py-2 text-xs text-slate-400 italic">Keine weiteren Berichte verfügbar</div>}
+                     </div>
+                 )}
+             </div>
           </div>
         </div>
 
@@ -119,13 +140,23 @@ export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, ta
                             const query = queries.find(q => q.id === rBase.sourceId);
                             if (query) widgetData = executeQuery(query);
                         }
+                        
+                        // Apply dynamic filter over widget data
+                        const filterLower = globalFilter.toLowerCase().trim();
+                        if (filterLower) {
+                            widgetData = widgetData.filter(row => 
+                                Object.values(row).some(cell => 
+                                    String(cell ?? '').toLowerCase().includes(filterLower)
+                                )
+                            );
+                        }
                     }
 
                     return (
                         <div key={widget.id} className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden col-span-1" style={{ minHeight: '400px' }}>
                             <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-between items-center group">
                                 <input 
-                                    className="font-bold text-slate-700 bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded outline-none p-1 hover:bg-slate-100"
+                                    className="font-bold text-slate-700 bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded outline-none p-1 hover:bg-slate-100 text-sm"
                                     value={widget.title !== undefined ? widget.title : (rBase ? rBase.name : 'Unknown Report')}
                                     onChange={(e) => {
                                         const newWidgets = widgets.map(w => w.id === widget.id ? { ...w, title: e.target.value } : w);

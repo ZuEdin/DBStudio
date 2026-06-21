@@ -1,18 +1,18 @@
 
-import { Table, Query, VirtualFile, Relationship, BackendConfig, Form, Report } from '../../types/index';
+import { Table, Query, VirtualFile, Relationship, BackendConfig, Form, Report, CustomPage } from '../../types/index';
 import { generateReactConfigs } from './react/config';
 import { generateReactApi } from './react/api';
 import { generateReactPages } from './react/pages';
 import { generateReactStructure } from './react/structure';
 
-export const generateReact = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, forms: Form[] = [], reports: Report[] = []): VirtualFile[] => {
+export const generateReact = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, forms: Form[] = [], reports: Report[] = [], pages: CustomPage[] = []): VirtualFile[] => {
   const root = `Frontend`;
   
   const configFiles = generateReactConfigs(config, root);
   const apiFiles = generateReactApi(tables, queries, config, root);
-  // Pass Queries to Structure generator for Routes/Sidebar
-  const structureFiles = generateReactStructure(tables, forms, reports, config, root, queries);
-  const pageFiles = generateReactPages(tables, forms, reports, root, queries);
+  // Pass Queries and Custom Pages to Structure generator for Routes/Sidebar
+  const structureFiles = generateReactStructure(tables, forms, reports, config, root, queries, pages);
+  const pageFiles = generateReactPages(tables, forms, reports, root, queries, pages);
 
   // Docs
   const readmeContent = `# ${config.projectName} (React Client)

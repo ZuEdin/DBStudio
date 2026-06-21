@@ -1,8 +1,8 @@
 
-import { Table, Form, Report, VirtualFile, BackendConfig, Query } from '../../../types/index';
+import { Table, Form, Report, VirtualFile, BackendConfig, Query, CustomPage } from '../../../types/index';
 import { toPascalCase, toCamelCase } from '../common';
 
-export const generateReactStructure = (tables: Table[], forms: Form[], reports: Report[], config: BackendConfig, root: string, queries: Query[] = []): VirtualFile[] => {
+export const generateReactStructure = (tables: Table[], forms: Form[], reports: Report[], config: BackendConfig, root: string, queries: Query[] = [], pages: CustomPage[] = []): VirtualFile[] => {
   const files: VirtualFile[] = [];
   const routes: string[] = [];
   const imports: string[] = [];
@@ -285,6 +285,9 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
               } else if (item.targetType === 'query' && item.targetId) {
                 const q = queries.find(x => x.id === item.targetId);
                 if (q) realRoute = `/queries/${toCamelCase(q.name)}`;
+              } else if ((item.targetType === 'page' || item.targetType === 'custom_page') && item.targetId) {
+                const p = pages.find(x => x.id === item.targetId);
+                if (p) realRoute = `/custom/${toCamelCase(p.name)}`;
               }
               const badgeHtml = item.badgeCountQuery ? `
                   <span className="ml-auto inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-bold leading-none text-white bg-red-500 rounded-full animate-pulse shadow-sm">
@@ -340,6 +343,19 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
                 ${reports.map(r => `
                     <Link to="/reports/${toCamelCase(r.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/reports/${toCamelCase(r.name)}')}\`}>
                         <FileText size={16}/> \${r.name}
+                    </Link>`).join('\n')}
+                </div>
+            </div>
+            )}
+
+            {/* Custom Pages */}
+            {${pages.length} > 0 && (
+            <div>
+                <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Eigene Seiten</div>
+                <div className="space-y-1">
+                ${pages.map(p => `
+                    <Link to="/custom/${toCamelCase(p.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/custom/${toCamelCase(p.name)}')}\`}>
+                        <Layout size={16}/> \${p.name}
                     </Link>`).join('\n')}
                 </div>
             </div>
@@ -614,6 +630,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       const compName = `${toPascalCase(r.name)}ReportPage`;
       imports.push(`import { ${compName} } from './pages/reports/${compName}';`);
       routes.push(`<Route path="/reports/${toCamelCase(r.name)}" element={<${compName} />} />`);
+  });
+
+  // Custom Pages Routes
+  pages.forEach(p => {
+      const pascalName = toPascalCase(p.name);
+      imports.push(`import { ${pascalName}Page } from './pages/custom/${pascalName}Page';`);
+      routes.push(`<Route path="/custom/${toCamelCase(p.name)}" element={<${pascalName}Page />} />`);
   });
 
   if (useAuth) {

@@ -72,6 +72,7 @@ export default function App() {
             reports={db.reports}
             forms={db.forms}
             workflows={db.workflows}
+            pages={db.pages}
             canvasNodes={app.relationshipNodes}
             relationships={db.relationships}
             activeObject={app.activeObject}

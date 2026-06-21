@@ -1,5 +1,5 @@
 
-import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report } from '../types/index';
+import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report, CustomPage } from '../types/index';
 import { generateDotNet } from './generators/dotnetGenerator';
 import { generateNodeJs } from './generators/nodeGenerator';
 import { generateAngular } from './generators/angularGenerator';
@@ -19,7 +19,8 @@ export const generateBackendCode = (
     queries: Query[], 
     config: BackendConfig, 
     forms: Form[] = [], 
-    reports: Report[] = []
+    reports: Report[] = [],
+    pages: CustomPage[] = []
 ): VirtualFile[] => {
   let files: VirtualFile[] = [];
 
@@ -60,7 +61,7 @@ export const generateBackendCode = (
     const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports);
     files = [...files, ...angularFiles];
   } else if (activeConfig.frontendFramework === 'react') {
-    const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports);
+    const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages);
     files = [...files, ...reactFiles];
   } else if (activeConfig.frontendFramework === 'blazor') {
     const blazorFiles = generateBlazor(tables, relationships, queries, activeConfig, forms, reports);

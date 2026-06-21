@@ -571,6 +571,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 allTables={allTables}
                 allForms={allForms}
                 onPropertyChange={handlePropertyChange}
+                onFormPropertyChange={(k, v) => onFormChange({...form, [k]: v})}
                 onLookupPropertyChange={(k, v) => { if(selectedEl?.lookup) handleLookupSave({ [k]: v }); }}
                 onSubformPermissionChange={(k, v) => { if(selectedEl?.subform) { 
                     updateFormLayout(l => { const el = findElement(l, selectedElementId!); if(el && el.subform) (el.subform as any)[k] = v; });

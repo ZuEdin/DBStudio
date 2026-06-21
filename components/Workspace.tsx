@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ViewType, Table, TableNode, Relationship, Query, Report, Form, SelectQuery, BackendConfig, Chart, Workflow, EnvironmentConfig } from '../types/index';
+import { ViewType, Table, TableNode, Relationship, Query, Report, Form, SelectQuery, BackendConfig, Chart, Workflow, EnvironmentConfig, CustomPage } from '../types/index';
 import { X, Command } from 'lucide-react';
 import { CommandPalette } from './CommandPalette';
 import { ViewRouter } from './ViewRouter';
@@ -12,6 +12,7 @@ interface WorkspaceProps {
   reports: Report[];
   forms: Form[];
   workflows?: Workflow[]; // NEW
+  pages?: CustomPage[]; // NEW
   canvasNodes: TableNode[];
   relationships: Relationship[];
   activeObject: Table | Query | Report | Form | Chart | Workflow | null;
@@ -44,6 +45,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   reports,
   forms,
   workflows = [],
+  pages = [],
   canvasNodes,
   relationships,
   activeObject,
@@ -162,6 +164,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             reports={reports}
             forms={forms}
             workflows={workflows}
+            pages={pages}
             canvasNodes={canvasNodes}
             relationships={relationships}
             activeObject={activeObject}

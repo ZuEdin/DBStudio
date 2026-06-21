@@ -9,6 +9,7 @@ interface PropertiesPanelProps {
   allTables: Table[];
   allForms: Form[];
   onPropertyChange: (key: keyof FormElement, value: any) => void;
+  onFormPropertyChange: (key: keyof Form, value: any) => void;
   onLookupPropertyChange: (key: string, value: any) => void;
   onSubformPermissionChange: (perm: string, val: boolean) => void;
   onDeleteSelected: () => void;
@@ -23,6 +24,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   allTables,
   allForms,
   onPropertyChange,
+  onFormPropertyChange,
   onLookupPropertyChange,
   onSubformPermissionChange,
   onDeleteSelected,
@@ -265,6 +267,50 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 placeholder="z.B. p-4 bg-gray-100"
               />
             </div>
+            
+            <div className="border border-indigo-200 bg-indigo-50 rounded p-2 text-xs space-y-2">
+                <div className="font-bold text-indigo-800 flex items-center gap-1"><Shield size={12}/> Sichtbarkeit (Rollen)</div>
+                <input 
+                    type="text" 
+                    placeholder="admin, user (kommagetrennt)"
+                    value={selectedElement.allowedRoles?.join(', ') || ''} 
+                    onChange={e => {
+                        const roles = e.target.value.split(',').map(r => r.trim()).filter(Boolean);
+                        onPropertyChange('allowedRoles', roles.length > 0 ? roles : undefined);
+                    }}
+                    className="w-full border p-1 rounded" 
+                />
+            </div>
+
+            <div className="border border-amber-200 bg-amber-50 rounded p-2 text-xs space-y-2">
+                <div className="font-bold text-amber-800 flex items-center gap-1"><Settings2 size={12}/> Bedingte Anzeige</div>
+                <div className="space-y-1">
+                    <input 
+                        type="text" 
+                        placeholder="Abhängige Feld ID (z.B. field_123)"
+                        value={selectedElement.visibilityCondition?.fieldId || ''} 
+                        onChange={e => onPropertyChange('visibilityCondition', { ...selectedElement.visibilityCondition, fieldId: e.target.value, operator: selectedElement.visibilityCondition?.operator || 'eq', value: selectedElement.visibilityCondition?.value || '' })}
+                        className="w-full border p-1 rounded" 
+                    />
+                    <div className="flex gap-1">
+                        <select 
+                            value={selectedElement.visibilityCondition?.operator || 'eq'} 
+                            onChange={e => onPropertyChange('visibilityCondition', { ...selectedElement.visibilityCondition, operator: e.target.value, fieldId: selectedElement.visibilityCondition?.fieldId || '', value: selectedElement.visibilityCondition?.value || '' })}
+                            className="w-1/3 border p-1 rounded"
+                        >
+                            <option value="eq">=</option>
+                            <option value="neq">!=</option>
+                        </select>
+                        <input 
+                            type="text" 
+                            placeholder="Wert (z.B. Ja)"
+                            value={selectedElement.visibilityCondition?.value || ''} 
+                            onChange={e => onPropertyChange('visibilityCondition', { ...selectedElement.visibilityCondition, value: e.target.value, fieldId: selectedElement.visibilityCondition?.fieldId || '', operator: selectedElement.visibilityCondition?.operator || 'eq' })}
+                            className="w-2/3 border p-1 rounded" 
+                        />
+                    </div>
+                </div>
+            </div>
 
             <button onClick={onDeleteSelected} className="w-full mt-4 bg-red-50 text-red-600 border border-red-200 p-2 rounded hover:bg-red-100 flex items-center justify-center gap-2">
               <Trash2 size={14} /> Element löschen
@@ -279,10 +325,24 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <input type="checkbox" checked={form.settings?.isFullScreen || false} onChange={onToggleFullScreen} className="rounded" />
                     <span>Vollbild-Modus</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer mb-4">
                     <input type="checkbox" checked={form.settings?.showEditToggle || false} onChange={onToggleEditButton} className="rounded" />
                     <span>Bearbeiten-Toggle anzeigen</span>
                 </label>
+                
+                <div className="border border-indigo-200 bg-indigo-50 rounded p-2 text-xs space-y-2">
+                    <div className="font-bold text-indigo-800 flex items-center gap-1"><Shield size={12}/> Formular-Sichtbarkeit (Rollen)</div>
+                    <input 
+                        type="text" 
+                        placeholder="admin, user (kommagetrennt)"
+                        value={form.allowedRoles?.join(', ') || ''} 
+                        onChange={e => {
+                            const roles = e.target.value.split(',').map(r => r.trim()).filter(Boolean);
+                            onFormPropertyChange('allowedRoles', roles.length > 0 ? roles : undefined);
+                        }}
+                        className="w-full border p-1 rounded" 
+                    />
+                </div>
             </div>
           </div>
         )}
