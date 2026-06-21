@@ -189,6 +189,7 @@ export interface DashboardWidget {
     y: number;
     w: number;
     h: number;
+    title?: string;
 }
 
 export interface Report {

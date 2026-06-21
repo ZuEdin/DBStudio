@@ -14,6 +14,7 @@ interface ReportViewProps {
   // Props for Linking
   allTables: Table[];
   relationships: Relationship[];
+  widgetMode?: boolean;
 }
 
 interface GroupedData {
@@ -36,7 +37,7 @@ const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
     };
 };
 
-export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFields, allTables, relationships }) => {
+export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFields, allTables, relationships, widgetMode }) => {
   const [detailView, setDetailView] = useState<{ targetTableId: string, recordId: any } | null>(null);
   const groupingField = sourceFields.find(f => f.id === report.groupingFieldId);
 
@@ -262,32 +263,36 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
   const targetTable = detailView ? allTables.find(t => t.id === detailView.targetTableId) : null;
 
   return (
-    <div className="bg-slate-200 h-full overflow-hidden flex flex-col">
+    <div className={`${widgetMode ? 'bg-transparent' : 'bg-slate-200'} h-full overflow-hidden flex flex-col`}>
       {/* Sticky Toolbar */}
-      <div className="bg-white border-b border-slate-300 p-2 flex justify-end gap-2 flex-shrink-0 sticky top-0 z-20 shadow-sm">
-          <button onClick={handleExportExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
-              <FileSpreadsheet size={14}/> Excel
-          </button>
-          <button onClick={handleExportPDF} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
-              <FileText size={14}/> PDF
-          </button>
-      </div>
+      {!widgetMode && (
+          <div className="bg-white border-b border-slate-300 p-2 flex justify-end gap-2 flex-shrink-0 sticky top-0 z-20 shadow-sm">
+              <button onClick={handleExportExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
+                  <FileSpreadsheet size={14}/> Excel
+              </button>
+              <button onClick={handleExportPDF} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
+                  <FileText size={14}/> PDF
+              </button>
+          </div>
+      )}
 
-      <div className="p-8 flex-1 overflow-auto bg-slate-200">
-        <div className={`max-w-[210mm] mx-auto bg-white shadow-xl p-[15mm] min-h-[297mm] ${report.settings?.orientation === 'landscape' ? 'landscape:max-w-[297mm] landscape:min-h-[210mm]' : ''}`}>
+      <div className={`${widgetMode ? 'p-2 relative' : 'p-8 flex-1 bg-slate-200'} overflow-auto`}>
+        <div className={widgetMode ? 'w-full bg-white h-full' : `max-w-[210mm] mx-auto bg-white shadow-xl p-[15mm] min-h-[297mm] ${report.settings?.orientation === 'landscape' ? 'landscape:max-w-[297mm] landscape:min-h-[210mm]' : ''}`}>
             
             {/* Report Header */}
-            <header className="border-b-4 border-slate-800 pb-4 mb-8" style={getCssFromStyle(report.styles?.header)}>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'inherit', fontSize: 'inherit' }}>{report.name}</h1>
-                        <p className="opacity-60 mt-1 uppercase tracking-wider text-xs font-bold">Bericht</p>
+            {!widgetMode && (
+                <header className="border-b-4 border-slate-800 pb-4 mb-8" style={getCssFromStyle(report.styles?.header)}>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'inherit', fontSize: 'inherit' }}>{report.name}</h1>
+                            <p className="opacity-60 mt-1 uppercase tracking-wider text-xs font-bold">Bericht</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="opacity-50 text-sm">{new Date().toLocaleDateString()}</p>
+                        </div>
                     </div>
-                    <div className="text-right">
-                        <p className="opacity-50 text-sm">{new Date().toLocaleDateString()}</p>
-                    </div>
-                </div>
-            </header>
+                </header>
+            )}
 
             {/* Data Loop */}
             <main>
