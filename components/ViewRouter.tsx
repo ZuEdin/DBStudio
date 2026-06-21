@@ -176,7 +176,14 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                  // We can either render a DashboardView, or just use DashboardDesigner without edit capabilities.
                  // For now, returning DashboardDesigner is acceptable, but let's make sure it represents view mode well.
                  // We'll reuse the designer but maybe it has everything we need to view.
-                 return <DashboardDesigner report={report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} />;
+                 const handleOpenReport = (reportId: string) => {
+                     const rep = reports.find(r => r.id === reportId);
+                     if (rep) {
+                         onActiveObjectChange(rep);
+                         onSetView('report_view' as any);
+                     }
+                 };
+                 return <DashboardDesigner report={report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} onOpenReport={handleOpenReport} />;
             }
             let data: Record<string, any>[] = [];
             const sourceFields = getSourceFieldsForReport(report) as any[];
@@ -193,7 +200,14 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
       case 'report_designer':
           if (activeObject && 'sourceType' in activeObject && !('fields' in activeObject) && !('config' in activeObject)) {
               if (activeObject.sourceType === 'dashboard') {
-                  return <DashboardDesigner report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} />;
+                  const handleOpenReport = (reportId: string) => {
+                      const rep = reports.find(r => r.id === reportId);
+                      if (rep) {
+                          onActiveObjectChange(rep);
+                          onSetView('report_designer' as any);
+                      }
+                  };
+                  return <DashboardDesigner report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} onOpenReport={handleOpenReport} />;
               }
               return <ReportDesignerView report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} onReportChange={onActiveObjectChange as any} />;
           }

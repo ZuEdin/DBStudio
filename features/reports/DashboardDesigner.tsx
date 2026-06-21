@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Report, Table, Query, Chart, ProjectData, DashboardWidget } from '../../types/index';
-import { Plus, X, LayoutTemplate, Settings } from 'lucide-react';
+import { Plus, X, LayoutTemplate, Settings, ExternalLink } from 'lucide-react';
 import { ReportView } from './ReportView';
 import { useProjectStore } from '../../stores/useProjectStore';
 
@@ -11,9 +11,10 @@ interface DashboardDesignerProps {
   relationships: any[];
   reports: Report[];
   onReportChange: (report: Report) => void;
+  onOpenReport?: (reportId: string) => void;
 }
 
-export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, tables, queries, relationships, reports, onReportChange }) => {
+export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, tables, queries, relationships, reports, onReportChange, onOpenReport }) => {
   const [widgets, setWidgets] = useState<DashboardWidget[]>(report.dashboardWidgets || []);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const executeQuery = useProjectStore(state => state.executeQuery);
@@ -133,9 +134,24 @@ export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, ta
                                     }}
                                     placeholder="Titel..."
                                 />
-                                <button onClick={() => removeWidget(widget.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                                    <X size={16} />
-                                </button>
+                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {rBase && onOpenReport && (
+                                        <button 
+                                            title="Bericht öffnen"
+                                            onClick={() => onOpenReport(rBase.id)} 
+                                            className="text-slate-400 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50"
+                                        >
+                                            <ExternalLink size={16} />
+                                        </button>
+                                    )}
+                                    <button 
+                                        title="Widget entfernen"
+                                        onClick={() => removeWidget(widget.id)} 
+                                        className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 ml-1"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
                             </div>
                             <div className="flex-1 overflow-auto bg-white relative pointer-events-auto">
                                 {rBase ? (
