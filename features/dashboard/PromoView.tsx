@@ -4,7 +4,7 @@ import {
   Database, Table as TableIcon, Search, FileText, Layout, 
   Sparkles, Zap, Cpu, Eye, Shield, CheckCircle2, ArrowRight,
   Monitor, Smartphone, Tablet, ChevronRight, Play, Code, Star,
-  DollarSign, Clock, Layers, Users, ExternalLink, ThumbsUp
+  DollarSign, Clock, Layers, Users, ExternalLink, ThumbsUp, Plus
 } from 'lucide-react';
 
 interface PromoViewProps {
