@@ -53,6 +53,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     init: async () => { await initSqlEngine(); },
 
     loadProject: (project) => {
+        try {
+            localStorage.setItem('lastProjectId', project.id);
+        } catch (e) {
+            console.warn("localStorage not available", e);
+        }
         set({
             projectId: project.id,
             projectName: project.name,
@@ -249,6 +254,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             });
         }
 
+        try {
+            localStorage.setItem('lastProjectId', id);
+        } catch (e) {
+            console.warn("localStorage not available", e);
+        }
+
         set({ 
             ...initialData, 
             projectId: id, 
@@ -272,6 +283,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
 
     closeProject: () => {
+        try {
+            localStorage.removeItem('lastProjectId');
+        } catch (e) {
+            console.warn("localStorage not available", e);
+        }
         set({
             ...initialData,
             projectId: null,

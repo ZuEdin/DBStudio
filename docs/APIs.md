@@ -180,3 +180,44 @@ Die Interaktion zwischen Haupt- und Unterseiten verläuft nach folgendem relatio
    - Filter-Feld: `CustomerId` (in der Tabelle)
    - Filter-Parameter: `customerId`
 4. **Ausführung**: Die Unterseite rendert dynamisch nur diejenigen Zeilen, die zum übergebenen Kunden gehören (Master-Detail Ansicht).
+
+---
+
+### 4.1. Schritt-für-Schritt Anleitung: Wo wird was im Designer eingegeben?
+
+Um das Beispiel **Standort (Tabelle) ➔ ID auswählen ➔ Subpage einblenden & Standort-Details anzeigen** im Designer umzusetzen, gehen Sie wie folgt vor:
+
+#### Schritt 1: Hauptseite & Auslöser konfigurieren (Standort-Tabelle)
+1. Platzieren Sie auf Ihrer Hauptseite eine **Tabelle** (z. B. mit Daten aus Ihrer Standort-Tabelle).
+2. Klicken Sie auf die Tabelle, um die Eigenschaften im rechten Seitenmenü zu öffnen.
+3. Scrollen Sie nach unten zum Bereich **Tabellen-Interaktionen**:
+   - **Zeilenklick-Aktion**: Wählen Sie `Parameter setzen` aus.
+   - **Parameter Name**: Geben Sie `selectedId` ein.
+   - **Parameter Spalte**: Wählen Sie `id` aus.
+   *Effekt:* Sobald ein Nutzer eine Zeile der Tabelle anklickt, wird die ID dieses Standorts im globalen Parameter `selectedId` gespeichert.
+
+#### Schritt 2: Unterseite erstellen & Filterung einrichten (Standort-Details)
+1. Erstellen Sie eine neue Seite (z. B. namens `Standort Details`).
+2. Aktivieren Sie in den Seiteneinstellungen die Option **Als Unterseite (Subpage) verwenden** (damit sie nicht im Hauptmenü erscheint).
+3. Platzieren Sie eine Detail-Tabelle oder Felder auf dieser Seite.
+4. Klicken Sie die Detail-Tabelle an und scrollen Sie rechts zu **Daten filtern über Parameter**:
+   - **Filter-Spalte**: Wählen Sie `id` (oder `standort_id` falls es sich um verknüpfte Daten handelt).
+   - **Filter-Parameter Name**: Tragen Sie hier den Namen des Unterseiten-Parameters ein, z. B. `targetStandortId`.
+   *Effekt:* Diese Detail-Tabelle zeigt nur noch Zeilen an, deren ID-Spalte mit dem Wert übereinstimmt, der ihr als `targetStandortId` übergeben wird.
+
+#### Schritt 3: Unterseite auf der Hauptseite einbinden (Subpage Container)
+1. Gehen Sie zurück zur Hauptseite.
+2. Ziehen Sie einen **Unterseiten-Container (Sub-Page)** auf die Seite.
+3. Klicken Sie den Container an, um rechts die Einstellungen zu öffnen:
+   - **Eingebundene Seite (Sub-Page)**: Wählen Sie `Standort Details`.
+4. Scrollen Sie im rechten Panel zum Bereich **Parameter-Mappings (Übergabe an Unterseite)**:
+   - Klicken Sie auf **Mapping hinzufügen**.
+   - **Parent Parameter (Quelle)**: Tragen Sie `selectedId` ein.
+   - **Sub Parameter (Ziel)**: Tragen Sie `targetStandortId` ein.
+   *Effekt:* Die ID aus der Hauptseite wird als Parameter an die Unterseite weitergereicht.
+
+#### Schritt 4: Sichtbarkeit steuern (Optional)
+Damit die Unterseite erst sichtbar wird, wenn tatsächlich ein Standort angeklickt wurde, konfigurieren Sie am **Unterseiten-Container (Sub-Page)** unter Sichtbarkeit:
+- **Filter-Feld**: Tragen Sie `selectedId` ein.
+- **Operator**: Wählen Sie `ist gesetzt (nicht leer)`.
+*Effekt:* Der Container ist anfangs unsichtbar. Erst wenn ein Standort in der Tabelle angeklickt wurde und `selectedId` einen Wert erhält, blendet sich die Unterseite geschmeidig ein.

@@ -63,6 +63,96 @@ const findNode = (rootNode: PageComponent, targetId: string): PageComponent | nu
     return null;
 }
 
+const SubPagePreviewNode: React.FC<{
+    node: PageComponent;
+    queries: any[];
+    tables: any[];
+    pages: any[];
+}> = ({ node, queries, tables, pages }) => {
+    let content = null;
+    
+    switch (node.type) {
+        case 'container':
+            content = (
+                <div className={`flex flex-col gap-1.5 w-full p-2 border border-slate-200/50 rounded bg-slate-50/25 ${node.props.className || ''}`} style={node.props.style}>
+                    {node.children && node.children.length > 0 ? (
+                        node.children.map(c => <SubPagePreviewNode key={c.id} node={c} queries={queries} tables={tables} pages={pages} />)
+                    ) : (
+                        <div className="text-slate-300 text-[10px] text-center py-2 border border-dashed border-slate-200 rounded">Leerer Container (Subpage)</div>
+                    )}
+                </div>
+            );
+            break;
+            
+        case 'list_repeater':
+            content = (
+                <div className={`p-2.5 rounded border border-indigo-200/60 bg-indigo-50/10 w-full ${node.props.className || ''}`} style={node.props.style}>
+                    <div className="text-[10px] font-bold text-indigo-700/80 mb-1 pointer-events-none uppercase flex items-center gap-1">
+                        <Layers size={10} /> List-Repeater (Subpage)
+                    </div>
+                    <div className="flex flex-col gap-1 bg-white/70 p-1.5 rounded border border-indigo-100/50">
+                        {node.children && node.children.length > 0 ? (
+                            node.children.map(c => <SubPagePreviewNode key={c.id} node={c} queries={queries} tables={tables} pages={pages} />)
+                        ) : (
+                            <div className="text-slate-400 text-[9px] text-center py-1 italic">Repeater leer</div>
+                        )}
+                    </div>
+                </div>
+            );
+            break;
+
+        case 'text':
+            content = (
+                <div className={`p-1 text-xs text-slate-700 font-medium break-words ${node.props.className || ''}`} style={node.props.style}>
+                    {node.props.text || 'New Text Block'}
+                </div>
+            );
+            break;
+
+        case 'button':
+            content = (
+                <button disabled className={`px-2.5 py-1 bg-indigo-600/50 text-white text-[10px] rounded hover:bg-indigo-700/50 m-0.5 opacity-70 cursor-not-allowed ${node.props.className || ''}`} style={node.props.style}>
+                    {node.props.label || 'Button'}
+                </button>
+            );
+            break;
+
+        case 'dropdown':
+            content = (
+                <div className={`p-1 ${node.props.className || ''}`}>
+                    <select disabled className="border border-slate-200 rounded px-2 py-0.5 bg-slate-50 text-[10px] w-full max-w-xs opacity-75 cursor-not-allowed">
+                        <option>{node.props.placeholder || 'Select Option'}</option>
+                    </select>
+                </div>
+            );
+            break;
+
+        case 'subpage_container': {
+            const nestedSub = pages?.find(p => p.id === node.props.subPageId);
+            content = (
+                <div className="p-1.5 border border-emerald-200/50 rounded bg-emerald-50/20 text-[10px] text-emerald-800 flex items-center gap-1">
+                    <Layers size={10} /> Eingebundene Unterseite: {nestedSub ? nestedSub.name : 'Keine'}
+                </div>
+            );
+            break;
+        }
+
+        default:
+            content = (
+                <div className="p-1 bg-slate-100/40 text-slate-400 rounded text-[9px] border border-slate-100/50 italic text-center">
+                    [{node.type}]
+                </div>
+            );
+            break;
+    }
+
+    return (
+        <div className="w-full relative pointer-events-none select-none">
+            {content}
+        </div>
+    );
+};
+
 const RenderNode: React.FC<{
     node: PageComponent; 
     selectedNodeId: string | null; 
@@ -182,6 +272,18 @@ const RenderNode: React.FC<{
                              <div className="flex flex-col gap-1.5">
                                  <div className="text-emerald-800 font-semibold flex items-center gap-1">
                                      <Layers size={12} className="text-emerald-600"/> Eingebundene Seite: <span className="underline">{subPage.name}</span>
+                                 </div>
+
+                                 {/* Visual Subpage Preview */}
+                                 <div className="mt-2 border border-emerald-200/50 bg-white/80 p-2.5 rounded shadow-inner mb-2 pointer-events-none">
+                                     <div className="text-[9px] text-emerald-600 font-mono font-bold mb-1.5 uppercase select-none tracking-wider border-b border-emerald-100/50 pb-1 flex items-center gap-1">
+                                         <Layers size={10} /> Inhalt Vorschau (Schreibgeschützt)
+                                     </div>
+                                     {subPage.layout ? (
+                                         <SubPagePreviewNode node={subPage.layout} queries={queries} tables={tables} pages={pages} />
+                                     ) : (
+                                         <div className="text-slate-400 text-xs italic">Unterseite ist leer.</div>
+                                     )}
                                  </div>
                                  {node.props.parameterMappings && node.props.parameterMappings.length > 0 ? (
                                      <div className="text-[10px] text-slate-500 bg-white/75 p-1.5 rounded border border-emerald-100/50">
@@ -812,7 +914,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                    )}
 
                    {/* Data Table Binding */}
-                   {(selectedNode.type === 'table_view' || selectedNode.type === 'list_repeater') && (
+                   {(selectedNode.type === 'table_view' || selectedNode.type === 'list_repeater' || selectedNode.type === 'container') && (
                        <div className="space-y-4">
                            <div>
                                <h4 className="text-xs font-bold text-emerald-600 mb-2">Datenquelle</h4>
@@ -865,7 +967,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                    </>
                                )}
 
-                               {selectedNode.type === 'table_view' && selectedNode.props.dataSourceId && (() => {
+                               {(selectedNode.type === 'table_view' || selectedNode.type === 'container' || selectedNode.type === 'list_repeater') && selectedNode.props.dataSourceId && (() => {
                                    let availableCols: {id: string, label: string, name: string}[] = [];
                                    if (selectedNode.props.dataSourceType === 'table') {
                                        const t = tables.find(tb => tb.id === selectedNode.props.dataSourceId);
@@ -894,7 +996,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                    return (
                                        <div className="mt-4 pt-4 border-t border-slate-200">
                                             <label className="block text-xs font-semibold text-slate-600 mb-2">Spalten auswählen</label>
-                                            {availableCols.length === 0 ? (
+                                           {availableCols.length === 0 ? (
                                                 <div className="text-xs text-slate-400">Keine Spalten gefunden</div>
                                             ) : (
                                                 <div className="space-y-1.5 max-h-40 overflow-y-auto border border-slate-200 rounded p-2">
@@ -911,6 +1013,39 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                                     ))}
                                                 </div>
                                             )}
+
+                                            {/* Table Data Filtering with Parameters */}
+                                            <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                                                <h5 className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
+                                                    <Database size={12} /> Daten filtern über Parameter
+                                                </h5>
+                                                <div>
+                                                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Filter-Spalte (z.B. id oder standort_id)</label>
+                                                    <select
+                                                        value={selectedNode.props.filterParamField || ''}
+                                                        onChange={(e) => updateSelectedNodeProps({ filterParamField: e.target.value })}
+                                                        className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                                                    >
+                                                        <option value="">-- Kein Filter --</option>
+                                                        {availableCols.map(col => (
+                                                            <option key={col.id} value={col.name}>{col.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Filter-Parameter Name (z.B. selectedId)</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={selectedNode.props.filterParamName || ''}
+                                                        onChange={(e) => updateSelectedNodeProps({ filterParamName: e.target.value })}
+                                                        placeholder="z.B. selectedId"
+                                                        className="w-full px-2 py-1 text-xs border border-slate-300 rounded font-mono"
+                                                    />
+                                                    <p className="text-[9px] text-slate-400 mt-1">
+                                                        Filtert die Zeilen dieser Tabelle, sodass der Wert in der ausgewählten Filter-Spalte dem aktuellen Wert des angegebenen Parameters entspricht.
+                                                    </p>
+                                                </div>
+                                            </div>
                                        </div>
                                    );
                                })()}
@@ -1118,6 +1253,8 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                         <option value=">">&gt; (größer)</option>
                                         <option value="<">&lt; (kleiner)</option>
                                         <option value="contains">enthält</option>
+                                        <option value="not_empty">ist gesetzt (nicht leer)</option>
+                                        <option value="empty">ist leer</option>
                                     </select>
                                 </div>
                                 <div>

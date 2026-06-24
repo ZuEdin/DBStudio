@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig } from '../types/index';
-import { saveProjectToStorage } from '../services/storageService';
+import { saveProjectToStorage, getProjectById } from '../services/storageService';
 import { cloudService } from '../services/cloudService'; 
 import * as XLSX from 'xlsx';
 
@@ -25,7 +25,57 @@ export const useAppController = () => {
   const [activeLock, setActiveLock] = useState<LockInfo | null>(null);
   const [readOnlyMode, setReadOnlyMode] = useState(false);
 
-  useEffect(() => { store.init(); }, []);
+  useEffect(() => {
+    const autoLoad = async () => {
+      await store.init();
+      try {
+        const lastProjectId = localStorage.getItem('lastProjectId');
+        if (lastProjectId && !store.projectId) {
+           const proj = await getProjectById(lastProjectId);
+           if (proj) {
+              store.loadProject(proj);
+              // Also restore last view if saved
+              const lastViewStr = localStorage.getItem(`lastView_${lastProjectId}`);
+              if (lastViewStr) {
+                 try {
+                    const lastView = JSON.parse(lastViewStr);
+                    setCurrentView(lastView);
+                    
+                    // If there was an active object associated, fetch/resolve it
+                    if (lastView.tableId) {
+                       const tbl = proj.data.tables.find(t => t.id === lastView.tableId);
+                       if (tbl) setActiveObject(tbl);
+                    } else if (lastView.queryId) {
+                       const q = proj.data.queries.find(x => x.id === lastView.queryId);
+                       if (q) setActiveObject(q);
+                    } else if (lastView.formId) {
+                       const f = proj.data.forms.find(x => x.id === lastView.formId);
+                       if (f) setActiveObject(f);
+                    } else if (lastView.reportId) {
+                       const r = proj.data.reports.find(x => x.id === lastView.reportId);
+                       if (r) setActiveObject(r);
+                    } else if (lastView.chartId) {
+                       const c = proj.data.charts?.find(x => x.id === lastView.chartId);
+                       if (c) setActiveObject(c);
+                    } else if (lastView.pageId) {
+                       const p = proj.data.pages?.find(x => x.id === lastView.pageId);
+                       if (p) setActiveObject(p);
+                    } else if (lastView.workflowId) {
+                       const w = proj.data.workflows?.find(x => x.id === lastView.workflowId);
+                       if (w) setActiveObject(w);
+                    }
+                 } catch (e) {
+                    console.error("Failed to restore last view", e);
+                 }
+              }
+           }
+        }
+      } catch (e) {
+        console.error("Startup autoload failed", e);
+      }
+    };
+    autoLoad();
+  }, []);
 
   // --- Auto-Sync Tables to Layout Nodes ---
   useEffect(() => {
@@ -85,6 +135,14 @@ export const useAppController = () => {
     
     // Use fresh state
     const freshState = useProjectStore.getState();
+    if (freshState.projectId) {
+        try {
+            localStorage.setItem(`lastView_${freshState.projectId}`, JSON.stringify(view));
+        } catch (e) {
+            console.warn("localStorage not available", e);
+        }
+    }
+    
     let foundObject = null;
 
     if (view.type === 'table_data' || view.type === 'table_edit') {

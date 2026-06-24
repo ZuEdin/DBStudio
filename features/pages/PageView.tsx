@@ -129,7 +129,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                 setFetchedData(data);
             }
             setLoading(false);
-        } else if (node.type === 'table_view' && node.props.dataSourceType) {
+        } else if ((node.type === 'table_view' || node.type === 'container') && node.props.dataSourceType) {
             setLoading(true);
             try {
                 if (node.props.dataSourceType === 'table' && node.props.dataSourceId) {
@@ -186,6 +186,8 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
         else if (vOperator === '>') isVisible = (parseFloat(actualVal) > parseFloat(vExpected));
         else if (vOperator === '<') isVisible = (parseFloat(actualVal) < parseFloat(vExpected));
         else if (vOperator === 'contains') isVisible = actualVal.toLowerCase().includes(vExpected.toLowerCase());
+        else if (vOperator === 'not_empty') isVisible = (actualVal !== '' && actualVal !== 'undefined' && actualVal !== 'null');
+        else if (vOperator === 'empty') isVisible = (actualVal === '' || actualVal === 'undefined' || actualVal === 'null');
 
         if (!isVisible) return null;
     }
@@ -193,13 +195,32 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
     let content = null;
 
     switch (node.type) {
-        case 'container':
+        case 'container': {
+             let finalData = fetchedData;
+             if (node.props.filterParamField && node.props.filterParamName) {
+                 const filterField = node.props.filterParamField;
+                 const filterParam = node.props.filterParamName;
+                 const filterVal = params[filterParam];
+                 if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+                     finalData = fetchedData.filter(row => String(row[filterField]) === String(filterVal));
+                 } else {
+                     // Empty result if param not set
+                     finalData = [];
+                 }
+             }
+
+             // Wenn der Container Daten geladen hat, nimm den ersten Datensatz als Kontext
+             const containerContext = (finalData && finalData.length > 0)
+                 ? { ...context, ...finalData[0] }
+                 : context;
+
              content = (
                   <div className={`w-full ${node.props.className || ''}`} style={node.props.style}>
-                     {node.children?.map(c => <LiveNode key={c.id} node={c} context={context} />)}
+                     {node.children?.map(c => <LiveNode key={c.id} node={c} context={containerContext} />)}
                   </div>
              );
              break;
+        }
 
         case 'text': {
              const resolvedText = resolvePlaceholders(node.props.text || '', context, params);
@@ -336,6 +357,8 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
              const pkField = targetTable?.fields.find(f => f.isPrimaryKey) || targetTable?.fields[0];
              const pkFieldName = pkField?.name || 'Id';
 
+             const allColumns = columns.length > 0 ? columns : (targetTable ? targetTable.fields.map(f => f.name) : []);
+
              const handleRowClick = (row: any) => {
                  if (node.props.enableSelection) {
                      const paramKey = node.props.selectionParamName || 'selectedId';
@@ -372,14 +395,14 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                                <table className="min-w-full divide-y divide-slate-200">
                                    <thead className="bg-slate-50">
                                        <tr>
-                                           {displayData.length > 0 ? Object.keys(displayData[0]).filter(k => k !== '_raw').map(k => (
+                                           {allColumns.length > 0 ? allColumns.map(k => (
                                                <th key={k} className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{k}</th>
                                            )) : <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Keine Einträge</th>}
                                            {node.props.enableCrudActions && <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Aktionen</th>}
                                        </tr>
                                    </thead>
                                    <tbody className="bg-white divide-y divide-slate-100">
-                                       {displayData.map((row, idx) => {
+                                       {displayData.length > 0 ? displayData.map((row, idx) => {
                                            const isSelected = String(row._raw[pkFieldName]) === String(params[node.props.selectionParamName || 'selectedId']);
                                            return (
                                                <tr 
@@ -440,12 +463,18 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                                                                title="Löschen"
                                                            >
                                                                Löschen
-                                                           </button>
-                                                       </td>
-                                                   )}
-                                               </tr>
-                                           );
-                                       })}
+                                                            </button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                       }) : (
+                                            <tr>
+                                                <td colSpan={allColumns.length + (node.props.enableCrudActions ? 1 : 0) || 1} className="px-3 py-8 text-center text-xs text-slate-400 italic">
+                                                    Keine Daten verfügbar
+                                                </td>
+                                            </tr>
+                                       )}
                                    </tbody>
                                </table>
                            </div>
@@ -456,18 +485,30 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
         }
 
         case 'list_repeater': {
+             let finalData = fetchedData;
+             if (node.props.filterParamField && node.props.filterParamName) {
+                 const filterField = node.props.filterParamField;
+                 const filterParam = node.props.filterParamName;
+                 const filterVal = params[filterParam];
+                 if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+                     finalData = fetchedData.filter(row => String(row[filterField]) === String(filterVal));
+                 } else {
+                     finalData = [];
+                 }
+             }
+
              content = (
                   <div className={`w-full space-y-3 ${node.props.className || ''}`} style={node.props.style}>
                       {loading ? (
                           <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin text-indigo-500" /></div>
                       ) : (
-                          fetchedData.map((row, idx) => (
+                          finalData.map((row, idx) => (
                               <div key={idx} className="bg-slate-50/50 p-4 rounded-lg border border-slate-150 relative hover:border-slate-300 hover:bg-slate-50 transition">
                                   {node.children?.map(c => <LiveNode key={c.id} node={c} context={row} />)}
                               </div>
                           ))
                       )}
-                      {!loading && fetchedData.length === 0 && (
+                      {!loading && finalData.length === 0 && (
                           <div className="text-center p-4 text-xs text-slate-400 italic">Keine Einträge für Repeater</div>
                       )}
                   </div>
