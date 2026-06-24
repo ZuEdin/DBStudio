@@ -566,7 +566,7 @@ export interface TableGroup {
   comment?: string;
 }
 
-export type PageComponentType = 'container' | 'text' | 'button' | 'table_view' | 'form_view' | 'image' | 'divider' | 'dropdown' | 'chart_view' | 'html';
+export type PageComponentType = 'container' | 'text' | 'button' | 'table_view' | 'form_view' | 'image' | 'divider' | 'dropdown' | 'chart_view' | 'html' | 'list_repeater' | 'subpage_container';
 
 export interface PageComponent {
   id: string;

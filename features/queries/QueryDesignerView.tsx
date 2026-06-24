@@ -39,12 +39,33 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     }
   }, [query, relationships, tables, dbType]);
 
+  const autoResolveAliases = (cols: QueryColumn[]): QueryColumn[] => {
+    const countMap: Record<string, number> = {};
+    cols.forEach(col => {
+      const name = col.isCalculated ? 'calculated' : (col.alias || col.fieldName).toLowerCase();
+      countMap[name] = (countMap[name] || 0) + 1;
+    });
+
+    return cols.map(col => {
+      if (col.isCalculated) return col;
+      const name = (col.alias || col.fieldName).toLowerCase();
+      if (countMap[name] > 1 && (!col.alias || col.alias.trim() === '')) {
+        return {
+          ...col,
+          alias: `${col.tableName}_${col.fieldName}`
+        };
+      }
+      return col;
+    });
+  };
+
   const setNodes = (nodes: TableNode[]) => {
     onQueryChange({ ...query, nodes });
   }
 
   const setQueryColumns = (columns: QueryColumn[]) => {
-    onQueryChange({ ...query, columns });
+    const resolved = autoResolveAliases(columns);
+    onQueryChange({ ...query, columns: resolved });
   }
 
   const toggleTotals = () => {

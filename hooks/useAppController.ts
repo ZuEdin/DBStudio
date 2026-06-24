@@ -214,6 +214,20 @@ export const useAppController = () => {
       return {success:true}; 
   };
 
+  // --- Keyboard Shortcut: STRG + S / CMD + S to Save Project ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeObject, isDirty]);
+
   const handleContextMenuAction = (action: 'view' | 'view_data' | 'export' | 'rename' | 'duplicate' | 'delete') => {
       if (!ui.itemContextMenu) return;
       const { type, id } = ui.itemContextMenu;

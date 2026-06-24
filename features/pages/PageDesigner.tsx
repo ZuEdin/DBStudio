@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CustomPage, PageComponent, PageComponentType } from '../../types/index';
-import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List } from 'lucide-react';
+import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List, Layers, Plus } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
 interface PageDesignerProps {
@@ -69,7 +69,7 @@ const RenderNode: React.FC<{
     onSelect: (id: string, e: React.MouseEvent) => void;
     onDrop: (e: React.DragEvent, id: string) => void;
 }> = ({ node, selectedNodeId, onSelect, onDrop }) => {
-    
+    const { queries, tables, pages } = useProjectStore();
     const isSelected = selectedNodeId === node.id;
     
     const handleDragOver = (e: React.DragEvent) => {
@@ -109,6 +109,46 @@ const RenderNode: React.FC<{
                  </div>
              );
              break;
+        case 'list_repeater':
+             content = (
+                 <div className={`p-4 rounded-lg bg-indigo-50/50 border-2 border-indigo-200 w-full min-h-[120px] ${node.props.className || ''}`} style={node.props.style}>
+                    <div className="flex items-center justify-between text-indigo-700 text-xs font-bold mb-3 border-b border-indigo-100 pb-1.5 pointer-events-none">
+                        <span className="flex items-center gap-1">
+                            <LayoutTemplate size={12}/> List-Repeater: {node.props.dataSourceType === 'query' ? `Abfrage: ${queries.find(q=>q.id===node.props.dataSourceId)?.name || 'Keine'}` : `Tabelle: ${tables.find(t=>t.id===node.props.dataSourceId)?.name || 'Keine'}`}
+                        </span>
+                        <span className="text-[10px] bg-indigo-100 px-1.5 py-0.5 rounded uppercase">Repeater Loop</span>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                        {(node.children && node.children.length > 0) ? (
+                            <div className="border border-indigo-100 bg-white p-3 rounded-md shadow-sm opacity-90 pointer-events-auto">
+                                <div className="text-[10px] text-slate-400 font-mono mb-2 uppercase select-none">Repeater Element (Entwurf Layout)</div>
+                                {node.children.map(c => (
+                                    <RenderNode key={c.id} node={c} selectedNodeId={selectedNodeId} onSelect={onSelect} onDrop={onDrop} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-slate-400 text-xs text-center border-2 border-dashed border-slate-200 p-6 rounded bg-white hover:border-indigo-300 transition-colors pointer-events-none">
+                                Komponenten hier ablegen, die für jede Zeile wiederholt werden sollen
+                            </div>
+                        )}
+                        
+                        {node.children && node.children.length > 0 && (
+                            <div className="border border-indigo-100/50 bg-white/50 p-3 rounded-md shadow-sm opacity-50 select-none pointer-events-none border-dashed">
+                                <div className="text-[10px] text-slate-400 font-mono mb-2 uppercase">Repeater Element (Wiederholung Vorschau)</div>
+                                <div className="space-y-1.5">
+                                    {node.children.map(c => (
+                                        <div key={`mock-${c.id}`} className="text-xs text-slate-400 italic bg-slate-50 p-1.5 rounded border border-slate-100">
+                                             {c.type === 'text' ? `[Text Block] ${c.props.text || ''}` : `[${c.type}]`}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                 </div>
+             );
+             break;
         case 'text':
              content = <div className={`p-2 w-full break-words ${node.props.className || ''}`} style={node.props.style}>{node.props.text || 'New Text Block'}</div>;
              isDropTarget = false;
@@ -127,6 +167,45 @@ const RenderNode: React.FC<{
              );
              isDropTarget = false;
              break;
+        case 'subpage_container': {
+             const subPage = pages?.find(p => p.id === node.props.subPageId);
+             content = (
+                  <div className={`p-4 rounded-lg bg-emerald-50/50 border-2 border-emerald-200 w-full min-h-[100px] ${node.props.className || ''}`} style={node.props.style}>
+                     <div className="flex items-center justify-between text-emerald-700 text-xs font-bold mb-3 border-b border-emerald-100 pb-1.5 pointer-events-none">
+                         <span className="flex items-center gap-1">
+                             <Layers size={12}/> Unterseiten-Container (Sub-Page)
+                         </span>
+                         <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded uppercase font-bold">Sub-Page</span>
+                     </div>
+                     <div className="text-xs text-slate-700 font-medium">
+                         {subPage ? (
+                             <div className="flex flex-col gap-1.5">
+                                 <div className="text-emerald-800 font-semibold flex items-center gap-1">
+                                     <Layers size={12} className="text-emerald-600"/> Eingebundene Seite: <span className="underline">{subPage.name}</span>
+                                 </div>
+                                 {node.props.parameterMappings && node.props.parameterMappings.length > 0 ? (
+                                     <div className="text-[10px] text-slate-500 bg-white/75 p-1.5 rounded border border-emerald-100/50">
+                                         <span className="font-bold">Übergabe:</span> {node.props.parameterMappings.map((m: any, idx: number) => (
+                                             <span key={idx} className="mr-3 font-mono">
+                                                 Parent: {m.sourceKey} ➔ Sub: {m.targetKey}
+                                             </span>
+                                         ))}
+                                     </div>
+                                 ) : (
+                                     <div className="text-[10px] text-slate-400 italic">Keine Parameterweitergabe definiert.</div>
+                                 )}
+                             </div>
+                         ) : (
+                             <div className="text-slate-400 text-xs text-center border-2 border-dashed border-slate-200 p-4 rounded bg-white hover:border-emerald-300 transition-colors pointer-events-none">
+                                 Wählen Sie rechts eine Seite aus, die hier eingebunden werden soll
+                             </div>
+                         )}
+                     </div>
+                  </div>
+             );
+             isDropTarget = false;
+             break;
+        }
         case 'table_view':
         case 'form_view':
         case 'chart_view':
@@ -148,8 +227,13 @@ const RenderNode: React.FC<{
            style={node.id === 'root' ? { ...node.props.style } : {}}
         >
             {node.id !== 'root' && isSelected && (
-                <div className="absolute -top-3 -left-0.5 bg-amber-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm pointer-events-none">
-                    {node.type}
+                <div className="absolute -top-3 -left-0.5 bg-amber-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm pointer-events-none flex gap-1 items-center">
+                    <span>{node.type}</span>
+                    {node.props.visibilityField && (
+                        <span className="bg-amber-600 px-1 rounded text-[8px] uppercase">
+                            if: {node.props.visibilityField} {node.props.visibilityOperator || '=='} {node.props.visibilityValue || '""'}
+                        </span>
+                    )}
                 </div>
             )}
             {content}
@@ -159,7 +243,7 @@ const RenderNode: React.FC<{
 
 export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, onSetView }) => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const { queries, tables } = useProjectStore();
+  const { queries, tables, pages, forms } = useProjectStore();
 
   const handleDragStart = (e: React.DragEvent, type: PageComponentType) => {
       e.dataTransfer.setData('componentType', type);
@@ -174,14 +258,16 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
       }
       if (!type) return;
 
+      const templateText = e.dataTransfer.getData('templateText');
+
       const newNode: PageComponent = {
           id: 'node_' + crypto.randomUUID(),
           type,
           props: {},
-          children: type === 'container' ? [] : undefined
+          children: (type === 'container' || type === 'list_repeater') ? [] : undefined
       };
 
-      if (type === 'text') newNode.props.text = 'New Text Block';
+      if (type === 'text') newNode.props.text = templateText || 'New Text Block';
       if (type === 'button') newNode.props.label = 'Button';
 
       const newLayout = findNodeAndAdd(page.layout, parentId, newNode);
@@ -232,12 +318,18 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
       
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar: Components */}
-        <div className="w-64 bg-white border-r border-slate-300 flex flex-col p-4 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-0 overflow-y-auto">
+        <div className="w-64 bg-white border-r border-slate-300 flex flex-col p-4 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-0 overflow-y-auto shrink-0">
            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Komponenten</h3>
            
            <div className="space-y-2">
               <div draggable onDragStart={(e) => handleDragStart(e, 'container')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
                   <Square size={16} className="text-blue-500"/> Container
+              </div>
+              <div draggable onDragStart={(e) => handleDragStart(e, 'list_repeater')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-indigo-50 text-sm text-indigo-700 font-semibold active:cursor-grabbing border-indigo-100 bg-indigo-50/20">
+                  <LayoutTemplate size={16} className="text-indigo-600"/> List Repeater (Loop)
+              </div>
+              <div draggable onDragStart={(e) => handleDragStart(e, 'subpage_container')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-emerald-50 text-sm text-emerald-700 font-semibold active:cursor-grabbing border-emerald-100 bg-emerald-50/20">
+                  <Layers size={16} className="text-emerald-600"/> Unterseite (Sub-Page)
               </div>
               <div draggable onDragStart={(e) => handleDragStart(e, 'text')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
                   <Type size={16} className="text-slate-500"/> Text Block
@@ -254,6 +346,80 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
               <div draggable onDragStart={(e) => handleDragStart(e, 'image')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
                   <ImageIcon size={16} className="text-purple-500"/> Bild / Medien
               </div>
+           </div>
+
+           <div className="mt-8 pt-6 border-t border-slate-200">
+               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Datenfelder</h3>
+               <p className="text-[10px] text-slate-400 mb-4 leading-relaxed">Ziehen Sie ein Feld auf die Seite, um es als Textblock mit Datenbindung anzuzeigen.</p>
+               
+               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                   {/* Tables */}
+                   {tables.length > 0 && (
+                       <div>
+                           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tabellen</div>
+                           <div className="space-y-2">
+                               {tables.map(t => (
+                                   <div key={t.id} className="border border-slate-100 rounded p-1.5 bg-slate-50/50">
+                                       <div className="text-xs font-semibold text-slate-600 mb-1.5 truncate">{t.name}</div>
+                                       <div className="grid grid-cols-1 gap-1">
+                                           {t.fields.map(f => (
+                                               <div 
+                                                   key={f.id}
+                                                   draggable
+                                                   onDragStart={e => {
+                                                       e.dataTransfer.setData('componentType', 'text');
+                                                       e.dataTransfer.setData('templateText', `{{${f.name}}}`);
+                                                       e.dataTransfer.effectAllowed = 'copy';
+                                                   }}
+                                                   className="bg-white border border-slate-200 rounded p-1 px-2 text-[11px] text-slate-600 cursor-grab hover:border-amber-400 hover:text-amber-700 transition-colors flex items-center justify-between"
+                                                   title={`Ziehen um {{${f.name}}} einzufügen`}
+                                               >
+                                                   <span className="truncate">{f.name}</span>
+                                                   <span className="text-[8px] font-mono font-bold bg-amber-50 text-amber-600 px-1 rounded uppercase scale-90">Drag</span>
+                                               </div>
+                                           ))}
+                                       </div>
+                                   </div>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+
+                   {/* Queries */}
+                   {queries.length > 0 && (
+                       <div>
+                           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 mt-2">Abfragen</div>
+                           <div className="space-y-2">
+                               {queries.map(q => (
+                                   <div key={q.id} className="border border-slate-100 rounded p-1.5 bg-slate-50/50">
+                                       <div className="text-xs font-semibold text-slate-600 mb-1.5 truncate">{q.name}</div>
+                                       <div className="grid grid-cols-1 gap-1">
+                                           {q.columns.map(c => {
+                                               const name = c.alias || c.fieldName;
+                                               return (
+                                                   <div 
+                                                       key={c.id}
+                                                       draggable
+                                                       onDragStart={e => {
+                                                           e.dataTransfer.setData('componentType', 'text');
+                                                           e.dataTransfer.setData('templateText', `{{${name}}}`);
+                                                           e.dataTransfer.effectAllowed = 'copy';
+                                                       }}
+                                                       className="bg-white border border-slate-200 rounded p-1 px-2 text-[11px] text-slate-600 cursor-grab hover:border-amber-400 hover:text-amber-700 transition-colors flex items-center justify-between"
+                                                       title={`Ziehen um {{${name}}} einzufügen`}
+                                                   >
+                                                       <span className="truncate">{name}</span>
+                                                       <span className="text-[8px] font-mono font-bold bg-amber-50 text-amber-600 px-1 rounded scale-90">Drag</span>
+                                                   </div>
+                                               );
+                                           })}
+                                       </div>
+                                   </div>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+               </div>
            </div>
         </div>
 
@@ -368,7 +534,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                    )}
 
                    {/* Data Table Binding */}
-                   {selectedNode.type === 'table_view' && (
+                   {(selectedNode.type === 'table_view' || selectedNode.type === 'list_repeater') && (
                        <div className="space-y-4">
                            <div>
                                <h4 className="text-xs font-bold text-emerald-600 mb-2">Datenquelle</h4>
@@ -411,7 +577,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                    </>
                                )}
 
-                               {selectedNode.props.dataSourceId && (() => {
+                               {selectedNode.type === 'table_view' && selectedNode.props.dataSourceId && (() => {
                                    let availableCols: {id: string, label: string, name: string}[] = [];
                                    if (selectedNode.props.dataSourceType === 'table') {
                                        const t = tables.find(tb => tb.id === selectedNode.props.dataSourceId);
@@ -464,9 +630,53 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                        </div>
                    )}
 
-                   {/* Custom Classes for styling */}
-                   <div className="pt-4 border-t border-slate-100">
-                       <label className="block text-xs font-semibold text-slate-600 mb-1">Eigene CSS-Klassen (Tailwind)</label>
+                   {/* Anzeige-Bedingung (ngIf equivalent) */}
+                    <div className="pt-4 border-t border-slate-100">
+                        <h4 className="text-xs font-bold text-indigo-600 mb-2">Anzeige-Bedingung (ngIf)</h4>
+                        <div className="space-y-2 text-slate-700">
+                            <div>
+                                <label className="block text-[10px] font-semibold text-slate-500">Filter-Feld (Variable/Spalte)</label>
+                                <input
+                                    type="text"
+                                    value={selectedNode.props.visibilityField || ''}
+                                    onChange={(e) => updateSelectedNodeProps({ visibilityField: e.target.value })}
+                                    placeholder="z.B. STATUS oder id"
+                                    className="w-full px-2 py-1 text-xs border border-slate-300 rounded font-mono"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-[10px] font-semibold text-slate-500">Operator</label>
+                                    <select
+                                        value={selectedNode.props.visibilityOperator || '=='}
+                                        onChange={(e) => updateSelectedNodeProps({ visibilityOperator: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-slate-300 rounded bg-white"
+                                    >
+                                        <option value="==">=(gleich)</option>
+                                        <option value="!=">!=(ungleich)</option>
+                                        <option value=">">&gt; (größer)</option>
+                                        <option value="<">&lt; (kleiner)</option>
+                                        <option value="contains">enthält</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-semibold text-slate-500">Vergleichswert</label>
+                                    <input
+                                        type="text"
+                                        value={selectedNode.props.visibilityValue || ''}
+                                        onChange={(e) => updateSelectedNodeProps({ visibilityValue: e.target.value })}
+                                        placeholder="Wert..."
+                                        className="w-full px-2 py-1 text-xs border border-slate-300 rounded"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 italic">Bedingte Sichtbarkeit basierend auf dem aktuellen Loop- oder Datensatz-Kontext.</p>
+                        </div>
+                    </div>
+
+                    {/* Custom Classes for styling */}
+                    <div className="pt-4 border-t border-slate-100">
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Eigene CSS-Klassen (Tailwind)</label>
                        <input
                            type="text"
                            value={selectedNode.props.className || ''}

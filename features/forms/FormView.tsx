@@ -16,10 +16,11 @@ interface FormViewProps {
   parentRecord?: Record<string, any>;
   linkConfig?: { masterFieldId: string, childFieldId: string };
   onClose?: () => void;
+  initialMode?: 'create' | 'edit' | 'view';
 }
 
 export const FormView: React.FC<FormViewProps> = ({ 
-  form, allForms, allTables, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose 
+  form, allForms, allTables, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode 
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
@@ -416,6 +417,13 @@ export const FormView: React.FC<FormViewProps> = ({
           startCreate();
       }
   }, [linkConfig]);
+
+  // Auto-start creation mode if requested via initialMode prop
+  useEffect(() => {
+      if (initialMode === 'create' && !isCreating && sourceTable && !isReadOnly) {
+          startCreate();
+      }
+  }, [initialMode, sourceTable, isReadOnly]);
 
   return (
     <div className={`h-full flex flex-col ${isSubform || form.settings?.isFullScreen ? '' : 'p-4 bg-slate-100'}`}>

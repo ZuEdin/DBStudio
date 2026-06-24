@@ -303,9 +303,23 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
     // 6. Projection (Aliases)
     const finalData = filteredData.map(row => {
         const newRow: Record<string, any> = {};
+        const usedKeys = new Set<string>();
         query.columns.filter(c => c.show).forEach(col => {
            const sourceKey = col.isCalculated ? `CALC_${col.id}` : `${col.tableName}.${col.fieldName}`;
-           const outputKey = col.alias && col.alias.trim() !== '' ? col.alias : col.fieldName;
+           let outputKey = col.alias && col.alias.trim() !== '' ? col.alias : col.fieldName;
+           
+           if (usedKeys.has(outputKey)) {
+               if (!col.alias || col.alias.trim() === '') {
+                   outputKey = `${col.tableName}_${col.fieldName}`;
+               }
+               let suffix = 1;
+               let originalKey = outputKey;
+               while (usedKeys.has(outputKey)) {
+                   outputKey = `${originalKey}_${suffix}`;
+                   suffix++;
+               }
+           }
+           usedKeys.add(outputKey);
            newRow[outputKey] = row[sourceKey];
         });
         return newRow;
