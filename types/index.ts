@@ -580,6 +580,9 @@ export interface CustomPage {
   name: string;
   description?: string;
   layout: PageComponent;
+  isSubpage?: boolean;
+  parentPageId?: string;
+  expectedParams?: string[];
 }
 
 export interface ProjectData {

@@ -23,11 +23,13 @@ export const PageParamsContext = createContext<{
 export const PageViewContext = createContext<{
     openFormModal: (formId: string, mode: 'create' | 'edit', recordId?: any, callback?: () => void) => void;
     showConfirm: (title: string, message: string, onConfirm: () => void) => void;
-    navigate: (pageId: string) => void;
+    navigate: (pageId: string, initialParams?: Record<string, any>) => void;
+    activeRole?: string;
 }>({
     openFormModal: () => {},
     showConfirm: () => {},
-    navigate: () => {}
+    navigate: () => {},
+    activeRole: 'Admin'
 });
 
 // Helper to safely replace placeholders like {{name}} or {{selectedId}}
@@ -105,7 +107,15 @@ const getRowLabelAndValue = (row: any, props: any, idx: number) => {
 const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }> = ({ node, context }) => {
     const { queries, tables, relationships, pages, updateTable } = useProjectStore();
     const { params, setParam } = useContext(PageParamsContext);
-    const { openFormModal, showConfirm, navigate } = useContext(PageViewContext);
+    const { openFormModal, showConfirm, navigate, activeRole } = useContext(PageViewContext);
+    
+    // Role-Based Visibility Check
+    if (node.props.allowedRoles && node.props.allowedRoles.length > 0) {
+        if (!activeRole || !node.props.allowedRoles.includes(activeRole)) {
+            return null; // Dynamically hide component
+        }
+    }
+
     const [fetchedData, setFetchedData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -231,7 +241,34 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                      const pVal = resolvePlaceholders(pValRaw, context, params);
                      setParam(pName, pVal);
                  } else if (actType === 'navigate_to_page' && node.props.targetPageId) {
-                     navigate(node.props.targetPageId);
+                     const mappings = node.props.navigateTargetParams || [];
+                     const targetParams: Record<string, any> = {};
+                     mappings.forEach((m: any) => {
+                         if (m.sourceKey && m.targetKey) {
+                             const resolvedVal = resolvePlaceholders(m.sourceKey, context, params);
+                             targetParams[m.targetKey] = resolvedVal;
+                         }
+                     });
+                     
+                     // Fallback automatic mapping if no explicit mappings are defined
+                     if (mappings.length === 0) {
+                         if (params.selectedId) {
+                             targetParams.selectedId = params.selectedId;
+                             targetParams.id = params.selectedId;
+                         }
+                         // Also forward any direct matching params
+                         const targetPage = pages.find(p => p.id === node.props.targetPageId);
+                         const expected = targetPage?.expectedParams || [];
+                         expected.forEach((pName: string) => {
+                             if (params[pName] !== undefined) {
+                                 targetParams[pName] = params[pName];
+                             } else if (context && context[pName] !== undefined) {
+                                 targetParams[pName] = context[pName];
+                             }
+                         });
+                     }
+
+                     navigate(node.props.targetPageId, targetParams);
                  }
              };
 
@@ -303,7 +340,11 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                  if (node.props.enableSelection) {
                      const paramKey = node.props.selectionParamName || 'selectedId';
                      const idVal = row._raw[pkFieldName];
-                     setParam(paramKey, idVal);
+                     if (node.props.detailsPageId) {
+                         navigate(node.props.detailsPageId, { [paramKey]: idVal });
+                     } else {
+                         setParam(paramKey, idVal);
+                     }
                  }
              };
 
@@ -358,7 +399,11 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                                                                onClick={() => {
                                                                    const rowId = row._raw[pkFieldName];
                                                                    const selectionKey = node.props.selectionParamName || 'selectedId';
-                                                                   setParam(selectionKey, rowId);
+                                                                   if (node.props.detailsPageId) {
+                                                                       navigate(node.props.detailsPageId, { [selectionKey]: rowId });
+                                                                   } else {
+                                                                       setParam(selectionKey, rowId);
+                                                                   }
                                                                }}
                                                                className="text-xs text-indigo-600 hover:text-indigo-800 p-1 rounded hover:bg-indigo-50 transition"
                                                                title="Details anzeigen"
@@ -443,15 +488,42 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
 
              // Map parent params to child params based on parameterMappings
              const mappedParams: Record<string, any> = {};
+             
+             // 1. Automatic Parameter takeover for expected child parameters
+             const expected = subPage.expectedParams || [];
+             expected.forEach((paramName: string) => {
+                 if (params[paramName] !== undefined && params[paramName] !== null) {
+                     mappedParams[paramName] = params[paramName];
+                 } else if (context && context[paramName] !== undefined && context[paramName] !== null) {
+                     mappedParams[paramName] = context[paramName];
+                 }
+             });
+
+             // 2. Explicit mappings configured by the developer
              const mappings = node.props.parameterMappings || [];
              for (const mapping of mappings) {
                  if (mapping.sourceKey && mapping.targetKey) {
-                     mappedParams[mapping.targetKey] = params[mapping.sourceKey];
+                     // Check if source key is a placeholder or direct value
+                     const resolvedVal = mapping.sourceKey.startsWith('{{') && mapping.sourceKey.endsWith('}}')
+                         ? resolvePlaceholders(mapping.sourceKey, context, params)
+                         : params[mapping.sourceKey] !== undefined ? params[mapping.sourceKey] : mapping.sourceKey;
+                     mappedParams[mapping.targetKey] = resolvedVal;
                  }
              }
 
              content = (
-                 <div className="w-full bg-slate-50/30 border border-dashed border-slate-200 rounded-lg p-2.5">
+                 <div className="w-full bg-slate-50/20 border border-dashed border-slate-200 hover:border-slate-300 rounded-lg p-3 transition relative group">
+                     {/* Debug indicator badge for active parameters */}
+                     <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition duration-150 flex gap-1 pointer-events-none select-none">
+                         <span className="text-[8px] bg-slate-800 text-slate-300 font-mono font-bold px-1 py-0.5 rounded shadow-sm">
+                             sub-page: {subPage.name}
+                         </span>
+                         {Object.keys(mappedParams).length > 0 && (
+                             <span className="text-[8px] bg-emerald-100 text-emerald-800 font-mono font-bold px-1 py-0.5 rounded shadow-sm">
+                                 params: {Object.keys(mappedParams).join(', ')}
+                             </span>
+                         )}
+                     </div>
                      <PageParamsContext.Provider value={{ params: mappedParams, setParam: (k, v) => setParam(k, v) }}>
                          <LiveNode node={subPage.layout} context={context} />
                      </PageParamsContext.Provider>
@@ -525,9 +597,14 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
       });
   };
 
-  const handleNavigate = (pageId: string) => {
+  const handleNavigate = (pageId: string, initialParams?: Record<string, any>) => {
       const targetP = pages.find(p => p.id === pageId);
       if (targetP) {
+          if (initialParams) {
+              setPageParams(initialParams);
+          } else {
+              setPageParams({});
+          }
           setCurrentPage(targetP);
       }
   };
@@ -561,19 +638,88 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
       }
   }
 
+  const [activeRole, setActiveRole] = useState<string>('Admin');
+
+  // Load roles to select from
+  const rolesTable = tables.find(t => t.name === 'sys_roles');
+  const availableRoles = rolesTable && rolesTable.data && rolesTable.data.length > 0
+    ? rolesTable.data.map((r: any) => r.Name || String(r.Id))
+    : ['Admin', 'Manager', 'Editor', 'User', 'Guest'];
+
   return (
     <PageParamsContext.Provider value={{ params: pageParams, setParam: handleSetParam }}>
-      <PageViewContext.Provider value={{ openFormModal: handleOpenFormModal, showConfirm: handleShowConfirm, navigate: handleNavigate }}>
-        <div className="flex flex-col h-full bg-slate-50 font-sans overflow-auto p-8 relative">
-          <div className="absolute top-4 right-4 z-10 flex gap-2">
-             <button onClick={() => onSetView({ type: 'page_designer', pageId: page.id })} className="px-3 py-1 bg-white border border-slate-300 shadow-sm rounded text-xs font-semibold hover:bg-slate-50 transition">Zurück zum Designer</button>
+      <PageViewContext.Provider value={{ 
+          openFormModal: handleOpenFormModal, 
+          showConfirm: handleShowConfirm, 
+          navigate: handleNavigate,
+          activeRole
+      }}>
+        <div className="flex flex-col h-full bg-slate-50 font-sans overflow-auto relative">
+          
+          {/* Interactive Simulation Sandbox Bar */}
+          <div className="bg-slate-900 text-slate-100 px-6 py-2.5 flex flex-wrap items-center justify-between border-b border-slate-800 text-xs shadow-sm z-30 select-none">
+              <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-bold tracking-wider text-slate-300 uppercase text-[10px]">Simulation &amp; Sandbox</span>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-400">Aktive Seite: <strong className="text-white font-mono">{currentPage.name}</strong></span>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                  {/* Active Parameters List */}
+                  <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">Parameter:</span>
+                      {Object.keys(pageParams).length === 0 ? (
+                          <span className="text-slate-500 italic font-mono text-[10px]">keine</span>
+                      ) : (
+                          <div className="flex gap-1">
+                              {Object.entries(pageParams).map(([k, v]) => (
+                                  <span key={k} className="bg-slate-800 border border-slate-700 text-emerald-400 font-mono text-[9px] px-1.5 py-0.5 rounded shadow-sm">
+                                      {k}={String(v)}
+                                  </span>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+
+                  <span className="text-slate-700">|</span>
+
+                  {/* Active Simulation Role Dropdown (Userlevels) */}
+                  <div className="flex items-center gap-1.5">
+                      <label className="text-slate-300 font-medium">Test-Rolle:</label>
+                      <select
+                          value={activeRole}
+                          onChange={(e) => setActiveRole(e.target.value)}
+                          className="bg-slate-850 text-slate-100 border border-slate-700 rounded px-2 py-0.5 text-[11px] focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
+                      >
+                          {availableRoles.map(role => (
+                              <option key={role} value={role}>{role}</option>
+                          ))}
+                      </select>
+                  </div>
+
+                  {/* Reset Params Button */}
+                  <button
+                      onClick={() => setPageParams({})}
+                      className="bg-slate-800 hover:bg-slate-700 active:bg-slate-950 border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center gap-1"
+                      title="Parameter zurücksetzen"
+                  >
+                      Reset
+                  </button>
+              </div>
           </div>
-          <div className="max-w-7xl mx-auto w-full bg-white shadow-md border border-slate-200 rounded-xl min-h-[800px] p-8 relative">
-              {currentPage.layout ? (
-                  <LiveNode node={currentPage.layout} />
-              ) : (
-                  <div className="text-center py-20 text-slate-400">Kein Layout für diese Seite gefunden.</div>
-              )}
+
+          <div className="flex-1 p-8 overflow-auto relative">
+              <div className="absolute top-4 right-4 z-10 flex gap-2">
+                 <button onClick={() => onSetView({ type: 'page_designer', pageId: page.id })} className="px-3 py-1 bg-white border border-slate-300 shadow-sm rounded text-xs font-semibold hover:bg-slate-50 transition">Zurück zum Designer</button>
+              </div>
+              <div className="max-w-[95%] mx-auto w-full bg-white shadow-md border border-slate-200 rounded-xl min-h-[800px] p-8 relative">
+                  {currentPage.layout ? (
+                      <LiveNode node={currentPage.layout} />
+                  ) : (
+                      <div className="text-center py-20 text-slate-400">Kein Layout für diese Seite gefunden.</div>
+                  )}
+              </div>
           </div>
 
           {/* Interactive Form Modal */}

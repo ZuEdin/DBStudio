@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, Query, Report, Form, Chart, Workflow, CustomPage } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate, Layers } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface SidebarProps {
@@ -71,6 +71,9 @@ const RenderNode: React.FC<RenderNodeProps> = ({
             return <DynamicIcon size={14} className={`${type === 'table' && (n.item as Table).isApiImport ? 'text-blue-600' : colorClass} flex-shrink-0`} />;
         })()}
         <span className="truncate" title={n.item.name}>{overrideName || n.displayName}</span>
+        {type === 'page' && (n.item as any).isSubpage && (
+          <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] rounded font-semibold flex-shrink-0">Sub</span>
+        )}
       </div>
       <button 
         type="button"
@@ -293,7 +296,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
   const groupedForms = useMemo(() => buildRecursiveTree(forms || []), [forms]);
   const groupedCharts = useMemo(() => buildRecursiveTree(charts || []), [charts]);
   const groupedWorkflows = useMemo(() => buildRecursiveTree(workflows || []), [workflows]);
-  const groupedPages = useMemo(() => buildRecursiveTree(pages || []), [pages]);
+  
+  const visiblePages = useMemo(() => {
+    return pages || [];
+  }, [pages]);
+  const groupedPages = useMemo(() => buildRecursiveTree(visiblePages), [visiblePages]);
 
   if (!isOpen) {
     return (
@@ -403,7 +410,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
 
         {/* Pages (NEW) */}
         <div>
-           <button onClick={() => toggleGroup('pages')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+          <button onClick={() => toggleGroup('pages')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
             {openGroups.pages ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Pages
           </button>
           {openGroups.pages && (

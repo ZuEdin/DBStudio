@@ -78,7 +78,7 @@ export const ${listName} = () => {
   };` : ''}
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-[95%] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
           <h1 className="text-3xl font-bold dark:text-white flex items-center gap-2">${table.name}</h1>
           <div className="flex gap-4 w-full sm:w-auto">
@@ -349,7 +349,7 @@ export const ${compName} = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-[95%] mx-auto">
         <div className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold dark:text-white">${q.name}</h1>
             <div className="flex gap-4">
@@ -727,7 +727,7 @@ export const ${compName} = () => {
   ${effects.join('\n  ')}
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-[95%] mx-auto">
         <h1 className="text-3xl font-bold dark:text-white mb-6">${page.name}</h1>
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700 p-6">
             ${layoutHtml}

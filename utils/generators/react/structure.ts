@@ -349,11 +349,11 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
             )}
 
             {/* Custom Pages */}
-            {${pages.length} > 0 && (
+            {${pages.filter(p => !p.isSubpage).length} > 0 && (
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Eigene Seiten</div>
                 <div className="space-y-1">
-                ${pages.map(p => `
+                ${pages.filter(p => !p.isSubpage).map(p => `
                     <Link to="/custom/${toCamelCase(p.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/custom/${toCamelCase(p.name)}')}\`}>
                         <Layout size={16}/> \${p.name}
                     </Link>`).join('\n')}
