@@ -21,7 +21,7 @@ export const PageParamsContext = createContext<{
 
 // Context for managing page interactions (modals, confirmation overlays, page-navigation)
 export const PageViewContext = createContext<{
-    openFormModal: (formId: string, mode: 'create' | 'edit', recordId?: any, callback?: () => void) => void;
+    openFormModal: (formId: string, mode: 'create' | 'edit', recordId?: any, callback?: () => void, defaultValues?: Record<string, any>) => void;
     showConfirm: (title: string, message: string, onConfirm: () => void) => void;
     navigate: (pageId: string, initialParams?: Record<string, any>) => void;
     activeRole?: string;
@@ -236,7 +236,33 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                  if (actType === 'open_form' && node.props.formId) {
                      const mode = node.props.formMode || 'create';
                      const rId = mode === 'edit' ? params.selectedId : undefined;
-                     openFormModal(node.props.formId, mode, rId);
+                     
+                     const defaultValues: Record<string, any> = {};
+                     if (node.props.navigateTargetParams && Array.isArray(node.props.navigateTargetParams)) {
+                         node.props.navigateTargetParams.forEach((m: any) => {
+                             let val: any;
+                             if (context && context[m.sourceKey] !== undefined) {
+                                 val = context[m.sourceKey];
+                             } else if (params[m.sourceKey] !== undefined) {
+                                 val = params[m.sourceKey];
+                             } else if (m.sourceKey === 'id' && context) {
+                                 val = context.id;
+                             }
+                             
+                             if (val !== undefined) {
+                                 defaultValues[m.targetKey] = (val !== null && val !== '' && !isNaN(Number(val))) ? Number(val) : val;
+                             }
+                         });
+                     }
+                     
+                     if (Object.keys(defaultValues).length === 0) {
+                         Object.keys(params).forEach(key => {
+                             const val = params[key];
+                             defaultValues[key] = (val !== null && val !== '' && !isNaN(Number(val))) ? Number(val) : val;
+                         });
+                     }
+
+                     openFormModal(node.props.formId, mode, rId, undefined, defaultValues);
                  } else if (actType === 'delete_record' && node.props.targetTableId) {
                      const tableId = node.props.targetTableId;
                      const paramName = node.props.paramKey || 'selectedId';
@@ -580,16 +606,27 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                  break;
              }
 
-             // Handle filtering
+             // Handle filtering and pre-filling
              let formFilteredData = [];
              let hasFilter = false;
-             if (node.props.formMode !== 'create' && node.props.filterParamField && node.props.filterParamName) {
-                 hasFilter = true;
+             let defaultValues: any = {};
+
+             if (node.props.filterParamField && node.props.filterParamName) {
                  const filterField = node.props.filterParamField;
                  const filterVal = params[node.props.filterParamName];
-                 const targetTable = tables.find(t => t.id === formToRender.sourceId);
-                 if (targetTable && targetTable.data && filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     formFilteredData = targetTable.data.filter(row => String(row[filterField]) === String(filterVal));
+                 
+                 // Always set default value for pre-filling if available
+                 if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+                     // Try to cast to number if it looks like one, to match IDs
+                     defaultValues[filterField] = isNaN(Number(filterVal)) ? filterVal : Number(filterVal);
+                 }
+
+                 if (node.props.formMode !== 'create') {
+                     hasFilter = true;
+                     const targetTable = tables.find(t => t.id === formToRender.sourceId);
+                     if (targetTable && targetTable.data && filterVal !== undefined && filterVal !== null && filterVal !== '') {
+                         formFilteredData = targetTable.data.filter(row => String(row[filterField]) === String(filterVal));
+                     }
                  }
              }
 
@@ -605,6 +642,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                          }}
                          isSubform={hasFilter} 
                          filteredData={formFilteredData}
+                         defaultValues={defaultValues}
                          initialMode={node.props.formMode || 'edit'}
                          hideNavigation={node.props.hideNavigation}
                          hideActions={node.props.hideActions}
@@ -644,6 +682,7 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
       mode: 'create' | 'edit';
       recordId?: any;
       callback?: () => void;
+      defaultValues?: Record<string, any>;
   } | null>(null);
 
   // Custom Confirmation modal
@@ -658,13 +697,14 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
       setPageParams(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleOpenFormModal = (formId: string, mode: 'create' | 'edit', recordId?: any, callback?: () => void) => {
+  const handleOpenFormModal = (formId: string, mode: 'create' | 'edit', recordId?: any, callback?: () => void, defaultValues?: Record<string, any>) => {
       setActiveFormModal({
           isOpen: true,
           formId,
           mode,
           recordId,
-          callback
+          callback,
+          defaultValues
       });
   };
 
@@ -829,8 +869,18 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
                               showConfirmation={(t, m, c) => handleShowConfirm(t, m, c)}
                               isSubform={activeFormModal.mode === 'edit'} // if editing, we treat it as bound to our custom filteredData list
                               filteredData={modalFilteredData}
+                              defaultValues={{
+                                  ...Object.keys(pageParams).reduce((acc, key) => {
+                                      const val = pageParams[key];
+                                      acc[key] = (val !== null && val !== '' && !isNaN(Number(val))) ? Number(val) : val;
+                                      return acc;
+                                  }, {} as any),
+                                  ...(activeFormModal.defaultValues || {})
+                              }}
                               onClose={() => setActiveFormModal(null)}
                               initialMode={activeFormModal.mode}
+                              hideNavigation={true}
+                              hideActions={true}
                           />
                       </div>
                   </div>

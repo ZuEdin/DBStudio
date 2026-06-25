@@ -21,10 +21,11 @@ interface FormViewProps {
   hideActions?: boolean;
   hideHeader?: boolean;
   embedded?: boolean;
+  defaultValues?: Record<string, any>;
 }
 
 export const FormView: React.FC<FormViewProps> = ({ 
-  form, allForms, allTables, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode, hideNavigation, hideActions, hideHeader, embedded 
+  form, allForms, allTables, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode, hideNavigation, hideActions, hideHeader, embedded, defaultValues 
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
@@ -118,6 +119,10 @@ export const FormView: React.FC<FormViewProps> = ({
           }
       } 
       
+      if (defaultValues) {
+          initialData = { ...initialData, ...defaultValues };
+      }
+      
       setTempRecord(initialData);
       setIsCreating(true);
   };
@@ -144,11 +149,13 @@ export const FormView: React.FC<FormViewProps> = ({
       if (!isSubform) {
           setCurrentIndex(newData.length - 1);
       }
+      if (onClose) onClose();
   };
 
   const cancelCreate = () => {
       setIsCreating(false);
       setTempRecord({});
+      if (onClose) onClose();
   };
 
   const deleteCurrentRecord = () => {
@@ -464,7 +471,7 @@ export const FormView: React.FC<FormViewProps> = ({
             </div>
 
             {/* Footer */}
-            {(!isUnbound && (!hideNavigation || !hideActions)) && (
+            {(!isUnbound && (isCreating || !hideNavigation || !hideActions || !!onClose)) && (
                 <div className={`p-3 border-t border-slate-200 flex justify-between shrink-0 rounded-b-lg ${isCreating ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                     {isCreating ? (
                         <div className="flex justify-end gap-2 w-full">
@@ -489,12 +496,20 @@ export const FormView: React.FC<FormViewProps> = ({
                                     </>
                                 )}
                             </div>
-                            {!hideNavigation && (
+                            {!hideNavigation ? (
                                 <div className="flex gap-2">
                                     <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(0)} disabled={currentIndex === 0}><ChevronsLeft size={18}/></button>
                                     <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}><ChevronLeft size={18}/></button>
                                     <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.min(data.length - 1, currentIndex + 1))} disabled={currentIndex >= data.length - 1}><ChevronRight size={18}/></button>
                                     <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(data.length - 1)} disabled={currentIndex >= data.length - 1}><ChevronsRight size={18}/></button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    {onClose && (
+                                        <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 flex items-center gap-2 text-sm font-medium shadow-sm">
+                                            Schließen
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </>

@@ -706,6 +706,77 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                            Liest die Datensatz-ID aus dem Parameter <code className="font-mono text-indigo-700 bg-white px-0.5 border font-semibold">selectedId</code>.
                                         </p>
                                    )}
+                                   <div className="pt-2 border-t border-indigo-100">
+                                       <span className="block text-[10px] font-bold text-indigo-900 mb-1.5 flex justify-between items-center">
+                                           <span>Parameter (Default Values)</span>
+                                           <button 
+                                               type="button"
+                                               onClick={() => {
+                                                   const m = selectedNode.props.navigateTargetParams || [];
+                                                   updateSelectedNodeProps({
+                                                       navigateTargetParams: [...m, { sourceKey: '', targetKey: '' }]
+                                                   });
+                                               }}
+                                               className="text-[9px] text-indigo-700 hover:underline font-bold"
+                                           >
+                                               + Hinzufügen
+                                           </button>
+                                       </span>
+                                       {(() => {
+                                           const mappings = selectedNode.props.navigateTargetParams || [];
+                                           const targetForm = forms.find(f => f.id === selectedNode.props.formId);
+                                           const targetTable = tables.find(t => t.id === targetForm?.sourceId);
+                                           const formFields = targetTable?.fields || [];
+
+                                           return (
+                                               <div className="space-y-1.5">
+                                                   {mappings.length === 0 ? (
+                                                       <span className="text-[9px] text-slate-400 italic block leading-normal">Aktuelle Seiten-Parameter werden automatisch übergeben, falls Feldnamen übereinstimmen.</span>
+                                                   ) : (
+                                                       mappings.map((mapping: any, mIdx: number) => (
+                                                           <div key={mIdx} className="flex gap-1 items-center">
+                                                               <input
+                                                                   type="text"
+                                                                   value={mapping.sourceKey}
+                                                                   onChange={(e) => {
+                                                                       const copy = [...mappings];
+                                                                       copy[mIdx].sourceKey = e.target.value;
+                                                                       updateSelectedNodeProps({ navigateTargetParams: copy });
+                                                                   }}
+                                                                   placeholder="Quelle (z.B. id)"
+                                                                   className="flex-1 text-[10px] font-mono px-1.5 py-0.5 border border-slate-300 rounded"
+                                                               />
+                                                               <span className="text-slate-400">➔</span>
+                                                               <select
+                                                                   value={mapping.targetKey}
+                                                                   onChange={(e) => {
+                                                                       const copy = [...mappings];
+                                                                       copy[mIdx].targetKey = e.target.value;
+                                                                       updateSelectedNodeProps({ navigateTargetParams: copy });
+                                                                   }}
+                                                                   className="flex-1 text-[10px] font-mono px-1 py-0.5 border border-slate-300 rounded bg-white"
+                                                               >
+                                                                   <option value="">Formular-Feld</option>
+                                                                   {formFields.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+                                                               </select>
+                                                               <button
+                                                                   type="button"
+                                                                   onClick={() => {
+                                                                       updateSelectedNodeProps({
+                                                                           navigateTargetParams: mappings.filter((_:any, idx:number) => idx !== mIdx)
+                                                                       });
+                                                                   }}
+                                                                   className="text-red-500 text-[11px] font-bold px-1"
+                                                               >
+                                                                   ×
+                                                               </button>
+                                                           </div>
+                                                       ))
+                                                   )}
+                                               </div>
+                                           );
+                                       })()}
+                                   </div>
                                </div>
                            )}
 
