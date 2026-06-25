@@ -260,8 +260,10 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
         }
 
         case 'button': {
-             const handleButtonClick = () => {
+             const handleButtonClick = (e: React.MouseEvent) => {
+                 e.stopPropagation();
                  const actType = node.props.actionType;
+                 console.log('Button clicked!', { actType, props: node.props, params, context });
                  if (!actType || actType === 'none') return;
 
                  if (actType === 'open_form' && node.props.formId) {
@@ -278,10 +280,12 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                                  val = params[m.sourceKey];
                              } else if (m.sourceKey === 'id' && context) {
                                  val = context.id;
+                             } else {
+                                 val = m.sourceKey; // Fallback to literal
                              }
                              
-                             if (val !== undefined) {
-                                 defaultValues[m.targetKey] = (val !== null && val !== '' && !isNaN(Number(val))) ? Number(val) : val;
+                             if (val !== undefined && val !== '') {
+                                 defaultValues[m.targetKey] = (val !== null && !isNaN(Number(val))) ? Number(val) : val;
                              }
                          });
                      }
@@ -293,6 +297,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                          });
                      }
 
+                     console.log('Opening modal', { formId: node.props.formId, mode, rId, defaultValues });
                      openFormModal(node.props.formId, mode, rId, undefined, defaultValues);
                  } else if (actType === 'delete_record' && node.props.targetTableId) {
                      const tableId = node.props.targetTableId;
