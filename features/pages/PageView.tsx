@@ -195,6 +195,37 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
     let content = null;
 
     switch (node.type) {
+        case 'row': {
+             content = (
+                  <div className={`w-full flex flex-row ${node.props.gap ? `gap-${node.props.gap}` : 'gap-4'} ${node.props.wrap ? 'flex-wrap' : ''} ${node.props.alignItems ? `items-${node.props.alignItems}` : 'items-start'} ${node.props.justifyContent ? `justify-${node.props.justifyContent}` : 'justify-start'} ${node.props.className || ''}`} style={node.props.style}>
+                     {node.children?.map(c => <LiveNode key={c.id} node={c} context={context} />)}
+                  </div>
+             );
+             break;
+        }
+        case 'column': {
+             content = (
+                  <div className={`flex flex-col ${node.props.gap ? `gap-${node.props.gap}` : 'gap-4'} ${node.props.alignItems ? `items-${node.props.alignItems}` : 'items-stretch'} ${node.props.justifyContent ? `justify-${node.props.justifyContent}` : 'justify-start'} ${node.props.className || ''}`} style={{ flex: node.props.flex || '1 1 0%', ...node.props.style }}>
+                     {node.children?.map(c => <LiveNode key={c.id} node={c} context={context} />)}
+                  </div>
+             );
+             break;
+        }
+        case 'card': {
+             content = (
+                  <div className={`bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden ${node.props.className || ''}`} style={node.props.style}>
+                      {node.props.title && (
+                          <div className={`px-4 py-3 border-b border-slate-200 bg-slate-50 font-medium text-slate-800 ${node.props.headerClassName || ''}`}>
+                              {resolvePlaceholders(node.props.title, context, params)}
+                          </div>
+                      )}
+                      <div className={`p-4 ${node.props.bodyClassName || ''}`}>
+                         {node.children?.map(c => <LiveNode key={c.id} node={c} context={context} />)}
+                      </div>
+                  </div>
+             );
+             break;
+        }
         case 'container': {
              let finalData = fetchedData;
              if (node.props.filterParamField && node.props.filterParamName) {

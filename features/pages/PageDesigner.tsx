@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CustomPage, PageComponent, PageComponentType } from '../../types/index';
-import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List, Layers, Plus, Database, Layout } from 'lucide-react';
+import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List, Layers, Plus, Database, Layout, Columns, Rows, CreditCard } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
 interface PageDesignerProps {
@@ -187,6 +187,49 @@ const RenderNode: React.FC<{
     let isDropTarget = true;
     
     switch (node.type) {
+        case 'row':
+             content = (
+                 <div className={`flex flex-row gap-2 w-full min-h-[50px] p-2 border border-dashed border-blue-200/50 bg-blue-50/20 ${node.props.className || ''}`} style={node.props.style}>
+                    {(node.children && node.children.length > 0) ? 
+                        node.children.map(c => <RenderNode key={c.id} node={c} selectedNodeId={selectedNodeId} onSelect={onSelect} onDrop={onDrop} />)
+                        : (
+                            <div className="text-slate-300 text-xs text-center border-2 border-dashed border-slate-200 p-4 rounded hover:border-slate-300 hover:bg-slate-50 transition-colors w-full flex-1 flex items-center justify-center pointer-events-none">Spalten (Columns) oder Container hier ablegen</div>
+                        )
+                    }
+                 </div>
+             );
+             break;
+        case 'column':
+             content = (
+                 <div className={`flex flex-col gap-2 w-full min-h-[50px] p-2 border border-dashed border-emerald-200/50 bg-emerald-50/20 ${node.props.className || ''}`} style={{ flex: '1 1 0%', ...node.props.style }}>
+                    {(node.children && node.children.length > 0) ? 
+                        node.children.map(c => <RenderNode key={c.id} node={c} selectedNodeId={selectedNodeId} onSelect={onSelect} onDrop={onDrop} />)
+                        : (
+                            <div className="text-slate-300 text-xs text-center border-2 border-dashed border-slate-200 p-4 rounded hover:border-slate-300 hover:bg-slate-50 transition-colors w-full flex-1 flex items-center justify-center pointer-events-none">Komponenten hier ablegen</div>
+                        )
+                    }
+                 </div>
+             );
+             break;
+        case 'card':
+             content = (
+                 <div className={`bg-white rounded-lg shadow-sm border border-slate-200 w-full min-h-[100px] overflow-hidden ${node.props.className || ''}`} style={node.props.style}>
+                     {node.props.title && (
+                         <div className={`px-4 py-3 border-b border-slate-200 bg-slate-50 font-medium text-slate-800 ${node.props.headerClassName || ''}`}>
+                             {node.props.title}
+                         </div>
+                     )}
+                     <div className={`p-4 min-h-[60px] flex flex-col gap-2 ${node.props.bodyClassName || ''}`}>
+                        {(node.children && node.children.length > 0) ? 
+                            node.children.map(c => <RenderNode key={c.id} node={c} selectedNodeId={selectedNodeId} onSelect={onSelect} onDrop={onDrop} />)
+                            : (
+                                <div className="text-slate-300 text-xs text-center border-2 border-dashed border-slate-200 p-4 rounded hover:border-slate-300 hover:bg-slate-50 transition-colors w-full flex-1 flex items-center justify-center pointer-events-none">Card-Inhalt hier ablegen</div>
+                            )
+                        }
+                     </div>
+                 </div>
+             );
+             break;
         case 'container':
              content = (
                  <div className={`flex flex-col gap-2 w-full ${node.id === 'root' ? 'min-h-[800px] h-full p-8' : 'min-h-[50px] p-2'} ${node.props.className || ''}`} style={node.props.style}>
@@ -374,7 +417,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
           id: 'node_' + crypto.randomUUID(),
           type,
           props: {},
-          children: (type === 'container' || type === 'list_repeater') ? [] : undefined
+          children: (type === 'container' || type === 'list_repeater' || type === 'row' || type === 'column' || type === 'card') ? [] : undefined
       };
 
       if (type === 'text') newNode.props.text = templateText || 'New Text Block';
@@ -464,6 +507,15 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
            <div className="space-y-2">
               <div draggable onDragStart={(e) => handleDragStart(e, 'container')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
                   <Square size={16} className="text-blue-500"/> Container
+              </div>
+              <div draggable onDragStart={(e) => handleDragStart(e, 'row')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
+                  <Columns size={16} className="text-blue-500"/> Row Layout
+              </div>
+              <div draggable onDragStart={(e) => handleDragStart(e, 'column')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
+                  <Rows size={16} className="text-blue-500"/> Column Layout
+              </div>
+              <div draggable onDragStart={(e) => handleDragStart(e, 'card')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
+                  <CreditCard size={16} className="text-blue-500"/> Card
               </div>
               <div draggable onDragStart={(e) => handleDragStart(e, 'list_repeater')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-indigo-50 text-sm text-indigo-700 font-semibold active:cursor-grabbing border-indigo-100 bg-indigo-50/20">
                   <LayoutTemplate size={16} className="text-indigo-600"/> List Repeater (Loop)
@@ -1387,6 +1439,87 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                             </div>
                         </div>
                     )}
+
+                   {/* Row/Column Properties */}
+                   {(selectedNode.type === 'row' || selectedNode.type === 'column') && (
+                       <div className="pt-4 border-t border-slate-100 space-y-3">
+                           <h4 className="text-xs font-bold text-indigo-600 mb-2">Layout Eigenschaften</h4>
+                           
+                           <div>
+                               <label className="block text-[10px] font-semibold text-slate-500 mb-1">Abstand (Gap)</label>
+                               <select 
+                                   value={selectedNode.props.gap || '4'}
+                                   onChange={(e) => updateSelectedNodeProps({ gap: e.target.value })}
+                                   className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs"
+                               >
+                                   <option value="0">Kein (0)</option>
+                                   <option value="1">Klein (4px)</option>
+                                   <option value="2">Mittel (8px)</option>
+                                   <option value="4">Standard (16px)</option>
+                                   <option value="6">Groß (24px)</option>
+                                   <option value="8">Sehr Groß (32px)</option>
+                               </select>
+                           </div>
+
+                           <div className="grid grid-cols-2 gap-2">
+                               <div>
+                                   <label className="block text-[10px] font-semibold text-slate-500 mb-1">Ausrichtung (Align)</label>
+                                   <select 
+                                       value={selectedNode.props.alignItems || (selectedNode.type === 'row' ? 'start' : 'stretch')}
+                                       onChange={(e) => updateSelectedNodeProps({ alignItems: e.target.value })}
+                                       className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs"
+                                   >
+                                       <option value="start">Oben/Anfang (Start)</option>
+                                       <option value="center">Mittig (Center)</option>
+                                       <option value="end">Unten/Ende (End)</option>
+                                       <option value="stretch">Strecken (Stretch)</option>
+                                   </select>
+                               </div>
+                               <div>
+                                   <label className="block text-[10px] font-semibold text-slate-500 mb-1">Verteilung (Justify)</label>
+                                   <select 
+                                       value={selectedNode.props.justifyContent || 'start'}
+                                       onChange={(e) => updateSelectedNodeProps({ justifyContent: e.target.value })}
+                                       className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs"
+                                   >
+                                       <option value="start">Anfang (Start)</option>
+                                       <option value="center">Mittig (Center)</option>
+                                       <option value="end">Ende (End)</option>
+                                       <option value="between">Zwischen (Between)</option>
+                                   </select>
+                               </div>
+                           </div>
+
+                           {selectedNode.type === 'row' && (
+                               <label className="flex items-center gap-2 text-[10px] font-semibold text-slate-600 cursor-pointer mt-2">
+                                   <input 
+                                       type="checkbox"
+                                       checked={!!selectedNode.props.wrap}
+                                       onChange={(e) => updateSelectedNodeProps({ wrap: e.target.checked })}
+                                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                   />
+                                   Zeilenumbruch erlauben (Wrap)
+                               </label>
+                           )}
+                       </div>
+                   )}
+
+                   {/* Card Properties */}
+                   {selectedNode.type === 'card' && (
+                       <div className="pt-4 border-t border-slate-100">
+                           <h4 className="text-xs font-bold text-indigo-600 mb-2">Card Eigenschaften</h4>
+                           <div>
+                               <label className="block text-xs font-semibold text-slate-600 mb-1">Titel</label>
+                               <input 
+                                   type="text"
+                                   value={selectedNode.props.title || ''}
+                                   onChange={(e) => updateSelectedNodeProps({ title: e.target.value })}
+                                   placeholder="Titel der Card (z.B. {name})"
+                                   className="w-full px-2 py-1 text-xs border border-slate-300 rounded"
+                               />
+                           </div>
+                       </div>
+                   )}
 
                    {/* Anzeige-Bedingung (ngIf equivalent) */}
                     <div className="pt-4 border-t border-slate-100">
