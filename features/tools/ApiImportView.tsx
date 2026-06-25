@@ -37,6 +37,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   // Schema Mapping State
   const [schemaOverrides, setSchemaOverrides] = useState<Record<string, Field['type']>>({});
   const [activeViewTab, setActiveViewTab] = useState<'data' | 'schema'>('data');
+  const [primaryKeyCol, setPrimaryKeyCol] = useState<string | null>(null);
 
   // --- Parameter Logic ---
   const addParam = () => {
@@ -77,6 +78,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
     setIsLoading(true);
     setError(null);
     setData([]);
+    setPrimaryKeyCol(null); // Reset PK when fetching new data
 
     const result = await fetchApiData(targetUrl, method, headers, queryParams);
     
@@ -115,11 +117,23 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       const columns = getColumns();
       const sampleRow = data[0];
 
+      let needsAutoId = false;
+      const hasIdColumn = columns.some(c => c.toLowerCase() === 'id');
+      if (!primaryKeyCol && !hasIdColumn) {
+          needsAutoId = true;
+      }
+
       const fields: Field[] = columns.map(col => {
           const sampleVal = sampleRow[col];
           const inferredType = Array.isArray(sampleVal) ? 'TEXT' : inferFieldType(sampleVal);
           const type = schemaOverrides[col] || inferredType;
-          const isId = col.toLowerCase() === 'id';
+          
+          let isId = false;
+          if (primaryKeyCol) {
+              isId = col === primaryKeyCol;
+          } else {
+              isId = col.toLowerCase() === 'id';
+          }
           
           return {
               id: crypto.randomUUID(),
@@ -132,10 +146,10 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       });
 
       // Ensure stable ID for linking
-      if (!fields.some(f => f.isPrimaryKey)) {
+      if (needsAutoId) {
           fields.unshift({
               id: crypto.randomUUID(),
-              name: '_ImportId',
+              name: 'id',
               type: 'INTEGER',
               isPrimaryKey: true,
               isAutoIncrement: true
@@ -155,6 +169,10 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       // Clean data for saving (stringify remaining arrays, cast types)
       const cleanData = data.map(row => {
           const newRow = { ...row };
+          if (needsAutoId) {
+              newRow['id'] = newRow['_ImportId'];
+          }
+
           for (const key in newRow) {
               const override = schemaOverrides[key];
               if (Array.isArray(newRow[key])) {
@@ -460,6 +478,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                             <thead className="bg-slate-100 border-b border-slate-200 text-slate-600">
                                 <tr>
                                     <th className="px-4 py-3">Spaltenname (API)</th>
+                                    <th className="px-4 py-3 text-center">Primärschlüssel</th>
                                     <th className="px-4 py-3">Beispielwert</th>
                                     <th className="px-4 py-3">Erkannter / Gewählter Typ</th>
                                 </tr>
@@ -472,6 +491,15 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                                     return (
                                         <tr key={col} className="hover:bg-slate-50">
                                             <td className="px-4 py-3 font-mono font-bold text-slate-700">{col}</td>
+                                            <td className="px-4 py-3 text-center">
+                                                <input 
+                                                    type="radio" 
+                                                    name="primaryKeyApi" 
+                                                    checked={primaryKeyCol === col} 
+                                                    onChange={() => setPrimaryKeyCol(col)}
+                                                    className="w-4 h-4 text-green-600 focus:ring-green-500"
+                                                />
+                                            </td>
                                             <td className="px-4 py-3 text-slate-500 truncate max-w-[200px]" title={String(sampleVal)}>
                                                 {Array.isArray(sampleVal) ? `[Array mit ${sampleVal.length} Elementen]` : String(sampleVal ?? 'null')}
                                             </td>

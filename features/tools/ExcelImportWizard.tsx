@@ -20,6 +20,7 @@ interface ColumnMapping {
   selected: boolean;
   sampleValue: any;
   md5Hash?: boolean;
+  isPrimaryKey?: boolean;
 }
 
 export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, onClose }) => {
@@ -68,7 +69,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
                 targetName: String(h || `Spalte${idx + 1}`).replace(/[^a-zA-Z0-9_]/g, ''),
                 type: inferFieldType(val),
                 selected: true,
-                sampleValue: val
+                sampleValue: val,
+                isPrimaryKey: false
             };
         });
 
@@ -92,7 +94,16 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
 
   const toggleSelection = (index: number) => {
       const m = mappings.find(x => x.index === index);
-      if (m) updateMapping(index, { selected: !m.selected });
+      if (m) {
+          updateMapping(index, { selected: !m.selected });
+          if (m.isPrimaryKey && m.selected) { // It's currently PK and we're turning it off (since m.selected is true currently, !m.selected will be false)
+             updateMapping(index, { selected: false, isPrimaryKey: false });
+          }
+      }
+  };
+
+  const setPrimaryKey = (index: number) => {
+      setMappings(prev => prev.map(m => m.index === index ? { ...m, isPrimaryKey: true } : { ...m, isPrimaryKey: false }));
   };
 
   const handleFinish = () => {
@@ -104,29 +115,32 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
       // 1. Create Fields
       const fields: Field[] = [];
       
-      // Auto-Add ID if not present (Best Practice)
+      const pkMapping = selectedMappings.find(m => m.isPrimaryKey);
       const hasId = selectedMappings.some(m => m.targetName.toLowerCase() === 'id');
-      if (!hasId) {
-          fields.push({ id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true });
+      
+      let needsAutoId = false;
+
+      if (!pkMapping) {
+          if (!hasId) {
+              needsAutoId = true;
+              fields.push({ id: crypto.randomUUID(), name: 'id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true });
+          }
       }
 
       selectedMappings.forEach(m => {
+          const isPK = m.isPrimaryKey || (!pkMapping && m.targetName.toLowerCase() === 'id');
           fields.push({
               id: crypto.randomUUID(),
               name: m.targetName,
               type: m.type,
-              isPrimaryKey: false, // Imported data usually doesn't carry PK logic easily
-              allowNull: true
+              isPrimaryKey: isPK,
+              allowNull: !isPK
           });
       });
 
       // 2. Map Data
       const importedData = rawRows.map(row => {
           const rowObj: any = {};
-          // If we added an artificial ID, we need to generate it? 
-          // No, usually TableView auto-handles display, but strictly speaking the data array should ideally match.
-          // However, our system is flexible. If ID is AutoInc, we can calculate it or let backend handle it.
-          // For local "in-memory" DB, let's generate IDs if we added the column.
           
           selectedMappings.forEach(m => {
               let val = row[m.index];
@@ -146,8 +160,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
       });
 
       // Fill IDs if artificial
-      if (!hasId) {
-          importedData.forEach((row, i) => row['Id'] = i + 1);
+      if (needsAutoId) {
+          importedData.forEach((row, i) => row['id'] = i + 1);
       }
 
       const newTable: Table = {
@@ -267,6 +281,17 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSave, on
                                                 <div className="text-[10px] text-slate-400 truncate" title={`Original: ${map.originalName}`}>
                                                     Orig: {map.originalName}
                                                 </div>
+                                                <label className={`flex items-center gap-1 cursor-pointer select-none mt-1 ${!map.selected ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    <input 
+                                                        type="radio" 
+                                                        name="primaryKey"
+                                                        disabled={!map.selected}
+                                                        checked={!!map.isPrimaryKey}
+                                                        onChange={() => setPrimaryKey(map.index)}
+                                                        className="rounded-full w-3 h-3 text-green-600 focus:ring-green-500"
+                                                    />
+                                                    <span className="text-[10px] font-bold text-slate-600">Als Primärschlüssel (PK)</span>
+                                                </label>
                                                 {(map.type === 'VARCHAR' || map.type === 'TEXT') && (
                                                     <label className={`flex items-center gap-1 cursor-pointer select-none mt-1 ${!map.selected ? 'opacity-50 pointer-events-none' : ''}`}>
                                                         <input 
