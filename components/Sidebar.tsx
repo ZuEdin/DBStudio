@@ -135,16 +135,37 @@ const RenderNode: React.FC<RenderNodeProps> = ({
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, charts = [], workflows = [], pages = [], onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onSelectChart, onSelectWorkflow, onSelectPage, onSelectScheduler, onItemContextMenu, isOpen, toggleSidebar }) => {
-  const [openGroups, setOpenGroups] = useState({ tables: true, queries: true, reports: true, forms: true, charts: true, workflows: true, pages: true });
-  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
+  const [openGroups, setOpenGroups] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_openGroups');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return { tables: true, queries: true, reports: true, forms: true, charts: true, workflows: true, pages: true };
+  });
+  
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_openFolders');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return {};
+  });
   const { t } = useTranslation();
 
   const toggleGroup = (group: keyof typeof openGroups) => {
-    setOpenGroups({ ...openGroups, [group]: !openGroups[group] });
+    setOpenGroups(prev => {
+        const next = { ...prev, [group]: !prev[group] };
+        localStorage.setItem('sidebar_openGroups', JSON.stringify(next));
+        return next;
+    });
   };
 
   const toggleFolder = (folderId: string) => {
-    setOpenFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
+    setOpenFolders(prev => {
+        const next = { ...prev, [folderId]: !prev[folderId] };
+        localStorage.setItem('sidebar_openFolders', JSON.stringify(next));
+        return next;
+    });
   };
 
   const handleDragStart = (e: React.DragEvent, type: 'table' | 'query', id: string) => {

@@ -17,10 +17,14 @@ interface FormViewProps {
   linkConfig?: { masterFieldId: string, childFieldId: string };
   onClose?: () => void;
   initialMode?: 'create' | 'edit' | 'view';
+  hideNavigation?: boolean;
+  hideActions?: boolean;
+  hideHeader?: boolean;
+  embedded?: boolean;
 }
 
 export const FormView: React.FC<FormViewProps> = ({ 
-  form, allForms, allTables, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode 
+  form, allForms, allTables, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode, hideNavigation, hideActions, hideHeader, embedded 
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
@@ -32,7 +36,7 @@ export const FormView: React.FC<FormViewProps> = ({
 
   const sourceTable = allTables.find(t => t.id === form.sourceId);
   const isUnbound = !form.sourceId || form.sourceId === '';
-  const isReadOnly = form.mode === 'readonly' || form.sourceType === 'query' || (!sourceTable && !isUnbound);
+  const isReadOnly = form.mode === 'readonly' || initialMode === 'readonly' || form.sourceType === 'query' || (!sourceTable && !isUnbound);
   
   const data = isSubform ? (filteredData || []) : (sourceTable?.data || []);
   
@@ -426,22 +430,24 @@ export const FormView: React.FC<FormViewProps> = ({
   }, [initialMode, sourceTable, isReadOnly]);
 
   return (
-    <div className={`h-full flex flex-col ${isSubform || form.settings?.isFullScreen ? '' : 'p-4 bg-slate-100'}`}>
+    <div className={`h-full flex flex-col ${isSubform || embedded || form.settings?.isFullScreen ? '' : 'p-4 bg-slate-100'}`}>
         <div className={`bg-white shadow border border-slate-200 rounded-lg flex flex-col h-full ${form.settings?.isFullScreen ? 'fixed inset-0 z-[100] m-0 rounded-none' : 'max-w-4xl mx-auto w-full'}`}>
             
             {/* Header */}
-            <div className={`${headerColorClass} p-3 font-bold flex justify-between items-center shrink-0 transition-colors duration-300`}>
-                <div className="flex items-center gap-2">
-                    {isCreating ? <Plus size={20}/> : null}
-                    <span>{isCreating ? 'Neuer Datensatz' : form.name}</span>
+            {!hideHeader && (
+                <div className={`${headerColorClass} p-3 font-bold flex justify-between items-center shrink-0 transition-colors duration-300`}>
+                    <div className="flex items-center gap-2">
+                        {isCreating ? <Plus size={20}/> : null}
+                        <span>{isCreating ? 'Neuer Datensatz' : form.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {!isCreating && <span className="text-xs bg-white/20 px-2 py-0.5 rounded">{data.length > 0 ? `${currentIndex + 1} / ${data.length}` : '0 / 0'}</span>}
+                        {(form.settings?.isFullScreen || onClose) && (
+                            <button onClick={onClose} className="text-white/70 hover:text-white p-1 rounded transition-colors" title="Schließen"><X size={18} /></button>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    {!isCreating && <span className="text-xs bg-white/20 px-2 py-0.5 rounded">{data.length > 0 ? `${currentIndex + 1} / ${data.length}` : '0 / 0'}</span>}
-                    {(form.settings?.isFullScreen || onClose) && (
-                        <button onClick={onClose} className="text-white/70 hover:text-white p-1 rounded transition-colors" title="Schließen"><X size={18} /></button>
-                    )}
-                </div>
-            </div>
+            )}
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6">
@@ -458,7 +464,7 @@ export const FormView: React.FC<FormViewProps> = ({
             </div>
 
             {/* Footer */}
-            {!isUnbound && (
+            {(!isUnbound && (!hideNavigation || !hideActions)) && (
                 <div className={`p-3 border-t border-slate-200 flex justify-between shrink-0 rounded-b-lg ${isCreating ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                     {isCreating ? (
                         <div className="flex justify-end gap-2 w-full">
@@ -472,7 +478,7 @@ export const FormView: React.FC<FormViewProps> = ({
                     ) : (
                         <>
                             <div className="flex gap-2">
-                                {!isReadOnly && (
+                                {(!isReadOnly && !hideActions) && (
                                     <>
                                         <button className="p-2 hover:bg-slate-200 rounded text-blue-600" onClick={startCreate} title="Neuer Datensatz (Inline)">
                                             <Plus size={20}/>
@@ -483,12 +489,14 @@ export const FormView: React.FC<FormViewProps> = ({
                                     </>
                                 )}
                             </div>
-                            <div className="flex gap-2">
-                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(0)} disabled={currentIndex === 0}><ChevronsLeft size={18}/></button>
-                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}><ChevronLeft size={18}/></button>
-                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.min(data.length - 1, currentIndex + 1))} disabled={currentIndex >= data.length - 1}><ChevronRight size={18}/></button>
-                                <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(data.length - 1)} disabled={currentIndex >= data.length - 1}><ChevronsRight size={18}/></button>
-                            </div>
+                            {!hideNavigation && (
+                                <div className="flex gap-2">
+                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(0)} disabled={currentIndex === 0}><ChevronsLeft size={18}/></button>
+                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}><ChevronLeft size={18}/></button>
+                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.min(data.length - 1, currentIndex + 1))} disabled={currentIndex >= data.length - 1}><ChevronRight size={18}/></button>
+                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(data.length - 1)} disabled={currentIndex >= data.length - 1}><ChevronsRight size={18}/></button>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

@@ -105,7 +105,7 @@ const getRowLabelAndValue = (row: any, props: any, idx: number) => {
 };
 
 const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }> = ({ node, context }) => {
-    const { queries, tables, relationships, pages, updateTable } = useProjectStore();
+    const { queries, tables, relationships, pages, updateTable, forms } = useProjectStore();
     const { params, setParam } = useContext(PageParamsContext);
     const { openFormModal, showConfirm, navigate, activeRole } = useContext(PageViewContext);
     
@@ -573,7 +573,49 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
              break;
         }
 
-        case 'form_view':
+        case 'form_view': {
+             const formToRender = forms.find(f => f.id === node.props.formId);
+             if (!formToRender) {
+                 content = <div className="p-4 text-xs text-slate-500 italic bg-slate-50 border border-dashed rounded">Kein Formular ausgewählt</div>;
+                 break;
+             }
+
+             // Handle filtering
+             let formFilteredData = [];
+             let hasFilter = false;
+             if (node.props.formMode !== 'create' && node.props.filterParamField && node.props.filterParamName) {
+                 hasFilter = true;
+                 const filterField = node.props.filterParamField;
+                 const filterVal = params[node.props.filterParamName];
+                 const targetTable = tables.find(t => t.id === formToRender.sourceId);
+                 if (targetTable && targetTable.data && filterVal !== undefined && filterVal !== null && filterVal !== '') {
+                     formFilteredData = targetTable.data.filter(row => String(row[filterField]) === String(filterVal));
+                 }
+             }
+
+             content = (
+                 <div className={`w-full ${node.props.className || ''}`} style={node.props.style}>
+                     <FormView 
+                         form={formToRender}
+                         allForms={forms}
+                         allTables={tables}
+                         onTableChange={updateTable}
+                         showConfirmation={(title, message, onConfirm) => {
+                             if(window.confirm(`${title}\n${message}`)) onConfirm();
+                         }}
+                         isSubform={hasFilter} 
+                         filteredData={formFilteredData}
+                         initialMode={node.props.formMode || 'edit'}
+                         hideNavigation={node.props.hideNavigation}
+                         hideActions={node.props.hideActions}
+                         hideHeader={node.props.hideHeader}
+                         embedded={true}
+                     />
+                 </div>
+             );
+             break;
+        }
+
         case 'chart_view':
         case 'image':
         case 'html':

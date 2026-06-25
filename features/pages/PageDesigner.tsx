@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CustomPage, PageComponent, PageComponentType } from '../../types/index';
-import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List, Layers, Plus, Database } from 'lucide-react';
+import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List, Layers, Plus, Database, Layout } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
 interface PageDesignerProps {
@@ -482,6 +482,9 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
               </div>
               <div draggable onDragStart={(e) => handleDragStart(e, 'table_view')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
                   <Table2 size={16} className="text-emerald-500"/> Daten-Tabelle
+              </div>
+              <div draggable onDragStart={(e) => handleDragStart(e, 'form_view')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
+                  <Layout size={16} className="text-blue-500"/> Formular (Embedded)
               </div>
               <div draggable onDragStart={(e) => handleDragStart(e, 'image')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
                   <ImageIcon size={16} className="text-purple-500"/> Bild / Medien
@@ -1141,6 +1144,94 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                     );
                                 })()}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Embedded Form Binding */}
+                    {selectedNode && selectedNode.type === 'form_view' && (
+                        <div className="pt-4 border-t border-slate-200 space-y-4">
+                            <h4 className="text-xs font-bold text-emerald-600 mb-2">Formular (Embedded)</h4>
+                            
+                            <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Formular auswählen</label>
+                                <select
+                                    value={selectedNode.props.formId || ''}
+                                    onChange={(e) => updateSelectedNodeProps({ formId: e.target.value })}
+                                    className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs"
+                                >
+                                    <option value="">-- Formular wählen --</option>
+                                    {forms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Modus</label>
+                                <select
+                                    value={selectedNode.props.formMode || 'edit'}
+                                    onChange={(e) => updateSelectedNodeProps({ formMode: e.target.value })}
+                                    className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs"
+                                >
+                                    <option value="create">Erstellen (Create)</option>
+                                    <option value="edit">Bearbeiten (Edit)</option>
+                                    <option value="readonly">Nur Lesen (View)</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-2 pt-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Ausblenden</label>
+                                <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedNode.props.hideNavigation || false}
+                                        onChange={(e) => updateSelectedNodeProps({ hideNavigation: e.target.checked })}
+                                    />
+                                    Navigation (Pfeile) verbergen
+                                </label>
+                                <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedNode.props.hideActions || false}
+                                        onChange={(e) => updateSelectedNodeProps({ hideActions: e.target.checked })}
+                                    />
+                                    Aktionen (Speichern/Löschen/Neu) verbergen
+                                </label>
+                                <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedNode.props.hideHeader || false}
+                                        onChange={(e) => updateSelectedNodeProps({ hideHeader: e.target.checked })}
+                                    />
+                                    Kopfzeile (Titel & Schließen-X) verbergen
+                                </label>
+                            </div>
+
+                            {(selectedNode.props.formMode === 'edit' || selectedNode.props.formMode === 'readonly') && (
+                                <div className="pt-2">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Datensatz Filter</label>
+                                    <div className="space-y-2">
+                                        <div>
+                                            <label className="block text-[10px] text-slate-500">Filter-Feld (Variable/Spalte)</label>
+                                            <input
+                                                type="text"
+                                                value={selectedNode.props.filterParamField || ''}
+                                                onChange={(e) => updateSelectedNodeProps({ filterParamField: e.target.value })}
+                                                placeholder="z.B. id"
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded font-mono"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] text-slate-500">Aus Parameter laden</label>
+                                            <input
+                                                type="text"
+                                                value={selectedNode.props.filterParamName || ''}
+                                                onChange={(e) => updateSelectedNodeProps({ filterParamName: e.target.value })}
+                                                placeholder="z.B. selectedId"
+                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded font-mono"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
