@@ -437,8 +437,8 @@ export const FormView: React.FC<FormViewProps> = ({
   }, [initialMode, sourceTable, isReadOnly]);
 
   return (
-    <div className={`h-full flex flex-col ${isSubform || embedded || form.settings?.isFullScreen ? '' : 'p-4 bg-slate-100'}`}>
-        <div className={`bg-white shadow border border-slate-200 rounded-lg flex flex-col h-full ${form.settings?.isFullScreen ? 'fixed inset-0 z-[100] m-0 rounded-none' : 'max-w-4xl mx-auto w-full'}`}>
+    <div className={`h-full flex flex-col ${isSubform || embedded || (form.settings?.isFullScreen && !embedded) ? '' : 'p-4 bg-slate-100'}`}>
+        <div className={`bg-white shadow border border-slate-200 rounded-lg flex flex-col h-full ${(form.settings?.isFullScreen && !embedded) ? 'fixed inset-0 z-[100] m-0 rounded-none' : 'max-w-4xl mx-auto w-full'}`}>
             
             {/* Header */}
             {!hideHeader && (
@@ -449,7 +449,7 @@ export const FormView: React.FC<FormViewProps> = ({
                     </div>
                     <div className="flex items-center gap-3">
                         {!isCreating && <span className="text-xs bg-white/20 px-2 py-0.5 rounded">{data.length > 0 ? `${currentIndex + 1} / ${data.length}` : '0 / 0'}</span>}
-                        {(form.settings?.isFullScreen || onClose) && (
+                        {!!onClose && (
                             <button onClick={onClose} className="text-white/70 hover:text-white p-1 rounded transition-colors" title="Schließen"><X size={18} /></button>
                         )}
                     </div>
@@ -472,7 +472,7 @@ export const FormView: React.FC<FormViewProps> = ({
 
             {/* Footer */}
             {(!isUnbound && (isCreating || !hideNavigation || !hideActions || !!onClose)) && (
-                <div className={`p-3 border-t border-slate-200 flex justify-between shrink-0 rounded-b-lg ${isCreating ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                <div className={`p-3 border-t border-slate-200 flex justify-between shrink-0 rounded-b-lg items-center ${isCreating ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                     {isCreating ? (
                         <div className="flex justify-end gap-2 w-full">
                             <button onClick={cancelCreate} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 flex items-center gap-2 text-sm font-medium">
@@ -484,34 +484,40 @@ export const FormView: React.FC<FormViewProps> = ({
                         </div>
                     ) : (
                         <>
-                            <div className="flex gap-2">
+                            <div className="flex gap-4 items-center">
+                                {!hideNavigation && (
+                                    <div className="flex gap-1 bg-white border border-slate-200 rounded p-0.5 shadow-sm">
+                                        <button className="p-1 hover:bg-slate-100 rounded disabled:opacity-30" onClick={() => setCurrentIndex(0)} disabled={currentIndex === 0}><ChevronsLeft size={16}/></button>
+                                        <button className="p-1 hover:bg-slate-100 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}><ChevronLeft size={16}/></button>
+                                        <span className="text-xs text-slate-500 font-medium px-2 flex items-center">{data.length > 0 ? `${currentIndex + 1} / ${data.length}` : '0 / 0'}</span>
+                                        <button className="p-1 hover:bg-slate-100 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.min(data.length - 1, currentIndex + 1))} disabled={currentIndex >= data.length - 1}><ChevronRight size={16}/></button>
+                                        <button className="p-1 hover:bg-slate-100 rounded disabled:opacity-30" onClick={() => setCurrentIndex(data.length - 1)} disabled={currentIndex >= data.length - 1}><ChevronsRight size={16}/></button>
+                                    </div>
+                                )}
                                 {(!isReadOnly && !hideActions) && (
-                                    <>
-                                        <button className="p-2 hover:bg-slate-200 rounded text-blue-600" onClick={startCreate} title="Neuer Datensatz (Inline)">
-                                            <Plus size={20}/>
+                                    <div className="flex gap-1">
+                                        <button className="p-1.5 hover:bg-slate-200 rounded text-blue-600 transition-colors" onClick={startCreate} title="Neuer Datensatz">
+                                            <Plus size={18}/>
                                         </button>
-                                        <button className="p-2 hover:bg-slate-200 rounded text-red-500 disabled:opacity-50" onClick={deleteCurrentRecord} disabled={data.length === 0} title="Löschen">
+                                        <button className="p-1.5 hover:bg-slate-200 rounded text-red-500 disabled:opacity-50 transition-colors" onClick={deleteCurrentRecord} disabled={data.length === 0} title="Löschen">
                                             <Trash2 size={18}/>
                                         </button>
-                                    </>
+                                    </div>
                                 )}
                             </div>
-                            {!hideNavigation ? (
-                                <div className="flex gap-2">
-                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(0)} disabled={currentIndex === 0}><ChevronsLeft size={18}/></button>
-                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}><ChevronLeft size={18}/></button>
-                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(Math.min(data.length - 1, currentIndex + 1))} disabled={currentIndex >= data.length - 1}><ChevronRight size={18}/></button>
-                                    <button className="p-2 hover:bg-slate-200 rounded disabled:opacity-30" onClick={() => setCurrentIndex(data.length - 1)} disabled={currentIndex >= data.length - 1}><ChevronsRight size={18}/></button>
-                                </div>
-                            ) : (
-                                <div className="flex gap-2">
-                                    {onClose && (
-                                        <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 flex items-center gap-2 text-sm font-medium shadow-sm">
-                                            Schließen
-                                        </button>
-                                    )}
-                                </div>
-                            )}
+                            
+                            <div className="flex justify-end gap-2 flex-1">
+                                {!!onClose && (
+                                    <button onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 flex items-center gap-2 text-sm font-medium transition-colors">
+                                        <XCircle size={16} /> {isReadOnly ? 'Schließen' : 'Abbrechen'}
+                                    </button>
+                                )}
+                                {(!isReadOnly && !hideActions) && (
+                                    <button onClick={() => { if (onClose) onClose(); else alert('Erfolgreich gespeichert!'); }} className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center gap-2 text-sm font-medium shadow-sm transition-colors">
+                                        <CheckCircle size={16} /> Speichern
+                                    </button>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>

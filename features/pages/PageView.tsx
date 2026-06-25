@@ -640,7 +640,31 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
              // Handle filtering and pre-filling
              let formFilteredData = [];
              let hasFilter = false;
-             let defaultValues: any = {};
+             
+             // Inject all params as default values, just like in modal forms
+             let defaultValues: any = {
+                 ...Object.keys(params).reduce((acc, key) => {
+                     const val = params[key];
+                     acc[key] = (val !== null && val !== '' && !isNaN(Number(val))) ? Number(val) : val;
+                     return acc;
+                 }, {} as any)
+             };
+
+             if (node.props.navigateTargetParams && Array.isArray(node.props.navigateTargetParams)) {
+                 node.props.navigateTargetParams.forEach((m: any) => {
+                     let val: any;
+                     if (context && context[m.sourceKey] !== undefined) {
+                         val = context[m.sourceKey];
+                     } else if (params[m.sourceKey] !== undefined) {
+                         val = params[m.sourceKey];
+                     } else {
+                         val = m.sourceKey;
+                     }
+                     if (val !== undefined && val !== '') {
+                         defaultValues[m.targetKey] = (val !== null && !isNaN(Number(val))) ? Number(val) : val;
+                     }
+                 });
+             }
 
              if (node.props.filterParamField && node.props.filterParamName) {
                  const filterField = node.props.filterParamField;
@@ -911,7 +935,7 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
                               onClose={() => setActiveFormModal(null)}
                               initialMode={activeFormModal.mode}
                               hideNavigation={true}
-                              hideActions={true}
+                              hideActions={false}
                           />
                       </div>
                   </div>

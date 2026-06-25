@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CustomPage, PageComponent, PageComponentType } from '../../types/index';
 import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List, Layers, Plus, Database, Layout, Columns, Rows, CreditCard } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -388,6 +388,7 @@ const RenderNode: React.FC<{
 
 export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, onSetView }) => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { queries, tables, pages, forms } = useProjectStore();
   
   const rolesTable = tables.find(t => t.name === 'sys_roles');
@@ -458,10 +459,55 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
           onPageChange({ ...page, layout: newLayout });
           setSelectedNodeId(null);
       }
+      setShowDeleteConfirm(false);
   };
 
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+              // check if focused element is an input, textarea or select
+              if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
+                  return;
+              }
+              if (selectedNodeId && selectedNodeId !== 'root') {
+                  setShowDeleteConfirm(true);
+              }
+          }
+      };
+      
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNodeId]);
+
   return (
-    <div className="flex flex-col h-full bg-slate-100 font-sans">
+    <div className="flex flex-col h-full bg-slate-100 font-sans relative">
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 animate-in fade-in zoom-in duration-200">
+                <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                    <Trash2 className="text-red-500" size={20} />
+                    Element löschen
+                </h3>
+                <p className="text-slate-600 mb-6 text-sm">
+                    Möchten Sie dieses Element wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+                </p>
+                <div className="flex justify-end gap-3">
+                    <button 
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                    >
+                        Nein, abbrechen
+                    </button>
+                    <button 
+                        onClick={deleteSelectedNode}
+                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors shadow-sm"
+                    >
+                        Ja, löschen
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
       <div className="bg-white border-b border-slate-300 p-2 px-4 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
@@ -665,7 +711,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
             <div className="p-4 border-b border-slate-200 flex items-center justify-between">
                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Eigenschaften</h3>
                {selectedNodeId && selectedNodeId !== 'root' && (
-                   <button onClick={deleteSelectedNode} className="text-slate-400 hover:text-red-500 hidden sm:block delay-150 transition" title="Löschen">
+                   <button onClick={() => setShowDeleteConfirm(true)} className="text-slate-400 hover:text-red-500 hidden sm:block delay-150 transition" title="Löschen">
                        <Trash2 size={16} />
                    </button>
                )}
@@ -1328,33 +1374,76 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                 </label>
                             </div>
 
-                            {(selectedNode.props.formMode === 'edit' || selectedNode.props.formMode === 'readonly') && (
-                                <div className="pt-2">
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Datensatz Filter</label>
-                                    <div className="space-y-2">
-                                        <div>
-                                            <label className="block text-[10px] text-slate-500">Filter-Feld (Variable/Spalte)</label>
-                                            <input
-                                                type="text"
-                                                value={selectedNode.props.filterParamField || ''}
-                                                onChange={(e) => updateSelectedNodeProps({ filterParamField: e.target.value })}
-                                                placeholder="z.B. id"
-                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded font-mono"
-                                            />
+                            <div className="pt-2 border-t border-indigo-100">
+                                <span className="block text-[10px] font-bold text-indigo-900 mb-1.5 flex justify-between items-center">
+                                    <span>Parameter (Default Values)</span>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            const m = selectedNode.props.navigateTargetParams || [];
+                                            updateSelectedNodeProps({
+                                                navigateTargetParams: [...m, { sourceKey: '', targetKey: '' }]
+                                            });
+                                        }}
+                                        className="text-[9px] text-indigo-700 hover:underline font-bold"
+                                    >
+                                        + Hinzufügen
+                                    </button>
+                                </span>
+                                {(() => {
+                                    const mappings = selectedNode.props.navigateTargetParams || [];
+                                    const formObj = forms.find(f => f.id === selectedNode.props.formId);
+                                    const sourceTable = formObj ? tables.find(t => t.id === formObj.sourceId) : null;
+                                    const formFields = sourceTable?.fields || [];
+                                    
+                                    return (
+                                        <div className="space-y-1.5">
+                                            {mappings.map((mapping: any, mIdx: number) => (
+                                                <div key={mIdx} className="flex items-center gap-1 w-full bg-white p-1 rounded border border-indigo-50 shadow-sm">
+                                                    <input
+                                                        type="text"
+                                                        value={mapping.sourceKey}
+                                                        onChange={(e) => {
+                                                            const copy = [...mappings];
+                                                            copy[mIdx].sourceKey = e.target.value;
+                                                            updateSelectedNodeProps({ navigateTargetParams: copy });
+                                                        }}
+                                                        placeholder="Quelle (z.B. id)"
+                                                        className="flex-1 text-[10px] font-mono px-1.5 py-0.5 border border-slate-300 rounded min-w-0"
+                                                    />
+                                                    <span className="text-slate-400">➔</span>
+                                                    <select
+                                                        value={mapping.targetKey}
+                                                        onChange={(e) => {
+                                                            const copy = [...mappings];
+                                                            copy[mIdx].targetKey = e.target.value;
+                                                            updateSelectedNodeProps({ navigateTargetParams: copy });
+                                                        }}
+                                                        className="flex-1 text-[10px] font-mono px-1 py-0.5 border border-slate-300 rounded bg-white min-w-0"
+                                                    >
+                                                        <option value="">Feld</option>
+                                                        {formFields.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+                                                    </select>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            updateSelectedNodeProps({
+                                                                navigateTargetParams: mappings.filter((_:any, idx:number) => idx !== mIdx)
+                                                            });
+                                                        }}
+                                                        className="text-red-500 text-[11px] font-bold px-1"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {mappings.length === 0 && (
+                                                <div className="text-[10px] text-slate-400 italic py-1 text-center bg-indigo-50/30 rounded border border-indigo-50">Keine Parameter definiert</div>
+                                            )}
                                         </div>
-                                        <div>
-                                            <label className="block text-[10px] text-slate-500">Aus Parameter laden</label>
-                                            <input
-                                                type="text"
-                                                value={selectedNode.props.filterParamName || ''}
-                                                onChange={(e) => updateSelectedNodeProps({ filterParamName: e.target.value })}
-                                                placeholder="z.B. selectedId"
-                                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded font-mono"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                                    );
+                                })()}
+                            </div>
                         </div>
                     )}
 
