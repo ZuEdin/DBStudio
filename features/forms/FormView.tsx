@@ -145,11 +145,12 @@ export const FormView: React.FC<FormViewProps> = ({
       const newData = [...(sourceTable.data || []), recordToSave];
       onTableChange({ ...sourceTable, data: newData });
       
-      setIsCreating(false);
-      if (!isSubform) {
-          setCurrentIndex(newData.length - 1);
+      // Stay in create mode, just clear the form for the next record (MS Access style)
+      let initialData: Record<string, any> = {};
+      if (defaultValues) {
+          initialData = { ...initialData, ...defaultValues };
       }
-      if (onClose) onClose();
+      setTempRecord(initialData);
   };
 
   const cancelCreate = () => {
@@ -509,12 +510,12 @@ export const FormView: React.FC<FormViewProps> = ({
                             <div className="flex justify-end gap-2 flex-1">
                                 {!!onClose && (
                                     <button onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 flex items-center gap-2 text-sm font-medium transition-colors">
-                                        <XCircle size={16} /> {isReadOnly ? 'Schließen' : 'Abbrechen'}
+                                        <XCircle size={16} /> Schließen
                                     </button>
                                 )}
                                 {(!isReadOnly && !hideActions) && (
-                                    <button onClick={() => { if (onClose) onClose(); else alert('Erfolgreich gespeichert!'); }} className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center gap-2 text-sm font-medium shadow-sm transition-colors">
-                                        <CheckCircle size={16} /> Speichern
+                                    <button onClick={() => { /* Autosaved */ }} className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center gap-2 text-sm font-medium shadow-sm transition-colors">
+                                        <CheckCircle size={16} /> Gespeichert
                                     </button>
                                 )}
                             </div>

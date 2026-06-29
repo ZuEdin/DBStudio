@@ -224,7 +224,6 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 allTables={tables} 
                 onTableChange={(t) => saveTable(t, 'edit')} 
                 showConfirmation={showConfirmation} 
-                onClose={() => onSetView({ type: 'welcome' })}
             />;
         }
         return null;

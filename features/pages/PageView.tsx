@@ -367,7 +367,19 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
              break;
         }
 
-        case 'dropdown':
+        case 'dropdown': {
+             let finalData = fetchedData;
+             if (node.props.filterParamField && node.props.filterParamName) {
+                 const filterField = node.props.filterParamField;
+                 const filterParam = node.props.filterParamName;
+                 const filterVal = params[filterParam];
+                 if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+                     finalData = fetchedData.filter(row => String(row[filterField]) === String(filterVal));
+                 } else {
+                     finalData = [];
+                 }
+             }
+
              content = (
                   <div className={`p-2 ${node.props.className || ''}`}>
                       <select 
@@ -382,7 +394,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                       >
                           <option value="">{node.props.placeholder || 'Bitte wählen...'}</option>
                           {loading && <option disabled>Lade Daten...</option>}
-                          {!loading && fetchedData.map((row, idx) => {
+                          {!loading && finalData.map((row, idx) => {
                               const { val, label } = getRowLabelAndValue(row, node.props, idx);
                               return <option key={idx} value={val}>{label}</option>
                           })}
@@ -390,6 +402,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                   </div>
              );
              break;
+        }
 
         case 'table_view': {
              const columns = node.props.columns ? node.props.columns.split(',').map((c: string) => c.trim()) : [];
@@ -798,7 +811,6 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
       if (activeFormModal?.callback) {
           activeFormModal.callback();
       }
-      setActiveFormModal(null);
   };
 
   // Find form configuration for modal

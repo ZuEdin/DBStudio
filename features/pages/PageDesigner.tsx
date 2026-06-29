@@ -1078,6 +1078,36 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                               <option value="">-- Spalte wählen --</option>
                                               {cols.map(c => <option key={c.id} value={c.alias || c.fieldName}>{c.alias || c.fieldName}</option>)}
                                           </select>
+
+                                            <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                                                <h5 className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
+                                                    <Database size={12} /> Daten filtern über Parameter
+                                                </h5>
+                                                <div>
+                                                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Filter-Spalte (z.B. id)</label>
+                                                    <select
+                                                        value={selectedNode.props.filterParamField || ''}
+                                                        onChange={(e) => updateSelectedNodeProps({ filterParamField: e.target.value })}
+                                                        className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs text-slate-700 font-medium"
+                                                    >
+                                                        <option value="">-- Kein Filter --</option>
+                                                        {cols.map(c => <option key={c.id} value={c.alias || c.fieldName}>{c.alias || c.fieldName}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Filter-Parameter Name (z.B. selectedId)</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={selectedNode.props.filterParamName || ''}
+                                                        onChange={(e) => updateSelectedNodeProps({ filterParamName: e.target.value })}
+                                                        placeholder="z.B. selectedId"
+                                                        className="w-full px-2 py-1 text-xs border border-slate-300 rounded font-mono"
+                                                    />
+                                                    <p className="text-[9px] text-slate-400 mt-1">
+                                                        Filtert das Dropdown, sodass der Wert in der ausgewählten Filter-Spalte dem Wert des Parameters entspricht.
+                                                    </p>
+                                                </div>
+                                            </div>
                                        </>
                                    );
                                })()}

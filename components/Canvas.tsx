@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH, TableGroup } from '../types/index';
-import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw, Group, AlignLeft, AlignLeft as AlignLeftIcon, GripVertical } from 'lucide-react';
+import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw, Group, AlignLeft, AlignLeft as AlignLeftIcon, GripVertical, MousePointer, Hand, Grid3X3, Grid, Magnet } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 
 interface CanvasProps {
@@ -47,6 +47,131 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const tableGroups = useProjectStore(state => state.tableGroups);
   const setTableGroups = useProjectStore(state => state.setTableGroups);
+
+  const [snapToGrid, setSnapToGrid] = useState<boolean>(true);
+  const [canvasMode, setCanvasMode] = useState<'select' | 'pan'>('select');
+  const [selectionBox, setSelectionBox] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
+
+  const handleAlignAllToGrid = () => {
+    if (!onUpdateNodes) return;
+    const updatedNodes = safeNodes.map(n => ({
+      ...n,
+      x: Math.round(n.x / 20) * 20,
+      y: Math.round(n.y / 20) * 20
+    }));
+    onUpdateNodes(updatedNodes);
+  };
+
+  const handleAutoArrange = () => {
+    if (!onUpdateNodes) return;
+
+    const updatedNodesMap: Record<string, { x: number; y: number }> = {};
+
+    let currentGroupStartX = 80;
+    let currentGroupStartY = 140;
+    let maxGroupHeightInRow = 0;
+    const groupSpacingX = 100; // horizontal gap between group containers
+    const groupSpacingY = 160; // vertical gap between rows of groups
+    const wrapWidth = 1400;
+
+    // 1. Arrange Grouped Nodes
+    const activeGroups = (tableGroups || [])
+      .filter(g => safeNodes.some(n => n.groupId === g.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    activeGroups.forEach(group => {
+      const groupNodes = safeNodes
+        .filter(n => n.groupId === group.id)
+        .sort((a, b) => {
+          const tA = safeTables.find(t => t.id === a.tableId);
+          const tB = safeTables.find(t => t.id === b.tableId);
+          return (tA ? tA.name : '').localeCompare(tB ? tB.name : '');
+        });
+
+      const K = groupNodes.length;
+      if (K === 0) return;
+
+      const cols = K <= 2 ? K : (K <= 4 ? 2 : 3);
+      const rows = Math.ceil(K / cols);
+
+      const hSpacing = 280;
+      const vSpacing = 280;
+
+      const groupWidth = cols * hSpacing;
+      const groupHeight = rows * vSpacing;
+
+      // Check if we need to wrap to the next row of groups
+      if (currentGroupStartX > 80 && currentGroupStartX + groupWidth > wrapWidth) {
+        currentGroupStartX = 80;
+        currentGroupStartY += maxGroupHeightInRow + groupSpacingY;
+        maxGroupHeightInRow = 0;
+      }
+
+      // Place nodes of this group
+      groupNodes.forEach((node, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+
+        let x = currentGroupStartX + col * hSpacing;
+        let y = currentGroupStartY + row * vSpacing;
+
+        if (snapToGrid) {
+          x = Math.round(x / 20) * 20;
+          y = Math.round(y / 20) * 20;
+        }
+
+        updatedNodesMap[node.id] = { x, y };
+      });
+
+      maxGroupHeightInRow = Math.max(maxGroupHeightInRow, groupHeight);
+      currentGroupStartX += groupWidth + groupSpacingX;
+    });
+
+    // Determine starting Y for ungrouped nodes
+    let ungroupedStartY = 50;
+    if (activeGroups.length > 0) {
+      ungroupedStartY = currentGroupStartY + maxGroupHeightInRow + 140;
+    }
+
+    // 2. Arrange Ungrouped Nodes
+    const ungroupedNodes = safeNodes
+      .filter(n => !n.groupId)
+      .sort((a, b) => {
+        const tA = safeTables.find(t => t.id === a.tableId);
+        const tB = safeTables.find(t => t.id === b.tableId);
+        return (tA ? tA.name : '').localeCompare(tB ? tB.name : '');
+      });
+
+    const ungroupedCols = 4; // Use 4 columns for ungrouped nodes for a clean overview
+    ungroupedNodes.forEach((node, index) => {
+      const col = index % ungroupedCols;
+      const row = Math.floor(index / ungroupedCols);
+
+      let x = 80 + col * 280;
+      let y = ungroupedStartY + row * 280;
+
+      if (snapToGrid) {
+        x = Math.round(x / 20) * 20;
+        y = Math.round(y / 20) * 20;
+      }
+
+      updatedNodesMap[node.id] = { x, y };
+    });
+
+    // Build the final array of updated nodes
+    const updatedNodes = safeNodes.map(n => {
+      if (updatedNodesMap[n.id]) {
+        return {
+          ...n,
+          x: updatedNodesMap[n.id].x,
+          y: updatedNodesMap[n.id].y
+        };
+      }
+      return n;
+    });
+
+    onUpdateNodes(updatedNodes);
+  };
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(2, Math.round(prev * 1.15 * 100) / 100));
@@ -154,15 +279,66 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const handleContainerMouseDown = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && isInteractive) {
-      setSelectedNodeIds([]);
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      if (canvasMode === 'pan' || e.altKey || e.button === 1) {
+        setSelectedNodeIds([]);
+        setIsPanning(true);
+        setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      } else {
+        setSelectedNodeIds([]);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        setSelectionBox({
+          startX: mouseX,
+          startY: mouseY,
+          currentX: mouseX,
+          currentY: mouseY
+        });
+      }
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isPanning) {
       setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+      return;
+    }
+    if (selectionBox) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const selLeft = Math.min(selectionBox.startX, mouseX);
+      const selRight = Math.max(selectionBox.startX, mouseX);
+      const selTop = Math.min(selectionBox.startY, mouseY);
+      const selBottom = Math.max(selectionBox.startY, mouseY);
+
+      const newlySelected: string[] = [];
+      safeNodes.forEach(node => {
+        const table = safeTables.find(t => t.id === node.tableId);
+        if (!table) return;
+
+        const nodeHeight = HEADER_HEIGHT + table.fields.length * FIELD_HEIGHT + (onRemoveNode ? FIELD_HEIGHT : 0);
+
+        const nodeLeft = node.x * scale + pan.x;
+        const nodeRight = (node.x + NODE_WIDTH) * scale + pan.x;
+        const nodeTop = node.y * scale + pan.y;
+        const nodeBottom = (node.y + nodeHeight) * scale + pan.y;
+
+        const overlapsX = nodeLeft < selRight && nodeRight > selLeft;
+        const overlapsY = nodeTop < selBottom && nodeBottom > selTop;
+
+        if (overlapsX && overlapsY) {
+          newlySelected.push(node.id);
+        }
+      });
+
+      setSelectedNodeIds(newlySelected);
+      setSelectionBox({
+        ...selectionBox,
+        currentX: mouseX,
+        currentY: mouseY
+      });
       return;
     }
     if (dragState) {
@@ -172,7 +348,13 @@ export const Canvas: React.FC<CanvasProps> = ({
       if (onUpdateNodes) {
         const updatedNodes = safeNodes.map(n => {
            if (dragState.nodeIds.includes(n.id)) {
-             return { ...n, x: dragState.initialPositions[n.id].x + dx, y: dragState.initialPositions[n.id].y + dy };
+             let newX = dragState.initialPositions[n.id].x + dx;
+             let newY = dragState.initialPositions[n.id].y + dy;
+             if (snapToGrid) {
+               newX = Math.round(newX / 20) * 20;
+               newY = Math.round(newY / 20) * 20;
+             }
+             return { ...n, x: newX, y: newY };
            }
            return n;
         });
@@ -180,7 +362,13 @@ export const Canvas: React.FC<CanvasProps> = ({
       } else if (onMoveNode) {
         // Fallback for single node dragging
         dragState.nodeIds.forEach(id => {
-          onMoveNode(id, dragState.initialPositions[id].x + dx, dragState.initialPositions[id].y + dy);
+          let newX = dragState.initialPositions[id].x + dx;
+          let newY = dragState.initialPositions[id].y + dy;
+          if (snapToGrid) {
+            newX = Math.round(newX / 20) * 20;
+            newY = Math.round(newY / 20) * 20;
+          }
+          onMoveNode(id, newX, newY);
         });
       }
     }
@@ -190,6 +378,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     setDragState(null);
     setConnectionStart(null);
     setIsPanning(false);
+    setSelectionBox(null);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -587,8 +776,54 @@ export const Canvas: React.FC<CanvasProps> = ({
         </div>
       )}
 
-      {/* Zoom Controls Overlay */}
-      <div className="absolute bottom-4 left-4 bg-white rounded shadow border border-slate-300 p-1 flex items-center gap-1 z-40 select-none">
+      {/* Canvas Controls & Zoom Toolbar */}
+      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border border-slate-300 p-1 flex items-center gap-1 z-40 select-none">
+        {/* Interaction Modes */}
+        <button 
+          onClick={() => setCanvasMode('select')}
+          className={`p-1.5 rounded transition-colors ${canvasMode === 'select' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+          title="Auswahl-Werkzeug (Ziehen zum Markieren mehrerer Tabellen)"
+        >
+          <MousePointer size={16} />
+        </button>
+        <button 
+          onClick={() => setCanvasMode('pan')}
+          className={`p-1.5 rounded transition-colors ${canvasMode === 'pan' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+          title="Hand-Werkzeug (Verschieben - oder Alt-Taste gedrückt halten)"
+        >
+          <Hand size={16} />
+        </button>
+
+        <div className="w-px h-5 bg-slate-300 mx-0.5"></div>
+
+        {/* Layout & Grid Tools */}
+        <button 
+          onClick={handleAutoArrange}
+          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors flex items-center gap-1 text-xs font-semibold"
+          title="Tabellen automatisch anordnen (Raster)"
+        >
+          <Grid3X3 size={16} className="text-slate-500" />
+          <span className="hidden sm:inline">Anordnen</span>
+        </button>
+        <button 
+          onClick={() => setSnapToGrid(!snapToGrid)}
+          className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-semibold ${snapToGrid ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-100'}`}
+          title="Raster-Snapping ein-/ausschalten"
+        >
+          <Grid size={16} />
+          <span className="hidden sm:inline">Raster</span>
+        </button>
+        <button 
+          onClick={handleAlignAllToGrid}
+          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"
+          title="Alle Tabellen am 20px-Raster ausrichten"
+        >
+          <Magnet size={16} className="text-slate-500" />
+        </button>
+
+        <div className="w-px h-5 bg-slate-300 mx-0.5"></div>
+
+        {/* Zoom Controls */}
         <button 
           onClick={handleZoomIn}
           className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"
@@ -612,6 +847,19 @@ export const Canvas: React.FC<CanvasProps> = ({
           <span>{Math.round(scale * 100)}%</span>
         </button>
       </div>
+
+      {/* Real-time selection box overlay */}
+      {selectionBox && (
+        <div 
+          className="absolute border border-blue-500 bg-blue-500/10 rounded pointer-events-none z-50 shadow-sm animate-pulse-subtle"
+          style={{
+            left: Math.min(selectionBox.startX, selectionBox.currentX),
+            top: Math.min(selectionBox.startY, selectionBox.currentY),
+            width: Math.abs(selectionBox.startX - selectionBox.currentX),
+            height: Math.abs(selectionBox.startY - selectionBox.currentY)
+          }}
+        />
+      )}
     </div>
   );
 };
