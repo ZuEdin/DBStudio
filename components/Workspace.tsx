@@ -82,8 +82,15 @@ export const Workspace: React.FC<WorkspaceProps> = ({
         setShowCommandPalette(p => !p);
       }
     };
+    const handleToggleEvent = () => {
+      setShowCommandPalette(p => !p);
+    };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('toggle-command-palette', handleToggleEvent);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('toggle-command-palette', handleToggleEvent);
+    };
   }, []);
 
   // Listen for backend export from Ribbon (hacky passing via window or props)
@@ -114,6 +121,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
          case 'navigation_designer': return 'Navigations-Designer';
          case 'scheduler': return 'Zeitplaner';
          case 'api_import': return 'API Import';
+         case 'live_sync': return 'Live Datenbank-Sync (Introspection)';
          default: return '';
       }
     }

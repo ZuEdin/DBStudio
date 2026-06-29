@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Ticket } from '../types/index';
+import { useProjectStore } from '../stores/useProjectStore';
 import { 
   Plus, CheckCircle2, Circle, Clock, Trash2, 
   User, ShieldAlert, Filter, Search, ArrowRight, CornerDownRight 
@@ -8,7 +9,7 @@ import {
 interface TicketBoardProps {
   tickets: Ticket[];
   allTicketsRaw: Ticket[];
-  onAddTicket: (title: string, description: string, priority: 'low' | 'medium' | 'high', assignedTo: string) => void;
+  onAddTicket: (title: string, description: string, priority: 'low' | 'medium' | 'high', assignedTo: string, linkedTableId?: string, linkedFieldId?: string) => void;
   onUpdateTicketStatus: (id: string, status: 'todo' | 'in_progress' | 'done') => void;
   onDeleteTicket: (id: string) => void;
   filterPriority: string;
@@ -37,6 +38,10 @@ export const TicketBoard: React.FC<TicketBoardProps> = ({
   const [newDesc, setNewDesc] = useState('');
   const [newPriority, setNewPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [newAssigned, setNewAssigned] = useState('u1'); // Defaults to 'Me'
+  const [newLinkedTableId, setNewLinkedTableId] = useState('');
+  const [newLinkedFieldId, setNewLinkedFieldId] = useState('');
+
+  const projectTables = useProjectStore(state => state.tables);
 
   // Drag and Drop State
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -44,10 +49,12 @@ export const TicketBoard: React.FC<TicketBoardProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    onAddTicket(newTitle.trim(), newDesc.trim(), newPriority, newAssigned);
+    onAddTicket(newTitle.trim(), newDesc.trim(), newPriority, newAssigned, newLinkedTableId || undefined, newLinkedFieldId || undefined);
     setNewTitle('');
     setNewDesc('');
     setNewPriority('medium');
+    setNewLinkedTableId('');
+    setNewLinkedFieldId('');
     setShowAddForm(false);
   };
 
@@ -90,6 +97,9 @@ export const TicketBoard: React.FC<TicketBoardProps> = ({
 
   // Render a single Ticket card
   const renderCard = (ticket: Ticket) => {
+    const linkedTable = ticket.linkedTableId ? projectTables.find(t => t.id === ticket.linkedTableId) : null;
+    const linkedField = ticket.linkedFieldId && linkedTable ? linkedTable.fields.find(f => f.id === ticket.linkedFieldId) : null;
+
     return (
       <div
         key={ticket.id}
@@ -118,6 +128,27 @@ export const TicketBoard: React.FC<TicketBoardProps> = ({
           <p className="text-[11px] text-slate-500 line-clamp-2 mb-2 leading-normal">
             {ticket.description}
           </p>
+        )}
+
+        {linkedTable && (
+          <div className="mt-1.5 mb-2 p-1 rounded bg-indigo-50/50 dark:bg-slate-800/40 border border-indigo-100/50 dark:border-slate-700/60 text-[10px] text-indigo-700 dark:text-indigo-400 flex items-center justify-between gap-1">
+            <span className="flex items-center gap-1 font-semibold truncate" title={`Verknüpft: ${linkedTable.name}${linkedField ? `.${linkedField.name}` : ''}`}>
+              <CornerDownRight size={10} className="text-indigo-400 shrink-0" />
+              <span className="truncate">🔗 {linkedTable.name}{linkedField ? `.${linkedField.name}` : ''}</span>
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('navigate-app-view', {
+                  detail: { type: 'table_edit', tableId: linkedTable.id }
+                }));
+              }}
+              className="text-[9px] bg-indigo-100 hover:bg-indigo-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-indigo-700 dark:text-indigo-300 px-1 py-0.5 rounded font-bold transition shrink-0"
+              title="Zur Tabelle springen"
+            >
+              Öffnen
+            </button>
+          </div>
         )}
 
         <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-100 pt-2 mt-2">
@@ -281,6 +312,40 @@ export const TicketBoard: React.FC<TicketBoardProps> = ({
                   <option value="u2">Sarah Lee (DB-Design)</option>
                   <option value="u3">Tom H. (Backend/API)</option>
                   <option value="all">Alle (All)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-200/50 pt-2">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 mb-0.5">🔗 Tabelle verknüpfen (optional)</label>
+                <select
+                  className="w-full bg-white border border-slate-300 rounded px-1.5 py-1 text-xs"
+                  value={newLinkedTableId}
+                  onChange={(e) => {
+                    setNewLinkedTableId(e.target.value);
+                    setNewLinkedFieldId('');
+                  }}
+                >
+                  <option value="">-- Keine Tabelle --</option>
+                  {projectTables.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 mb-0.5">🔗 Feld verknüpfen (optional)</label>
+                <select
+                  className="w-full bg-white border border-slate-300 rounded px-1.5 py-1 text-xs disabled:opacity-50"
+                  value={newLinkedFieldId}
+                  disabled={!newLinkedTableId}
+                  onChange={(e) => setNewLinkedFieldId(e.target.value)}
+                >
+                  <option value="">-- Gesamte Tabelle --</option>
+                  {newLinkedTableId && projectTables.find(t => t.id === newLinkedTableId)?.fields.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

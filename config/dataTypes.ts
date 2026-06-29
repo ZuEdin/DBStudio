@@ -24,6 +24,55 @@ export interface DataTypeDefinition {
 }
 
 export const DATA_TYPES: Record<string, DataTypeDefinition> = {
+  UUID: {
+    label: "ID / UUID / GUID",
+    mappings: {
+      csharp: { type: "Guid" },
+      sequelize: { type: () => "DataTypes.UUID" },
+      typescript: "string",
+      sql: { type: ({ dbType }) => {
+          if (dbType === 'PostgreSQL') return "UUID";
+          if (dbType === 'SQL Server') return "UNIQUEIDENTIFIER";
+          return "VARCHAR(36)";
+      }}
+    }
+  },
+  EMAIL: {
+    label: "E-Mail (Domain)",
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[EmailAddress]`, `[MaxLength(255)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(255)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(255)" }
+    }
+  },
+  PHONE: {
+    label: "Telefon (Domain)",
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[Phone]`, `[MaxLength(50)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(50)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(50)" }
+    }
+  },
+  URL: {
+    label: "URL / Webadresse",
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[Url]`, `[MaxLength(2048)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(2048)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(2048)" }
+    }
+  },
   ENUM: {
     label: "Auswahl (Enum)",
     mappings: {

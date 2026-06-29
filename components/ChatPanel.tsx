@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Chat, ChatMessage } from '../types/index';
-import { MessageSquare, Users, X, Send, ChevronLeft, MoreVertical, Circle, ClipboardList } from 'lucide-react';
+import { MessageSquare, Users, X, Send, ChevronLeft, MoreVertical, Circle, ClipboardList, Sparkles } from 'lucide-react';
 import { useTicketState } from '../hooks/useTicketState';
 import { TicketBoard } from './TicketBoard';
+import { AiSchemaAssistant } from './AiSchemaAssistant';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const activeChat = chats.find(c => c.id === activeChatId);
 
   const ticketState = useTicketState();
-  const [activeTab, setActiveTab] = useState<'chat' | 'tickets'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'tickets' | 'ai_assistant'>('chat');
 
   useEffect(() => {
     if (activeChatId) {
@@ -45,7 +46,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className={`flex flex-col fixed bottom-6 right-6 ${activeTab === 'chat' ? 'w-80' : 'w-[640px] md:w-[720px]'} h-[540px] bg-white border border-slate-300 shadow-2xl z-[9999] rounded-xl overflow-hidden shadow-black/20 transition-all duration-300`}>
+    <div className={`flex flex-col fixed bottom-6 right-6 ${
+      activeTab === 'chat' 
+        ? 'w-80' 
+        : activeTab === 'ai_assistant' 
+          ? 'w-[360px] md:w-[410px]' 
+          : 'w-[640px] md:w-[720px]'
+    } h-[540px] bg-white border border-slate-300 shadow-2xl z-[9999] rounded-xl overflow-hidden shadow-black/20 transition-all duration-300`}>
         
         {/* Header */}
         <div className="bg-slate-800 text-white p-3 flex justify-between items-center shrink-0 h-10">
@@ -55,10 +62,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <ChevronLeft size={18}/>
                     </button>
                 ) : (
-                    activeTab === 'chat' ? <MessageSquare size={18}/> : <ClipboardList size={18}/>
+                    activeTab === 'chat' ? <MessageSquare size={18}/> : activeTab === 'tickets' ? <ClipboardList size={18}/> : <Sparkles size={18} className="text-indigo-400 animate-pulse"/>
                 )}
                 <span className="font-bold text-sm truncate">
-                    {activeChat ? activeChat.name : (activeTab === 'chat' ? 'Team Chat' : 'Projekt-Tickets & Todos')}
+                    {activeChat ? activeChat.name : (activeTab === 'chat' ? 'Team Chat' : activeTab === 'tickets' ? 'Projekt-Tickets & Todos' : 'AI Schema Assistant')}
                 </span>
             </div>
             <button onClick={onClose} className="hover:bg-slate-700 p-1 rounded text-slate-300 hover:text-white">
@@ -73,18 +80,26 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <button 
                         type="button"
                         onClick={() => setActiveTab('chat')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'chat' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'chat' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                        <MessageSquare size={14} />
+                        <MessageSquare size={13} />
                         Team Chat
                     </button>
                     <button 
                         type="button"
-                        onClick={() => setActiveTab('tickets')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'tickets' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                        onClick={() => setActiveTab('ai_assistant')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'ai_assistant' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                        <ClipboardList size={14} />
-                        Tickets & Aufgaben
+                        <Sparkles size={13} className="text-indigo-500" />
+                        AI Assistant
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setActiveTab('tickets')}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'tickets' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                        <ClipboardList size={13} />
+                        Tickets
                     </button>
                 </div>
             )}
@@ -103,6 +118,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     searchQuery={ticketState.searchQuery}
                     setSearchQuery={ticketState.setSearchQuery}
                 />
+            ) : activeTab === 'ai_assistant' ? (
+                <AiSchemaAssistant />
             ) : !activeChatId ? (
                 // Chat List
                 <div className="flex-1 overflow-y-auto">

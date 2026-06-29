@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileSpreadsheet, Database, Globe, Share2, FileCode } from 'lucide-react';
+import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,7 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
       <RibbonGroup label="Cloud & APIs" isLast>
         <RibbonButton icon={<Globe className="text-blue-600" />} label="API Import" onClick={() => onAction('api_import')} />
         <RibbonButton icon={<Share2 className="text-teal-600" />} label="SharePoint" onClick={() => onAction('sharepoint_import')} />
+        <RibbonButton icon={<RefreshCw className="text-cyan-600" />} label="Live DB Sync" onClick={() => onAction('live_sync')} />
       </RibbonGroup>
     </div>
   );

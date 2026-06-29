@@ -6,7 +6,7 @@ export enum DbType {
   NoSQL = 'NoSQL'
 }
 
-export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP' | 'ENUM';
+export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP' | 'ENUM' | 'UUID' | 'EMAIL' | 'PHONE' | 'URL';
 
 export interface Field {
   id: string;
@@ -699,6 +699,7 @@ export type ViewType =
   | { type: 'backend_generator' }
   | { type: 'navigation_designer' }
   | { type: 'api_import' }
+  | { type: 'live_sync' }
   | { type: 'theme_designer' }
   | { type: 'logic_designer' }
   | { type: 'tickets_board' }; 
@@ -714,6 +715,8 @@ export interface Ticket {
   createdBy: string;
   createdByName: string;
   createdAt: number;
+  linkedTableId?: string;
+  linkedFieldId?: string;
 }
 
 export const FIELD_HEIGHT = 28;

@@ -186,6 +186,7 @@ export const useAppController = () => {
         view.type === 'backend_generator' || 
         view.type === 'scheduler' || 
         view.type === 'api_import' || 
+        view.type === 'live_sync' || 
         view.type === 'app_info' ||
         view.type === 'tickets_board'
     ) {
@@ -273,19 +274,168 @@ export const useAppController = () => {
       return {success:true}; 
   };
 
-  // --- Keyboard Shortcut: STRG + S / CMD + S to Save Project ---
+  // --- Keyboard Shortcuts (Hotkeys) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Save (Ctrl + S / Cmd + S)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleSave();
+        return;
+      }
+
+      // Check if user is typing in an input field, textarea, or contentEditable element
+      const target = e.target as HTMLElement;
+      const isInput = target && (
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.isContentEditable
+      );
+
+      // 2. Open Command Palette (handled globally via Ctrl + K in Workspace too, but let's make sure it's here)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        // Dispatched or handled locally. We can dispatch a custom event
+        window.dispatchEvent(new CustomEvent('toggle-command-palette'));
+        return;
+      }
+
+      // If user is typing in an input, do not trigger editing/deletion/search shortcuts
+      if (isInput) return;
+
+      // 3. Duplicate active table or object (Ctrl+Shift+D or Alt+D)
+      if (activeObject && (e.altKey && e.key.toLowerCase() === 'd' || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd'))) {
+        e.preventDefault();
+        let type: 'table' | 'query' | 'form' | 'report' | 'chart' | 'workflow' | 'page' | null = null;
+        if ('fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
+            type = 'table';
+        } else if ('nodes' in activeObject && 'columns' in activeObject) {
+            type = 'query';
+        } else if ('layout' in activeObject) {
+            type = 'form';
+        } else if ('summaries' in activeObject) {
+            type = 'report';
+        } else if ('config' in activeObject) {
+            type = 'chart';
+        } else if ('nodes' in activeObject) {
+            type = 'workflow';
+        }
+
+        if (type) {
+          const newId = crypto.randomUUID();
+          const name = `${activeObject.name}_Kopie`;
+          if (type === 'table') {
+              store.setTables([...store.tables, { ...activeObject as Table, id: newId, name }]);
+          } else if (type === 'query') {
+              store.setQueries([...store.queries, { ...activeObject as Query, id: newId, name }]);
+          } else if (type === 'form') {
+              store.setForms([...store.forms, { ...activeObject as Form, id: newId, name }]);
+          } else if (type === 'report') {
+              store.setReports([...store.reports, { ...activeObject as Report, id: newId, name }]);
+          } else if (type === 'chart') {
+              store.setCharts([...(store.charts || []), { ...activeObject as Chart, id: newId, name }]);
+          } else if (type === 'workflow') {
+              store.setWorkflows([...store.workflows, { ...activeObject as Workflow, id: newId, name }]);
+          }
+          ui.addToast(`Tabelle/Objekt "${activeObject.name}" wurde dupliziert als "${name}".`, 'success');
+        }
+        return;
+      }
+
+      // 4. Delete active table or object (Alt + Delete / Ctrl + Backspace or Delete key directly)
+      if (activeObject && (e.key === 'Delete' || (e.altKey && e.key === 'Backspace'))) {
+        e.preventDefault();
+        let type: 'table' | 'query' | 'form' | 'report' | 'chart' | 'workflow' | 'page' | null = null;
+        if ('fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
+            type = 'table';
+        } else if ('nodes' in activeObject && 'columns' in activeObject) {
+            type = 'query';
+        } else if ('layout' in activeObject) {
+            type = 'form';
+        } else if ('summaries' in activeObject) {
+            type = 'report';
+        } else if ('config' in activeObject) {
+            type = 'chart';
+        } else if ('nodes' in activeObject) {
+            type = 'workflow';
+        }
+
+        if (type) {
+          const isUsedInRelationship = type === 'table' && store.relationships.some(rel => rel.fromTableId === activeObject.id || rel.toTableId === activeObject.id);
+          const baseMessage = `Möchten Sie das aktive Objekt "${activeObject.name}" wirklich löschen?`;
+          const message = isUsedInRelationship 
+              ? `Die Tabelle "${activeObject.name}" wird in einer oder mehreren Beziehungen verwendet. Wenn Sie sie löschen, werden diese Beziehungen gelöscht. Fortfahren?`
+              : baseMessage;
+          ui.setConfirmationModal({
+              title: `${type === 'table' ? 'Tabelle' : 'Objekt'} löschen`,
+              message,
+              onConfirm: () => {
+                  const id = activeObject.id;
+                  if (type === 'table') {
+                      store.setTables(store.tables.filter(t => t.id !== id));
+                      store.setRelationships(store.relationships.filter(rel => rel.fromTableId !== id && rel.toTableId !== id));
+                  }
+                  if (type === 'query') store.setQueries(store.queries.filter(q => q.id !== id));
+                  if (type === 'form') store.setForms(store.forms.filter(f => f.id !== id));
+                  if (type === 'report') store.setReports(store.reports.filter(r => r.id !== id));
+                  if (type === 'workflow') store.setWorkflows(store.workflows.filter(w => w.id !== id));
+                  
+                  setActiveObject(null);
+                  setCurrentView({ type: 'welcome' });
+                  ui.addToast("Gelöscht.", 'warning');
+              }
+          });
+        }
+        return;
+      }
+
+      // 5. Search / Filter Toggle (Ctrl + F / Alt + F)
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('toggle-table-filters'));
+        ui.addToast("Suchen & Ersetzen / Filterleiste geöffnet.", 'info');
+        return;
+      }
+
+      // 6. New Table (Alt + N)
+      if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        const newTableName = prompt("Name der neuen Tabelle:", "NeueTabelle");
+        if (newTableName) {
+          const newId = crypto.randomUUID();
+          store.addTable({
+              id: newId,
+              name: newTableName,
+              description: '',
+              fields: [
+                { id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }
+              ]
+          });
+          handleSetView({ type: 'table_edit', tableId: newId });
+          ui.addToast(`Tabelle "${newTableName}" erstellt und geöffnet.`, 'success');
+        }
+        return;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeObject, isDirty]);
+  }, [activeObject, isDirty, store.tables, store.queries, store.forms, store.reports, store.workflows, store.relationships]);
+
+  // --- Listen to App Deep Navigation Events (e.g. from Linked Tickets) ---
+  useEffect(() => {
+    const handleNavigate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        handleSetView(customEvent.detail);
+      }
+    };
+    window.addEventListener('navigate-app-view', handleNavigate);
+    return () => {
+      window.removeEventListener('navigate-app-view', handleNavigate);
+    };
+  }, [isDirty, activeObject]);
 
   const handleContextMenuAction = (action: 'view' | 'view_data' | 'export' | 'rename' | 'duplicate' | 'delete') => {
       if (!ui.itemContextMenu) return;
@@ -700,6 +850,7 @@ export const useAppController = () => {
 
         case 'relationships': handleSetView({ type: 'relationships' }); break;
         case 'api_import': handleSetView({ type: 'api_import' }); break;
+        case 'live_sync': handleSetView({ type: 'live_sync' }); break;
         case 'sharepoint_import': ui.setShowSharePointWizard(true); break;
         
         case 'import_excel': ui.setShowExcelWizard(true); break;

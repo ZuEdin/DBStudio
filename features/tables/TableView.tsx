@@ -79,6 +79,16 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
       }
   }, [table.id]);
 
+  useEffect(() => {
+    const handleToggleFilters = () => {
+      setShowFilters(prev => !prev);
+    };
+    window.addEventListener('toggle-table-filters', handleToggleFilters);
+    return () => {
+      window.removeEventListener('toggle-table-filters', handleToggleFilters);
+    };
+  }, [setShowFilters]);
+
   const updateParamValue = (id: string, newVal: string) => {
       if (!table.apiConfig || !table.apiConfig.queryParams) return;
       const newParams = table.apiConfig.queryParams.map(p => p.id === id ? { ...p, value: newVal } : p);

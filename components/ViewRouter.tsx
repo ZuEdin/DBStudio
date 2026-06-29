@@ -15,6 +15,7 @@ import { FormView } from '../features/forms/FormView';
 import { FormDesignerView } from '../features/forms/FormDesignerView';
 import { BackendView } from '../features/backend/BackendView';
 import { ApiImportView } from '../features/tools/ApiImportView';
+import { LiveDatabaseSyncView } from '../features/tools/LiveDatabaseSyncView';
 import { ChartView } from '../features/charts/ChartView';
 import { WorkflowDesigner } from '../features/workflows/WorkflowDesigner';
 import { SchedulerView } from '../features/scheduler/SchedulerView'; 
@@ -295,6 +296,13 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 showMessage={showMessage} 
                 backendConfig={backendConfig}
                 onUpdateConfig={onUpdateBackendConfig}
+            />
+        );
+      case 'live_sync':
+        return (
+            <LiveDatabaseSyncView 
+                onSaveTable={(t) => saveTable(t, 'create')} 
+                showMessage={showMessage} 
             />
         );
       case 'navigation_designer':

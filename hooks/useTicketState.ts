@@ -25,7 +25,7 @@ export const useTicketState = () => {
     }
   };
 
-  const addTicket = async (title: string, description: string, priority: 'low' | 'medium' | 'high', assignedTo: string) => {
+  const addTicket = async (title: string, description: string, priority: 'low' | 'medium' | 'high', assignedTo: string, linkedTableId?: string, linkedFieldId?: string) => {
     let assignedToName = 'All';
     if (assignedTo === 'u1') assignedToName = 'Me';
     else if (assignedTo === 'u2') assignedToName = 'Sarah Lee';
@@ -41,7 +41,9 @@ export const useTicketState = () => {
       assignedToName,
       createdBy: 'u1',
       createdByName: 'Me',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      linkedTableId,
+      linkedFieldId
     };
 
     const updated = [newTicket, ...tickets];
