@@ -1,9 +1,38 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ToastInfo } from '../components/Toast';
 import { TableNode, MessageModalConfig } from '../types/index';
 
 export const useUIState = () => {
+  // Dark Mode
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('editor-theme');
+      if (stored) return stored === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  const toggleDarkMode = () => {
+    setDarkMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('editor-theme', next ? 'dark' : 'light');
+      } catch (e) {}
+      return next;
+    });
+  };
+
   // Layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRibbonOpen, setIsRibbonOpen] = useState(true);
@@ -95,6 +124,7 @@ export const useUIState = () => {
       showIntegrationsModal, setShowIntegrationsModal,
       showDeploymentModal, setShowDeploymentModal,
       
-      activeWizard, setActiveWizard
+      activeWizard, setActiveWizard,
+      darkMode, toggleDarkMode
   };
 };

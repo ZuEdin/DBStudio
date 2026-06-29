@@ -23,13 +23,15 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden text-sm bg-slate-100 font-sans">
+    <div className="flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300">
       <AppHeader 
         projectName={db.currentProjectName} 
         backendConfig={app.backendConfig} 
         onExport={db.exportProject} 
         onToggleChat={() => app.setIsChatOpen(!app.isChatOpen)}
         isChatOpen={app.isChatOpen}
+        darkMode={app.darkMode}
+        onToggleDarkMode={app.toggleDarkMode}
       />
       
       <Ribbon 

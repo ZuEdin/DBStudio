@@ -30,13 +30,15 @@ interface ProjectStore extends ProjectData {
     setBackendConfig: (config: BackendConfig) => void;
     setLayout: (layout: TableNode[]) => void; // New
     setTableGroups: (groups: TableGroup[]) => void;
+    setTickets: (tickets: any[]) => void;
+    setChats: (chats: any[]) => void;
     snapshot: () => void;
     saveProject: () => Promise<void>; 
     executeQuery: (query: Query) => Record<string, any>[];
 }
 
 const initialData: ProjectData = {
-    tables: [], queries: [], reports: [], forms: [], charts: [], pages: [], workflows: [], relationships: [], layout: [], tableGroups: [],
+    tables: [], queries: [], reports: [], forms: [], charts: [], pages: [], workflows: [], relationships: [], layout: [], tableGroups: [], tickets: [], chats: [],
     backendConfig: { 
         language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, 
         dbConnection: '', useSwagger: true, frontendFramework: 'react', stylingFramework: 'tailwind'
@@ -383,6 +385,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setWorkflows: (workflows) => { get().pushHistory(); set({ workflows }); },
     setRelationships: (relationships) => { get().pushHistory(); set({ relationships }); },
     
+    setTickets: (tickets) => { set({ tickets }); },
+    setChats: (chats) => { set({ chats }); },
+    
     setLayout: (layout) => { set({ layout }); }, 
     setTableGroups: (tableGroups) => { get().pushHistory(); set({ tableGroups }); },
     
@@ -413,7 +418,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 layout: state.layout, 
                 tableGroups: state.tableGroups,
                 backendConfig: state.backendConfig,
-                lastSnapshot: state.lastSnapshot
+                lastSnapshot: state.lastSnapshot,
+                tickets: state.tickets,
+                chats: state.chats
             }
         };
         await saveProjectToStorage(project);

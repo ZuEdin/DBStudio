@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.5.0",
     "@google/genai": "^1.33.0",
     "@monaco-editor/react": "^4.6.0",
     "@xyflow/react": "^12.11.0",

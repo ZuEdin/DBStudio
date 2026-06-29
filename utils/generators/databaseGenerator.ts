@@ -2,6 +2,7 @@
 import { Table, Relationship, BackendConfig, VirtualFile, DbType, Query, SelectQuery } from '../../types/index';
 import { resolveType, quoteIdentifier, toPascalCase } from './common';
 import { generateSqlSelect } from '../sqlHelper';
+import { generatePrismaSchema, generateDrizzleSchema, generateTypeOrmEntities } from './ormGenerator';
 
 export const generateDatabaseScripts = (tables: Table[], relationships: Relationship[], config: BackendConfig, queries: Query[] = []): VirtualFile[] => {
     const root = `Backend/${config.projectName}/database`;
@@ -184,6 +185,23 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
         });
 
         files.push({ name: 'schema.sql', path: `${root}/schema.sql`, content: sql, language: 'sql' });
+        
+        // 5. Extended ORM Exports (Prisma, Drizzle, TypeORM)
+        try {
+            // Prisma Schema
+            const prismaCode = generatePrismaSchema(processingTables, relationships, config);
+            files.push({ name: 'schema.prisma', path: `${root}/orm/prisma/schema.prisma`, content: prismaCode, language: 'graphql' });
+
+            // Drizzle Schema
+            const drizzleCode = generateDrizzleSchema(processingTables, relationships, config);
+            files.push({ name: 'schema.ts', path: `${root}/orm/drizzle/schema.ts`, content: drizzleCode, language: 'typescript' });
+
+            // TypeORM Entities
+            const typeOrmFiles = generateTypeOrmEntities(processingTables, relationships, config);
+            files.push(...typeOrmFiles);
+        } catch (ormError) {
+            console.error("Error generating ORM schemas:", ormError);
+        }
     }
 
     return files;

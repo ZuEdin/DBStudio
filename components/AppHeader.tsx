@@ -5,7 +5,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { CollaborationBar } from './CollaborationBar';
 import { cloudService } from '../services/cloudService';
-import { Cloud, GitBranch, MessageSquare } from 'lucide-react';
+import { Cloud, GitBranch, MessageSquare, Sun, Moon } from 'lucide-react';
 
 interface AppHeaderProps {
   projectName: string;
@@ -13,9 +13,19 @@ interface AppHeaderProps {
   onExport: (config: BackendConfig) => void;
   onToggleChat: () => void; // New prop
   isChatOpen: boolean; // New prop
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ projectName, backendConfig, onExport, onToggleChat, isChatOpen }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ 
+  projectName, 
+  backendConfig, 
+  onExport, 
+  onToggleChat, 
+  isChatOpen,
+  darkMode,
+  onToggleDarkMode
+}) => {
   const { t } = useTranslation();
   // Mock Data: In a real app, this would come from a Context/Store connected to Websockets
   const collaborators = cloudService.getCollaborators('mock-id');
@@ -37,7 +47,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ projectName, backendConfig
             <CollaborationBar collaborators={collaborators} />
             
             {/* Chat & Tickets Toggle */}
-            <div className="ml-2 mr-2">
+            <div className="ml-2 mr-1">
                 <button 
                     onClick={onToggleChat}
                     className={`p-1.5 rounded transition-colors flex items-center gap-1.5 ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
@@ -48,7 +58,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ projectName, backendConfig
                 </button>
             </div>
 
-            <div className="h-4 w-px bg-slate-600 mx-2"></div>
+            {/* Dark / Light Mode Toggle */}
+            <div className="mr-2">
+                <button 
+                    onClick={onToggleDarkMode}
+                    className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                >
+                    {darkMode ? <Sun size={16} className="text-yellow-400" /> : <Moon size={16} />}
+                </button>
+            </div>
+
+            <div className="h-4 w-px bg-slate-600 mx-1"></div>
             <LanguageSelector />
             <div className="h-4 w-px bg-slate-600 mx-2"></div>
             <button onClick={() => onExport(backendConfig)} className="hover:text-blue-300 font-medium">

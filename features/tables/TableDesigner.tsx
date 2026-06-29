@@ -4,6 +4,7 @@ import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo, 
 import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
+import { MockDataGeneratorModal } from './MockDataGeneratorModal';
 
 interface TableDesignerProps {
   table: Table;
@@ -20,6 +21,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
+  const [showMockData, setShowMockData] = useState(false);
   
   const { name: tableName, description: tableDescription, fields, validationRules = [] } = table;
   
@@ -277,11 +279,18 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                   </button>
               </div>
           </div>
-          {!isReadOnly && (
-            <button onClick={() => setShowAi(!showAi)} className={`flex items-center gap-1 px-3 py-1 rounded text-sm ${isLockedByMe ? 'bg-emerald-800 hover:bg-emerald-600' : 'bg-purple-600 hover:bg-purple-500'}`}>
-                <Wand2 size={14} /> AI-Entwurf
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isReadOnly && (
+              <button onClick={() => setShowMockData(true)} className="flex items-center gap-1 px-3 py-1 bg-sky-600 hover:bg-sky-500 rounded text-sm text-white">
+                  <Database size={14} /> Mock-Data
+              </button>
+            )}
+            {!isReadOnly && (
+              <button onClick={() => setShowAi(!showAi)} className={`flex items-center gap-1 px-3 py-1 rounded text-sm text-white ${isLockedByMe ? 'bg-emerald-800 hover:bg-emerald-600' : 'bg-purple-600 hover:bg-purple-500'}`}>
+                  <Wand2 size={14} /> AI-Entwurf
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Lock Banner */}
@@ -755,6 +764,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
           )}
         </div>
       </div>
+      {showMockData && (
+          <MockDataGeneratorModal table={table} onClose={() => setShowMockData(false)} />
+      )}
     </div>
   );
 };

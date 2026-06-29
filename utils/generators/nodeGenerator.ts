@@ -1,6 +1,9 @@
 
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
 import { generateSequelizeModels } from './nodejs/models';
+import { generatePrismaSchema } from './nodejs/prisma';
+import { generateTypeOrmModels } from './nodejs/typeorm';
+import { generateDrizzleSchema } from './nodejs/drizzle';
 import { toCamelCase, toPascalCase } from './common';
 
 export const generateNodeJs = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
@@ -16,6 +19,8 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
   let dependencies = `
     "express": "^4.21.2",
     "sequelize": "^6.37.5",
+    "@prisma/client": "^5.10.0",
+    "prisma": "^5.10.0",
     "cors": "^2.8.5",
     "node-cron": "^3.0.3",
     "axios": "^1.7.9",
@@ -80,6 +85,10 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
   }
 
   files.push({ name: 'models.js', path: `${root}/models.js`, content: generateSequelizeModels(tables, relationships, config), language: 'javascript' });
+  
+  files.push({ name: 'schema.prisma', path: `${root}/prisma/schema.prisma`, content: generatePrismaSchema(tables, relationships, config.dbType), language: 'text' });
+  files.push({ name: 'entity.ts', path: `${root}/typeorm/entity.ts`, content: generateTypeOrmModels(tables, relationships, config.dbType), language: 'typescript' });
+  files.push({ name: 'schema.ts', path: `${root}/drizzle/schema.ts`, content: generateDrizzleSchema(tables, relationships, config.dbType), language: 'typescript' });
 
   // --- Scheduler ---
   const schedulerJs = `const cron = require('node-cron');

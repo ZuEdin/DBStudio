@@ -15,6 +15,7 @@ export interface Field {
   comment?: string;
   isPrimaryKey?: boolean;
   isAutoIncrement?: boolean;
+  isUnique?: boolean;
   allowNull?: boolean;
   defaultValue?: string;
   length?: number;
@@ -598,6 +599,8 @@ export interface ProjectData {
   tableGroups: TableGroup[];
   backendConfig: BackendConfig;
   lastSnapshot?: Table[];
+  tickets?: Ticket[];
+  chats?: ChatMessage[];
 }
 
 export interface GitConfig {
@@ -646,7 +649,7 @@ export interface ProjectTemplate {
 export interface VirtualFile {
   name: string;
   content: string;
-  language: 'csharp' | 'typescript' | 'javascript' | 'php' | 'json' | 'sql' | 'html' | 'css' | 'xml' | 'text' | 'markdown' | 'razor';
+  language: 'csharp' | 'typescript' | 'javascript' | 'php' | 'json' | 'sql' | 'html' | 'css' | 'xml' | 'text' | 'markdown' | 'razor' | 'python' | 'prisma' | 'yaml' | 'toml' | 'rust' | 'hcl' | 'bicep';
   path: string;
 }
 

@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Table, TableNode, Field, Relationship, HEADER_HEIGHT, FIELD_HEIGHT, NODE_WIDTH, TableGroup } from '../types/index';
-import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw, Group, AlignLeft, AlignLeft as AlignLeftIcon, GripVertical, MousePointer, Hand, Grid3X3, Grid, Magnet } from 'lucide-react';
+import { X, Globe, Table as TableIcon, Hash, ZoomIn, ZoomOut, RotateCcw, Group, AlignLeft, AlignLeft as AlignLeftIcon, GripVertical, MousePointer, Hand, Grid3X3, Grid, Magnet, Network } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 
 interface CanvasProps {
@@ -39,6 +39,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   const [dragState, setDragState] = useState<DragState>(null);
   const [connectionStart, setConnectionStart] = useState<{ tableId: string, fieldId: string, nodeId: string } | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [hoveredRelId, setHoveredRelId] = useState<string | null>(null);
   
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -170,6 +171,79 @@ export const Canvas: React.FC<CanvasProps> = ({
       return n;
     });
 
+    onUpdateNodes(updatedNodes);
+  };
+
+  const handlePhysicsLayout = () => {
+    if (!onUpdateNodes) return;
+    
+    // Create a working copy for simulation
+    const simNodes = safeNodes.map(n => ({ ...n, vx: 0, vy: 0 }));
+    const iterations = 150;
+    const repulsion = 800000; // Strong repulsion
+    const attraction = 0.05;
+    const damping = 0.7;
+    const optimalDist = 350;
+    
+    for (let i = 0; i < iterations; i++) {
+        // Repulsion
+        for (let j = 0; j < simNodes.length; j++) {
+            for (let k = j + 1; k < simNodes.length; k++) {
+                const dx = simNodes[j].x - simNodes[k].x;
+                const dy = simNodes[j].y - simNodes[k].y;
+                const distSq = dx * dx + dy * dy || 1;
+                const dist = Math.sqrt(distSq);
+                const force = repulsion / distSq;
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                simNodes[j].vx += fx;
+                simNodes[j].vy += fy;
+                simNodes[k].vx -= fx;
+                simNodes[k].vy -= fy;
+            }
+        }
+        
+        // Attraction (Relationships)
+        safeRelationships.forEach(rel => {
+            const sourceNode = simNodes.find(n => n.tableId === rel.fromTableId);
+            const targetNode = simNodes.find(n => n.tableId === rel.toTableId);
+            if (sourceNode && targetNode && sourceNode !== targetNode) {
+                const dx = targetNode.x - sourceNode.x;
+                const dy = targetNode.y - sourceNode.y;
+                const dist = Math.sqrt(dx * dx + dy * dy || 1);
+                const force = (dist - optimalDist) * attraction;
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                sourceNode.vx += fx;
+                sourceNode.vy += fy;
+                targetNode.vx -= fx;
+                targetNode.vy -= fy;
+            }
+        });
+        
+        // Update positions
+        simNodes.forEach(n => {
+            n.vx *= damping;
+            n.vy *= damping;
+            n.x += n.vx;
+            n.y += n.vy;
+        });
+    }
+    
+    // Normalize to keep them positive and snapped
+    const minX = Math.min(...simNodes.map(n => n.x));
+    const minY = Math.min(...simNodes.map(n => n.y));
+    
+    const updatedNodes = simNodes.map(n => {
+        let finalX = n.x - minX + 80;
+        let finalY = n.y - minY + 80;
+        if (snapToGrid) {
+            finalX = Math.round(finalX / 20) * 20;
+            finalY = Math.round(finalY / 20) * 20;
+        }
+        return { ...n, x: finalX, y: finalY };
+    });
+    
     onUpdateNodes(updatedNodes);
   };
 
@@ -617,25 +691,30 @@ export const Canvas: React.FC<CanvasProps> = ({
 
               const d = `M ${start.x} ${start.y} C ${cx1} ${start.y}, ${cx2} ${bezierEnd.y}, ${bezierEnd.x} ${bezierEnd.y}`;
               const labelTo = rel.type === '1:1' ? '1' : '∞';
+              
+              const titleText = `${fromTable.name}.${fromField.name} ${rel.type === '1:1' ? '-' : '->'} ${toTable.name}.${toField.name}`;
 
               return (
                 <g 
                   key={rel.id} 
                   className="pointer-events-auto"
                   onContextMenu={(e) => onRelationshipContextMenu && onRelationshipContextMenu(e, rel.id)}
+                  onMouseEnter={() => setHoveredRelId(rel.id)}
+                  onMouseLeave={() => setHoveredRelId(null)}
                 >
+                  <title>{titleText}</title>
                   {/* Invisible wide path for easier clicking */}
-                  <path d={d} stroke="transparent" strokeWidth="12" fill="none" className="cursor-pointer hover:stroke-slate-200/50" />
+                  <path d={d} stroke="transparent" strokeWidth="16" fill="none" className="cursor-pointer" />
                   {/* Visible path */}
-                  <path d={d} stroke="#64748b" strokeWidth="2" fill="none" markerEnd="url(#arrowhead)" className="pointer-events-none" strokeDasharray={rel.referentialIntegrity === false ? '4 2' : 'none'}/>
+                  <path d={d} stroke={hoveredRelId === rel.id ? '#3b82f6' : '#64748b'} strokeWidth={hoveredRelId === rel.id ? "3" : "2"} fill="none" markerEnd="url(#arrowhead)" className="pointer-events-none transition-all duration-200" strokeDasharray={rel.referentialIntegrity === false ? '4 2' : 'none'}/>
                   
                   {/* Connection Dots (Circles) */}
-                  <circle cx={start.x} cy={start.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
-                  <circle cx={bezierEnd.x} cy={bezierEnd.y} r="4" fill="#64748b" className="pointer-events-none" stroke="white" strokeWidth="1" />
+                  <circle cx={start.x} cy={start.y} r={hoveredRelId === rel.id ? "5" : "4"} fill={hoveredRelId === rel.id ? '#3b82f6' : '#64748b'} className="pointer-events-none transition-all duration-200" stroke="white" strokeWidth="1" />
+                  <circle cx={bezierEnd.x} cy={bezierEnd.y} r={hoveredRelId === rel.id ? "5" : "4"} fill={hoveredRelId === rel.id ? '#3b82f6' : '#64748b'} className="pointer-events-none transition-all duration-200" stroke="white" strokeWidth="1" />
 
                    {/* Labels - positioned slightly above the line */}
-                  <text x={fromIsLeft ? start.x + 8 : start.x - 15} y={start.y - 6} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">1</text>
-                  <text x={fromIsLeft ? end.x - 18 : end.x + 10} y={end.y - 6} className="fill-slate-600 font-mono text-xs font-bold pointer-events-none select-none">{labelTo}</text>
+                  <text x={fromIsLeft ? start.x + 8 : start.x - 15} y={start.y - 6} className={`font-mono text-xs font-bold pointer-events-none select-none transition-colors ${hoveredRelId === rel.id ? 'fill-blue-600' : 'fill-slate-600'}`}>1</text>
+                  <text x={fromIsLeft ? end.x - 18 : end.x + 10} y={end.y - 6} className={`font-mono text-xs font-bold pointer-events-none select-none transition-colors ${hoveredRelId === rel.id ? 'fill-blue-600' : 'fill-slate-600'}`}>{labelTo}</text>
                 </g>
               );
             })}
@@ -649,7 +728,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           return (
             <div
               key={node.id}
-              className={`absolute bg-white border border-slate-400 rounded-sm select-none transition-shadow ${selectedNodeIds.includes(node.id) ? 'z-30 shadow-xl border-blue-500' : 'z-20 shadow-md'}`}
+              className={`absolute bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-800 rounded-sm select-none transition-shadow transition-colors duration-300 ${selectedNodeIds.includes(node.id) ? 'z-30 shadow-xl border-blue-500 dark:border-blue-500' : 'z-20 shadow-md'}`}
               style={{ 
                 left: node.x, 
                 top: node.y, 
@@ -663,7 +742,7 @@ export const Canvas: React.FC<CanvasProps> = ({
               }}
             >
               <div 
-                className="node-header h-10 bg-gradient-to-b from-slate-100 to-slate-200 border-b border-slate-300 px-2 flex items-center justify-between cursor-move"
+                className="node-header h-10 bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 border-b border-slate-300 dark:border-slate-800 px-2 flex items-center justify-between cursor-move"
                 onDoubleClick={() => onNodeDoubleClick && onNodeDoubleClick(table.id)}
               >
                 <div className="flex items-center gap-2 truncate">
@@ -677,7 +756,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                             <TableIcon size={14} />
                         </span>
                     )}
-                    <span className="font-bold text-xs truncate text-slate-700" title={table.name}>{table.name}</span>
+                    <span className="font-bold text-xs truncate text-slate-700 dark:text-slate-200" title={table.name}>{table.name}</span>
                 </div>
                 {onRemoveNode && (
                   <button onClick={() => onRemoveNode(node.id)} className="text-slate-400 hover:text-red-500">
@@ -685,10 +764,10 @@ export const Canvas: React.FC<CanvasProps> = ({
                   </button>
                 )}
               </div>
-              <div className="text-xs text-slate-800">
+              <div className="text-xs text-slate-800 dark:text-slate-200">
                 {onRemoveNode && ( // Show '*' only in query designer
                   <div 
-                    className="h-7 px-2 flex items-center font-bold hover:bg-sky-50 cursor-grab"
+                    className="h-7 px-2 flex items-center font-bold hover:bg-sky-50 dark:hover:bg-slate-800/50 cursor-grab"
                     draggable
                     onDragStart={(e) => handleFieldDragStart(e, table.id, '*')}
                   >
@@ -697,10 +776,11 @@ export const Canvas: React.FC<CanvasProps> = ({
                 )}
                 {table.fields.map(field => {
                   const isForeignKey = safeRelationships.some(r => r.toTableId === table.id && r.toFieldId === field.id);
+                  const isHovered = hoveredRelId && safeRelationships.some(r => r.id === hoveredRelId && (r.fromFieldId === field.id || r.toFieldId === field.id));
                   return (
                     <div 
                       key={field.id} 
-                      className={`h-7 px-2 flex items-center justify-between hover:bg-sky-50 ${connectionStart?.fieldId === field.id && connectionStart.tableId === table.id ? 'bg-sky-100' : ''} ${onRemoveNode ? 'cursor-grab' : ''}`}
+                      className={`h-7 px-2 flex items-center justify-between hover:bg-sky-50 dark:hover:bg-slate-800/50 ${isHovered ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-900 dark:text-blue-200 font-bold' : ''} ${connectionStart?.fieldId === field.id && connectionStart.tableId === table.id ? 'bg-sky-100 dark:bg-sky-950/50' : ''} ${onRemoveNode ? 'cursor-grab' : ''}`}
                       onMouseDown={(e) => handleFieldMouseDown(e, table.id, field.id, node.id)}
                       onMouseUp={(e) => handleFieldMouseUp(e, table.id, field.id)}
                       draggable={!!onRemoveNode}
@@ -715,7 +795,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                           <span className="text-[9px] text-slate-400 uppercase">{field.type.substring(0,3)}</span>
                           {/* Auto Increment Indicator */}
                           {field.isAutoIncrement && (
-                              <span className="text-[8px] bg-slate-200 text-slate-600 px-1 rounded flex items-center" title="Auto Increment">
+                              <span className="text-[8px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1 rounded flex items-center" title="Auto Increment">
                                   AI
                               </span>
                           )}
@@ -727,87 +807,156 @@ export const Canvas: React.FC<CanvasProps> = ({
             </div>
           );
         })}
+
+        {hoveredRelId && (() => {
+          const rel = safeRelationships.find(r => r.id === hoveredRelId);
+          if (!rel) return null;
+          
+          const fromNode = safeNodes.find(n => n.tableId === rel.fromTableId);
+          const toNode = safeNodes.find(n => n.tableId === rel.toTableId);
+          const fromTable = safeTables.find(t => t.id === rel.fromTableId);
+          const toTable = safeTables.find(t => t.id === rel.toTableId);
+          
+          if (!fromNode || !toNode || !fromTable || !toTable) return null;
+          
+          const fromField = fromTable.fields.find(f => f.id === rel.fromFieldId);
+          const toField = toTable.fields.find(f => f.id === rel.toFieldId);
+          if (!fromField || !toField) return null;
+
+          const fromIsLeft = fromNode.x < toNode.x;
+          const startSide = fromIsLeft ? 'right' : 'left';
+          const endSide = fromIsLeft ? 'left' : 'right';
+
+          let start = getFieldPos(fromNode, fromTable, rel.fromFieldId, startSide);
+          let end = getFieldPos(toNode, toTable, rel.toFieldId, endSide);
+          
+          const midX = (start.x + end.x) / 2;
+          const midY = (start.y + end.y) / 2;
+
+          return (
+            <div 
+              className="absolute bg-slate-900/95 dark:bg-slate-950/95 text-white p-3 rounded-lg border border-blue-500 shadow-2xl z-50 pointer-events-none backdrop-blur-sm max-w-xs transition-all duration-200"
+              style={{ 
+                left: midX - 120, 
+                top: midY - 60,
+                width: 240,
+              }}
+            >
+              <div className="text-[10px] uppercase tracking-wider font-bold text-blue-400 border-b border-slate-700/50 pb-1 mb-1.5 flex justify-between items-center">
+                <span>Beziehung ({rel.type})</span>
+                {rel.referentialIntegrity !== false && (
+                  <span className="bg-emerald-500/20 text-emerald-400 px-1 py-0.5 rounded text-[8px]">FK Constraint</span>
+                )}
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-slate-300 font-medium truncate">{fromTable.name}</span>
+                  <span className="text-slate-500">→</span>
+                  <span className="text-slate-300 font-medium truncate">{toTable.name}</span>
+                </div>
+                <div className="flex items-center justify-between gap-1 font-mono text-[10px] bg-slate-800 p-1 rounded border border-slate-700/30">
+                  <span className="text-orange-400 truncate font-semibold">{fromField.name} {fromField.isPrimaryKey ? '🔑' : ''}</span>
+                  <span className="text-slate-500">==</span>
+                  <span className="text-blue-400 truncate font-semibold">{toField.name} {toField.isPrimaryKey ? '🔑' : '🔗'}</span>
+                </div>
+                {rel.comment && (
+                  <p className="text-[10px] italic text-slate-400 mt-1.5 border-t border-slate-700/50 pt-1 leading-normal">
+                    {rel.comment}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
       
       {/* Multi-Selection Toolbar */}
       {selectedNodeIds.length > 1 && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg border border-slate-300 p-1 flex items-center gap-1 z-50">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-50 transition-colors">
           <button 
             onClick={handleGroupSelected}
-            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors"
             title="Zu einer Gruppe zusammenfassen"
           >
-            <Group size={16} className="text-slate-500" />
+            <Group size={16} className="text-slate-500 dark:text-slate-400" />
             <span>Gruppieren</span>
           </button>
           
-          <div className="w-px h-5 bg-slate-300 mx-1"></div>
+          <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
           
           <button 
             onClick={handleUngroupSelected}
-            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors"
             title="Gruppierung aufheben"
           >
-            <Group size={16} className="text-slate-500 opacity-50" />
+            <Group size={16} className="text-slate-500 dark:text-slate-400 opacity-50" />
             <span>Aufheben</span>
           </button>
 
-          <div className="w-px h-5 bg-slate-300 mx-1"></div>
+          <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
 
           <button 
             onClick={handleAlignTop}
-            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors"
             title="An der höchsten Tabelle ausrichten"
           >
-            <AlignLeftIcon size={16} className="text-slate-500 rotate-90" />
+            <AlignLeftIcon size={16} className="text-slate-500 dark:text-slate-400 rotate-90" />
             <span>Oben ausrichten</span>
           </button>
           
-          <div className="w-px h-5 bg-slate-300 mx-1"></div>
+          <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
 
           <button 
             onClick={handleAlignLeft}
-            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 rounded text-slate-700 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors"
             title="Am weitesten links stehenden Tabelle ausrichten"
           >
-            <AlignLeftIcon size={16} className="text-slate-500" />
+            <AlignLeftIcon size={16} className="text-slate-500 dark:text-slate-400" />
             <span>Links ausrichten</span>
           </button>
         </div>
       )}
 
       {/* Canvas Controls & Zoom Toolbar */}
-      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border border-slate-300 p-1 flex items-center gap-1 z-40 select-none">
+      <div className="absolute bottom-4 left-4 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-40 select-none transition-colors">
         {/* Interaction Modes */}
         <button 
           onClick={() => setCanvasMode('select')}
-          className={`p-1.5 rounded transition-colors ${canvasMode === 'select' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+          className={`p-1.5 rounded transition-colors ${canvasMode === 'select' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
           title="Auswahl-Werkzeug (Ziehen zum Markieren mehrerer Tabellen)"
         >
           <MousePointer size={16} />
         </button>
         <button 
           onClick={() => setCanvasMode('pan')}
-          className={`p-1.5 rounded transition-colors ${canvasMode === 'pan' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+          className={`p-1.5 rounded transition-colors ${canvasMode === 'pan' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
           title="Hand-Werkzeug (Verschieben - oder Alt-Taste gedrückt halten)"
         >
           <Hand size={16} />
         </button>
 
-        <div className="w-px h-5 bg-slate-300 mx-0.5"></div>
+        <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-0.5"></div>
 
         {/* Layout & Grid Tools */}
         <button 
+          onClick={handlePhysicsLayout}
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 active:bg-slate-200 dark:active:bg-slate-700 transition-colors flex items-center gap-1 text-xs font-semibold"
+          title="Smart Auto-Layout (Physik-basiert)"
+        >
+          <Network size={16} className="text-slate-500 dark:text-slate-400" />
+          <span className="hidden sm:inline">Smart Layout</span>
+        </button>
+        <button 
           onClick={handleAutoArrange}
-          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors flex items-center gap-1 text-xs font-semibold"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 active:bg-slate-200 dark:active:bg-slate-700 transition-colors flex items-center gap-1 text-xs font-semibold"
           title="Tabellen automatisch anordnen (Raster)"
         >
           <Grid3X3 size={16} className="text-slate-500" />
-          <span className="hidden sm:inline">Anordnen</span>
+          <span className="hidden sm:inline">Raster-Layout</span>
         </button>
         <button 
           onClick={() => setSnapToGrid(!snapToGrid)}
-          className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-semibold ${snapToGrid ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-100'}`}
+          className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs font-semibold ${snapToGrid ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
           title="Raster-Snapping ein-/ausschalten"
         >
           <Grid size={16} />
@@ -815,32 +964,32 @@ export const Canvas: React.FC<CanvasProps> = ({
         </button>
         <button 
           onClick={handleAlignAllToGrid}
-          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 active:bg-slate-200 dark:active:bg-slate-700 transition-colors"
           title="Alle Tabellen am 20px-Raster ausrichten"
         >
-          <Magnet size={16} className="text-slate-500" />
+          <Magnet size={16} className="text-slate-500 dark:text-slate-400" />
         </button>
 
-        <div className="w-px h-5 bg-slate-300 mx-0.5"></div>
+        <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-0.5"></div>
 
         {/* Zoom Controls */}
         <button 
           onClick={handleZoomIn}
-          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 active:bg-slate-200 dark:active:bg-slate-700 transition-colors"
           title="Zoom vergrößern"
         >
           <ZoomIn size={16} />
         </button>
         <button 
           onClick={handleZoomOut}
-          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 active:bg-slate-200 dark:active:bg-slate-700 transition-colors"
           title="Zoom verkleinern"
         >
           <ZoomOut size={16} />
         </button>
         <button 
           onClick={handleZoomReset}
-          className="p-1.5 hover:bg-slate-100 rounded text-slate-600 active:bg-slate-200 transition-colors flex items-center gap-1.5 text-xs font-semibold border-l border-slate-200 pl-2 bg-slate-50"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 active:bg-slate-200 dark:active:bg-slate-700 transition-colors flex items-center gap-1.5 text-xs font-semibold border-l border-slate-200 dark:border-slate-800 pl-2 bg-slate-50 dark:bg-slate-800/50"
           title="Zoom zurücksetzen"
         >
           <RotateCcw size={14} />

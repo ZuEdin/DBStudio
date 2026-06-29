@@ -54,8 +54,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentView, activeObject,
     && !currentView.type.includes('workflow');
 
   return (
-    <div className="bg-slate-200 border-t border-slate-300 h-6 px-2 flex justify-between items-center text-xs select-none print:hidden">
-      <div className="text-slate-600 font-medium">
+    <div className="bg-slate-200 dark:bg-slate-800 border-t border-slate-300 dark:border-slate-700 h-6 px-2 flex justify-between items-center text-xs select-none print:hidden transition-colors duration-300">
+      <div className="text-slate-600 dark:text-slate-400 font-medium">
         {getStatusText()}
       </div>
       
@@ -64,14 +64,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentView, activeObject,
           <button 
             onClick={() => handleSwitchView('design')}
             title="Entwurfsansicht"
-            className={`p-0.5 rounded hover:bg-slate-300 ${isDesignActive ? 'bg-slate-300 text-blue-700 shadow-inner' : 'text-slate-500'}`}
+            className={`p-0.5 rounded hover:bg-slate-300 dark:hover:bg-slate-700 ${isDesignActive ? 'bg-slate-300 dark:bg-slate-700 text-blue-700 dark:text-blue-400 shadow-inner' : 'text-slate-500 dark:text-slate-400'}`}
           >
             <PencilRuler size={14} />
           </button>
           <button 
             onClick={() => handleSwitchView('view')}
             title="Datenblatt-/Formularansicht"
-            className={`p-0.5 rounded hover:bg-slate-300 ${isViewActive ? 'bg-slate-300 text-blue-700 shadow-inner' : 'text-slate-500'}`}
+            className={`p-0.5 rounded hover:bg-slate-300 dark:hover:bg-slate-700 ${isViewActive ? 'bg-slate-300 dark:bg-slate-700 text-blue-700 dark:text-blue-400 shadow-inner' : 'text-slate-500 dark:text-slate-400'}`}
           >
             {currentView.type.includes('form') ? <Layout size={14}/> : currentView.type.includes('report') ? <FileText size={14}/> : <TableIcon size={14} />}
           </button>

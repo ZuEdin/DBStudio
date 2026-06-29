@@ -124,7 +124,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
   }
 
   return (
-    <div className="flex-1 relative bg-slate-200 overflow-hidden flex flex-col">
+    <div className="flex-1 relative bg-slate-200 dark:bg-slate-950 overflow-hidden flex flex-col transition-colors duration-300">
       <div className="print:hidden">
         <CommandPalette 
             isOpen={showCommandPalette} 
@@ -134,22 +134,32 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             reports={reports}
             forms={forms}
             onNavigate={handleCommandNavigate}
+            onCreateTable={(name) => {
+                const newId = crypto.randomUUID();
+                saveTable({
+                    id: newId,
+                    name,
+                    fields: [{ id: crypto.randomUUID(), name: 'id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }],
+                    createdAt: new Date().toISOString()
+                }, 'create');
+                onSetView({ type: 'table_designer', tableId: newId });
+            }}
         />
       </div>
       
-      <div className="bg-white border-b border-slate-300 px-2 flex items-center h-8 justify-between print:hidden">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-2 flex items-center h-8 justify-between print:hidden transition-colors duration-300">
          {currentView.type !== 'welcome' ? (
-           <div className="bg-sky-100 text-sky-800 px-3 py-1 text-xs font-bold border-t-2 border-sky-600 flex items-center gap-2">
+           <div className="bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300 px-3 py-1 text-xs font-bold border-t-2 border-sky-600 dark:border-sky-500 flex items-center gap-2">
              <span>{getTabTitle()}</span>
-             <button onClick={() => onSetView({ type: 'welcome' })}><X size={12}/></button>
+             <button onClick={() => onSetView({ type: 'welcome' })} className="hover:text-red-500 dark:hover:text-red-400"><X size={12}/></button>
            </div>
          ) : (
-             <div className="text-xs font-bold text-slate-500 px-2">Dashboard</div>
+             <div className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2">Dashboard</div>
          )}
          
          <button 
             onClick={() => setShowCommandPalette(true)}
-            className="text-xs text-slate-400 flex items-center gap-1 hover:text-slate-600 mr-2"
+            className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300 mr-2 transition-colors"
             title="Befehlspalette öffnen (Strg+K)"
          >
              <Command size={12} /> <span className="hidden sm:inline">Suche (Strg+K)</span>

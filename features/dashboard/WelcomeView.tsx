@@ -22,10 +22,10 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
   const totalFields = tables.reduce((acc, t) => acc + t.fields.length, 0);
   
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
-    <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
+    <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition-colors duration-300">
       <div>
-        <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">{title}</p>
-        <p className="text-2xl font-bold text-slate-800">{value}</p>
+        <p className="text-slate-500 dark:text-slate-400 text-xs uppercase font-bold tracking-wider">{title}</p>
+        <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
       </div>
       <div className={`p-3 rounded-full ${color} bg-opacity-10`}>
         <Icon size={24} className={color.replace('bg-', 'text-')} />
@@ -36,13 +36,13 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
   const QuickAction = ({ icon: Icon, label, desc, onClick, colorClass }: any) => (
     <button 
       onClick={onClick}
-      className="group flex flex-col items-start p-4 bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-400 transition-all text-left w-full"
+      className="group flex flex-col items-start p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all text-left w-full"
     >
       <div className={`p-2 rounded-md mb-3 ${colorClass} text-white`}>
         <Icon size={20} />
       </div>
-      <span className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{label}</span>
-      <span className="text-xs text-slate-500 mt-1">{desc}</span>
+      <span className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{label}</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">{desc}</span>
     </button>
   );
 
@@ -76,25 +76,25 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
   }
 
   return (
-    <div className="p-8 h-full bg-slate-100 overflow-y-auto">
+    <div className="p-8 h-full bg-slate-100 dark:bg-slate-950 overflow-y-auto transition-colors duration-300">
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* Header containing the Switcher */}
-        <div className="flex justify-between items-center flex-wrap gap-4 border-b border-slate-200 pb-4">
+        <div className="flex justify-between items-center flex-wrap gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
           <div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Dashboard</h1>
-            <p className="text-sm text-slate-500">Willkommen zurück in DB Studio Pro. Hier ist der aktuelle Status Ihrer Anwendung.</p>
+            <h1 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Dashboard</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Willkommen zurück in DB Studio Pro. Hier ist der aktuelle Status Ihrer Anwendung.</p>
           </div>
-          <div className="flex bg-slate-250 p-1 bg-slate-200 rounded-lg text-xs font-semibold">
+          <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold">
             <button 
               onClick={() => setActiveTab('promo')} 
-              className="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition-colors"
+              className="px-3 py-1.5 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
             >
               🚀 Zur Promo-Site
             </button>
             <button 
               onClick={() => setActiveTab('dashboard')} 
-              className="px-3 py-1.5 rounded-md bg-white text-indigo-600 shadow-sm"
+              className="px-3 py-1.5 rounded-md bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm"
             >
               📊 Dashboard
             </button>
@@ -114,7 +114,7 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
           
           {/* Main Content Area - Quick Actions */}
           <div className="lg:col-span-2 space-y-6">
-            <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
               <Activity size={18} /> Schnellstart
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -149,32 +149,32 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
             </div>
 
             {/* Recent Tables */}
-            <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2 mt-8">
+            <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 mt-8">
               <HardDrive size={18} /> Aktuelle Tabellen
             </h2>
-            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors duration-300">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
                   <tr>
-                    <th className="p-3 font-semibold text-slate-600">Name</th>
-                    <th className="p-3 font-semibold text-slate-600">Felder</th>
-                    <th className="p-3 font-semibold text-slate-600">Einträge</th>
-                    <th className="p-3 font-semibold text-slate-600 text-right">Aktion</th>
+                    <th className="p-3 font-semibold text-slate-600 dark:text-slate-400">Name</th>
+                    <th className="p-3 font-semibold text-slate-600 dark:text-slate-400">Felder</th>
+                    <th className="p-3 font-semibold text-slate-600 dark:text-slate-400">Einträge</th>
+                    <th className="p-3 font-semibold text-slate-600 dark:text-slate-400 text-right">Aktion</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {tables.slice(0, 5).map(t => (
-                    <tr key={t.id} className="hover:bg-slate-50 group">
-                      <td className="p-3 font-medium text-slate-800 flex items-center gap-2">
-                        <TableIcon size={14} className="text-slate-400" />
+                    <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group transition-colors duration-150">
+                      <td className="p-3 font-medium text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                        <TableIcon size={14} className="text-slate-400 dark:text-slate-500" />
                         {t.name}
                       </td>
-                      <td className="p-3 text-slate-500">{t.fields.length}</td>
-                      <td className="p-3 text-slate-500">{t.data?.length || 0}</td>
+                      <td className="p-3 text-slate-500 dark:text-slate-400">{t.fields.length}</td>
+                      <td className="p-3 text-slate-500 dark:text-slate-400">{t.data?.length || 0}</td>
                       <td className="p-3 text-right">
                         <button 
                           onClick={() => onNavigate('table_data', t.id)}
-                          className="text-blue-600 hover:text-blue-800 font-medium text-xs flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-xs flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           Öffnen <ArrowRight size={12} />
                         </button>
@@ -183,7 +183,7 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
                   ))}
                   {tables.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="p-6 text-center text-slate-400 italic">Noch keine Tabellen vorhanden.</td>
+                      <td colSpan={4} className="p-6 text-center text-slate-400 dark:text-slate-500 italic">Noch keine Tabellen vorhanden.</td>
                     </tr>
                   )}
                 </tbody>
@@ -193,25 +193,25 @@ export const WelcomeView: React.FC<DashboardProps> = ({ tables, queries, reports
 
           {/* Sidebar Area - System Health / Info */}
           <div className="space-y-6">
-             <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+             <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <Clock size={16} /> Systemstatus
                 </h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Version</span>
-                    <span className="font-mono text-slate-700">1.0.0 Pro</span>
+                    <span className="text-slate-500 dark:text-slate-400">Version</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300">1.0.0 Pro</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Engine</span>
-                    <span className="font-mono text-slate-700">React/TS</span>
+                    <span className="text-slate-500 dark:text-slate-400">Engine</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300">React/TS</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Speicher</span>
-                    <span className="text-green-600 font-medium">Optimal</span>
+                    <span className="text-slate-500 dark:text-slate-400">Speicher</span>
+                    <span className="text-green-600 dark:text-green-400 font-medium">Optimal</span>
                   </div>
-                  <div className="pt-2 border-t border-slate-100 mt-2">
-                    <p className="text-xs text-slate-400">
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 mt-2">
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
                       Alle Änderungen werden lokal im Speicher gehalten. Nutzen Sie "Speichern" um Daten persistent zu machen (simuliert).
                     </p>
                   </div>

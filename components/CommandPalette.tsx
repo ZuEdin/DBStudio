@@ -10,10 +10,11 @@ interface CommandPaletteProps {
   reports: Report[];
   forms: Form[];
   onNavigate: (type: 'table_data' | 'query_results' | 'report_view' | 'form_view', id: string) => void;
+  onCreateTable?: (name: string) => void;
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({ 
-  isOpen, onClose, tables, queries, reports, forms, onNavigate 
+  isOpen, onClose, tables, queries, reports, forms, onNavigate, onCreateTable 
 }) => {
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -25,10 +26,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     ...reports.map(r => ({ id: r.id, name: r.name, type: 'Bericht', icon: FileText, action: 'report_view' as const })),
   ];
 
-  const filteredItems = allItems.filter(item => 
+  let filteredItems = allItems.filter(item => 
     item.name.toLowerCase().includes(search.toLowerCase()) || 
     item.type.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Command handling
+  const isCreateTableCommand = search.toLowerCase().startsWith('> create table ');
+  if (isCreateTableCommand && onCreateTable) {
+      const newName = search.substring(15).trim();
+      if (newName) {
+          filteredItems = [{
+              id: 'cmd_create_table',
+              name: `Erstelle neue Tabelle: "${newName}"`,
+              type: 'Befehl',
+              icon: Table,
+              action: 'create_table' as any
+          }];
+      }
+  }
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -48,7 +64,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         e.preventDefault();
         if (filteredItems[selectedIndex]) {
           const item = filteredItems[selectedIndex];
-          onNavigate(item.action, item.id);
+          if (item.action === 'create_table') {
+              const newName = search.substring(15).trim();
+              if (onCreateTable) onCreateTable(newName);
+          } else {
+              onNavigate(item.action as any, item.id);
+          }
           onClose();
         }
       } else if (e.key === 'Escape') {
@@ -58,7 +79,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, filteredItems, selectedIndex, onNavigate, onClose]);
+  }, [isOpen, filteredItems, selectedIndex, onNavigate, onClose, onCreateTable, search]);
 
   if (!isOpen) return null;
 

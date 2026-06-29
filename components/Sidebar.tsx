@@ -59,7 +59,7 @@ const RenderNode: React.FC<RenderNodeProps> = ({
   const hasChildren = node.children && node.children.length > 0;
   
   const renderItem = (n: TreeNode<any>, overrideName?: string) => (
-    <div className={`flex items-center justify-between px-2 py-1 ${bgClass} hover:brightness-95 rounded text-sm text-slate-700 group relative`}>
+    <div className={`flex items-center justify-between px-2 py-1 ${bgClass} hover:brightness-95 dark:hover:brightness-110 rounded text-sm text-slate-700 dark:text-slate-300 group relative`}>
       <div
         className="flex items-center gap-2 flex-grow cursor-pointer truncate"
         onClick={() => onSelect && onSelect(n.id)}
@@ -68,11 +68,11 @@ const RenderNode: React.FC<RenderNodeProps> = ({
       >
         {(() => {
             const DynamicIcon = getIcon(n);
-            return <DynamicIcon size={14} className={`${type === 'table' && (n.item as Table).isApiImport ? 'text-blue-600' : colorClass} flex-shrink-0`} />;
+            return <DynamicIcon size={14} className={`${type === 'table' && (n.item as Table).isApiImport ? 'text-blue-600 dark:text-blue-400' : colorClass} flex-shrink-0`} />;
         })()}
         <span className="truncate" title={n.item.name}>{overrideName || n.displayName}</span>
         {type === 'page' && (n.item as any).isSubpage && (
-          <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] rounded font-semibold flex-shrink-0">Sub</span>
+          <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[9px] rounded font-semibold flex-shrink-0">Sub</span>
         )}
       </div>
       <button 
@@ -82,7 +82,7 @@ const RenderNode: React.FC<RenderNodeProps> = ({
           e.stopPropagation();
           onItemContextMenu(e, type, n.id);
         }} 
-        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-800 p-0.5 rounded flex-shrink-0"
+        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 p-0.5 rounded flex-shrink-0"
       >
         <MoreHorizontal size={16} />
       </button>
@@ -113,9 +113,9 @@ const RenderNode: React.FC<RenderNodeProps> = ({
       {isOpen && (
         <div className="ml-3 pl-2 border-l border-slate-300 space-y-0.5 mt-0.5">
           {!node.isVirtual && renderItem(node, node.item.name)}
-          {node.children.map(child => (
+          {node.children.map((child, i) => (
             <RenderNode
-              key={child.id}
+              key={child.id + '_' + i}
               node={child}
               icon={DefaultIcon}
               colorClass={colorClass}
@@ -337,13 +337,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
   }
 
   return (
-    <div className="w-64 bg-slate-50 border-r border-slate-300 flex flex-col h-full select-none transition-all duration-300">
-      <div className="p-2 bg-slate-200 border-b border-slate-300 font-bold text-slate-700 text-sm flex items-center justify-between">
+    <div className="w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 flex flex-col h-full select-none transition-all duration-300">
+      <div className="p-2 bg-slate-200 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Database size={16} />
           <span>{t('sidebar.all_objects')}</span>
         </div>
-        <button onClick={toggleSidebar} className="text-slate-500 hover:text-slate-800 p-0.5 rounded">
+        <button onClick={toggleSidebar} className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 p-0.5 rounded">
            <PanelLeftClose size={16} />
         </button>
       </div>
@@ -351,92 +351,92 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
         {/* Tables */}
         <div>
-          <button onClick={() => toggleGroup('tables')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+          <button onClick={() => toggleGroup('tables')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
             {openGroups.tables ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.tables')}
           </button>
           {openGroups.tables && (
             <div className="ml-2 mt-1 space-y-1">
-              {groupedTables.map(g => <RenderNode key={g.id} node={g} icon={TableIcon} colorClass="text-orange-600" bgClass="hover:bg-orange-100 hover:text-orange-900" onSelect={onSelectTable} type="table" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+              {groupedTables.map((g, i) => <RenderNode key={'t_'+g.id+'_'+i} node={g} icon={TableIcon} colorClass="text-orange-600 dark:text-orange-400" bgClass="hover:bg-orange-100 dark:hover:bg-orange-950/30 hover:text-orange-900 dark:hover:text-orange-200" onSelect={onSelectTable} type="table" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
             </div>
           )}
         </div>
 
         {/* Queries */}
         <div>
-          <button onClick={() => toggleGroup('queries')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+          <button onClick={() => toggleGroup('queries')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
             {openGroups.queries ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.queries')}
           </button>
           {openGroups.queries && (
             <div className="ml-2 mt-1 space-y-1">
-              {groupedQueries.map(g => <RenderNode key={g.id} node={g} icon={Search} colorClass="text-blue-600" bgClass="hover:bg-blue-100 hover:text-blue-900" onSelect={onSelectQuery} type="query" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+              {groupedQueries.map((g, i) => <RenderNode key={'q_'+g.id+'_'+i} node={g} icon={Search} colorClass="text-blue-600 dark:text-blue-400" bgClass="hover:bg-blue-100 dark:hover:bg-blue-950/30 hover:text-blue-900 dark:hover:text-blue-200" onSelect={onSelectQuery} type="query" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
             </div>
           )}
         </div>
         
         {/* Reports */}
         <div>
-           <button onClick={() => toggleGroup('reports')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+           <button onClick={() => toggleGroup('reports')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
             {openGroups.reports ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.reports')}
           </button>
           {openGroups.reports && (
              <div className="ml-2 mt-1 space-y-1">
-              {groupedReports.map(g => <RenderNode key={g.id} node={g} icon={FileText} colorClass="text-green-600" bgClass="hover:bg-green-100 hover:text-green-900" onSelect={onSelectReport} type="report" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+              {groupedReports.map((g, i) => <RenderNode key={'r_'+g.id+'_'+i} node={g} icon={FileText} colorClass="text-green-600 dark:text-green-400" bgClass="hover:bg-green-100 dark:hover:bg-green-950/30 hover:text-green-900 dark:hover:text-green-200" onSelect={onSelectReport} type="report" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
              </div>
           )}
         </div>
         
         {/* Forms */}
          <div>
-           <button onClick={() => toggleGroup('forms')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+           <button onClick={() => toggleGroup('forms')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
             {openGroups.forms ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.forms')}
           </button>
           {openGroups.forms && (
              <div className="ml-2 mt-1 space-y-1">
-                {groupedForms.map(g => <RenderNode key={g.id} node={g} icon={Layout} colorClass="text-indigo-600" bgClass="hover:bg-indigo-100 hover:text-indigo-900" onSelect={onSelectForm} type="form" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+                {groupedForms.map((g, i) => <RenderNode key={'f_'+g.id+'_'+i} node={g} icon={Layout} colorClass="text-indigo-600 dark:text-indigo-400" bgClass="hover:bg-indigo-100 dark:hover:bg-indigo-950/30 hover:text-indigo-900 dark:hover:text-indigo-200" onSelect={onSelectForm} type="form" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
              </div>
           )}
         </div>
 
         {/* Charts */}
         <div>
-           <button onClick={() => toggleGroup('charts')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+           <button onClick={() => toggleGroup('charts')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
             {openGroups.charts ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('sidebar.charts')}
           </button>
           {openGroups.charts && (
              <div className="ml-2 mt-1 space-y-1">
-                {groupedCharts.map(g => <RenderNode key={g.id} node={g} icon={BarChart2} colorClass="text-pink-600" bgClass="hover:bg-pink-100 hover:text-pink-900" onSelect={onSelectChart!} type="chart" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+                {groupedCharts.map((g, i) => <RenderNode key={'c_'+g.id+'_'+i} node={g} icon={BarChart2} colorClass="text-pink-600 dark:text-pink-400" bgClass="hover:bg-pink-100 dark:hover:bg-pink-950/30 hover:text-pink-900 dark:hover:text-pink-200" onSelect={onSelectChart!} type="chart" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
              </div>
           )}
         </div>
 
         {/* Workflows & Scheduler (NEW) */}
         <div>
-           <button onClick={() => toggleGroup('workflows')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+           <button onClick={() => toggleGroup('workflows')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
             {openGroups.workflows ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Logik & Jobs
           </button>
           {openGroups.workflows && (
              <div className="ml-2 mt-1 space-y-1">
                 {/* Scheduler Item */}
-                <div className={`flex items-center justify-between px-2 py-1 hover:bg-teal-100 hover:text-teal-900 rounded text-sm text-slate-700 cursor-pointer`} onClick={onSelectScheduler}>
+                <div className={`flex items-center justify-between px-2 py-1 hover:bg-teal-100 dark:hover:bg-teal-950/30 hover:text-teal-900 dark:hover:text-teal-200 rounded text-sm text-slate-700 dark:text-slate-300 cursor-pointer`} onClick={onSelectScheduler}>
                     <div className="flex items-center gap-2">
-                        <CalendarClock size={14} className="text-teal-600" />
+                        <CalendarClock size={14} className="text-teal-600 dark:text-teal-400" />
                         <span>Zeitplaner (Jobs)</span>
                     </div>
                 </div>
                 
-                {groupedWorkflows.map(g => <RenderNode key={g.id} node={g} icon={GitFork} colorClass="text-purple-600" bgClass="hover:bg-purple-100 hover:text-purple-900" onSelect={onSelectWorkflow} type="workflow" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+                {groupedWorkflows.map((g, i) => <RenderNode key={'w_'+g.id+'_'+i} node={g} icon={GitFork} colorClass="text-purple-600 dark:text-purple-400" bgClass="hover:bg-purple-100 dark:hover:bg-purple-950/30 hover:text-purple-900 dark:hover:text-purple-200" onSelect={onSelectWorkflow} type="workflow" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
              </div>
           )}
         </div>
 
         {/* Pages (NEW) */}
         <div>
-          <button onClick={() => toggleGroup('pages')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 hover:bg-slate-200 px-1 py-1 rounded">
+          <button onClick={() => toggleGroup('pages')} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
             {openGroups.pages ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Pages
           </button>
           {openGroups.pages && (
              <div className="ml-2 mt-1 space-y-1">
-                {groupedPages.map(g => <RenderNode key={g.id} node={g} icon={LayoutTemplate} colorClass="text-amber-600" bgClass="hover:bg-amber-100 hover:text-amber-900" onSelect={onSelectPage!} type="page" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+                {groupedPages.map((g, i) => <RenderNode key={'p_'+g.id+'_'+i} node={g} icon={LayoutTemplate} colorClass="text-amber-600 dark:text-amber-400" bgClass="hover:bg-amber-100 dark:hover:bg-amber-950/30 hover:text-amber-900 dark:hover:text-amber-200" onSelect={onSelectPage!} type="page" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
              </div>
           )}
         </div>

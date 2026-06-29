@@ -10,8 +10,23 @@ export interface MigrationScript {
 
 const mapTypeToSql = (field: Field, dbType: DbType): string => {
     let type = resolveType(field, 'sql');
-    // Simplified mapping call reuse or inline logic
+    if (dbType === DbType.SQLite && type.toUpperCase().includes('INT') && field.isAutoIncrement) return 'INTEGER';
     return type;
+};
+
+const buildTableFieldsDef = (table: Table, dbType: DbType): string => {
+    return table.fields.map(f => {
+        let def = `${quoteIdentifier(f.name, dbType)} ${mapTypeToSql(f, dbType)}`;
+        if (!f.allowNull && !f.isPrimaryKey) def += ' NOT NULL';
+        if (f.isPrimaryKey) {
+            def += ' PRIMARY KEY';
+            if (f.isAutoIncrement) {
+                if (dbType === DbType.MySQL) def += ' AUTO_INCREMENT';
+                else if (dbType === DbType.SQL) def += ' IDENTITY(1,1)';
+            }
+        }
+        return def;
+    }).join(', ');
 };
 
 export const calculateMigration = (currentTables: Table[], snapshotTables: Table[] = [], dbType: DbType): MigrationScript => {
@@ -22,55 +37,60 @@ export const calculateMigration = (currentTables: Table[], snapshotTables: Table
     // 1. Check for New Tables
     currentTables.forEach(curr => {
         const prev = snapshotTables.find(t => t.id === curr.id);
+        const tableName = quoteIdentifier(curr.name, dbType);
+        
         if (!prev) {
             // New Table
             changes.push(`Create table ${curr.name}`);
-            const fieldsDef = curr.fields.map(f => {
-                let def = `${quoteIdentifier(f.name, dbType)} ${mapTypeToSql(f, dbType)}`;
-                if (!f.allowNull && !f.isPrimaryKey) def += ' NOT NULL';
-                if (f.isPrimaryKey) def += ' PRIMARY KEY';
-                return def;
-            }).join(', ');
-            
-            upSql += `CREATE TABLE ${quoteIdentifier(toPascalCase(curr.name), dbType)} (${fieldsDef});\n`;
-            downSql += `DROP TABLE ${quoteIdentifier(toPascalCase(curr.name), dbType)};\n`;
+            const fieldsDef = buildTableFieldsDef(curr, dbType);
+            upSql += `CREATE TABLE ${tableName} (${fieldsDef});\n`;
+            downSql += `DROP TABLE ${tableName};\n`;
         } else {
             // Check for Modified/New Fields
             curr.fields.forEach(currField => {
                 const prevField = prev.fields.find(f => f.id === currField.id);
-                const tableName = quoteIdentifier(toPascalCase(curr.name), dbType);
                 const fieldName = quoteIdentifier(currField.name, dbType);
                 const fieldType = mapTypeToSql(currField, dbType);
 
                 if (!prevField) {
                     // New Column
                     changes.push(`Add column ${curr.name}.${currField.name}`);
-                    upSql += `ALTER TABLE ${tableName} ADD ${fieldName} ${fieldType};\n`;
-                    // SQLite doesn't support DROP COLUMN in older versions easily, but standard SQL does
-                    if (dbType !== DbType.SQLite) {
-                        downSql += `ALTER TABLE ${tableName} DROP COLUMN ${fieldName};\n`;
-                    }
+                    let constraint = !currField.allowNull ? ' NOT NULL' : '';
+                    upSql += `ALTER TABLE ${tableName} ADD ${fieldName} ${fieldType}${constraint};\n`;
+                    // SQLite 3.35.0+ supports DROP COLUMN
+                    downSql += `ALTER TABLE ${tableName} DROP COLUMN ${fieldName};\n`;
                 } else {
-                    // Modified Column? (Name change or Type change)
-                    // Detecting rename is hard by ID if names differ.
+                    // Rename Column
                     if (currField.name !== prevField.name) {
                         changes.push(`Rename column ${prevField.name} to ${currField.name} in ${curr.name}`);
-                        // SQL Server: sp_rename, MySQL: CHANGE, SQLite: Not supported easily
+                        const prevNameQuoted = quoteIdentifier(prevField.name, dbType);
                         if (dbType === DbType.SQL) {
-                            upSql += `EXEC sp_rename '${toPascalCase(curr.name)}.${prevField.name}', '${currField.name}', 'COLUMN';\n`;
-                            downSql += `EXEC sp_rename '${toPascalCase(curr.name)}.${currField.name}', '${prevField.name}', 'COLUMN';\n`;
+                            upSql += `EXEC sp_rename '${curr.name}.${prevField.name}', '${currField.name}', 'COLUMN';\n`;
+                            downSql += `EXEC sp_rename '${curr.name}.${currField.name}', '${prevField.name}', 'COLUMN';\n`;
                         } else if (dbType === DbType.MySQL) {
-                            upSql += `ALTER TABLE ${tableName} CHANGE ${quoteIdentifier(prevField.name, dbType)} ${fieldName} ${fieldType};\n`;
-                            downSql += `ALTER TABLE ${tableName} CHANGE ${fieldName} ${quoteIdentifier(prevField.name, dbType)} ${mapTypeToSql(prevField, dbType)};\n`;
+                            upSql += `ALTER TABLE ${tableName} CHANGE ${prevNameQuoted} ${fieldName} ${fieldType};\n`;
+                            downSql += `ALTER TABLE ${tableName} CHANGE ${fieldName} ${prevNameQuoted} ${mapTypeToSql(prevField, dbType)};\n`;
+                        } else {
+                            upSql += `ALTER TABLE ${tableName} RENAME COLUMN ${prevNameQuoted} TO ${fieldName};\n`;
+                            downSql += `ALTER TABLE ${tableName} RENAME COLUMN ${fieldName} TO ${prevNameQuoted};\n`;
                         }
                     }
-                    // Type change?
-                    if (currField.type !== prevField.type) {
-                         changes.push(`Change type of ${curr.name}.${currField.name} to ${currField.type}`);
+                    // Type Change
+                    if (currField.type !== prevField.type || currField.allowNull !== prevField.allowNull) {
+                         changes.push(`Modify ${curr.name}.${currField.name}`);
+                         let currConstraint = !currField.allowNull ? ' NOT NULL' : ' NULL';
+                         let prevConstraint = !prevField.allowNull ? ' NOT NULL' : ' NULL';
+                         
                          if (dbType === DbType.SQL) {
-                             upSql += `ALTER TABLE ${tableName} ALTER COLUMN ${fieldName} ${fieldType};\n`;
+                             upSql += `ALTER TABLE ${tableName} ALTER COLUMN ${fieldName} ${fieldType}${currConstraint};\n`;
+                             downSql += `ALTER TABLE ${tableName} ALTER COLUMN ${fieldName} ${mapTypeToSql(prevField, dbType)}${prevConstraint};\n`;
                          } else if (dbType === DbType.MySQL) {
-                             upSql += `ALTER TABLE ${tableName} MODIFY ${fieldName} ${fieldType};\n`;
+                             upSql += `ALTER TABLE ${tableName} MODIFY ${fieldName} ${fieldType}${currConstraint};\n`;
+                             downSql += `ALTER TABLE ${tableName} MODIFY ${fieldName} ${mapTypeToSql(prevField, dbType)}${prevConstraint};\n`;
+                         } else {
+                             // PostgreSQL / SQLite fallback (Postgres uses ALTER COLUMN TYPE)
+                             upSql += `ALTER TABLE ${tableName} ALTER COLUMN ${fieldName} TYPE ${fieldType};\n`;
+                             downSql += `ALTER TABLE ${tableName} ALTER COLUMN ${fieldName} TYPE ${mapTypeToSql(prevField, dbType)};\n`;
                          }
                     }
                 }
@@ -80,12 +100,10 @@ export const calculateMigration = (currentTables: Table[], snapshotTables: Table
             prev.fields.forEach(prevField => {
                 if (!curr.fields.find(f => f.id === prevField.id)) {
                     changes.push(`Drop column ${prevField.name} from ${curr.name}`);
-                    const tableName = quoteIdentifier(toPascalCase(curr.name), dbType);
                     const fieldName = quoteIdentifier(prevField.name, dbType);
-                    if (dbType !== DbType.SQLite) {
-                        upSql += `ALTER TABLE ${tableName} DROP COLUMN ${fieldName};\n`;
-                        downSql += `ALTER TABLE ${tableName} ADD ${fieldName} ${mapTypeToSql(prevField, dbType)};\n`;
-                    }
+                    upSql += `ALTER TABLE ${tableName} DROP COLUMN ${fieldName};\n`;
+                    let constraint = !prevField.allowNull ? ' NOT NULL' : '';
+                    downSql += `ALTER TABLE ${tableName} ADD ${fieldName} ${mapTypeToSql(prevField, dbType)}${constraint};\n`;
                 }
             });
         }
@@ -95,9 +113,10 @@ export const calculateMigration = (currentTables: Table[], snapshotTables: Table
     snapshotTables.forEach(prev => {
         if (!currentTables.find(t => t.id === prev.id)) {
             changes.push(`Drop table ${prev.name}`);
-            upSql += `DROP TABLE ${quoteIdentifier(toPascalCase(prev.name), dbType)};\n`;
-            // Down SQL to recreate is complex (needs fields), skipping deep restoration logic for this demo
-            downSql += `-- Re-create table ${prev.name} (Schema lost in snapshot)`; 
+            const tableName = quoteIdentifier(prev.name, dbType);
+            upSql += `DROP TABLE ${tableName};\n`;
+            const fieldsDef = buildTableFieldsDef(prev, dbType);
+            downSql += `CREATE TABLE ${tableName} (${fieldsDef});\n`;
         }
     });
 
