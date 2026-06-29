@@ -15,12 +15,35 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
   const [activeTab, setActiveTab] = useState<'branding' | 'tenancy' | 'license'>('branding');
 
   // Local State
-  const [wlConfig, setWlConfig] = useState<WhitelabelConfig>(whitelabel || {
-      appName: 'My App',
-      companyName: 'My Company',
-      primaryColor: '#3b82f6',
-      secondaryColor: '#1e293b',
-      removeBranding: true
+  const [wlConfig, setWlConfig] = useState<WhitelabelConfig>(() => {
+      const defaultWl = {
+          appName: 'My App',
+          companyName: 'My Company',
+          primaryColor: '#3b82f6',
+          secondaryColor: '#1e293b',
+          accentColor: '#f59e0b',
+          successColor: '#10b981',
+          warningColor: '#f59e0b',
+          errorColor: '#ef4444',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          borderRadius: 'md' as const,
+          elevation: 'sm' as const,
+          darkModeColors: {
+              primary: '#3b82f6',
+              secondary: '#1e293b',
+              background: '#0f172a'
+          },
+          removeBranding: true
+      };
+      if (!whitelabel) return defaultWl;
+      return {
+          ...defaultWl,
+          ...whitelabel,
+          darkModeColors: {
+              ...defaultWl.darkModeColors,
+              ...(whitelabel.darkModeColors || {})
+          }
+      };
   });
 
   const [mtConfig, setMtConfig] = useState<MultiTenancyConfig>(multiTenancy || {
@@ -131,7 +154,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Sekundärfarbe (Sidebar)</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Sekundärfarbe (Sidebar/Menü)</label>
                                 <div className="flex gap-2">
                                     <input 
                                         type="color" 
@@ -149,18 +172,244 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                             </div>
                         </div>
 
+                        {/* Akzent- & Systemfarben */}
+                        <div className="border-t border-slate-100 pt-4">
+                            <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-1.5">
+                                <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                                Erweiterte Farben & System-Statusfarben
+                            </h4>
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Akzentfarbe (Auswahl/Links)</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="color" 
+                                            value={wlConfig.accentColor || '#f59e0b'}
+                                            onChange={e => setWlConfig({...wlConfig, accentColor: e.target.value})}
+                                            className="h-9 w-9 p-0 border rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={wlConfig.accentColor || '#f59e0b'}
+                                            onChange={e => setWlConfig({...wlConfig, accentColor: e.target.value})}
+                                            className="flex-1 border p-1.5 text-sm rounded font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Erfolgsfarbe (Success/Aktiv)</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="color" 
+                                            value={wlConfig.successColor || '#10b981'}
+                                            onChange={e => setWlConfig({...wlConfig, successColor: e.target.value})}
+                                            className="h-9 w-9 p-0 border rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={wlConfig.successColor || '#10b981'}
+                                            onChange={e => setWlConfig({...wlConfig, successColor: e.target.value})}
+                                            className="flex-1 border p-1.5 text-sm rounded font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Warnfarbe (Hinweise/Ausstehend)</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="color" 
+                                            value={wlConfig.warningColor || '#f59e0b'}
+                                            onChange={e => setWlConfig({...wlConfig, warningColor: e.target.value})}
+                                            className="h-9 w-9 p-0 border rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={wlConfig.warningColor || '#f59e0b'}
+                                            onChange={e => setWlConfig({...wlConfig, warningColor: e.target.value})}
+                                            className="flex-1 border p-1.5 text-sm rounded font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Fehlerfarbe (Error/Ungültig)</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="color" 
+                                            value={wlConfig.errorColor || '#ef4444'}
+                                            onChange={e => setWlConfig({...wlConfig, errorColor: e.target.value})}
+                                            className="h-9 w-9 p-0 border rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={wlConfig.errorColor || '#ef4444'}
+                                            onChange={e => setWlConfig({...wlConfig, errorColor: e.target.value})}
+                                            className="flex-1 border p-1.5 text-sm rounded font-mono"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Layout & Element-Styling (Borders & Elevation) */}
+                        <div className="border-t border-slate-100 pt-4">
+                            <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-1.5">
+                                <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                                Layout- & UI-Styling (Ecken, Schatten & Schriften)
+                            </h4>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">Eckenabrundung (Buttons/Cards)</label>
+                                    <select 
+                                        value={wlConfig.borderRadius || 'md'}
+                                        onChange={e => setWlConfig({...wlConfig, borderRadius: e.target.value as any})}
+                                        className="w-full border p-2 text-sm rounded bg-white"
+                                    >
+                                        <option value="none">Scharfkantig (0px)</option>
+                                        <option value="sm">Subtil abgerundet (2px)</option>
+                                        <option value="md">Standard abgerundet (4px)</option>
+                                        <option value="lg">Stark abgerundet (8px)</option>
+                                        <option value="full">Kreisförmig / Kapsel (9999px)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">UI-Schattenstärke (Elevation)</label>
+                                    <select 
+                                        value={wlConfig.elevation || 'sm'}
+                                        onChange={e => setWlConfig({...wlConfig, elevation: e.target.value as any})}
+                                        className="w-full border p-2 text-sm rounded bg-white"
+                                    >
+                                        <option value="none">Kein Schatten (Flat)</option>
+                                        <option value="sm">Subtil (sm)</option>
+                                        <option value="md">Mittel (md)</option>
+                                        <option value="lg">Hoch (lg)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">Haupt-Schriftart (Font Family)</label>
+                                    <select 
+                                        value={wlConfig.fontFamily || 'Inter, system-ui, sans-serif'}
+                                        onChange={e => setWlConfig({...wlConfig, fontFamily: e.target.value})}
+                                        className="w-full border p-2 text-sm rounded bg-white"
+                                    >
+                                        <option value="Inter, system-ui, sans-serif">Inter (Modern & Clean)</option>
+                                        <option value="Space Grotesk, sans-serif">Space Grotesk (Tech-Forward)</option>
+                                        <option value="JetBrains Mono, monospace">JetBrains Mono (Technical)</option>
+                                        <option value="Playfair Display, serif">Playfair Display (Elegant)</option>
+                                        <option value="system-ui, sans-serif">System Standard (Native)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Dark-Mode Farbpalette */}
+                        <div className="border-t border-slate-100 pt-4">
+                            <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-1.5">
+                                <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                                Dark-Mode Farbpalette (Vorschau & Prototyping)
+                            </h4>
+                            <div className="grid grid-cols-3 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Dark Primär</label>
+                                    <div className="flex gap-1.5">
+                                        <input 
+                                            type="color" 
+                                            value={wlConfig.darkModeColors?.primary || '#3b82f6'}
+                                            onChange={e => setWlConfig({
+                                                ...wlConfig,
+                                                darkModeColors: {
+                                                    ...(wlConfig.darkModeColors || {}),
+                                                    primary: e.target.value
+                                                }
+                                            })}
+                                            className="h-8 w-8 p-0 border rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={wlConfig.darkModeColors?.primary || '#3b82f6'}
+                                            onChange={e => setWlConfig({
+                                                ...wlConfig,
+                                                darkModeColors: {
+                                                    ...(wlConfig.darkModeColors || {}),
+                                                    primary: e.target.value
+                                                }
+                                            })}
+                                            className="flex-1 border p-1 text-xs rounded font-mono bg-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Dark Sekundär</label>
+                                    <div className="flex gap-1.5">
+                                        <input 
+                                            type="color" 
+                                            value={wlConfig.darkModeColors?.secondary || '#1e293b'}
+                                            onChange={e => setWlConfig({
+                                                ...wlConfig,
+                                                darkModeColors: {
+                                                    ...(wlConfig.darkModeColors || {}),
+                                                    secondary: e.target.value
+                                                }
+                                            })}
+                                            className="h-8 w-8 p-0 border rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={wlConfig.darkModeColors?.secondary || '#1e293b'}
+                                            onChange={e => setWlConfig({
+                                                ...wlConfig,
+                                                darkModeColors: {
+                                                    ...(wlConfig.darkModeColors || {}),
+                                                    secondary: e.target.value
+                                                }
+                                            })}
+                                            className="flex-1 border p-1 text-xs rounded font-mono bg-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Dark Hintergrund</label>
+                                    <div className="flex gap-1.5">
+                                        <input 
+                                            type="color" 
+                                            value={wlConfig.darkModeColors?.background || '#0f172a'}
+                                            onChange={e => setWlConfig({
+                                                ...wlConfig,
+                                                darkModeColors: {
+                                                    ...(wlConfig.darkModeColors || {}),
+                                                    background: e.target.value
+                                                }
+                                            })}
+                                            className="h-8 w-8 p-0 border rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={wlConfig.darkModeColors?.background || '#0f172a'}
+                                            onChange={e => setWlConfig({
+                                                ...wlConfig,
+                                                darkModeColors: {
+                                                    ...(wlConfig.darkModeColors || {}),
+                                                    background: e.target.value
+                                                }
+                                            })}
+                                            className="flex-1 border p-1 text-xs rounded font-mono bg-white"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Logo URL (Optional)</label>
                             <input 
                                 type="text" 
                                 value={wlConfig.logoUrl || ''}
                                 onChange={e => setWlConfig({...wlConfig, logoUrl: e.target.value})}
-                                className="w-full border p-2 rounded"
+                                className="w-full border p-2 rounded text-sm"
                                 placeholder="https://example.com/logo.png"
                             />
                         </div>
 
-                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-3 rounded border">
+                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-3 rounded border border-slate-200">
                             <input 
                                 type="checkbox" 
                                 checked={wlConfig.removeBranding}

@@ -68,6 +68,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                 >
                     <option value="dotnet">.NET API</option>
                     <option value="nodejs">Node.js</option>
+                    <option value="python">Python</option>
                     <option value="php">PHP</option>
                     <option value="laravel">Laravel</option>
                     <option value="electron">Electron</option>

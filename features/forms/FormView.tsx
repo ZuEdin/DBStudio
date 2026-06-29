@@ -181,8 +181,32 @@ export const FormView: React.FC<FormViewProps> = ({
       const table = allTables.find(t => t.id === config.tableId);
       if (!table || !table.data) return [];
       
+      let rows = [...table.data];
+      
+      if (config.sort && config.sort.fieldId) {
+          const sortField = table.fields.find(f => f.id === config.sort.fieldId);
+          if (sortField) {
+              const fieldName = sortField.name;
+              const direction = config.sort.direction || 'ASC';
+              rows.sort((a, b) => {
+                  const valA = a[fieldName];
+                  const valB = b[fieldName];
+                  if (valA === undefined || valA === null) return 1;
+                  if (valB === undefined || valB === null) return -1;
+                  
+                  let comparison = 0;
+                  if (typeof valA === 'number' && typeof valB === 'number') {
+                      comparison = valA - valB;
+                  } else {
+                      comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
+                  }
+                  return direction === 'ASC' ? comparison : -comparison;
+              });
+          }
+      }
+      
       if (config.displayFormat && config.displayFormat.length > 0) {
-          return table.data.map(row => {
+          return rows.map(row => {
               const label = config.displayFormat.map((item: any) => {
                   const f = table.fields.find(field => field.id === item.fieldId);
                   return `${item.prefix || ''}${f ? row[f.name] : ''}${item.suffix || ''}`;
@@ -191,7 +215,7 @@ export const FormView: React.FC<FormViewProps> = ({
               return { value: valField ? row[valField.name] : '', label: label };
           });
       }
-      return table.data.map(row => ({ value: row.id || Object.values(row)[0], label: Object.values(row).slice(0, 2).join(' ') }));
+      return rows.map(row => ({ value: row.id || Object.values(row)[0], label: Object.values(row).slice(0, 2).join(' ') }));
   };
 
   // --- Subform Modal Logic ---

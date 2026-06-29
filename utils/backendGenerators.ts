@@ -9,6 +9,7 @@ import { generateLaravel } from './generators/laravelGenerator';
 import { generateBlazor } from './generators/blazorGenerator';
 import { generateElectron } from './generators/electronGenerator';
 import { generateVue } from './generators/vueGenerator';
+import { generatePython } from './generators/pythonGenerator';
 import { generateDatabaseScripts } from './generators/databaseGenerator';
 import { generateSolution } from './generators/dotnet/solution';
 
@@ -50,6 +51,8 @@ export const generateBackendCode = (
     files = generatePhp(tables, relationships, queries, activeConfig);
   } else if (activeConfig.language === 'laravel' || activeConfig.language === 'php-laravel' as any) {
     files = generateLaravel(tables, relationships, queries, activeConfig);
+  } else if (activeConfig.language === 'python') {
+    files = generatePython(tables, relationships, queries, activeConfig);
   }
 
   // 2. Generate Database Schema/Scripts (Common for all backends)

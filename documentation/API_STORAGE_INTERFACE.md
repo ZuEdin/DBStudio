@@ -227,3 +227,67 @@ To accelerate full-stack API integration, the system exposes standardized mock e
 * **Mock Action**: Executes the configured join query with column alias maps.
 
 
+---
+
+## 7. Multi-Language Backend Generation (with Python/FastAPI Support)
+
+To accelerate full-stack prototyping, the application supports generating production-ready backend codebases in multiple languages. The newest addition is **Python (FastAPI)**, which provides modern async endpoints, schema validation via Pydantic, and persistent database connections using SQLAlchemy or Motor (MongoDB).
+
+### 7.1 Generated Code Architecture (Python/FastAPI)
+
+The generated codebase uses a standard asynchronous Python layout:
+
+```text
+Backend/[ProjectName]/
+├── main.py                 # FastAPI application entry point, CORS config, router includes
+├── requirements.txt        # Package dependencies (FastAPI, SQLAlchemy, Motor, etc.)
+├── config/
+│   └── database.py         # Async database configuration (SQLAlchemy or Motor)
+├── models/
+│   └── [table_name].py     # Declarative SQLAlchemy models (for SQL/MySQL/SQLite)
+├── schemas/
+│   └── [table_name].py     # Pydantic schemas (Base, Create, Update, Response validation)
+└── routers/
+    └── [table_name].py     # Fully-featured async CRUD route handlers
+```
+
+### 7.2 Database Drivers & Libraries Used
+
+Depending on the chosen storage engine, the generated Python backend automatically configures:
+
+* **NoSQL (MongoDB)**: `motor>=3.2.0`, `pymongo>=4.4.0` for async Mongo operations.
+* **SQLite**: `aiosqlite>=0.19.0` for file-based async databases.
+* **MySQL**: `aiomysql>=0.2.0`, `cryptography>=41.0.0` for MySQL databases.
+* **PostgreSQL / SQL Server**: `asyncpg>=0.28.0` with `psycopg2-binary>=2.9.0` for robust async connections.
+
+### 7.3 API Route Contracts & Responses
+
+All models expose highly standardized CRUD routes. For a table `customers`:
+
+#### 1. Create a Record
+* **Route**: `POST /api/customers`
+* **Request Body**: `CustomerCreate` (JSON payload)
+* **Response**: `Customer` object with generated ID
+* **Status**: `201 Created`
+
+#### 2. Read All Records
+* **Route**: `GET /api/customers`
+* **Response**: `List[Customer]` (JSON array)
+
+#### 3. Read Record By ID
+* **Route**: `GET /api/customers/{id}`
+* **Response**: `Customer`
+* **Errors**: `404 Not Found` for invalid or missing IDs
+
+#### 4. Update Record By ID
+* **Route**: `PUT /api/customers/{id}`
+* **Request Body**: `CustomerUpdate` (JSON payload)
+* **Response**: Updated `Customer`
+
+#### 5. Delete Record By ID
+* **Route**: `DELETE /api/customers/{id}`
+* **Response**: `None`
+* **Status**: `204 No Content`
+
+
+

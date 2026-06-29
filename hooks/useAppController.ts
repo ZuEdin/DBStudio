@@ -710,7 +710,8 @@ export const useAppController = () => {
         case 'navigation_designer': handleSetView({ type: 'navigation_designer' }); break;
         case 'logic_designer': handleSetView({ type: 'logic_designer' }); break;
         case 'open_app_info': handleSetView({ type: 'app_info' }); break;
-        case 'open_whitelabel': handleSetView({ type: 'theme_designer' }); break;
+        case 'theme_designer':
+        case 'open_whitelabel': ui.setShowWhitelabelModal(true); break;
         
         case 'open_integrations': ui.setShowIntegrationsModal(true); break;
         case 'open_envs': ui.setShowEnvModal(true); break;

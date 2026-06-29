@@ -359,7 +359,7 @@ export interface Workflow {
     edges: WorkflowEdge[];
 }
 
-export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron';
+export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron' | 'python';
 export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'vue' | 'electron' | 'none';
 export type StylingFramework = 'tailwind' | 'bootstrap' | 'none';
 

@@ -341,6 +341,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                  {[
                                      { id: 'dotnet', label: '.NET (C#)' },
                                      { id: 'nodejs', label: 'Node.js' },
+                                     { id: 'python', label: 'Python (FastAPI)' },
                                      { id: 'php', label: 'PHP' },
                                      { id: 'laravel', label: 'Laravel' },
                                  ].map((lang) => (
