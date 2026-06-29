@@ -186,7 +186,8 @@ export const useAppController = () => {
         view.type === 'backend_generator' || 
         view.type === 'scheduler' || 
         view.type === 'api_import' || 
-        view.type === 'app_info'
+        view.type === 'app_info' ||
+        view.type === 'tickets_board'
     ) {
         setActiveObject(null);
         setReadOnlyMode(false);
@@ -525,6 +526,7 @@ export const useAppController = () => {
             });
             break;
         case 'create_table': handleSetView({ type: 'table_create' }); break;
+        case 'tickets_board': handleSetView({ type: 'tickets_board' }); break;
         case 'create_table_ai': handleSetView({ type: 'table_create' }); break;
         case 'create_query': handleSetView({ type: 'query_designer' }); break;
         case 'wizard_duplicate': ui.setActiveWizard('duplicate'); break;

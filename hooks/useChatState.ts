@@ -1,59 +1,63 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Chat } from '../types/index';
+import { getLocalChats, saveLocalChat } from '../services/chatStorageService';
 
 export const useChatState = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  
-  const [chats, setChats] = useState<Chat[]>([
-      {
-          id: 'c1', type: 'group', name: 'Projekt Team', participants: ['u1', 'u2', 'u3'], 
-          messages: [
-              { id: 'm1', senderId: 'u2', senderName: 'Sarah', text: 'Hat jemand die neue Tabelle gesehen?', timestamp: Date.now() - 3600000 },
-              { id: 'm2', senderId: 'u3', senderName: 'Tom', text: 'Ja, sieht gut aus. Ich arbeite an der API.', timestamp: Date.now() - 3500000 }
-          ], unreadCount: 0
-      },
-      {
-          id: 'c2', type: 'private', name: 'Sarah Lee', participants: ['u1', 'u2'], isOnline: true,
-          messages: [
-              { id: 'm3', senderId: 'u2', senderName: 'Sarah', text: 'Kannst du den Deploy anstoßen?', timestamp: Date.now() - 100000 }
-          ], unreadCount: 1
-      },
-      {
-          id: 'c3', type: 'private', name: 'Tom H.', participants: ['u1', 'u3'], isOnline: false,
-          messages: [], unreadCount: 0
-      }
-  ]);
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  useEffect(() => {
+    const loadChats = async () => {
+      const data = await getLocalChats();
+      setChats(data);
+    };
+    loadChats();
+  }, []);
 
   const handleSelectChat = (id: string | null) => {
-      setActiveChatId(id);
-  };
-
-  const handleSendMessage = (chatId: string, text: string) => {
-      setChats(prev => prev.map(chat => {
-          if (chat.id === chatId) {
-              return {
-                  ...chat,
-                  messages: [...chat.messages, {
-                      id: crypto.randomUUID(),
-                      senderId: 'u1', 
-                      senderName: 'Me',
-                      text,
-                      timestamp: Date.now()
-                  }]
-              };
+    setActiveChatId(id);
+    if (id) {
+      setChats(prev => {
+        const updated = prev.map(chat => {
+          if (chat.id === id) {
+            const next = { ...chat, unreadCount: 0 };
+            saveLocalChat(next);
+            return next;
           }
           return chat;
-      }));
+        });
+        return updated;
+      });
+    }
+  };
+
+  const handleSendMessage = async (chatId: string, text: string) => {
+    const chatToUpdate = chats.find(c => c.id === chatId);
+    if (!chatToUpdate) return;
+
+    const updatedChat: Chat = {
+      ...chatToUpdate,
+      messages: [...chatToUpdate.messages, {
+        id: crypto.randomUUID(),
+        senderId: 'u1',
+        senderName: 'Me',
+        text,
+        timestamp: Date.now()
+      }]
+    };
+
+    setChats(prev => prev.map(c => c.id === chatId ? updatedChat : c));
+    await saveLocalChat(updatedChat);
   };
 
   return {
-      isChatOpen,
-      setIsChatOpen,
-      activeChatId,
-      chats,
-      handleSelectChat,
-      handleSendMessage
+    isChatOpen,
+    setIsChatOpen,
+    activeChatId,
+    chats,
+    handleSelectChat,
+    handleSendMessage
   };
 };

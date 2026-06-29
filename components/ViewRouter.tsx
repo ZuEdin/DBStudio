@@ -24,6 +24,8 @@ import { LogicDesigner } from '../features/logic/LogicDesigner';
 import { PageDesigner } from '../features/pages/PageDesigner';
 import { PageView } from '../features/pages/PageView';
 import { useAppController } from '../hooks/useAppController'; // Need context types or pass down
+import { TicketBoard } from './TicketBoard';
+import { useTicketState } from '../hooks/useTicketState';
 
 interface ViewRouterProps {
   currentView: ViewType;
@@ -96,6 +98,8 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
   onUpdateEnvironments,
   activeLock
 }) => {
+
+  const ticketState = useTicketState();
 
   useEffect(() => {
       if (formActionTrigger?.action === 'open_deployment_modal') {
@@ -321,6 +325,33 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
              showMessage={showMessage}
           />
         );
+      case 'tickets_board': {
+        return (
+          <div className="flex-1 bg-white flex flex-col h-full overflow-hidden">
+            <div className="px-4 py-3 bg-slate-800 text-white shrink-0 flex justify-between items-center">
+              <div>
+                <h2 className="text-sm font-bold flex items-center gap-2">
+                  <span>Projekt-Aufgaben & Tickets (Kanban-Board)</span>
+                </h2>
+                <p className="text-[11px] text-slate-300">Koordinieren Sie Datenbank-Strukturen, Query-Tunings und Dashboards im Team</p>
+              </div>
+            </div>
+            <TicketBoard
+              tickets={ticketState.tickets}
+              allTicketsRaw={ticketState.allTicketsRaw}
+              onAddTicket={ticketState.addTicket}
+              onUpdateTicketStatus={ticketState.updateTicketStatus}
+              onDeleteTicket={ticketState.deleteTicket}
+              filterPriority={ticketState.filterPriority}
+              setFilterPriority={ticketState.setFilterPriority}
+              filterAssigned={ticketState.filterAssigned}
+              setFilterAssigned={ticketState.setFilterAssigned}
+              searchQuery={ticketState.searchQuery}
+              setSearchQuery={ticketState.setSearchQuery}
+            />
+          </div>
+        );
+      }
       default:
         return null;
     }

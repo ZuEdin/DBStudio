@@ -1,5 +1,5 @@
 import React from 'react';
-import { Network, ShieldCheck, Layers, Settings, Wand2, Briefcase } from 'lucide-react';
+import { Network, ShieldCheck, Layers, Settings, Wand2, Briefcase, ClipboardList } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
     <div className="flex gap-4 h-full">
       <RibbonGroup label="Design">
         <RibbonButton icon={<Network className="text-blue-600" />} label="Beziehungen" onClick={() => onAction('relationships')} size="large" />
+      </RibbonGroup>
+
+      <RibbonGroup label="Zusammenarbeit">
+        <RibbonButton icon={<ClipboardList className="text-sky-600" />} label="Kanban-Board" onClick={() => onAction('tickets_board')} size="large" />
       </RibbonGroup>
 
       <RibbonGroup label="App-Struktur">

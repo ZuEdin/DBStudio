@@ -697,7 +697,21 @@ export type ViewType =
   | { type: 'navigation_designer' }
   | { type: 'api_import' }
   | { type: 'theme_designer' }
-  | { type: 'logic_designer' }; 
+  | { type: 'logic_designer' }
+  | { type: 'tickets_board' }; 
+
+export interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  status: 'todo' | 'in_progress' | 'done';
+  priority: 'low' | 'medium' | 'high';
+  assignedTo: string; // 'u1' (Me), 'u2' (Sarah), 'u3' (Tom) or 'all'
+  assignedToName: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+}
 
 export const FIELD_HEIGHT = 28;
 export const HEADER_HEIGHT = 40;

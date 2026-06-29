@@ -286,3 +286,108 @@ To keep local development responsive, all state synchronization follows a decoup
 
 All table structural changes trigger `saveProjectToStorage()` or `addTable()`, operating asynchronously with IndexedDB as the source of truth, offering instantaneous state restores and offline compatibility.
 
+---
+
+## 7. Collaborative Tickets & Tasks API Specifications
+
+To allow designers and developers to coordinate schema adjustments, query tuning, and reports, the system supports a Kanban Ticket Board.
+
+### 7.1. SQL Database Table Schema (`sys_tickets`)
+
+For direct integration with relational backends (PostgreSQL, MySQL, SQLite), the following DDL describes the storage format:
+
+```sql
+CREATE TABLE sys_tickets (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'todo', -- 'todo', 'in_progress', 'done'
+    priority VARCHAR(10) NOT NULL DEFAULT 'medium', -- 'low', 'medium', 'high'
+    assigned_to VARCHAR(50) NOT NULL DEFAULT 'all', -- ID or 'all'
+    assigned_to_name VARCHAR(100) NOT NULL,
+    created_by VARCHAR(50) NOT NULL,
+    created_by_name VARCHAR(100) NOT NULL,
+    created_at BIGINT NOT NULL
+);
+```
+
+### 7.2. REST API Endpoints
+
+#### `GET /api/tickets`
+Fetches all task tracking cards.
+- **Response (200 OK)**:
+  ```json
+  [
+    {
+      "id": "ticket-1",
+      "title": "Datenbankschema für Kunden & Rechnungen anlegen",
+      "description": "Bitte erstelle die Tabelle sys_customers mit Primärschlüssel.",
+      "status": "todo",
+      "priority": "high",
+      "assignedTo": "u2",
+      "assignedToName": "Sarah Lee",
+      "createdBy": "u1",
+      "createdByName": "Me",
+      "createdAt": 1719631200000
+    }
+  ]
+  ```
+
+#### `POST /api/tickets`
+Creates a new task.
+- **Request Body**:
+  ```json
+  {
+    "title": "Query-Tuning",
+    "description": "Index auf Kunden-ID hinzufügen.",
+    "priority": "high",
+    "assignedTo": "u3"
+  }
+  ```
+- **Response (201 Created)**: Created ticket object with status `'todo'`.
+
+#### `PATCH /api/tickets/:id/status`
+Updates a ticket's kanban stage (To Do, In Progress, Done).
+- **Request Body**:
+  ```json
+  {
+    "status": "in_progress"
+  }
+  ```
+- **Response (200 OK)**: `{ "status": "updated" }`
+
+#### `DELETE /api/tickets/:id`
+Deletes an task.
+- **Response (200 OK)**: `{ "status": "deleted" }`
+
+---
+
+## 8. IndexedDB Local Storage Specifications
+
+As prioritized, all collaborative elements are backed by standard **IndexedDB** databases directly in the browser to enable instantaneous state restoration, offline-first reliability, and seamless scaling.
+
+### 8.1. Tickets Storage
+- **Database Name**: `DBStudioProTickets`
+- **Object Store**: `tickets`
+- **Key Path**: `id`
+- **Fallback Seeding**: Provided automatically on the first load to populate realistic database schema designer, index-optimization, and validation tasks.
+
+### 8.2. Chats & Messages Storage
+- **Database Name**: `DBStudioProChats`
+- **Object Store**: `chats`
+- **Key Path**: `id`
+- **Schema Shape**:
+  ```typescript
+  interface Chat {
+      id: string;
+      type: 'private' | 'group';
+      name: string;
+      participants: string[];
+      messages: ChatMessage[];
+      unreadCount?: number;
+      isOnline?: boolean;
+  }
+  ```
+- **Updates**: Any sent message is instantly pushed into the local object store asynchronously before updating local React state, minimizing the risk of data loss.
+
+

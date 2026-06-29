@@ -36,14 +36,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ projectName, backendConfig
         <div className="flex items-center">
             <CollaborationBar collaborators={collaborators} />
             
-            {/* Chat Toggle */}
+            {/* Chat & Tickets Toggle */}
             <div className="ml-2 mr-2">
                 <button 
                     onClick={onToggleChat}
-                    className={`p-1.5 rounded transition-colors ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
-                    title="Team Chat"
+                    className={`p-1.5 rounded transition-colors flex items-center gap-1.5 ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                    title="Team Chat & Tickets / Aufgaben"
                 >
                     <MessageSquare size={16} />
+                    <span className="text-[10px] font-bold">Chat & Tickets</span>
                 </button>
             </div>
 
