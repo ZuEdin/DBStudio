@@ -22,6 +22,10 @@ import { SchedulerView } from '../features/scheduler/SchedulerView';
 import { NavigationDesigner } from '../features/navigation/NavigationDesigner';
 import { ThemeDesigner } from '../features/themes/ThemeDesigner';
 import { LogicDesigner } from '../features/logic/LogicDesigner';
+import { ApiRoutingDesigner } from '../features/backend/ApiRoutingDesigner';
+import { LifecycleDesigner } from '../features/logic/LifecycleDesigner';
+import { MultiTenancyWizard } from '../features/backend/MultiTenancyWizard';
+import { DataSeederView } from '../features/tables/DataSeederView';
 import { PageDesigner } from '../features/pages/PageDesigner';
 import { PageView } from '../features/pages/PageView';
 import { useAppController } from '../hooks/useAppController'; // Need context types or pass down
@@ -330,6 +334,42 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
           <LogicDesigner 
              config={backendConfig}
              onUpdateConfig={onUpdateBackendConfig!}
+             showMessage={showMessage}
+          />
+        );
+      case 'api_routing_designer':
+        return (
+          <ApiRoutingDesigner 
+             config={backendConfig}
+             tables={tables}
+             queries={queries}
+             onUpdateConfig={onUpdateBackendConfig}
+             showMessage={showMessage}
+          />
+        );
+      case 'lifecycle_designer':
+        return (
+          <LifecycleDesigner 
+             config={backendConfig}
+             tables={tables}
+             onUpdateConfig={onUpdateBackendConfig}
+             showMessage={showMessage}
+          />
+        );
+      case 'multi_tenancy_wizard':
+        return (
+          <MultiTenancyWizard 
+             config={backendConfig}
+             tables={tables}
+             onUpdateConfig={onUpdateBackendConfig}
+             showMessage={showMessage}
+          />
+        );
+      case 'data_seeder_view':
+        return (
+          <DataSeederView 
+             tables={tables}
+             backendConfig={backendConfig}
              showMessage={showMessage}
           />
         );

@@ -702,6 +702,10 @@ export type ViewType =
   | { type: 'live_sync' }
   | { type: 'theme_designer' }
   | { type: 'logic_designer' }
+  | { type: 'api_routing_designer' }
+  | { type: 'lifecycle_designer' }
+  | { type: 'multi_tenancy_wizard' }
+  | { type: 'data_seeder_view' }
   | { type: 'tickets_board' }; 
 
 export interface Ticket {

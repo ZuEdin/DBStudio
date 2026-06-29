@@ -122,6 +122,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
          case 'scheduler': return 'Zeitplaner';
          case 'api_import': return 'API Import';
          case 'live_sync': return 'Live Datenbank-Sync (Introspection)';
+         case 'api_routing_designer': return 'API Routing Designer';
+         case 'lifecycle_designer': return 'Lifecycle Designer';
+         case 'multi_tenancy_wizard': return 'SaaS Multi-Tenant Wizard';
+         case 'data_seeder_view': return 'Data Seeder';
          default: return '';
       }
     }

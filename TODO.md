@@ -22,6 +22,13 @@ Hier sind Vorschläge für zukünftige Features und Verbesserungen. Markiere die
 - [x] **AI Mock-Data Generator**: Automatische Generierung von realistischen Testdaten basierend auf den Datentypen und Spaltennamen. (Integrierter KI-Synthese-Generator mit Temperaturregelung, Lokalisierungen wie DE/US/FR/ES und simuliertem Synthese-Log)
 - [x] **Natural Language to SQL**: KI-Unterstützung im Query-Builder, um Fragen in SQL-Abfragen zu übersetzen. (Eingebauter AI SQL-Assistent im Abfrage-Designer mit natürlicher Deutsch-zu-SQL-Übersetzung, Simulation und direkter Übernahme in den Code-Editor)
 
+## 🏗️ Developer Experience & Architecture (Non-AI)
+- [ ] **Role-Based Access Control (RBAC) & Security Policies**: Visueller Editor zum Definieren von Rollen (Admin, User, Guest) und Rechten. Generiert Row-Level Security (RLS) Skripte für PostgreSQL oder Auth-Middlewares/Guards für das Backend.
+- [ ] **API Endpoint & Routing Designer**: Eigene Ansicht, um Tabellen oder komplexe Queries direkt auf spezifische REST/GraphQL Endpoints zu mappen. Inklusive Konfiguration von Validierungs-Schemas (z.B. Zod/Joi) und Middleware-Ketten.
+- [ ] **Visual State Machine (Lifecycle Designer)**: Visueller Editor für den Lebenszyklus bestimmter Entitäten (z.B. Ticket: Open -> In Progress -> Resolved). Generiert automatisch Enums, Transition-Validierungen und Event-Hooks im Backend-Code.
+- [ ] **Multi-Tenant Architecture Setup**: SaaS-Wizard zur Konfiguration von Mandantenfähigkeit. Auswahl zwischen "Shared Schema" (mit tenant_id), "Schema-per-Tenant" oder "DB-per-Tenant". Automatisches Scoping aller generierten Queries.
+- [ ] **Advanced Data Seeding & Master Data**: Tool zum Verwalten von festen Stammdaten (Kategorien, Länderlisten, Configs) im Editor, welches automatisch reproduzierbare Seeder-Skripte (z.B. für Prisma oder Laravel) generiert.
+
 ## 👥 Tools & Collaboration
 - [x] **Echtzeit-Kollaboration (Multiplayer)**: Gemeinsames Arbeiten am gleichen Schema im Team (ähnlich wie in Figma oder Miro). (Volle Live-Kollaborationssimulation mit dynamischen Maus-Zeigern von Sarah und Tom direkt auf dem Schema-Canvas)
 - [x] **Projekt-Export zu GitHub**: Direkter Push der generierten App, ORM-Modelle und Migrationsskripte in ein verknüpftes GitHub-Repository. (Integrierte Push-Skripte und UI für Git Integration)

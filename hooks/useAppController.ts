@@ -863,6 +863,10 @@ export const useAppController = () => {
         case 'security_manager': ui.setShowSecurityManager(true); break;
         case 'navigation_designer': handleSetView({ type: 'navigation_designer' }); break;
         case 'logic_designer': handleSetView({ type: 'logic_designer' }); break;
+        case 'api_routing_designer': handleSetView({ type: 'api_routing_designer' }); break;
+        case 'lifecycle_designer': handleSetView({ type: 'lifecycle_designer' }); break;
+        case 'multi_tenancy_wizard': handleSetView({ type: 'multi_tenancy_wizard' }); break;
+        case 'data_seeder_view': handleSetView({ type: 'data_seeder_view' }); break;
         case 'open_app_info': handleSetView({ type: 'app_info' }); break;
         case 'theme_designer':
         case 'open_whitelabel': ui.setShowWhitelabelModal(true); break;

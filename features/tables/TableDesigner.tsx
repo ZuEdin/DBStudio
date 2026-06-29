@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo, Relationship } from '../../types/index';
-import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical, Database } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
 import { MockDataGeneratorModal } from './MockDataGeneratorModal';
