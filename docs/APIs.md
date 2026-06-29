@@ -194,7 +194,8 @@ Um das Beispiel **Standort (Tabelle) ➔ ID auswählen ➔ Subpage einblenden & 
    - **Zeilenklick-Aktion**: Wählen Sie `Parameter setzen` aus.
    - **Parameter Name**: Geben Sie `selectedId` ein.
    - **Parameter Spalte**: Wählen Sie `id` aus.
-   *Effekt:* Sobald ein Nutzer eine Zeile der Tabelle anklickt, wird die ID dieses Standorts im globalen Parameter `selectedId` gespeichert.
+   - **Ereignis-Trigger für Details**: Wählen Sie zwischen `Einfacher Klick` (Standard, sofortige Ausführung) oder `Doppelklick` (markiert Zeile bei Klick, öffnet Details erst bei Doppelklick).
+   *Effekt:* Sobald ein Nutzer eine Zeile der Tabelle anklickt (oder doppelklickt, je nach Einstellung), wird die ID dieses Standorts im globalen Parameter `selectedId` gespeichert.
 
 #### Schritt 2: Unterseite erstellen & Filterung einrichten (Standort-Details)
 1. Erstellen Sie eine neue Seite (z. B. namens `Standort Details`).
@@ -221,3 +222,67 @@ Damit die Unterseite erst sichtbar wird, wenn tatsächlich ein Standort angeklic
 - **Filter-Feld**: Tragen Sie `selectedId` ein.
 - **Operator**: Wählen Sie `ist gesetzt (nicht leer)`.
 *Effekt:* Der Container ist anfangs unsichtbar. Erst wenn ein Standort in der Tabelle angeklickt wurde und `selectedId` einen Wert erhält, blendet sich die Unterseite geschmeidig ein.
+
+---
+
+## 5. Schema & Project Import API Specifications
+
+To allow users to bootstrap database structures quickly, the system supports importing raw SQL, JSON, or CSV schemas directly. These are stored locally inside **IndexedDB** for fast client-side accessibility, but can easily be bound to a REST / JSON API backend proxy.
+
+### 5.1. Import Endpoint (Schema & Data Parsing)
+
+#### `POST /api/projects/:projectId/import-schema`
+Parses pasted text schemas (SQL DDL, JSON Schema, CSV format, or JSON lists) and registers them as new tables within the project.
+
+- **Request Payload**:
+  ```json
+  {
+    "inputText": "CREATE TABLE customers (id INT PRIMARY KEY, name VARCHAR(255));",
+    "format": "sql"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "status": "success",
+    "tables": [
+      {
+        "id": "table-uuid-1",
+        "name": "customers",
+        "fields": [
+          { "id": "field-uuid-1", "name": "id", "type": "INTEGER", "isPrimaryKey": true, "allowNull": false },
+          { "id": "field-uuid-2", "name": "name", "type": "VARCHAR", "isPrimaryKey": false, "allowNull": true }
+        ],
+        "data": []
+      }
+    ]
+  }
+  ```
+
+---
+
+## 6. IndexedDB Storage Architecture & Backend Synchronization
+
+To keep local development responsive, all state synchronization follows a decoupled queue pattern. Later migratable backend engines (MySQL, Postgres, etc.) can be seamlessly plugged in.
+
+```text
++------------------------------------------+
+|            Client View Layer             |
++------------------------------------------+
+                     |
+                     v
++------------------------------------------+
+|          stores/useProjectStore          |
++------------------------------------------+
+                     |
+       +-------------+-------------+
+       |                           | (Async Sync)
+       v                           v
++--------------+           +---------------+
+|  IndexedDB   |           |  SQL Backend  |
+|  (Priority)  |           | (Optional API)|
++--------------+           +---------------+
+```
+
+All table structural changes trigger `saveProjectToStorage()` or `addTable()`, operating asynchronously with IndexedDB as the source of truth, offering instantaneous state restores and offline compatibility.
+

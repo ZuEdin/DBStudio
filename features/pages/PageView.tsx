@@ -434,8 +434,27 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
 
              const allColumns = columns.length > 0 ? columns : (targetTable ? targetTable.fields.map(f => f.name) : []);
 
+             const triggerMode = node.props.rowClickTrigger || 'click';
+
              const handleRowClick = (row: any) => {
                  if (node.props.enableSelection) {
+                     const paramKey = node.props.selectionParamName || 'selectedId';
+                     const idVal = row._raw[pkFieldName];
+                     if (triggerMode === 'click') {
+                         if (node.props.detailsPageId) {
+                             navigate(node.props.detailsPageId, { [paramKey]: idVal });
+                         } else {
+                             setParam(paramKey, idVal);
+                         }
+                     } else {
+                         // dblclick mode: single click only selects row (sets parameter locally)
+                         setParam(paramKey, idVal);
+                     }
+                 }
+             };
+
+             const handleRowDoubleClick = (row: any) => {
+                 if (node.props.enableSelection && triggerMode === 'dblclick') {
                      const paramKey = node.props.selectionParamName || 'selectedId';
                      const idVal = row._raw[pkFieldName];
                      if (node.props.detailsPageId) {
@@ -483,7 +502,8 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                                                <tr 
                                                    key={idx} 
                                                    onClick={() => handleRowClick(row)}
-                                                   className={`hover:bg-slate-50 transition cursor-pointer ${isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''}`}
+                                                   onDoubleClick={() => handleRowDoubleClick(row)}
+                                                   className={`hover:bg-slate-50 transition cursor-pointer select-none ${isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''}`}
                                                >
                                                    {Object.keys(row).filter(k => k !== '_raw').map((key, vIdx) => (
                                                        <td key={vIdx} className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 font-medium">

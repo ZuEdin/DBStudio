@@ -702,6 +702,7 @@ export const useAppController = () => {
         
         case 'import_excel': ui.setShowExcelWizard(true); break;
         case 'import_access': ui.setShowAccessWizard(true); break;
+        case 'import_schema': ui.setShowSchemaWizard(true); break;
         case 'generate_dummy': ui.setShowDummyDataWizard(true); break;
         case 'save': await handleSave(); break;
         

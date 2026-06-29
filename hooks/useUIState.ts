@@ -50,6 +50,7 @@ export const useUIState = () => {
   const [showAccessWizard, setShowAccessWizard] = useState(false);
   const [showDummyDataWizard, setShowDummyDataWizard] = useState(false);
   const [showSharePointWizard, setShowSharePointWizard] = useState(false);
+  const [showSchemaWizard, setShowSchemaWizard] = useState(false);
   
   const [showElectronSettings, setShowElectronSettings] = useState(false);
   const [showSecurityManager, setShowSecurityManager] = useState(false);
@@ -84,6 +85,7 @@ export const useUIState = () => {
       showAccessWizard, setShowAccessWizard,
       showDummyDataWizard, setShowDummyDataWizard,
       showSharePointWizard, setShowSharePointWizard,
+      showSchemaWizard, setShowSchemaWizard,
       
       showElectronSettings, setShowElectronSettings,
       showSecurityManager, setShowSecurityManager,

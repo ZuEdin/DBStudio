@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork, LayoutTemplate } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork, LayoutTemplate, FileCode } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,7 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
       <RibbonGroup label={t('ribbon.groups.tables')}>
         <RibbonButton icon={<TableIcon />} label={t('ribbon.actions.table')} onClick={() => onAction('create_table')} />
         <RibbonButton icon={<Wand2 className="text-purple-600" />} label={t('ribbon.actions.ai_assist')} onClick={() => onAction('create_table_ai')} />
+        <RibbonButton icon={<FileCode className="text-teal-600" />} label="Projekt/SQL Import" onClick={() => onAction('import_schema')} />
       </RibbonGroup>
 
       {/* Queries Group */}

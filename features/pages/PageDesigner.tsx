@@ -1560,6 +1560,17 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                                 {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                         </div>
+                                        <div>
+                                            <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Ereignis-Trigger für Details</label>
+                                            <select
+                                                value={selectedNode.props.rowClickTrigger || 'click'}
+                                                onChange={(e) => updateSelectedNodeProps({ rowClickTrigger: e.target.value })}
+                                                className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs"
+                                            >
+                                                <option value="click">Einfacher Klick (Standard)</option>
+                                                <option value="dblclick">Doppelklick (Sicherer, markiert bei Klick)</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 )}
                             </div>

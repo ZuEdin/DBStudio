@@ -20,6 +20,7 @@ import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
 import { AccessImportWizard } from '../features/tools/AccessImportWizard';
 import { DummyDataWizard } from '../features/tools/DummyDataWizard';
 import { SharePointImportWizard } from '../features/tools/SharePointImportWizard'; 
+import { SchemaImportWizard } from '../features/tools/SchemaImportWizard'; 
 import { MessageModal } from './MessageModal';
 import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig, DbType, IntegrationsConfig } from '../types/index';
 
@@ -97,7 +98,9 @@ interface ModalLayerProps {
   setShowDummyDataWizard?: (show: boolean) => void;
   showSharePointWizard?: boolean; 
   setShowSharePointWizard?: (show: boolean) => void; 
-
+  showSchemaWizard?: boolean;
+  setShowSchemaWizard?: (show: boolean) => void;
+  onAddToast?: (message: string, type?: 'success' | 'error' | 'warning') => void;
   // Global Message Modal
   messageModal: MessageModalConfig | null;
   onCloseMessage: () => void;
@@ -133,6 +136,8 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showAccessWizard, setShowAccessWizard,
     showDummyDataWizard, setShowDummyDataWizard,
     showSharePointWizard, setShowSharePointWizard,
+    showSchemaWizard, setShowSchemaWizard,
+    onAddToast,
     
     messageModal, onCloseMessage,
     tables, queries, forms, reports, backendConfig, onUpdateBackendConfig
@@ -225,6 +230,14 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             onClose={() => setShowSharePointWizard(false)}
             backendConfig={backendConfig}
             onUpdateConfig={onUpdateBackendConfig}
+          />
+      )}
+
+      {showSchemaWizard && setShowSchemaWizard && (
+          <SchemaImportWizard
+            onSave={onCreateTable}
+            onClose={() => setShowSchemaWizard(false)}
+            onAddToast={onAddToast || (() => {})}
           />
       )}
 

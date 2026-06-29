@@ -190,6 +190,10 @@ export default function App() {
         showSharePointWizard={app.showSharePointWizard}
         setShowSharePointWizard={app.setShowSharePointWizard}
 
+        showSchemaWizard={app.showSchemaWizard}
+        setShowSchemaWizard={app.setShowSchemaWizard}
+        onAddToast={app.addToast}
+
         backendConfig={app.backendConfig}
         onUpdateBackendConfig={app.setBackendConfig}
       />
