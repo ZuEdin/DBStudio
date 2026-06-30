@@ -27,7 +27,7 @@ export const buildWorkflowAST = (workflow: Workflow): ASTNode[] | null => {
         const node = nodesMap.get(nodeId);
         if (!node) return [];
 
-        const outgoingEdges = workflow.edges.filter(e => e.sourceNodeId === nodeId);
+        const outgoingEdges = workflow.edges.filter(e => e.source === nodeId);
         
         const astNode: ASTNode = {
             id: node.id,
@@ -36,15 +36,15 @@ export const buildWorkflowAST = (workflow: Workflow): ASTNode[] | null => {
             next: []
         };
 
-        if (node.type === 'condition') {
+        if (node.type === 'conditionNode') {
             const trueEdge = outgoingEdges.find(e => e.label === 'True');
             const falseEdge = outgoingEdges.find(e => e.label === 'False');
 
-            astNode.trueBranch = trueEdge ? buildTree(trueEdge.targetNodeId, new Set(visited)) : [];
-            astNode.falseBranch = falseEdge ? buildTree(falseEdge.targetNodeId, new Set(visited)) : [];
+            astNode.trueBranch = trueEdge ? buildTree(trueEdge.target, new Set(visited)) : [];
+            astNode.falseBranch = falseEdge ? buildTree(falseEdge.target, new Set(visited)) : [];
         } else {
             for (const edge of outgoingEdges) {
-                astNode.next.push(...buildTree(edge.targetNodeId, new Set(visited)));
+                astNode.next.push(...buildTree(edge.target, new Set(visited)));
             }
         }
 
@@ -65,43 +65,43 @@ export const generateTypeScriptCode = (ast: ASTNode[]): string => {
     const visit = (nodes: ASTNode[], indentLevel: number) => {
         const indent = "    ".repeat(indentLevel);
         for (const astNode of nodes) {
-            code += `${indent}// Node: ${astNode.node.label} (${astNode.type})\n`;
+            code += `${indent}// Node: ${astNode.node.data.label} (${astNode.type})\n`;
             
-            if (astNode.type === 'trigger') {
-                 code += `${indent}console.log("Workflow Started: ${astNode.node.label}");\n`;
+            if (astNode.type === 'triggerNode') {
+                 code += `${indent}console.log("Workflow Started: ${astNode.node.data.label}");\n`;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'condition') {
-                 const op = astNode.node.conditionConfig?.operator || "===";
-                 const val = astNode.node.conditionConfig?.value || "null";
+            } else if (astNode.type === 'conditionNode') {
+                 const op = astNode.node.data.conditionConfig?.operator || "===";
+                 const val = astNode.node.data.conditionConfig?.value || "null";
                  code += `${indent}if (checkCondition("${op}", "${val}")) {\n`;
                  visit(astNode.trueBranch || [], indentLevel + 1);
                  code += `${indent}} else {\n`;
                  visit(astNode.falseBranch || [], indentLevel + 1);
                  code += `${indent}}\n`;
-            } else if (astNode.type === 'action') {
-                 const actionType = astNode.node.actionConfig?.actionType || "run";
+            } else if (astNode.type === 'actionNode') {
+                 const actionType = astNode.node.data.actionConfig?.actionType || "run";
                  code += `${indent}await executeAction("${actionType}");\n`;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'api') {
-                 const method = astNode.node.apiConfig?.method || "GET";
-                 const url = astNode.node.apiConfig?.url || "https://api.example.com";
+            } else if (astNode.type === 'apiNode') {
+                 const method = astNode.node.data.apiConfig?.method || "GET";
+                 const url = astNode.node.data.apiConfig?.url || "https://api.example.com";
                  code += `${indent}// API Call to endpoint
 ${indent}const response_${astNode.id} = await fetch("${url}", {
 ${indent}    method: "${method}",
-${indent}    headers: ${astNode.node.apiConfig?.headers ? astNode.node.apiConfig.headers.replace(/\n/g, '\n' + indent + '    ') : '{}'},
-${indent}    body: ${astNode.node.apiConfig?.body && (method === 'POST' || method === 'PUT') ? 'JSON.stringify(' + astNode.node.apiConfig.body.replace(/\n/g, '\n' + indent + '    ') + ')' : 'undefined'}
+${indent}    headers: ${astNode.node.data.apiConfig?.headers ? astNode.node.data.apiConfig.headers.replace(/\n/g, '\n' + indent + '    ') : '{}'},
+${indent}    body: ${astNode.node.data.apiConfig?.body && (method === 'POST' || method === 'PUT') ? 'JSON.stringify(' + astNode.node.data.apiConfig.body.replace(/\n/g, '\n' + indent + '    ') + ')' : 'undefined'}
 ${indent}});
 ${indent}const data_${astNode.id} = await response_${astNode.id}.json();
 `;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'upload') {
-                 const tableId = astNode.node.fileUploadConfig?.tableId || "default_table";
-                 const fileTypes = astNode.node.fileUploadConfig?.fileTypes || "*";
+            } else if (astNode.type === 'uploadNode') {
+                 const tableId = astNode.node.data.fileUploadConfig?.tableId || "default_table";
+                 const fileTypes = astNode.node.data.fileUploadConfig?.fileTypes || "*";
                  code += `${indent}// File upload connection to Table: ${tableId}
 ${indent}await uploadFileToTable("${tableId}", { allowedTypes: "${fileTypes}" });
 `;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'group') {
+            } else if (astNode.type === 'groupNode') {
                  // Group frames are visual layout wrappers; just pass through
                  visit(astNode.next, indentLevel);
             }
@@ -119,44 +119,44 @@ export const generateCSharpCode = (ast: ASTNode[]): string => {
     const visit = (nodes: ASTNode[], indentLevel: number) => {
         const indent = "    ".repeat(indentLevel);
         for (const astNode of nodes) {
-            code += `${indent}// Node: ${astNode.node.label} (${astNode.type})\n`;
+            code += `${indent}// Node: ${astNode.node.data.label} (${astNode.type})\n`;
             
-            if (astNode.type === 'trigger') {
-                 code += `${indent}Console.WriteLine("Workflow Started: ${astNode.node.label}");\n`;
+            if (astNode.type === 'triggerNode') {
+                 code += `${indent}Console.WriteLine("Workflow Started: ${astNode.node.data.label}");\n`;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'condition') {
+            } else if (astNode.type === 'conditionNode') {
                  // Simplified condition logic
-                 const op = astNode.node.conditionConfig?.operator || "==";
-                 const val = astNode.node.conditionConfig?.value || "null";
+                 const op = astNode.node.data.conditionConfig?.operator || "==";
+                 const val = astNode.node.data.conditionConfig?.value || "null";
                  code += `${indent}if (CheckCondition("${op}", "${val}")) {\n`;
                  visit(astNode.trueBranch || [], indentLevel + 1);
                  code += `${indent}} else {\n`;
                  visit(astNode.falseBranch || [], indentLevel + 1);
                  code += `${indent}}\n`;
-            } else if (astNode.type === 'action') {
-                 const actionType = astNode.node.actionConfig?.actionType || "run";
+            } else if (astNode.type === 'actionNode') {
+                 const actionType = astNode.node.data.actionConfig?.actionType || "run";
                  code += `${indent}await ExecuteActionAsync("${actionType}");\n`;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'api') {
-                 const method = astNode.node.apiConfig?.method || "GET";
-                 const url = astNode.node.apiConfig?.url || "https://api.example.com";
+            } else if (astNode.type === 'apiNode') {
+                 const method = astNode.node.data.apiConfig?.method || "GET";
+                 const url = astNode.node.data.apiConfig?.url || "https://api.example.com";
                  code += `${indent}// API Call to endpoint
 ${indent}using (var client = new HttpClient()) {
 ${indent}    var request = new HttpRequestMessage(HttpMethod.${method.charAt(0).toUpperCase() + method.slice(1).toLowerCase()}, "${url}");
-${indent}    // Headers: ${astNode.node.apiConfig?.headers ? astNode.node.apiConfig.headers.replace(/\n/g, ' ') : '{}'}
-${indent}    // Body: ${astNode.node.apiConfig?.body && (method === 'POST' || method === 'PUT') ? astNode.node.apiConfig.body.replace(/\n/g, ' ') : 'None'}
+${indent}    // Headers: ${astNode.node.data.apiConfig?.headers ? astNode.node.data.apiConfig.headers.replace(/\n/g, ' ') : '{}'}
+${indent}    // Body: ${astNode.node.data.apiConfig?.body && (method === 'POST' || method === 'PUT') ? astNode.node.data.apiConfig.body.replace(/\n/g, ' ') : 'None'}
 ${indent}    var response = await client.SendAsync(request);
 ${indent}    var responseString = await response.Content.ReadAsStringAsync();
 ${indent}}
 `;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'upload') {
-                 const tableId = astNode.node.fileUploadConfig?.tableId || "default_table";
+            } else if (astNode.type === 'uploadNode') {
+                 const tableId = astNode.node.data.fileUploadConfig?.tableId || "default_table";
                  code += `${indent}// File upload connection to Table ID: ${tableId}
 ${indent}await UploadFileToTableAsync("${tableId}");
 `;
                  visit(astNode.next, indentLevel);
-            } else if (astNode.type === 'group') {
+            } else if (astNode.type === 'groupNode') {
                  // Group frames are visual layout wrappers; just pass through
                  visit(astNode.next, indentLevel);
             }

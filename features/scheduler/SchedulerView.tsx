@@ -14,13 +14,13 @@ export const SchedulerView: React.FC<SchedulerViewProps> = ({ workflows, onUpdat
 
   // Filter workflows that have at least one schedule trigger node, and deduplicate by ID to prevent duplicate keys
   const scheduledWorkflows = workflows.filter((w, index, self) => 
-      w.nodes.some(n => n.type === 'trigger' && n.triggerConfig?.event === 'schedule') &&
+      w.nodes.some(n => n.type === 'triggerNode' && n.data?.triggerConfig?.event === 'schedule') &&
       self.findIndex(t => t.id === w.id) === index
   );
 
   const getCronExpression = (wf: Workflow) => {
-      const node = wf.nodes.find(n => n.type === 'trigger' && n.triggerConfig?.event === 'schedule');
-      return node?.triggerConfig?.cronExpression || '* * * * *';
+      const node = wf.nodes.find(n => n.type === 'triggerNode' && n.data?.triggerConfig?.event === 'schedule');
+      return node?.data?.triggerConfig?.cronExpression || '* * * * *';
   };
 
   const updateCron = (cron: string) => {
@@ -29,8 +29,8 @@ export const SchedulerView: React.FC<SchedulerViewProps> = ({ workflows, onUpdat
       if (!wf) return;
 
       const newNodes = wf.nodes.map(n => {
-          if (n.type === 'trigger' && n.triggerConfig?.event === 'schedule') {
-              return { ...n, triggerConfig: { ...n.triggerConfig, cronExpression: cron } };
+          if (n.type === 'triggerNode' && n.data?.triggerConfig?.event === 'schedule') {
+              return { ...n, data: { ...n.data, triggerConfig: { ...n.data.triggerConfig, cronExpression: cron } } };
           }
           return n;
       });

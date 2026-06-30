@@ -318,35 +318,36 @@ export interface Chart {
 
 export interface WorkflowNode {
     id: string;
-    type: 'trigger' | 'condition' | 'action' | 'api' | 'upload' | 'group';
-    x: number;
-    y: number;
-    label: string;
-    triggerConfig?: {
-        event: 'onCreate' | 'onUpdate' | 'onDelete' | 'schedule';
-        tableId?: string;
-        cronExpression?: string;
-    };
-    conditionConfig?: {
-        fieldId?: string;
-        operator?: string;
-        value?: string;
-    };
-    actionConfig?: {
-        actionType: 'sendEmail' | 'updateRecord' | 'createRecord';
-        emailTo?: string;
-        emailSubject?: string;
-    };
-    apiConfig?: {
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-        url: string;
-        headers?: string;
-        body?: string;
-    };
-    fileUploadConfig?: {
-        tableId?: string;
-        fileTypes?: string;
-        maxSizeBytes?: number;
+    type: string;
+    position: { x: number; y: number };
+    data: {
+        label: string;
+        triggerConfig?: {
+            event: 'onCreate' | 'onUpdate' | 'onDelete' | 'schedule';
+            tableId?: string;
+            cronExpression?: string;
+        };
+        conditionConfig?: {
+            fieldId?: string;
+            operator?: string;
+            value?: string;
+        };
+        actionConfig?: {
+            actionType: 'sendEmail' | 'updateRecord' | 'createRecord';
+            emailTo?: string;
+            emailSubject?: string;
+        };
+        apiConfig?: {
+            method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+            url: string;
+            headers?: string;
+            body?: string;
+        };
+        fileUploadConfig?: {
+            tableId?: string;
+            fileTypes?: string;
+            maxSizeBytes?: number;
+        };
     };
     parentId?: string;
     extent?: 'parent';
@@ -357,9 +358,11 @@ export interface WorkflowNode {
 
 export interface WorkflowEdge {
     id: string;
-    sourceNodeId: string;
-    targetNodeId: string;
+    source: string;
+    target: string;
     label?: string;
+    animated?: boolean;
+    type?: string;
 }
 
 export interface Workflow {
@@ -624,6 +627,7 @@ export interface Project {
   id: string;
   name: string;
   lastModified: number;
+  isMetadataOnly?: boolean;
   isCloud?: boolean;
   owner?: string;
   collaborators?: string[];

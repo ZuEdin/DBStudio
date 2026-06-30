@@ -13,7 +13,7 @@
     "@faker-js/faker": "^10.5.0",
     "@google/genai": "^1.33.0",
     "@monaco-editor/react": "^4.6.0",
-    "@xyflow/react": "^12.11.0",
+    "@xyflow/react": "^12.11.1",
     "i18next": "23.10.0",
     "i18next-browser-languagedetector": "7.2.0",
     "immer": "10.0.3",

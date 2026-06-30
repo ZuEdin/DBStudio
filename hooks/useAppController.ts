@@ -811,16 +811,17 @@ export const useAppController = () => {
         case 'add_action_node':
              if (currentView.type === 'workflow_designer' && activeObject && 'nodes' in activeObject) {
                  const wf = activeObject as Workflow;
-                 const type = action === 'add_trigger_node' ? 'trigger' : action === 'add_condition_node' ? 'condition' : 'action';
+                 const type = action === 'add_trigger_node' ? 'triggerNode' : action === 'add_condition_node' ? 'conditionNode' : 'actionNode';
                  const newNode = {
                      id: crypto.randomUUID(),
                      type,
-                     x: Math.random() * 200 + 100,
-                     y: Math.random() * 200 + 100,
-                     label: type === 'trigger' ? 'Start' : type === 'condition' ? 'Bedingung' : 'Aktion',
-                     triggerConfig: type === 'trigger' ? { event: 'onCreate' } : undefined,
-                     conditionConfig: type === 'condition' ? { operator: '=' } : undefined,
-                     actionConfig: type === 'action' ? { actionType: 'sendEmail' } : undefined
+                     position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
+                     data: {
+                         label: type === 'triggerNode' ? 'Start' : type === 'conditionNode' ? 'Bedingung' : 'Aktion',
+                         triggerConfig: type === 'triggerNode' ? { event: 'onCreate' } : undefined,
+                         conditionConfig: type === 'conditionNode' ? { operator: '=' } : undefined,
+                         actionConfig: type === 'actionNode' ? { actionType: 'sendEmail' } : undefined
+                     }
                  };
                  const updated = { ...wf, nodes: [...wf.nodes, newNode as any] };
                  setActiveObject(updated);
@@ -904,7 +905,14 @@ export const useAppController = () => {
         relationships: store.relationships,
         pages: store.pages,
         charts: store.charts,
-        loadProject: store.loadProject,
+        loadProject: async (project: Project) => {
+            const full = await getProjectById(project.id);
+            if (full) {
+                store.loadProject(full);
+            } else {
+                store.loadProject(project);
+            }
+        },
         createNewDatabase: store.createNew,
         saveTable: (t: any, mode: any) => mode === 'create' ? store.addTable(t) : store.updateTable(t),
         saveQuery: (q: any) => store.setQueries([...store.queries, q]),

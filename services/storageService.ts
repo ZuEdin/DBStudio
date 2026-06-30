@@ -105,6 +105,7 @@ export const getAllProjects = async (): Promise<Project[]> => {
             id: m.id,
             name: m.name,
             lastModified: m.lastModified,
+            isMetadataOnly: true,
             data: {
                 backendConfig: {
                     dbType: m.dbType,

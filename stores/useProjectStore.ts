@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { produce, produceWithPatches, applyPatches, Patch } from 'immer';
-import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, TableNode, FormElement, FormField, TableGroup, CustomPage } from '../types/index';
+import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, WorkflowNode, WorkflowEdge, TableNode, FormElement, FormField, TableGroup, CustomPage } from '../types/index';
 import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEngine';
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
@@ -41,6 +41,8 @@ interface ProjectStore extends ProjectData {
     setCharts: (charts: Chart[]) => void;
     setPages: (pages: CustomPage[]) => void;
     setWorkflows: (workflows: Workflow[]) => void;
+    updateWorkflowNodes: (workflowId: string, nodes: WorkflowNode[]) => void;
+    updateWorkflowEdges: (workflowId: string, edges: WorkflowEdge[]) => void;
     setRelationships: (relationships: Relationship[]) => void;
     setBackendConfig: (config: BackendConfig) => void;
     setLayout: (layout: TableNode[]) => void;
@@ -70,6 +72,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     init: async () => { await initSqlEngine(); },
 
     loadProject: (project) => {
+        if (!project.data || !project.data.tables) {
+            console.warn("Attempted to load project without full data. Skipping.");
+            return;
+        }
         try {
             localStorage.setItem('lastProjectId', project.id);
         } catch (e) {
@@ -227,6 +233,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setCharts: (charts) => get().executeAction(s => { s.charts = charts; }),
     setPages: (pages) => get().executeAction(s => { s.pages = pages; }),
     setWorkflows: (workflows) => get().executeAction(s => { s.workflows = workflows; }),
+    updateWorkflowNodes: (workflowId, nodes) => {
+        get().executeAction(s => {
+            const wf = s.workflows?.find(w => w.id === workflowId);
+            if (wf) wf.nodes = nodes;
+        });
+    },
+    updateWorkflowEdges: (workflowId, edges) => {
+        get().executeAction(s => {
+            const wf = s.workflows?.find(w => w.id === workflowId);
+            if (wf) wf.edges = edges;
+        });
+    },
     setRelationships: (relationships) => get().executeAction(s => { s.relationships = relationships; }),
     
     setTickets: (tickets) => set({ tickets }),
