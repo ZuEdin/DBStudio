@@ -180,7 +180,8 @@ export const getCoffeeFund = (lang: string): ProjectTemplate => {
                 ]
             }
           ],
-          layout: []
+          layout: [],
+          tableGroups: []
         }
     };
 };

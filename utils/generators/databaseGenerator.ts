@@ -127,10 +127,9 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
                         let strVal = String(val).replace(/'/g, "''");
                         if (f.name.toLowerCase().includes('password')) {
                              if (config.dbType === DbType.MySQL) {
-                                 return `MD5('${strVal}')`;
+                                 return `SHA2('${strVal}', 256)`;
                              } else if (config.dbType === DbType.SQL) {
-                                 // SQL Server Hashbytes example (usually stored as varbinary, but if character then converts to hex)
-                                 return `CONVERT(VARCHAR(32), HashBytes('MD5', '${strVal}'), 2)`; 
+                                 return `CONVERT(VARCHAR(64), HashBytes('SHA2_256', '${strVal}'), 2)`; 
                              }
                         }
                         return `'${strVal}'`;
@@ -190,7 +189,7 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
         try {
             // Prisma Schema
             const prismaCode = generatePrismaSchema(processingTables, relationships, config);
-            files.push({ name: 'schema.prisma', path: `${root}/orm/prisma/schema.prisma`, content: prismaCode, language: 'graphql' });
+            files.push({ name: 'schema.prisma', path: `${root}/orm/prisma/schema.prisma`, content: prismaCode, language: 'prisma' });
 
             // Drizzle Schema
             const drizzleCode = generateDrizzleSchema(processingTables, relationships, config);

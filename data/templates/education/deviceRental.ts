@@ -236,7 +236,8 @@ export const getDeviceRental = (lang: string): ProjectTemplate => {
                   ]
               }
           ],
-          layout: []
+          layout: [],
+          tableGroups: []
         }
     };
 };

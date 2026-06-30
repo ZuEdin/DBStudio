@@ -160,7 +160,7 @@ async def get_db():
         if (f.isPrimaryKey) {
           params.push('primary_key=True');
         }
-        if (f.isIdentity) {
+        if (f.isAutoIncrement) {
           params.push('autoincrement=True');
         }
         if (f.allowNull === false && !f.isPrimaryKey) {

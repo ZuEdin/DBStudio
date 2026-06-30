@@ -1,25 +1,27 @@
 
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig } from '../types/index';
 import { saveProjectToStorage, getProjectById } from '../services/storageService';
 import { cloudService } from '../services/cloudService'; 
 import * as XLSX from 'xlsx';
 
 // Import Sub-Hooks
-import { useUIState } from './useUIState';
 import { useChatState } from './useChatState';
 
 export const useAppController = () => {
   const store = useProjectStore();
-  const ui = useUIState();
+  const ui = useUIStore();
   const chat = useChatState();
   
-  const [currentView, setCurrentView] = useState<ViewType>({ type: 'welcome' });
-  const [activeTab, setActiveTab] = useState('home');
-  const [activeObject, setActiveObject] = useState<Table | Query | Report | Form | Chart | Workflow | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
-  const [savePrompt, setSavePrompt] = useState<{show: boolean, targetView?: ViewType}>({show: false});
+  const { 
+    currentView, setCurrentView, 
+    activeTab, setActiveTab, 
+    activeObject, setActiveObject,
+    isDirty, setIsDirty,
+    savePrompt, setSavePrompt
+  } = ui;
   
   // Locking State
   const [activeLock, setActiveLock] = useState<LockInfo | null>(null);
@@ -693,6 +695,7 @@ export const useAppController = () => {
                 sourceId: '',
                 sourceType: 'table',
                 mode: 'edit',
+                fields: [],
                 layout: {
                    id: crypto.randomUUID(), type: 'container', className: 'p-8 max-w-sm mx-auto bg-white rounded-xl shadow-md border border-slate-200 mt-10', children: [
                        { id: crypto.randomUUID(), type: 'label', label: 'Willkommen', className: 'text-xl font-bold text-center text-slate-800 mb-2' },
@@ -721,6 +724,7 @@ export const useAppController = () => {
                 sourceId: store.tables.find(t => t.name.includes('user'))?.id || '',
                 sourceType: 'table',
                 mode: 'edit',
+                fields: [],
                 layout: {
                    id: crypto.randomUUID(), type: 'container', className: 'p-6 max-w-4xl max-h-full mx-auto bg-white rounded-xl shadow border border-slate-200 mt-4', children: [
                        { id: crypto.randomUUID(), type: 'label', label: 'Benutzer & Rechte verwalten', className: 'text-2xl font-bold mb-4 text-slate-800' },
@@ -753,6 +757,7 @@ export const useAppController = () => {
                 sourceId: '',
                 sourceType: 'table',
                 mode: 'edit',
+                fields: [],
                 layout: {
                    id: crypto.randomUUID(), type: 'container', className: 'p-8 max-w-md mx-auto bg-white rounded-xl shadow-md border border-slate-200 mt-10', children: [
                        { id: crypto.randomUUID(), type: 'label', label: 'Account erstellen', className: 'text-xl font-bold text-center text-slate-800 mb-6' },
@@ -926,8 +931,10 @@ export const useAppController = () => {
                     workflows: store.workflows,
                     relationships: store.relationships,
                     layout: store.layout,
+                    tableGroups: store.tableGroups,
                     backendConfig: conf || store.backendConfig,
-                    lastSnapshot: store.lastSnapshot
+                    lastSnapshot: store.lastSnapshot,
+                    pages: store.pages
                 }
             };
             const dataStr = JSON.stringify(project, null, 2);

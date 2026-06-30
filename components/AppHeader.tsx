@@ -1,34 +1,27 @@
 
 import React from 'react';
-import { BackendConfig } from '../types/index';
 import { LanguageSelector } from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { CollaborationBar } from './CollaborationBar';
 import { cloudService } from '../services/cloudService';
 import { Cloud, GitBranch, MessageSquare, Sun, Moon } from 'lucide-react';
+import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 
-interface AppHeaderProps {
-  projectName: string;
-  backendConfig: BackendConfig;
-  onExport: (config: BackendConfig) => void;
-  onToggleChat: () => void; // New prop
-  isChatOpen: boolean; // New prop
-  darkMode: boolean;
-  onToggleDarkMode: () => void;
-}
-
-export const AppHeader: React.FC<AppHeaderProps> = ({ 
-  projectName, 
-  backendConfig, 
-  onExport, 
-  onToggleChat, 
-  isChatOpen,
-  darkMode,
-  onToggleDarkMode
-}) => {
+export const AppHeader: React.FC = () => {
   const { t } = useTranslation();
+  const store = useProjectStore();
+  const ui = useUIStore();
+  
+  const { projectName, backendConfig } = store;
+  const { darkMode, toggleDarkMode, isChatOpen, setIsChatOpen, setFormActionTrigger } = ui;
+
   // Mock Data: In a real app, this would come from a Context/Store connected to Websockets
   const collaborators = cloudService.getCollaborators('mock-id');
+
+  const onExport = () => {
+      setFormActionTrigger({ action: 'backend_export', timestamp: Date.now() });
+  };
 
   return (
     <div className="bg-slate-800 text-white text-xs px-2 py-1 flex justify-between items-center select-none shrink-0 print:hidden h-10 border-b border-slate-700">
@@ -49,7 +42,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             {/* Chat & Tickets Toggle */}
             <div className="ml-2 mr-1">
                 <button 
-                    onClick={onToggleChat}
+                    onClick={() => setIsChatOpen(!isChatOpen)}
                     className={`p-1.5 rounded transition-colors flex items-center gap-1.5 ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
                     title="Team Chat & Tickets / Aufgaben"
                 >
@@ -61,7 +54,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             {/* Dark / Light Mode Toggle */}
             <div className="mr-2">
                 <button 
-                    onClick={onToggleDarkMode}
+                    onClick={toggleDarkMode}
                     className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                     title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 >
@@ -72,7 +65,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <div className="h-4 w-px bg-slate-600 mx-1"></div>
             <LanguageSelector />
             <div className="h-4 w-px bg-slate-600 mx-2"></div>
-            <button onClick={() => onExport(backendConfig)} className="hover:text-blue-300 font-medium">
+            <button onClick={onExport} className="hover:text-blue-300 font-medium">
                 {t('app.save_backup')}
             </button>
         </div>

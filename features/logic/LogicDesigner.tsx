@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BackendConfig, GlobalStateVariable, ProductTour } from '../../types';
+import { BackendConfig, GlobalStateVariable, ProductTour } from '../../types/index';
 import { Settings, Zap, Compass, Plus, Trash2 } from 'lucide-react';
 
 interface LogicDesignerProps {

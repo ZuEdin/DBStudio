@@ -123,15 +123,27 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
                     const field2 = table2.fields.find(f => f.id === f2Id)!;
                     
                     const newData: Record<string, any>[] = [];
+                    
+                    // Hash Join Optimization
+                    const table2Map = new Map<string, any[]>();
+                    table2.data!.forEach(row2 => {
+                        const key = String(row2[field2.name]);
+                        if (!table2Map.has(key)) table2Map.set(key, []);
+                        table2Map.get(key)!.push(row2);
+                    });
+
                     workingData.forEach(row1 => {
-                        // INNER JOIN logic
-                        table2.data!.forEach(row2 => {
-                            if (String(row1[`${table1.name}.${field1.name}`]) === String(row2[field2.name])) {
-                                const newRow = {...row1};
-                                for (const key in row2) { newRow[`${table2.name}.${key}`] = row2[key]; }
+                        const joinVal = String(row1[`${table1.name}.${field1.name}`]);
+                        const matches = table2Map.get(joinVal);
+                        if (matches) {
+                            matches.forEach(row2 => {
+                                const newRow = { ...row1 };
+                                for (const key in row2) {
+                                    newRow[`${table2.name}.${key}`] = row2[key];
+                                }
                                 newData.push(newRow);
-                            }
-                        });
+                            });
+                        }
                     });
                     workingData = newData;
                     joinedTables.add(t2Id);

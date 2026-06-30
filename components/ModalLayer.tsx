@@ -15,133 +15,49 @@ import { MigrationManagerModal } from '../features/backend/MigrationManagerModal
 import { IntegrationsModal } from '../features/backend/IntegrationsModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
 import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
-import { DeleteQueryWizard, Criterion } from '../features/queries/wizards/DeleteQueryWizard'; 
+import { DeleteQueryWizard } from '../features/queries/wizards/DeleteQueryWizard'; 
 import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
 import { AccessImportWizard } from '../features/tools/AccessImportWizard';
 import { DummyDataWizard } from '../features/tools/DummyDataWizard';
 import { SharePointImportWizard } from '../features/tools/SharePointImportWizard'; 
 import { SchemaImportWizard } from '../features/tools/SchemaImportWizard'; 
 import { MessageModal } from './MessageModal';
-import { Table, Query, Report, Form, SelectQuery, ViewType, ElectronSettings, MessageModalConfig, DeploymentConfig, Chart, Workflow, EnvironmentConfig, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, BackendConfig, DbType, IntegrationsConfig } from '../types/index';
+import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
+import { DbType } from '../types/index';
 
 interface ModalLayerProps {
-  savePrompt: { show: boolean; targetView?: ViewType };
-  activeObject: Table | Query | Report | Form | Chart | Workflow | null;
   onCloseSavePrompt: (action: 'yes' | 'no' | 'cancel') => void;
-  
-  itemContextMenu: { type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow'; id: string; x: number; y: number } | null;
-  onCloseContextMenu: () => void;
-  onContextMenuAction: (action: 'view' | 'view_data' | 'export' | 'rename' | 'delete') => void;
-
-  nameInput: { title: string; label: string; initialValue: string; onConfirm: (name: string) => void; onCancel: () => void } | null;
-  
-  showReportWizard: boolean;
-  setShowReportWizard: (show: boolean) => void;
-  onSaveReport: (report: Report) => void;
-  
-  showFormWizard: boolean;
-  setShowFormWizard: (show: boolean) => void;
-  onSaveForm: (form: Form) => void;
-  
-  showSecurityManager: boolean;
-  setShowSecurityManager: (show: boolean) => void;
-  onUpdateTable: (table: Table) => void;
-  onCreateTable: (table: Table) => void; 
-
-  activeWizard: 'duplicate' | 'inconsistency' | 'append' | 'delete' | null;
-  setActiveWizard: (wizard: 'duplicate' | 'inconsistency' | 'append' | 'delete' | null) => void;
-  onSaveWizardQuery: (query: SelectQuery) => void;
-  onExecuteAppend: (source: Table, target: Table, map: Record<string, string>) => void;
-  onExecuteDelete: (table: Table, criteria: Criterion[]) => void;
-  
-  confirmationModal: { title: string; message: string; onConfirm: () => void } | null;
-  setConfirmationModal: (modal: null) => void;
-
-  // Electron
-  showElectronSettings: boolean;
-  electronSettings: ElectronSettings;
-  onSaveElectronSettings: (settings: ElectronSettings) => void;
-  onCloseElectronSettings: () => void;
-
-  // Deployment
-  showDeploymentModal?: boolean;
-  deploymentConfig?: DeploymentConfig;
-  onSaveDeploymentConfig?: (config: DeploymentConfig) => void;
-  onDeploy?: () => void;
-  onCloseDeploymentModal?: () => void;
-
-  // Commercial / Lifecycle Modals
-  showWhitelabelModal?: boolean;
-  setShowWhitelabelModal?: (show: boolean) => void;
-  onUpdateCommercial?: (w: WhitelabelConfig, m: MultiTenancyConfig, l: LicensingConfig) => void;
-  
-  showEnvModal?: boolean;
-  setShowEnvModal?: (show: boolean) => void;
-  onUpdateEnvironments?: (envs: EnvironmentConfig[]) => void;
-  
-  showMigrationModal?: boolean;
-  setShowMigrationModal?: (show: boolean) => void;
-  onSnapshot?: () => void;
-  lastSnapshot?: Table[];
-
-  // Integrations
-  showIntegrationsModal?: boolean;
-  setShowIntegrationsModal?: (show: boolean) => void;
-  onSaveIntegrations?: (config: IntegrationsConfig) => void;
-
-  // Imports / Tools
-  showExcelWizard?: boolean;
-  setShowExcelWizard?: (show: boolean) => void;
-  showAccessWizard?: boolean; 
-  setShowAccessWizard?: (show: boolean) => void;
-  showDummyDataWizard?: boolean;
-  setShowDummyDataWizard?: (show: boolean) => void;
-  showSharePointWizard?: boolean; 
-  setShowSharePointWizard?: (show: boolean) => void; 
-  showSchemaWizard?: boolean;
-  setShowSchemaWizard?: (show: boolean) => void;
-  onAddToast?: (message: string, type?: 'success' | 'error' | 'warning') => void;
-  // Global Message Modal
-  messageModal: MessageModalConfig | null;
-  onCloseMessage: () => void;
-
-  tables: Table[];
-  queries: Query[];
-  forms: Form[];
-  reports: Report[];
-  backendConfig?: BackendConfig;
-  onUpdateBackendConfig?: (config: BackendConfig) => void;
+  onContextMenuAction: (action: any) => void;
+  onSaveWizardQuery: (query: any) => void;
+  onExecuteAppend: (source: any, target: any, map: any) => void;
+  onExecuteDelete: (table: any, criteria: any) => void;
+  onSaveElectronSettings: (settings: any) => void;
 }
 
 export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
-  const {
-    savePrompt, activeObject, onCloseSavePrompt,
-    itemContextMenu, onCloseContextMenu, onContextMenuAction,
-    nameInput,
-    showReportWizard, setShowReportWizard, onSaveReport,
-    showFormWizard, setShowFormWizard, onSaveForm,
-    showSecurityManager, setShowSecurityManager, onUpdateTable, onCreateTable,
-    activeWizard, setActiveWizard, onSaveWizardQuery, onExecuteAppend, onExecuteDelete,
-    confirmationModal, setConfirmationModal,
-    showElectronSettings, electronSettings, onSaveElectronSettings, onCloseElectronSettings,
-    showDeploymentModal, deploymentConfig, onSaveDeploymentConfig, onDeploy, onCloseDeploymentModal,
-    
-    showWhitelabelModal, setShowWhitelabelModal, onUpdateCommercial,
-    showEnvModal, setShowEnvModal, onUpdateEnvironments,
-    showMigrationModal, setShowMigrationModal, onSnapshot, lastSnapshot,
-    
-    showIntegrationsModal, setShowIntegrationsModal, onSaveIntegrations,
+  const store = useProjectStore();
+  const ui = useUIStore();
+  
+  const { 
+    tables, queries, reports, forms, backendConfig, setBackendConfig,
+    addTable, updateTable, setQueries, setReports, setForms, snapshot, lastSnapshot
+  } = store;
+  
+  const { 
+    savePrompt, activeObject, itemContextMenu, setItemContextMenu, nameInput,
+    showReportWizard, setShowReportWizard, showFormWizard, setShowFormWizard,
+    showSecurityManager, setShowSecurityManager, activeWizard, setActiveWizard,
+    confirmationModal, setConfirmationModal, showElectronSettings, setShowElectronSettings,
+    showDeploymentModal, setShowDeploymentModal, showWhitelabelModal, setShowWhitelabelModal,
+    showEnvModal, setShowEnvModal, showMigrationModal, setShowMigrationModal,
+    showIntegrationsModal, setShowIntegrationsModal, showExcelWizard, setShowExcelWizard,
+    showAccessWizard, setShowAccessWizard, showDummyDataWizard, setShowDummyDataWizard,
+    showSharePointWizard, setShowSharePointWizard, showSchemaWizard, setShowSchemaWizard,
+    messageModal, closeMessage: onCloseMessage, setCurrentView, addToast
+  } = ui;
 
-    showExcelWizard, setShowExcelWizard,
-    showAccessWizard, setShowAccessWizard,
-    showDummyDataWizard, setShowDummyDataWizard,
-    showSharePointWizard, setShowSharePointWizard,
-    showSchemaWizard, setShowSchemaWizard,
-    onAddToast,
-    
-    messageModal, onCloseMessage,
-    tables, queries, forms, reports, backendConfig, onUpdateBackendConfig
-  } = props;
+  const { onCloseSavePrompt, onContextMenuAction, onSaveWizardQuery, onExecuteAppend, onExecuteDelete, onSaveElectronSettings } = props;
 
   return (
     <>
@@ -164,11 +80,11 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       
       {itemContextMenu && (
         <>
-          <div className="fixed inset-0 z-40" onClick={onCloseContextMenu}></div>
+          <div className="fixed inset-0 z-40" onClick={() => setItemContextMenu(null)}></div>
           <ItemContextMenu 
             x={itemContextMenu.x} 
             y={itemContextMenu.y} 
-            itemType={itemContextMenu.type}
+            itemType={itemContextMenu.type as any}
             onAction={onContextMenuAction}
           />
         </>
@@ -188,7 +104,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <ReportWizardModal 
           tables={tables} 
           queries={queries} 
-          onSave={onSaveReport}
+          onSave={(r) => { setReports([...reports, r]); setShowReportWizard(false); setCurrentView({ type: 'report_designer', reportId: r.id }); }}
           onClose={() => setShowReportWizard(false)} 
         />
       )}
@@ -197,47 +113,47 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <FormWizardModal
           tables={tables}
           queries={queries}
-          onSave={onSaveForm}
+          onSave={(f) => { setForms([...forms, f]); setShowFormWizard(false); setCurrentView({ type: 'form_designer', formId: f.id }); }}
           onClose={() => setShowFormWizard(false)}
         />
       )}
 
-      {showExcelWizard && setShowExcelWizard && (
+      {showExcelWizard && (
           <ExcelImportWizard 
-            onSave={onCreateTable} 
+            onSave={addTable} 
             onClose={() => setShowExcelWizard(false)} 
           />
       )}
 
-      {showAccessWizard && setShowAccessWizard && (
+      {showAccessWizard && (
           <AccessImportWizard 
-            onSave={onCreateTable} 
+            onSave={addTable} 
             onClose={() => setShowAccessWizard(false)} 
           />
       )}
 
-      {showDummyDataWizard && setShowDummyDataWizard && (
+      {showDummyDataWizard && (
           <DummyDataWizard 
             tables={tables}
-            onGenerate={onUpdateTable}
+            onGenerate={updateTable}
             onClose={() => setShowDummyDataWizard(false)}
           />
       )}
 
-      {showSharePointWizard && setShowSharePointWizard && (
+      {showSharePointWizard && (
           <SharePointImportWizard 
-            onSave={onCreateTable} 
+            onSave={addTable} 
             onClose={() => setShowSharePointWizard(false)}
             backendConfig={backendConfig}
-            onUpdateConfig={onUpdateBackendConfig}
+            onUpdateConfig={setBackendConfig}
           />
       )}
 
-      {showSchemaWizard && setShowSchemaWizard && (
+      {showSchemaWizard && (
           <SchemaImportWizard
-            onSave={onCreateTable}
+            onSave={addTable}
             onClose={() => setShowSchemaWizard(false)}
-            onAddToast={onAddToast || (() => {})}
+            onAddToast={addToast}
           />
       )}
 
@@ -247,65 +163,64 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             queries={queries}
             forms={forms}
             reports={reports}
-            onUpdateTable={onUpdateTable}
-            onCreateTable={onCreateTable}
+            onUpdateTable={updateTable}
+            onCreateTable={addTable}
             onClose={() => setShowSecurityManager(false)}
             backendConfig={backendConfig}
-            onUpdateBackendConfig={onUpdateBackendConfig}
+            onUpdateBackendConfig={setBackendConfig}
           />
       )}
 
       {showElectronSettings && (
           <ElectronSettingsModal
-            settings={electronSettings}
+            settings={backendConfig.electronSettings || { includeBackend: true, bundleFrontend: true }}
             onSave={onSaveElectronSettings}
-            onClose={onCloseElectronSettings}
+            onClose={() => setShowElectronSettings(false)}
           />
       )}
 
-      {showDeploymentModal && onSaveDeploymentConfig && onCloseDeploymentModal && onDeploy && (
+      {showDeploymentModal && (
           <DeploymentModal
-            config={deploymentConfig}
-            onSave={onSaveDeploymentConfig}
-            onClose={onCloseDeploymentModal}
-            onDeploy={onDeploy}
+            config={backendConfig.deploymentConfig}
+            onSave={(c) => setBackendConfig({...backendConfig, deploymentConfig: c})}
+            onClose={() => setShowDeploymentModal(false)}
+            onDeploy={() => { setShowDeploymentModal(false); ui.setFormActionTrigger({action:'backend_generate', timestamp: Date.now()}); }}
           />
       )}
 
-      {showWhitelabelModal && onUpdateCommercial && setShowWhitelabelModal && (
+      {showWhitelabelModal && (
           <WhitelabelModal
             whitelabel={backendConfig?.whitelabel}
             multiTenancy={backendConfig?.multiTenancy}
             licensing={backendConfig?.licensing}
-            onSave={onUpdateCommercial}
+            onSave={(w, m, l) => setBackendConfig({...backendConfig, whitelabel: w, multiTenancy: m, licensing: l})}
             onClose={() => setShowWhitelabelModal(false)}
           />
       )}
 
-      {showEnvModal && onUpdateEnvironments && setShowEnvModal && (
+      {showEnvModal && (
           <EnvironmentManagerModal
             initialEnvs={backendConfig?.environments}
             dbType={backendConfig?.dbType || DbType.SQL}
-            onSave={onUpdateEnvironments}
+            onSave={(e) => setBackendConfig({...backendConfig, environments: e})}
             onClose={() => setShowEnvModal(false)}
           />
       )}
 
-      {showMigrationModal && onSnapshot && setShowMigrationModal && (
+      {showMigrationModal && (
           <MigrationManagerModal
             currentTables={tables}
             lastSnapshot={lastSnapshot}
             dbType={backendConfig?.dbType || DbType.SQL}
-            onSnapshot={onSnapshot}
+            onSnapshot={snapshot}
             onClose={() => setShowMigrationModal(false)}
           />
       )}
 
-      {/* NEW: Integrations Modal Global */}
-      {showIntegrationsModal && onSaveIntegrations && setShowIntegrationsModal && (
+      {showIntegrationsModal && (
           <IntegrationsModal
             config={backendConfig?.integrations}
-            onSave={onSaveIntegrations}
+            onSave={(c) => setBackendConfig({...backendConfig, integrations: c})}
             onClose={() => setShowIntegrationsModal(false)}
           />
       )}

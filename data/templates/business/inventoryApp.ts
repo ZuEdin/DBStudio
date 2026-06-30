@@ -140,7 +140,8 @@ export const getInventoryApp = (lang: string): ProjectTemplate => {
                   }
               }
           ],
-          layout: []
+          layout: [],
+          tableGroups: []
         }
     };
 };

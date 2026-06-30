@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CustomPage, PageComponent, PageComponentType } from '../../types/index';
+import { CustomPage, PageComponent, PageComponentType, Table, Query, SelectQuery } from '../../types/index';
 import { LayoutTemplate, Type, Square, Image as ImageIcon, Table2, MousePointerClick, ChevronRight, X, Trash2, List, Layers, Plus, Database, Layout, Columns, Rows, CreditCard } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
@@ -653,7 +653,9 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                                 e.dataTransfer.setData('componentType', 'table_view');
                                                 e.dataTransfer.setData('dataSourceType', 'query');
                                                 e.dataTransfer.setData('dataSourceId', q.id);
-                                                e.dataTransfer.setData('columns', q.columns.map(c => c.alias || c.fieldName).join(','));
+                                                if (q.type === 'SELECT') {
+                                                    e.dataTransfer.setData('columns', (q as SelectQuery).columns.map(c => c.alias || c.fieldName).join(','));
+                                                }
                                                 e.dataTransfer.effectAllowed = 'copy';
                                             }}
                                             className="text-xs font-semibold text-slate-700 mb-1.5 truncate bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded p-1 px-2 cursor-grab flex items-center justify-between transition-all"
@@ -663,7 +665,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                             <span className="text-[8px] font-mono font-bold bg-indigo-100 text-indigo-800 px-1 rounded uppercase">Drag Abg</span>
                                         </div>
                                        <div className="grid grid-cols-1 gap-1">
-                                           {q.columns.map(c => {
+                                           {q.type === 'SELECT' && (q as SelectQuery).columns.map(c => {
                                                const name = c.alias || c.fieldName;
                                                return (
                                                    <div 
@@ -1056,7 +1058,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                {selectedNode.props.queryId && (() => {
                                    const selectedQuery = queries.find(q => q.id === selectedNode.props.queryId);
                                    if (!selectedQuery) return null;
-                                   const cols = selectedQuery.columns || [];
+                                   const cols = selectedQuery.type === 'SELECT' ? (selectedQuery as SelectQuery).columns : [];
                                    return (
                                        <>
                                           <label className="block text-xs font-semibold text-slate-600 mb-1 mt-2">Wert-Spalte (Value ID)</label>
@@ -1158,7 +1160,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                            onChange={(e: any) => {
                                                const val = e.target.value;
                                                const q = queries.find(qi => qi.id === val);
-                                               const cols = q ? q.columns.map(c => c.alias || c.fieldName).join(',') : '';
+                                               const cols = (q && q.type === 'SELECT') ? (q as SelectQuery).columns.map(c => c.alias || c.fieldName).join(',') : '';
                                                updateSelectedNodeProps({ dataSourceId: val, columns: cols });
                                            }}
                                            className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-sm mb-3"
@@ -1179,7 +1181,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
                                    } else if (selectedNode.props.dataSourceType === 'query') {
                                        const q = queries.find(qi => qi.id === selectedNode.props.dataSourceId);
                                        if (q) {
-                                           availableCols = q.columns.map(c => {
+                                           availableCols = (q as any).columns.map((c: any) => {
                                                 const lbl = c.alias || c.fieldName;
                                                 return { id: lbl, label: lbl, name: lbl };
                                            });

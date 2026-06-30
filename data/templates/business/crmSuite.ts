@@ -227,7 +227,8 @@ export const getCrmSuite = (lang: string): ProjectTemplate => {
               ]
             }
           ],
-          layout: []
+          layout: [],
+          tableGroups: []
         }
     };
 };

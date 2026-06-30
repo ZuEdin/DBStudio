@@ -93,7 +93,7 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
 
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: ${fePort} } });`, language: 'typescript' });
   
-  const wl = config.whitelabel || { primaryColor: '#3b82f6', secondaryColor: '#1e293b' };
+  const wl: any = config.whitelabel || { primaryColor: '#3b82f6', secondaryColor: '#1e293b' };
   
   if (isTailwind) {
       files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `export default { 

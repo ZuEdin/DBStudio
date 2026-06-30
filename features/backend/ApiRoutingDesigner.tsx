@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Query, BackendConfig } from '../../types';
+import { Table, Query, BackendConfig } from '../../types/index';
 import { Route, Plus, Trash2, Code, Copy, Shield, Database, Settings, HelpCircle, Check, ArrowRight } from 'lucide-react';
 
 interface ApiRouteItem {

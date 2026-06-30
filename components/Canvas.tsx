@@ -1017,7 +1017,9 @@ export const Canvas: React.FC<CanvasProps> = ({
         })()}
 
         {/* Real-time Multiplayer Cursors */}
-        {Object.entries(collaboratorCursors).map(([id, cursor]) => (
+        {Object.entries(collaboratorCursors).map(([id, cursorObj]) => {
+          const cursor = cursorObj as any;
+          return (
           <div 
             key={id}
             className="absolute pointer-events-none transition-all duration-100 ease-out z-40 select-none"
@@ -1051,7 +1053,8 @@ export const Canvas: React.FC<CanvasProps> = ({
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       
       {/* Multi-Selection Toolbar */}

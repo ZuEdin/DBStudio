@@ -14,6 +14,11 @@ interface ChartViewProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
+const ChartBar = Bar as any;
+const ChartLine = Line as any;
+const ChartArea = Area as any;
+const ChartPie = Pie as any;
+
 export const ChartView: React.FC<ChartViewProps> = ({ chart, tables, queries, onChartChange }) => {
   const [data, setData] = useState<any[]>([]);
   const [sourceFields, setSourceFields] = useState<{name: string, type: string}[]>([]);
@@ -69,7 +74,7 @@ export const ChartView: React.FC<ChartViewProps> = ({ chart, tables, queries, on
   const renderChart = () => {
       if (data.length === 0) return <div className="flex h-full items-center justify-center text-slate-400">Keine Daten verfügbar</div>;
 
-      const CommonAxis = () => (
+      const renderCommonAxis = () => (
           <>
             <XAxis dataKey={chart.config.xAxisFieldId} />
             <YAxis />
@@ -83,23 +88,23 @@ export const ChartView: React.FC<ChartViewProps> = ({ chart, tables, queries, on
           <ResponsiveContainer width="100%" height="100%">
               {chart.type === 'bar' ? (
                   <BarChart data={data}>
-                      <CommonAxis />
+                      {renderCommonAxis()}
                       {chart.config.yAxisFieldIds.map((id, idx) => (
-                          <Bar key={id} dataKey={id} fill={COLORS[idx % COLORS.length]} />
+                          <ChartBar key={id} dataKey={id} fill={COLORS[idx % COLORS.length]} />
                       ))}
                   </BarChart>
               ) : chart.type === 'line' ? (
                   <LineChart data={data}>
-                      <CommonAxis />
+                      {renderCommonAxis()}
                       {chart.config.yAxisFieldIds.map((id, idx) => (
-                          <Line key={id} type="monotone" dataKey={id} stroke={COLORS[idx % COLORS.length]} />
+                          <ChartLine key={id} type="monotone" dataKey={id} stroke={COLORS[idx % COLORS.length]} />
                       ))}
                   </LineChart>
               ) : chart.type === 'area' ? (
                   <AreaChart data={data}>
-                      <CommonAxis />
+                      {renderCommonAxis()}
                       {chart.config.yAxisFieldIds.map((id, idx) => (
-                          <Area key={id} type="monotone" dataKey={id} stackId="1" stroke={COLORS[idx % COLORS.length]} fill={COLORS[idx % COLORS.length]} />
+                          <ChartArea key={id} type="monotone" dataKey={id} stackId="1" stroke={COLORS[idx % COLORS.length]} fill={COLORS[idx % COLORS.length]} />
                       ))}
                   </AreaChart>
               ) : (

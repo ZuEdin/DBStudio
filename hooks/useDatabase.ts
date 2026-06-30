@@ -186,6 +186,7 @@ export const useDatabase = () => {
               workflows,
               relationships,
               layout,
+              tableGroups: [],
               backendConfig
           }
       };
@@ -198,7 +199,7 @@ export const useDatabase = () => {
           id: currentProjectId,
           name: currentProjectName,
           lastModified: Date.now(),
-          data: { tables, queries, reports, forms, workflows, relationships, layout, backendConfig }
+          data: { tables, queries, reports, forms, workflows, relationships, layout, tableGroups: [], backendConfig }
       };
     const dataStr = JSON.stringify(project, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);

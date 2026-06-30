@@ -1,8 +1,11 @@
 
+import React from 'react';
+
 export enum DbType {
   SQLite = 'SQLite',
   SQL = 'SQL',
   MySQL = 'MySQL',
+  PostgreSQL = 'PostgreSQL',
   NoSQL = 'NoSQL'
 }
 
@@ -54,6 +57,12 @@ export interface ApiConfig {
   headers?: string;
   queryParams?: ApiQueryParam[];
   refreshOnLoad?: boolean;
+}
+
+export interface ToastInfo {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
 }
 
 export interface Table {
@@ -108,6 +117,7 @@ export type AggregateFunction = 'GROUP_BY' | 'SUM' | 'COUNT' | 'AVG' | 'MIN' | '
 export interface QueryColumn {
   id: string;
   tableId: string;
+  nodeId?: string; // NEW: Associate with specific TableNode
   fieldId: string;
   tableName: string;
   fieldName: string;
@@ -483,7 +493,7 @@ export interface WhitelabelConfig {
         backgroundColor?: string;
     };
     faviconUrl?: string;
-    removeBranding: boolean;
+    removeBranding?: boolean;
 }
 
 export interface MultiTenancyConfig {

@@ -36,11 +36,14 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
   files.push(...servicesFiles);
 
   if (config.authConfig?.useWindowsAuth && config.authConfig?.useAdGroups && config.authConfig?.adMapping) {
+      // Helper to escape C# strings
+      const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '""');
+
       // AdRoleTransformer logic...
       const mappingLogic = config.authConfig.adMapping.map(m => `
-            if (principal.IsInRole(@"${m.groupName}"))
+            if (principal.IsInRole(@"${esc(m.groupName)}"))
             {
-                identity.AddClaim(new Claim(ClaimTypes.Role, "${m.roleName}"));
+                identity.AddClaim(new Claim(ClaimTypes.Role, "${esc(m.roleName)}"));
             }`).join('\n');
 
       files.push({

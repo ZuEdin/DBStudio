@@ -1,29 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
-import { Table, Query, Report, Form, Chart, Workflow, CustomPage } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate, Layers } from 'lucide-react';
+import { Table, Report } from '../types/index';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-interface SidebarProps {
-  tables: Table[];
-  queries: Query[];
-  reports: Report[];
-  forms: Form[];
-  charts?: Chart[];
-  workflows?: Workflow[];
-  pages?: CustomPage[];
-  onSelectTable: (id: string) => void;
-  onSelectQuery: (id: string) => void;
-  onSelectReport: (id: string) => void;
-  onSelectForm: (id: string) => void;
-  onSelectChart?: (id: string) => void;
-  onSelectWorkflow?: (id: string) => void;
-  onSelectPage?: (id: string) => void;
-  onSelectScheduler?: () => void;
-  onItemContextMenu: (e: React.MouseEvent, type: 'table' | 'query' | 'report' | 'form' | 'chart' | 'workflow' | 'page', id: string) => void;
-  isOpen: boolean;
-  toggleSidebar: () => void;
-}
+import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 
 interface TreeNode<T> {
   id: string;
@@ -134,7 +115,27 @@ const RenderNode: React.FC<RenderNodeProps> = ({
   );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, forms, charts = [], workflows = [], pages = [], onSelectTable, onSelectQuery, onSelectReport, onSelectForm, onSelectChart, onSelectWorkflow, onSelectPage, onSelectScheduler, onItemContextMenu, isOpen, toggleSidebar }) => {
+export const Sidebar: React.FC = () => {
+  const store = useProjectStore();
+  const ui = useUIStore();
+  
+  const { tables, queries, reports, forms, charts, workflows, pages } = store;
+  const { isSidebarOpen: isOpen, setIsSidebarOpen: toggleSidebar, setCurrentView, setItemContextMenu } = ui;
+
+  const onSelectTable = (id: string) => setCurrentView({ type: 'table_data', tableId: id });
+  const onSelectQuery = (id: string) => setCurrentView({ type: 'query_results', queryId: id });
+  const onSelectReport = (id: string) => setCurrentView({ type: 'report_view', reportId: id });
+  const onSelectForm = (id: string) => setCurrentView({ type: 'form_view', formId: id });
+  const onSelectChart = (id: string) => setCurrentView({ type: 'chart_view', chartId: id });
+  const onSelectWorkflow = (id: string) => setCurrentView({ type: 'workflow_designer', workflowId: id });
+  const onSelectPage = (id: string) => setCurrentView({ type: 'page_designer', pageId: id });
+  const onSelectScheduler = () => setCurrentView({ type: 'scheduler' });
+  
+  const onItemContextMenu = (e: React.MouseEvent, type: any, id: string) => {
+      e.preventDefault();
+      setItemContextMenu({ type, id, x: e.clientX, y: e.clientY });
+  };
+
   const [openGroups, setOpenGroups] = useState(() => {
     try {
       const saved = localStorage.getItem('sidebar_openGroups');
@@ -326,7 +327,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
   if (!isOpen) {
     return (
       <div className="w-8 bg-slate-50 border-r border-slate-300 flex flex-col items-center py-2 select-none">
-        <button onClick={toggleSidebar} title="Seitenleiste einblenden" className="p-1 hover:bg-slate-200 rounded text-slate-600">
+        <button onClick={() => toggleSidebar(true)} title="Seitenleiste einblenden" className="p-1 hover:bg-slate-200 rounded text-slate-600">
           <PanelLeftOpen size={20} />
         </button>
         <div className="mt-4 flex flex-col gap-4 text-slate-400">
@@ -343,7 +344,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ tables, queries, reports, form
           <Database size={16} />
           <span>{t('sidebar.all_objects')}</span>
         </div>
-        <button onClick={toggleSidebar} className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 p-0.5 rounded">
+        <button onClick={() => toggleSidebar(false)} className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 p-0.5 rounded">
            <PanelLeftClose size={16} />
         </button>
       </div>

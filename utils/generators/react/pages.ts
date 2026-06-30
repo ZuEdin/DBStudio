@@ -496,7 +496,7 @@ export const ${compName} = () => {
 
         <div>
             {groupedData.map((group, idx) => (
-                <div key={idx} className="mb-8 break-inside-avoid">
+                <div key={node.id || idx} className="mb-8 break-inside-avoid">
                     {group.key !== 'Gesamt' && (
                         <div className="bg-slate-100 p-2 font-bold text-lg text-slate-700 border-l-4 border-slate-400 mb-2">
                             {group.key}
@@ -619,7 +619,7 @@ export const ${compName} = () => {
                           {!${loadingState} && ${stateName}.map((row, idx) => {
                               const val = row['${valueField}'] || row.id || idx;
                               const label = row['${labelField}'] || Object.values(row)[0] || '';
-                              return <option key={idx} value={val}>{String(label)}</option>;
+                              return <option key={val || idx} value={val}>{String(label)}</option>;
                           })}
                       </select>
                   </div>`;
@@ -691,7 +691,7 @@ export const ${compName} = () => {
                               </thead>
                               <tbody className="bg-white divide-y divide-slate-200">
                                   {${stateName}.map((row: any, idx: number) => (
-                                      <tr key={idx} className="hover:bg-slate-50">
+                                      <tr key={row.id || row.ID || row.uuid || idx} className="hover:bg-slate-50">
                                           ${bodyCells}
                                       </tr>
                                   ))}

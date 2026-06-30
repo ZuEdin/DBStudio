@@ -230,8 +230,12 @@ class ${modelName} extends BaseModel {
 
     private function applyHashes(&$doc) {
         foreach($doc as $k => $v) {
-            if(stripos($k, 'password') !== false && strlen($v) > 0 && strlen($v) != 32) {
-                $doc[$k] = md5($v);
+            if(stripos($k, 'password') !== false && strlen($v) > 0) {
+                // Check if already hashed
+                $info = password_get_info($v);
+                if($info['algo'] == 0) {
+                    $doc[$k] = password_hash($v, PASSWORD_DEFAULT);
+                }
             }
         }
     }
@@ -266,7 +270,10 @@ class ${modelName} extends BaseModel {
           const updateStr = fieldsList.map(f => `${f} = :${f}`).join(", ");
           const bindParams = fieldsList.map(f => {
               if (f.toLowerCase().includes('password')) {
-                  return `if(isset($data->${f}) && strlen($data->${f}) > 0 && strlen($data->${f}) != 32) { $data->${f} = md5($data->${f}); }\n        $stmt->bindParam(":${f}", $data->${f});`;
+                  return `if(isset($data->${f}) && strlen($data->${f}) > 0) { 
+            $info = password_get_info($data->${f});
+            if($info['algo'] == 0) { $data->${f} = password_hash($data->${f}, PASSWORD_DEFAULT); }
+        }\n        $stmt->bindParam(":${f}", $data->${f});`;
               }
               return `$stmt->bindParam(":${f}", $data->${f});`;
           }).join("\n        ");

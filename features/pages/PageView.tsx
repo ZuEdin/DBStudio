@@ -124,8 +124,8 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
         if (node.type === 'dropdown' && node.props.queryId) {
             setLoading(true);
             const query = queries.find(q => q.id === node.props.queryId);
-            if (query) {
-                const data = executeSelectQuery(query, tables, relationships);
+            if (query && query.type === 'SELECT') {
+                const data = executeSelectQuery(query as any, tables, relationships);
                 setFetchedData(data);
             }
             setLoading(false);
@@ -137,8 +137,8 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                     if (table) setFetchedData(table.data || []);
                 } else if (node.props.dataSourceType === 'query' && node.props.dataSourceId) {
                     const query = queries.find(q => q.id === node.props.dataSourceId);
-                    if (query) {
-                        const data = executeSelectQuery(query, tables, relationships);
+                    if (query && query.type === 'SELECT') {
+                        const data = executeSelectQuery(query as any, tables, relationships);
                         setFetchedData(data);
                     }
                 }
@@ -154,8 +154,8 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                     if (table) setFetchedData(table.data || []);
                 } else {
                     const query = queries.find(q => q.id === node.props.dataSourceId);
-                    if (query) {
-                        const data = executeSelectQuery(query, tables, relationships);
+                    if (query && query.type === 'SELECT') {
+                        const data = executeSelectQuery(query as any, tables, relationships);
                         setFetchedData(data);
                     }
                 }

@@ -3,76 +3,113 @@ import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/in
 import { quoteIdentifier, toPascalCase } from './generators/common';
 
 export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType, useRawNames: boolean = false): string => {
-    if (columns.length === 0 || nodes.length === 0) return '';
+    if (nodes.length === 0) return '';
     
-    // Check if any aggregation is used
-    const hasAggregation = columns.some(c => c.aggregate && c.aggregate !== 'GROUP_BY' && c.aggregate !== 'EXPRESSION');
-    const groupByColumns = columns.filter(c => c.aggregate === 'GROUP_BY');
-
     const formatIdentifier = (name: string) => useRawNames ? name : toPascalCase(name);
 
+    // 1. Assign unique aliases to each TableNode
+    const nodeAliases = new Map<string, string>();
+    nodes.forEach((node, idx) => {
+        const table = tables.find(t => t.id === node.tableId);
+        const baseName = table ? formatIdentifier(table.name) : 'Table';
+        // Use a short stable alias
+        nodeAliases.set(node.id, `${baseName}_${idx}`);
+    });
+
+    // 2. Map Columns to their Aliases
     const selectClause = columns.filter(c => c.show).map(c => {
         const alias = c.alias ? formatIdentifier(c.alias) : formatIdentifier(c.fieldName);
         const quotedAlias = quoteIdentifier(alias, dbType);
         
         let fieldExpr = '';
-        
         if (c.isCalculated) {
             fieldExpr = `(${c.expression})`;
         } else {
-            fieldExpr = `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
+            // Try to find the correct node alias
+            let nodeAlias = '';
+            if (c.nodeId && nodeAliases.has(c.nodeId)) {
+                nodeAlias = nodeAliases.get(c.nodeId)!;
+            } else {
+                // Fallback: find first node matching tableId
+                const node = nodes.find(n => n.tableId === c.tableId);
+                if (node) nodeAlias = nodeAliases.get(node.id)!;
+                else nodeAlias = formatIdentifier(c.tableName);
+            }
+            fieldExpr = `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
         }
 
-        // Wrap in Aggregate Function if needed
-        if (c.aggregate && c.aggregate !== 'GROUP_BY' && c.aggregate !== 'EXPRESSION' && c.aggregate !== 'FIRST' && c.aggregate !== 'LAST') {
+        if (c.aggregate && !['GROUP_BY', 'EXPRESSION', 'FIRST', 'LAST'].includes(c.aggregate)) {
             fieldExpr = `${c.aggregate}(${fieldExpr})`;
         }
 
         return `  ${fieldExpr} AS ${quotedAlias}`;
     }).join(',\n');
 
-    const fromTable = tables.find(t => t.id === nodes[0].tableId);
-    if (!fromTable) return '';
+    // 3. Build FROM and JOINs using BFS for pathfinding
+    const firstNode = nodes[0];
+    const firstTable = tables.find(t => t.id === firstNode.tableId);
+    if (!firstTable) return '';
 
-    let fromClause = `FROM ${quoteIdentifier(formatIdentifier(fromTable.name), dbType)}`;
-    const joinedTables = new Set([fromTable.id]);
+    const firstAlias = nodeAliases.get(firstNode.id)!;
+    let fromClause = `FROM ${quoteIdentifier(formatIdentifier(firstTable.name), dbType)} AS ${quoteIdentifier(firstAlias, dbType)}`;
+    
+    const joinedNodeIds = new Set([firstNode.id]);
     let joins = '';
-    const queryTableIds = new Set(nodes.map(n => n.tableId));
-    const relevantRels = relationships.filter(r => queryTableIds.has(r.fromTableId) && queryTableIds.has(r.toTableId));
+    
+    // BFS Queue
+    const queue = [firstNode.id];
+    
+    while (queue.length > 0 && joinedNodeIds.size < nodes.length) {
+        const currentNodeId = queue.shift()!;
+        const currentNode = nodes.find(n => n.id === currentNodeId)!;
+        const currentAlias = nodeAliases.get(currentNodeId)!;
 
-    // Simple greedy join strategy
-    let madeProgress = true;
-    while(madeProgress && joinedTables.size < queryTableIds.size) {
-        madeProgress = false;
-        for (const rel of relevantRels) {
-            const processJoin = (fromTId: string, toTId: string, fromFId: string, toFId: string) => {
-                 if (joinedTables.has(fromTId) && !joinedTables.has(toTId)) {
-                    const fromT = tables.find(t => t.id === fromTId)!; const fromF = fromT.fields.find(f => f.id === fromFId)!;
-                    const toT = tables.find(t => t.id === toTId)!; const toF = toT.fields.find(f => f.id === toFId)!;
-                    joins += `\nINNER JOIN ${quoteIdentifier(formatIdentifier(toT.name), dbType)} ON ${quoteIdentifier(formatIdentifier(fromT.name), dbType)}.${quoteIdentifier(formatIdentifier(fromF.name), dbType)} = ${quoteIdentifier(formatIdentifier(toT.name), dbType)}.${quoteIdentifier(formatIdentifier(toF.name), dbType)}`;
-                    joinedTables.add(toTId);
-                    madeProgress = true;
+        // Find all possible connections from this node to unjoined nodes
+        for (const targetNode of nodes) {
+            if (joinedNodeIds.has(targetNode.id)) continue;
+
+            // Find relationship between currentNode.tableId and targetNode.tableId
+            const rel = relationships.find(r => 
+                (r.fromTableId === currentNode.tableId && r.toTableId === targetNode.tableId) ||
+                (r.toTableId === currentNode.tableId && r.fromTableId === targetNode.tableId)
+            );
+
+            if (rel) {
+                const targetAlias = nodeAliases.get(targetNode.id)!;
+                const targetTable = tables.find(t => t.id === targetNode.tableId)!;
+                
+                let onClause = '';
+                if (rel.fromTableId === currentNode.tableId && rel.toTableId === targetNode.tableId) {
+                    const fromF = tables.find(t => t.id === rel.fromTableId)!.fields.find(f => f.id === rel.fromFieldId)!;
+                    const toF = tables.find(t => t.id === rel.toTableId)!.fields.find(f => f.id === rel.toFieldId)!;
+                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(formatIdentifier(fromF.name), dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(formatIdentifier(toF.name), dbType)}`;
+                } else {
+                    const fromF = tables.find(t => t.id === rel.toTableId)!.fields.find(f => f.id === rel.toFieldId)!;
+                    const toF = tables.find(t => t.id === rel.fromTableId)!.fields.find(f => f.id === rel.fromFieldId)!;
+                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(formatIdentifier(fromF.name), dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(formatIdentifier(toF.name), dbType)}`;
                 }
+
+                joins += `\nINNER JOIN ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
+                joinedNodeIds.add(targetNode.id);
+                queue.push(targetNode.id);
             }
-            processJoin(rel.fromTableId, rel.toTableId, rel.fromFieldId, rel.toFieldId);
-            processJoin(rel.toTableId, rel.fromTableId, rel.toFieldId, rel.fromFieldId);
         }
     }
-    
-    const whereConditions = columns
-      .map(c => {
-        // Only include criteria for fields that are EITHER:
-        // 1. Not aggregated (standard WHERE)
-        // 2. Part of GROUP BY (standard WHERE)
-        // Note: HAVING clause for aggregated fields (e.g. SUM(x) > 100) is omitted for simplicity in this version, 
-        // as the UI doesn't separate WHERE vs HAVING yet. We treat criteria as Pre-Aggregation filter (WHERE) by default.
-        
-        if (c.aggregate && c.aggregate !== 'GROUP_BY' && c.aggregate !== 'EXPRESSION') return null;
 
+    // 4. WHERE clause
+    const whereConditions = columns.map(c => {
+        if (c.aggregate && !['GROUP_BY', 'EXPRESSION'].includes(c.aggregate)) return null;
         const validCriteria = c.criteria.filter(crit => crit.trim() !== '');
         if (validCriteria.length === 0) return null;
         
-        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
+        let nodeAlias = '';
+        if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
+        else {
+            const node = nodes.find(n => n.tableId === c.tableId);
+            nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
+        }
+
+        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
         
         const conditions = validCriteria.map(crit => {
             let criteria = crit.trim();
@@ -81,33 +118,46 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                 const todaySql = dbType === DbType.SQL ? "CAST(GETDATE() AS DATE)" : (dbType === DbType.SQLite ? "DATE('now')" : "CURDATE()");
                 criteria = criteria.replace(/TODAY/g, todaySql);
             }
-            if (criteria.toUpperCase() === 'NULL') return `${fieldRef} IS NULL`;
-            if (criteria.toUpperCase() === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
-            if (criteria.toUpperCase() === 'IS NULL' || criteria.toUpperCase() === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
+            const upper = criteria.toUpperCase();
+            if (upper === 'NULL') return `${fieldRef} IS NULL`;
+            if (upper === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
+            if (upper === 'IS NULL' || upper === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
             return `${fieldRef} ${criteria}`; 
         });
         return conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0];
-      }).filter(Boolean);
+    }).filter(Boolean);
 
-    let whereClause = '';
-    if (whereConditions.length > 0) whereClause = `\nWHERE\n  ${whereConditions.join('\n  AND ')}`;
+    const whereClause = whereConditions.length > 0 ? `\nWHERE\n  ${whereConditions.join('\n  AND ')}` : '';
     
+    // 5. GROUP BY
+    const hasAggregation = columns.some(c => c.aggregate && !['GROUP_BY', 'EXPRESSION'].includes(c.aggregate));
+    const groupByColumns = columns.filter(c => c.aggregate === 'GROUP_BY');
     let groupByClause = '';
     if (hasAggregation && groupByColumns.length > 0) {
         const groups = groupByColumns.map(c => {
             if (c.isCalculated) return `(${c.expression})`;
-            return `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
+            let nodeAlias = '';
+            if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
+            else {
+                const node = nodes.find(n => n.tableId === c.tableId);
+                nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
+            }
+            return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
         }).join(', ');
         groupByClause = `\nGROUP BY ${groups}`;
     }
 
-    // ORDER BY
+    // 6. ORDER BY
     const orderByCols = columns.filter(c => c.sort).map(c => {
-        // Use Alias if available in ORDER BY for cleaner SQL, or expression
-        const ref = c.alias ? quoteIdentifier(formatIdentifier(c.alias), dbType) : (
-            c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(formatIdentifier(c.tableName), dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`
-        );
-        return `${ref} ${c.sort}`;
+        if (c.alias) return `${quoteIdentifier(formatIdentifier(c.alias), dbType)} ${c.sort}`;
+        if (c.isCalculated) return `(${c.expression}) ${c.sort}`;
+        let nodeAlias = '';
+        if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
+        else {
+            const node = nodes.find(n => n.tableId === c.tableId);
+            nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
+        }
+        return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)} ${c.sort}`;
     }).join(', ');
     
     const orderByClause = orderByCols ? `\nORDER BY ${orderByCols}` : '';

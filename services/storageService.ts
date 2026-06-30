@@ -2,8 +2,10 @@
 import { Project } from '../types/index';
 
 const DB_NAME = 'DBStudioProDB';
-const STORE_NAME = 'projects';
-const DB_VERSION = 1;
+const STORE_METADATA = 'projects_meta';
+const STORE_PAYLOAD = 'projects_data';
+const STORE_LEGACY = 'projects';
+const DB_VERSION = 3; // Incremented for migration logic
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -17,10 +19,45 @@ const openDB = (): Promise<IDBDatabase> => {
       resolve((event.target as IDBOpenDBRequest).result);
     };
 
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = async (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      const transaction = (event.target as IDBOpenDBRequest).transaction!;
+
+      // 1. Create new stores if they don't exist
+      if (!db.objectStoreNames.contains(STORE_METADATA)) {
+        db.createObjectStore(STORE_METADATA, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_PAYLOAD)) {
+        db.createObjectStore(STORE_PAYLOAD, { keyPath: 'projectId' });
+      }
+
+      // 2. Migration Logic
+      if (db.objectStoreNames.contains(STORE_LEGACY)) {
+        const legacyStore = transaction.objectStore(STORE_LEGACY);
+        const metaStore = transaction.objectStore(STORE_METADATA);
+        const dataStore = transaction.objectStore(STORE_PAYLOAD);
+
+        const getAllReq = legacyStore.getAll();
+        getAllReq.onsuccess = () => {
+            const oldProjects = getAllReq.result as Project[];
+            for (const p of oldProjects) {
+                // Save meta
+                metaStore.put({
+                    id: p.id,
+                    name: p.name,
+                    lastModified: p.lastModified,
+                    dbType: p.data?.backendConfig?.dbType,
+                    language: p.data?.backendConfig?.language
+                });
+                // Save data
+                dataStore.put({
+                    projectId: p.id,
+                    data: p.data
+                });
+            }
+            // Optional: delete legacy store after migration
+            // db.deleteObjectStore(STORE_LEGACY); 
+        };
       }
     };
   });
@@ -29,27 +66,54 @@ const openDB = (): Promise<IDBDatabase> => {
 export const saveProjectToStorage = async (project: Project): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(project);
+    const transaction = db.transaction([STORE_METADATA, STORE_PAYLOAD], 'readwrite');
+    const metaStore = transaction.objectStore(STORE_METADATA);
+    const dataStore = transaction.objectStore(STORE_PAYLOAD);
+    
+    // Save metadata with preview info
+    const metadata = {
+        id: project.id,
+        name: project.name,
+        lastModified: project.lastModified,
+        dbType: project.data?.backendConfig?.dbType,
+        language: project.data?.backendConfig?.language
+    };
+    metaStore.put(metadata);
 
-    request.onsuccess = () => resolve();
-    request.onerror = (e) => reject((e.target as any).error);
+    // Save payload separately
+    const payload = {
+        projectId: project.id,
+        data: project.data
+    };
+    dataStore.put(payload);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = (e) => reject((e.target as any).error);
   });
 };
 
 export const getAllProjects = async (): Promise<Project[]> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction([STORE_METADATA], 'readonly');
+    const store = transaction.objectStore(STORE_METADATA);
     const request = store.getAll();
 
     request.onsuccess = () => {
-        // Sort by lastModified desc
-        const projects = request.result as Project[];
-        projects.sort((a, b) => b.lastModified - a.lastModified);
-        resolve(projects);
+        // Return meta-projects with enough info for the list view
+        const metaList = request.result.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            lastModified: m.lastModified,
+            data: {
+                backendConfig: {
+                    dbType: m.dbType,
+                    language: m.language
+                }
+            } as any
+        }));
+        metaList.sort((a, b) => b.lastModified - a.lastModified);
+        resolve(metaList);
     };
     request.onerror = (e) => reject((e.target as any).error);
   });
@@ -58,23 +122,38 @@ export const getAllProjects = async (): Promise<Project[]> => {
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.get(id);
+    const transaction = db.transaction([STORE_METADATA, STORE_PAYLOAD], 'readonly');
+    const metaStore = transaction.objectStore(STORE_METADATA);
+    const dataStore = transaction.objectStore(STORE_PAYLOAD);
+    
+    const metaReq = metaStore.get(id);
+    const dataReq = dataStore.get(id);
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = (e) => reject((e.target as any).error);
+    transaction.oncomplete = () => {
+        if (!metaReq.result) {
+            resolve(undefined);
+            return;
+        }
+        const project: Project = {
+            id: metaReq.result.id,
+            name: metaReq.result.name,
+            lastModified: metaReq.result.lastModified,
+            data: dataReq.result?.data || {}
+        };
+        resolve(project);
+    };
+    transaction.onerror = (e) => reject((e.target as any).error);
   });
 };
 
 export const deleteProjectFromStorage = async (id: string): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(id);
+    const transaction = db.transaction([STORE_METADATA, STORE_PAYLOAD], 'readwrite');
+    transaction.objectStore(STORE_METADATA).delete(id);
+    transaction.objectStore(STORE_PAYLOAD).delete(id);
 
-    request.onsuccess = () => resolve();
-    request.onerror = (e) => reject((e.target as any).error);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = (e) => reject((e.target as any).error);
   });
 };

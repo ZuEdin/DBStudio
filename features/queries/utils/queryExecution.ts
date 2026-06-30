@@ -1,5 +1,5 @@
 
-import { Query, Table, Relationship, SelectQuery, QueryColumn } from '../../types/index';
+import { Query, Table, Relationship, SelectQuery, QueryColumn } from '../../../types/index';
 
 // Helper to evaluate criteria
 const matchesCriteria = (value: any, criteria: string): boolean => {

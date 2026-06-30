@@ -1,78 +1,31 @@
 
 import React, { useState, useEffect } from 'react';
-import { ViewType, Table, TableNode, Relationship, Query, Report, Form, SelectQuery, BackendConfig, Chart, Workflow, EnvironmentConfig, CustomPage } from '../types/index';
+import { ViewType, Table, Query, Form } from '../types/index';
 import { X, Command } from 'lucide-react';
 import { CommandPalette } from './CommandPalette';
 import { ViewRouter } from './ViewRouter';
+import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 
-interface WorkspaceProps {
-  currentView: ViewType;
-  tables: Table[];
-  queries: Query[];
-  reports: Report[];
-  forms: Form[];
-  workflows?: Workflow[]; // NEW
-  pages?: CustomPage[]; // NEW
-  canvasNodes: TableNode[];
-  relationships: Relationship[];
-  activeObject: Table | Query | Report | Form | Chart | Workflow | null;
-  isDirty: boolean;
-  onSetView: (view: ViewType) => void;
-  onActiveObjectChange: (obj: Table | Query | Report | Form | Chart | Workflow) => void;
-  onSave: () => Promise<any>;
-  onDeleteRelationship: (id: string) => void;
-  onUpdateRelationship: (rel: Relationship) => void;
-  onMoveRelationshipNode: (id: string, x: number, y: number) => void;
-  onUpdateRelationshipNodes?: (nodes: TableNode[]) => void;
-  setRelationships: React.Dispatch<React.SetStateAction<Relationship[]>>;
-  executeQuery: (query: Query) => Record<string, any>[];
-  saveTable: (table: Table, mode: 'create' | 'edit') => void;
-  saveForm: (form: Form) => void;
-  saveWorkflow?: (workflow: Workflow) => void; // NEW
-  showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
-  formActionTrigger?: { action: string, timestamp: number };
-  backendConfig: BackendConfig;
-  onUpdateBackendConfig?: (config: BackendConfig) => void; // NEW
-  showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
-  // Lock
-  activeLock?: any;
-}
+export const Workspace: React.FC = () => {
+  const store = useProjectStore();
+  const ui = useUIStore();
+  
+  const { 
+    tables, queries, reports, forms, workflows, pages, relationships, 
+    setRelationships, executeQuery, addTable, updateTable, setLayout: onUpdateRelationshipNodes,
+    backendConfig, setBackendConfig, saveProject, snapshot, lastSnapshot
+  } = store;
+  
+  const { 
+    currentView, setCurrentView: onSetView, activeObject, setActiveObject: onActiveObjectChange, 
+    isDirty, setIsDirty, relationshipNodes: canvasNodes, setRelationshipNodes, formActionTrigger,
+    setConfirmationModal, showMessage, activeWizard, setActiveWizard, addToast
+  } = ui;
 
-export const Workspace: React.FC<WorkspaceProps> = ({
-  currentView,
-  tables,
-  queries,
-  reports,
-  forms,
-  workflows = [],
-  pages = [],
-  canvasNodes,
-  relationships,
-  activeObject,
-  isDirty,
-  onSetView,
-  onActiveObjectChange,
-  onSave,
-  onDeleteRelationship,
-  onUpdateRelationship,
-  onMoveRelationshipNode,
-  onUpdateRelationshipNodes,
-  setRelationships,
-  executeQuery,
-  saveTable,
-  saveForm,
-  saveWorkflow,
-  showConfirmation,
-  formActionTrigger,
-  backendConfig,
-  onUpdateBackendConfig,
-  showMessage,
-  activeLock
-}) => {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [exportTrigger, setExportTrigger] = useState(0);
   const [generateTrigger, setGenerateTrigger] = useState(0);
-  const [openDeploymentTrigger, setOpenDeploymentTrigger] = useState(0);
 
   // Keyboard shortcut for Command Palette (Ctrl+K)
   useEffect(() => {
@@ -93,16 +46,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
     };
   }, []);
 
-  // Listen for backend export from Ribbon (hacky passing via window or props)
   useEffect(() => {
       if (formActionTrigger?.action === 'backend_export') {
           setExportTrigger(Date.now());
       }
       if (formActionTrigger?.action === 'backend_generate') {
           setGenerateTrigger(Date.now());
-      }
-      if (formActionTrigger?.action === 'open_deployment_modal') {
-          setOpenDeploymentTrigger(Date.now());
       }
   }, [formActionTrigger]);
 
@@ -129,11 +78,21 @@ export const Workspace: React.FC<WorkspaceProps> = ({
          default: return '';
       }
     }
-    if (currentView.type === 'query_results' || currentView.type === 'report_view' || currentView.type === 'form_view') {
-        return activeObject.name;
-    }
     return `${activeObject.name}${isDirty ? '*' : ''}`;
   }
+
+  const saveTable = (table: Table, mode: 'create' | 'edit') => {
+      if (mode === 'create') addTable(table);
+      else updateTable(table);
+  };
+
+  const onDeleteRelationship = (id: string) => store.setRelationships(relationships.filter(r => r.id !== id));
+  const onUpdateRelationship = (rel: any) => store.setRelationships(relationships.map(r => r.id === rel.id ? rel : r));
+  const onMoveRelationshipNode = (id: string, x: number, y: number) => {
+      const nodes = canvasNodes.map(n => n.id === id ? { ...n, x, y } : n);
+      setRelationshipNodes(nodes);
+      onUpdateRelationshipNodes(nodes);
+  };
 
   return (
     <div className="flex-1 relative bg-slate-200 dark:bg-slate-950 overflow-hidden flex flex-col transition-colors duration-300">
@@ -151,10 +110,9 @@ export const Workspace: React.FC<WorkspaceProps> = ({
                 saveTable({
                     id: newId,
                     name,
-                    fields: [{ id: crypto.randomUUID(), name: 'id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }],
-                    createdAt: new Date().toISOString()
+                    fields: [{ id: crypto.randomUUID(), name: 'id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true }]
                 }, 'create');
-                onSetView({ type: 'table_designer', tableId: newId });
+                onSetView({ type: 'table_edit', tableId: newId });
             }}
         />
       </div>
@@ -199,16 +157,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({
             setRelationships={setRelationships}
             executeQuery={executeQuery}
             saveTable={saveTable}
-            showConfirmation={showConfirmation}
+            showConfirmation={(t, m, c) => setConfirmationModal({ title: t, message: m, onConfirm: c })}
             formActionTrigger={formActionTrigger}
             backendConfig={backendConfig}
-            onUpdateBackendConfig={onUpdateBackendConfig}
+            onUpdateBackendConfig={setBackendConfig}
             exportTrigger={exportTrigger}
             generateTrigger={generateTrigger}
             showMessage={showMessage}
-            onOpenDeployment={() => { /* Handled via effect in AppController usually, but passed here for direct view access if needed */ }}
-            onUpdateWorkflow={saveWorkflow}
-            activeLock={activeLock}
+            onOpenDeployment={() => {}}
+            onUpdateWorkflow={(wf) => store.setWorkflows(store.workflows.map(w => w.id === wf.id ? wf : w))}
+            activeLock={null}
         />
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Palette, CheckCircle, Image as ImageIcon, Type } from 'lucide-react';
-import { BackendConfig, WhitelabelConfig } from '../../types';
+import { BackendConfig, WhitelabelConfig } from '../../types/index';
 
 interface ThemeDesignerProps {
     config: BackendConfig;

@@ -6,7 +6,7 @@ import {
   HelpCircle, ChevronDown, Check, FileCode, CheckSquare, Square
 } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { Table, TableField } from '../../types/index';
+import { Table, Field } from '../../types/index';
 
 interface LiveDatabaseSyncViewProps {
   showMessage: (text: string, description: string, type: 'success' | 'error' | 'info') => void;
@@ -87,12 +87,12 @@ export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ show
           id: 'introspected_invoices',
           name: 'Invoices',
           fields: [
-            { id: 'inv_id', name: 'Id', type: 'UUID', isPrimaryKey: true, isNullable: false, isUnique: true, defaultValue: 'gen_random_uuid()' },
-            { id: 'inv_nr', name: 'InvoiceNumber', type: 'VARCHAR', isPrimaryKey: false, isNullable: false, isUnique: false, maxLength: 255 },
-            { id: 'inv_date', name: 'IssueDate', type: 'DATE', isPrimaryKey: false, isNullable: false, isUnique: false },
-            { id: 'inv_tot', name: 'TotalAmount', type: 'DECIMAL', isPrimaryKey: false, isNullable: false, isUnique: false },
-            { id: 'inv_paid', name: 'IsPaid', type: 'BOOLEAN', isPrimaryKey: false, isNullable: true, isUnique: false, defaultValue: 'false' },
-            { id: 'inv_cust', name: 'CustomerId', type: 'UUID', isPrimaryKey: false, isNullable: true, isUnique: false }
+            { id: 'inv_id', name: 'Id', type: 'UUID', isPrimaryKey: true, allowNull: false, isUnique: true, defaultValue: 'gen_random_uuid()' },
+            { id: 'inv_nr', name: 'InvoiceNumber', type: 'VARCHAR', isPrimaryKey: false, allowNull: false, isUnique: false, length: 255 },
+            { id: 'inv_date', name: 'IssueDate', type: 'DATE', isPrimaryKey: false, allowNull: false, isUnique: false },
+            { id: 'inv_tot', name: 'TotalAmount', type: 'DECIMAL', isPrimaryKey: false, allowNull: false, isUnique: false },
+            { id: 'inv_paid', name: 'IsPaid', type: 'BOOLEAN', isPrimaryKey: false, allowNull: true, isUnique: false, defaultValue: 'false' },
+            { id: 'inv_cust', name: 'CustomerId', type: 'UUID', isPrimaryKey: false, allowNull: true, isUnique: false }
           ],
           description: 'Introspected live database invoice table'
         }
@@ -120,10 +120,10 @@ export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ show
           id: 'introspected_audit',
           name: 'LiveAuditLog',
           fields: [
-            { id: 'aud_id', name: 'Id', type: 'INT', isPrimaryKey: true, isNullable: false, isUnique: true },
-            { id: 'aud_act', name: 'Action', type: 'VARCHAR', isPrimaryKey: false, isNullable: false, isUnique: false, maxLength: 100 },
-            { id: 'aud_tbl', name: 'TableName', type: 'VARCHAR', isPrimaryKey: false, isNullable: false, isUnique: false, maxLength: 100 },
-            { id: 'aud_time', name: 'Timestamp', type: 'DATETIME', isPrimaryKey: false, isNullable: true, isUnique: false, defaultValue: 'NOW()' }
+            { id: 'aud_id', name: 'Id', type: 'INT', isPrimaryKey: true, allowNull: false, isUnique: true },
+            { id: 'aud_act', name: 'Action', type: 'VARCHAR', isPrimaryKey: false, allowNull: false, isUnique: false, length: 100 },
+            { id: 'aud_tbl', name: 'TableName', type: 'VARCHAR', isPrimaryKey: false, allowNull: false, isUnique: false, length: 100 },
+            { id: 'aud_time', name: 'Timestamp', type: 'DATETIME', isPrimaryKey: false, allowNull: true, isUnique: false, defaultValue: 'NOW()' }
           ],
           description: 'Sicherheits-Audit-Logs aus dem Live-System'
         }
@@ -153,14 +153,14 @@ export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ show
       } else if (diff.type === 'missing_column') {
         const targetTable = projectTables.find(t => t.name === diff.tableName);
         if (targetTable) {
-          const newField: TableField = {
+          const newField: Field = {
             id: `f_sync_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
             name: 'PhoneNumber',
             type: 'VARCHAR',
             isPrimaryKey: false,
-            isNullable: true,
+            allowNull: true,
             isUnique: false,
-            maxLength: 50
+            length: 50
           };
           
           // Check if column exists

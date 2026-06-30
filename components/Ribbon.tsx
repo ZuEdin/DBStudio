@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { ViewType, BackendConfig } from '../types/index';
 import { ConnectionSettingsModal } from './ConnectionSettingsModal';
 import { useTranslation } from 'react-i18next';
+import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 
 // Tabs
 import { FileTab } from './ribbon/tabs/FileTab';
@@ -18,29 +19,20 @@ import { ERDiagramTab } from './ribbon/tabs/ERDiagramTab';
 
 interface RibbonProps {
   onAction: (action: string, payload?: any) => void;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  currentDbType: string;
-  currentView: ViewType;
-  isOpen: boolean;
-  toggleRibbon: () => void;
-  backendConfig?: BackendConfig;
-  setBackendConfig?: (config: BackendConfig) => void;
 }
 
-export const Ribbon: React.FC<RibbonProps> = ({ 
-  onAction, 
-  activeTab, 
-  setActiveTab, 
-  currentDbType, 
-  currentView, 
-  isOpen, 
-  toggleRibbon, 
-  backendConfig, 
-  setBackendConfig 
-}) => {
+export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
+  const store = useProjectStore();
+  const ui = useUIStore();
+  
+  const { backendConfig, setBackendConfig } = store;
+  const { activeTab, setActiveTab, currentView, isRibbonOpen: isOpen, setIsRibbonOpen: setIsOpen } = ui;
+  const currentDbType = backendConfig?.dbType || 'SQLITE';
+
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const { t } = useTranslation();
+
+  const toggleRibbon = () => setIsOpen(!isOpen);
 
   // Automatisch zum Kontext-Tab wechseln
   useEffect(() => {
@@ -84,7 +76,7 @@ export const Ribbon: React.FC<RibbonProps> = ({
       case 'er_diagram':
         return <ERDiagramTab onAction={onAction} />;
       default:
-        return null; // Fallback normally to HomeTab based on logic
+        return null;
     }
   };
 

@@ -142,6 +142,7 @@ export const getCmsTemplate = (lang: string): ProjectTemplate => {
                 sourceId: '',
                 sourceType: 'table',
                 mode: 'edit',
+                fields: [],
                layout: {
                   id: 'cms_login_root', type: 'container', className: 'p-8 max-w-sm mx-auto bg-white rounded-xl shadow-md border border-slate-200 mt-10', children: [
                       { id: 'cms_log_1', type: 'label', label: 'CMS System Login', className: 'text-2xl font-bold text-center text-slate-800 mb-2' },
@@ -162,6 +163,7 @@ export const getCmsTemplate = (lang: string): ProjectTemplate => {
                 sourceId: 't_posts',
                 sourceType: 'table',
                 mode: 'edit',
+                fields: [],
                 layout: {
                    id: 'cms_editor_root', type: 'container', className: 'p-6 bg-white rounded-lg shadow-sm w-full', children: [
                        { id: 'ce1', type: 'label', label: 'Neuen Beitrag verfassen', className: 'text-2xl font-bold mb-4' },
@@ -181,7 +183,8 @@ export const getCmsTemplate = (lang: string): ProjectTemplate => {
              }
           ],
           reports: [],
-          layout: []
+          layout: [],
+          tableGroups: []
         }
     };
 };
