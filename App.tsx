@@ -29,10 +29,10 @@ export default function App() {
       <Ribbon onAction={app.handleRibbonAction} />
       
       <div className="flex flex-1 overflow-hidden relative">
-        <Sidebar />
+        <Sidebar onSetView={app.handleSetView} />
         
         <div className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
-          <Workspace />
+          <Workspace onSetView={app.handleSetView} onActiveObjectChange={app.setActiveObject} />
         </div>
 
         <ChatPanel 
@@ -58,6 +58,7 @@ export default function App() {
         onExecuteAppend={app.onExecuteAppend}
         onExecuteDelete={app.onExecuteDelete}
         onSaveElectronSettings={app.onSaveElectronSettings}
+        onSetView={app.handleSetView}
       />
 
       <ToastContainer toasts={app.toasts} onDismiss={app.removeToast} />

@@ -58,10 +58,46 @@ const ConditionNode = ({ data }: any) => (
   </div>
 );
 
+const LoopNode = ({ data }: any) => (
+  <div className="px-4 py-2 shadow-lg rounded-md bg-white border-2 border-orange-500 min-w-[150px]">
+    <div className="flex items-center">
+      <div className="rounded-full w-2 h-2 bg-orange-500 mr-2 animate-pulse" />
+      <div className="font-bold text-xs uppercase text-orange-700">Loop</div>
+    </div>
+    <div className="text-sm font-medium mt-1 text-slate-800">{data.label}</div>
+    <div className="text-[10px] text-slate-400 italic">For each {data.loopConfig?.variableName || 'item'} in {data.loopConfig?.sourceName || 'records'}</div>
+  </div>
+);
+
+const ApiNode = ({ data }: any) => (
+  <div className="px-4 py-2 shadow-lg rounded-md bg-white border-2 border-sky-500 min-w-[150px]">
+    <div className="flex items-center">
+      <div className="rounded-full w-2 h-2 bg-sky-500 mr-2" />
+      <div className="font-bold text-xs uppercase text-sky-700">API Call</div>
+    </div>
+    <div className="text-sm font-medium mt-1 text-slate-800">{data.label}</div>
+    <div className="text-[10px] text-slate-400 italic">HTTP {data.apiConfig?.method || 'GET'}</div>
+  </div>
+);
+
+const UploadNode = ({ data }: any) => (
+  <div className="px-4 py-2 shadow-lg rounded-md bg-white border-2 border-violet-500 min-w-[150px]">
+    <div className="flex items-center">
+      <div className="rounded-full w-2 h-2 bg-violet-500 mr-2" />
+      <div className="font-bold text-xs uppercase text-violet-700">File Upload</div>
+    </div>
+    <div className="text-sm font-medium mt-1 text-slate-800">{data.label}</div>
+    <div className="text-[10px] text-slate-400 italic">{data.fileUploadConfig?.fileTypes || '*'}</div>
+  </div>
+);
+
 const nodeTypes = {
   triggerNode: TriggerNode,
   actionNode: ActionNode,
   conditionNode: ConditionNode,
+  loopNode: LoopNode,
+  apiNode: ApiNode,
+  uploadNode: UploadNode,
 };
 
 interface WorkflowDesignerProps {

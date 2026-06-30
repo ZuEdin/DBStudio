@@ -1,5 +1,5 @@
 import React from 'react';
-import { Network, ShieldCheck, Layers, Settings, Wand2, Briefcase, ClipboardList, Route, Zap, Users, Database } from 'lucide-react';
+import { Network, ShieldCheck, Layers, Settings, Wand2, Briefcase, ClipboardList, Route, Zap, Users, Database, Sparkles } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
 
       <RibbonGroup label="Zusammenarbeit">
         <RibbonButton icon={<ClipboardList className="text-sky-600" />} label="Kanban-Board" onClick={() => onAction('tickets_board')} size="large" />
+        <RibbonButton icon={<Sparkles className="text-purple-600 animate-pulse" />} label="AI-Schwarm" onClick={() => onAction('ai_swarm')} size="large" />
       </RibbonGroup>
 
       <RibbonGroup label="App-Struktur">

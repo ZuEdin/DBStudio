@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Play, Zap, ArrowRight, Settings, Database, Globe, Upload } from 'lucide-react';
+import { Play, Zap, ArrowRight, Settings, Database, Globe, Upload, RotateCcw } from 'lucide-react';
 
 export const WorkflowToolbox: React.FC = () => {
   const onDragStart = (event: React.DragEvent, nodeType: string) => {
@@ -54,6 +54,20 @@ export const WorkflowToolbox: React.FC = () => {
               <div>
                 <div className="text-xs font-bold text-slate-700">Condition (If)</div>
                 <div className="text-[10px] text-slate-400">Branching logic</div>
+              </div>
+            </div>
+
+            <div 
+              className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 hover:border-orange-300 hover:bg-orange-50 cursor-grab active:cursor-grabbing transition-all group"
+              onDragStart={(event) => onDragStart(event, 'loopNode')}
+              draggable
+            >
+              <div className="bg-orange-500 text-white p-2 rounded-md shadow-sm group-hover:-rotate-45 transition-transform">
+                <RotateCcw size={14} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-700">Loop (For Each)</div>
+                <div className="text-[10px] text-slate-400">Iterate collections</div>
               </div>
             </div>
           </div>

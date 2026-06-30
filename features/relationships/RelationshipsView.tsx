@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Canvas } from '../../components/Canvas';
+import { ERDiagramCanvas } from './ERDiagramCanvas';
 import { TableNode, Table, Relationship, TableGroup } from '../../types/index';
 import { EditRelationshipModal } from './components/EditRelationshipModal';
 import { RelationshipContextMenu } from './components/RelationshipContextMenu';
@@ -82,18 +82,15 @@ export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
 
   return (
     <div className="w-full h-full" onClick={closeContextMenu}>
-      <Canvas 
+      <ERDiagramCanvas 
         nodes={nodes}
         tables={tables}
-        groups={groups}
         relationships={relationships}
         onMoveNode={onMoveNode}
         onUpdateNodes={onUpdateNodes}
-        onUpdateGroups={onUpdateGroups}
         onConnect={onConnect}
         onRelationshipContextMenu={handleRelationshipContextMenu}
         onNodeDoubleClick={onNodeDoubleClick}
-        isInteractive={true}
       />
       {contextMenu && (
         <RelationshipContextMenu

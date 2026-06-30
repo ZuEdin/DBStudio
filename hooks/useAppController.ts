@@ -190,7 +190,8 @@ export const useAppController = () => {
         view.type === 'api_import' || 
         view.type === 'live_sync' || 
         view.type === 'app_info' ||
-        view.type === 'tickets_board'
+        view.type === 'tickets_board' ||
+        view.type === 'ai_swarm'
     ) {
         setActiveObject(null);
         setReadOnlyMode(false);
@@ -679,6 +680,7 @@ export const useAppController = () => {
             break;
         case 'create_table': handleSetView({ type: 'table_create' }); break;
         case 'tickets_board': handleSetView({ type: 'tickets_board' }); break;
+        case 'ai_swarm': handleSetView({ type: 'ai_swarm' }); break;
         case 'create_table_ai': handleSetView({ type: 'table_create' }); break;
         case 'create_query': handleSetView({ type: 'query_designer' }); break;
         case 'wizard_duplicate': ui.setActiveWizard('duplicate'); break;

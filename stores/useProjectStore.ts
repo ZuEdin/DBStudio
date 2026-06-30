@@ -1,11 +1,14 @@
 
 import { create } from 'zustand';
-import { produce, produceWithPatches, applyPatches, Patch } from 'immer';
+import { produce, produceWithPatches, applyPatches, Patch, enablePatches } from 'immer';
 import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, WorkflowNode, WorkflowEdge, TableNode, FormElement, FormField, TableGroup, CustomPage } from '../types/index';
 import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEngine';
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
 import { saveProjectToStorage } from '../services/storageService';
+
+// Enable Immer patches feature
+enablePatches();
 
 // Debounce helper for SQL Sync
 let syncTimeout: any = null;

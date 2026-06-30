@@ -7,6 +7,7 @@ export type ASTNode = {
     next: ASTNode[];
     trueBranch?: ASTNode[];
     falseBranch?: ASTNode[];
+    loopBody?: ASTNode[];
 };
 
 export const buildWorkflowAST = (workflow: Workflow): ASTNode[] | null => {
@@ -14,7 +15,7 @@ export const buildWorkflowAST = (workflow: Workflow): ASTNode[] | null => {
     const nodesMap = new Map<string, WorkflowNode>(workflow.nodes.map(n => [n.id, n]));
     
     // Finde den/die Trigger (Wurzeln)
-    const triggerNodes = workflow.nodes.filter(n => n.type === 'trigger');
+    const triggerNodes = workflow.nodes.filter(n => n.type === 'trigger' || n.type === 'triggerNode');
     if (triggerNodes.length === 0) return null;
 
     const buildTree = (nodeId: string, visited: Set<string>): ASTNode[] => {
@@ -42,6 +43,12 @@ export const buildWorkflowAST = (workflow: Workflow): ASTNode[] | null => {
 
             astNode.trueBranch = trueEdge ? buildTree(trueEdge.target, new Set(visited)) : [];
             astNode.falseBranch = falseEdge ? buildTree(falseEdge.target, new Set(visited)) : [];
+        } else if (node.type === 'loopNode') {
+            const bodyEdge = outgoingEdges.find(e => e.label === 'Each' || e.label === 'Loop Body');
+            const completeEdge = outgoingEdges.find(e => e.label === 'After' || e.label === 'On Complete');
+
+            astNode.loopBody = bodyEdge ? buildTree(bodyEdge.target, new Set(visited)) : [];
+            astNode.next = completeEdge ? buildTree(completeEdge.target, new Set(visited)) : [];
         } else {
             for (const edge of outgoingEdges) {
                 astNode.next.push(...buildTree(edge.target, new Set(visited)));
@@ -77,7 +84,14 @@ export const generateTypeScriptCode = (ast: ASTNode[]): string => {
                  visit(astNode.trueBranch || [], indentLevel + 1);
                  code += `${indent}} else {\n`;
                  visit(astNode.falseBranch || [], indentLevel + 1);
+                 code += `${indent}\n`;
+            } else if (astNode.type === 'loopNode') {
+                 const sourceName = astNode.node.data.loopConfig?.sourceName || "records";
+                 const variableName = astNode.node.data.loopConfig?.variableName || "item";
+                 code += `${indent}for (const ${variableName} of ${sourceName}) {\n`;
+                 visit(astNode.loopBody || [], indentLevel + 1);
                  code += `${indent}}\n`;
+                 visit(astNode.next, indentLevel);
             } else if (astNode.type === 'actionNode') {
                  const actionType = astNode.node.data.actionConfig?.actionType || "run";
                  code += `${indent}await executeAction("${actionType}");\n`;
@@ -133,6 +147,13 @@ export const generateCSharpCode = (ast: ASTNode[]): string => {
                  code += `${indent}} else {\n`;
                  visit(astNode.falseBranch || [], indentLevel + 1);
                  code += `${indent}}\n`;
+            } else if (astNode.type === 'loopNode') {
+                 const sourceName = astNode.node.data.loopConfig?.sourceName || "records";
+                 const variableName = astNode.node.data.loopConfig?.variableName || "item";
+                 code += `${indent}foreach (var ${variableName} in ${sourceName}) {\n`;
+                 visit(astNode.loopBody || [], indentLevel + 1);
+                 code += `${indent}}\n`;
+                 visit(astNode.next, indentLevel);
             } else if (astNode.type === 'actionNode') {
                  const actionType = astNode.node.data.actionConfig?.actionType || "run";
                  code += `${indent}await ExecuteActionAsync("${actionType}");\n`;

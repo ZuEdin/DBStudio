@@ -163,6 +163,106 @@ export const WorkflowProperties: React.FC<WorkflowPropertiesProps> = ({ node, ta
       );
   };
 
+  const renderLoopProperties = () => {
+    const config = node.data.loopConfig || {};
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Source Table / Collection</label>
+          <select 
+            className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+            value={config.tableId || ''}
+            onChange={(e) => {
+              const table = tables.find(t => t.id === e.target.value);
+              onUpdate({ 
+                loopConfig: { 
+                  ...config, 
+                  tableId: e.target.value,
+                  sourceName: table ? table.name.toLowerCase() : 'records'
+                } 
+              });
+            }}
+          >
+            <option value="">Select Table...</option>
+            {tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Variable Name (Item)</label>
+          <input 
+            type="text"
+            placeholder="item"
+            className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs focus:ring-2 focus:ring-orange-500 outline-none"
+            value={config.variableName || ''}
+            onChange={(e) => onUpdate({ loopConfig: { ...config, variableName: e.target.value } })}
+          />
+          <p className="text-[9px] text-slate-400 mt-1 italic">Each row will be assigned to this variable inside the loop.</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderApiProperties = () => {
+    const config = node.data.apiConfig || {};
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">HTTP Method</label>
+          <select 
+            className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none"
+            value={config.method || 'GET'}
+            onChange={(e) => onUpdate({ apiConfig: { ...config, method: e.target.value } })}
+          >
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Endpoint URL</label>
+          <input 
+            type="text"
+            placeholder="https://api.example.com/v1/resource"
+            className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none"
+            value={config.url || ''}
+            onChange={(e) => onUpdate({ apiConfig: { ...config, url: e.target.value } })}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderUploadProperties = () => {
+    const config = node.data.fileUploadConfig || {};
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Table</label>
+          <select 
+            className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+            value={config.tableId || ''}
+            onChange={(e) => onUpdate({ fileUploadConfig: { ...config, tableId: e.target.value } })}
+          >
+            <option value="">Select Table...</option>
+            {tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Allowed File Types</label>
+          <input 
+            type="text"
+            placeholder=".pdf,.png,.jpg"
+            className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+            value={config.fileTypes || ''}
+            onChange={(e) => onUpdate({ fileUploadConfig: { ...config, fileTypes: e.target.value } })}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-80 bg-white border-l border-slate-200 flex flex-col shrink-0 overflow-y-auto">
       <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
@@ -188,6 +288,9 @@ export const WorkflowProperties: React.FC<WorkflowPropertiesProps> = ({ node, ta
           {node.type === 'triggerNode' && renderTriggerProperties()}
           {node.type === 'actionNode' && renderActionProperties()}
           {node.type === 'conditionNode' && renderConditionProperties()}
+          {node.type === 'loopNode' && renderLoopProperties()}
+          {node.type === 'apiNode' && renderApiProperties()}
+          {node.type === 'uploadNode' && renderUploadProperties()}
         </div>
       </div>
 

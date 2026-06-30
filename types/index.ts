@@ -348,6 +348,11 @@ export interface WorkflowNode {
             fileTypes?: string;
             maxSizeBytes?: number;
         };
+        loopConfig?: {
+            tableId?: string;
+            sourceName?: string;
+            variableName?: string;
+        };
     };
     parentId?: string;
     extent?: 'parent';
@@ -578,6 +583,7 @@ export interface TableGroup {
   name: string;
   color?: string;
   comment?: string;
+  isCollapsed?: boolean;
 }
 
 export type PageComponentType = 'container' | 'text' | 'button' | 'table_view' | 'form_view' | 'image' | 'divider' | 'dropdown' | 'chart_view' | 'html' | 'list_repeater' | 'subpage_container' | 'row' | 'column' | 'card';
@@ -720,7 +726,8 @@ export type ViewType =
   | { type: 'lifecycle_designer' }
   | { type: 'multi_tenancy_wizard' }
   | { type: 'data_seeder_view' }
-  | { type: 'tickets_board' }; 
+  | { type: 'tickets_board' }
+  | { type: 'ai_swarm' }; 
 
 export interface Ticket {
   id: string;

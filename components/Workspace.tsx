@@ -7,19 +7,24 @@ import { ViewRouter } from './ViewRouter';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 
-export const Workspace: React.FC = () => {
+interface WorkspaceProps {
+  onSetView: (view: any) => void;
+  onActiveObjectChange: (obj: any) => void;
+}
+
+export const Workspace: React.FC<WorkspaceProps> = ({ onSetView, onActiveObjectChange }) => {
   const store = useProjectStore();
   const ui = useUIStore();
   
   const { 
     tables, queries, reports, forms, workflows, pages, relationships, 
     setRelationships, executeQuery, addTable, updateTable, setLayout: onUpdateRelationshipNodes,
-    backendConfig, setBackendConfig, saveProject, snapshot, lastSnapshot
+    backendConfig, setBackendConfig, saveProject, snapshot, lastSnapshot, layout: canvasNodes
   } = store;
   
   const { 
-    currentView, setCurrentView: onSetView, activeObject, setActiveObject: onActiveObjectChange, 
-    isDirty, setIsDirty, relationshipNodes: canvasNodes, setRelationshipNodes, formActionTrigger,
+    currentView, activeObject, 
+    isDirty, setIsDirty, formActionTrigger,
     setConfirmationModal, showMessage, activeWizard, setActiveWizard, addToast
   } = ui;
 
@@ -89,8 +94,7 @@ export const Workspace: React.FC = () => {
   const onDeleteRelationship = (id: string) => store.setRelationships(relationships.filter(r => r.id !== id));
   const onUpdateRelationship = (rel: any) => store.setRelationships(relationships.map(r => r.id === rel.id ? rel : r));
   const onMoveRelationshipNode = (id: string, x: number, y: number) => {
-      const nodes = canvasNodes.map(n => n.id === id ? { ...n, x, y } : n);
-      setRelationshipNodes(nodes);
+      const nodes = (canvasNodes || []).map(n => n.id === id ? { ...n, x, y } : n);
       onUpdateRelationshipNodes(nodes);
   };
 

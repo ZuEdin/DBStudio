@@ -33,6 +33,7 @@ interface ModalLayerProps {
   onExecuteAppend: (source: any, target: any, map: any) => void;
   onExecuteDelete: (table: any, criteria: any) => void;
   onSaveElectronSettings: (settings: any) => void;
+  onSetView?: (view: any) => void;
 }
 
 export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
@@ -57,7 +58,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     messageModal, closeMessage: onCloseMessage, setCurrentView, addToast
   } = ui;
 
-  const { onCloseSavePrompt, onContextMenuAction, onSaveWizardQuery, onExecuteAppend, onExecuteDelete, onSaveElectronSettings } = props;
+  const { onCloseSavePrompt, onContextMenuAction, onSaveWizardQuery, onExecuteAppend, onExecuteDelete, onSaveElectronSettings, onSetView } = props;
 
   return (
     <>
@@ -104,7 +105,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <ReportWizardModal 
           tables={tables} 
           queries={queries} 
-          onSave={(r) => { setReports([...reports, r]); setShowReportWizard(false); setCurrentView({ type: 'report_designer', reportId: r.id }); }}
+          onSave={(r) => { setReports([...reports, r]); setShowReportWizard(false); (onSetView || setCurrentView)({ type: 'report_designer', reportId: r.id }); }}
           onClose={() => setShowReportWizard(false)} 
         />
       )}
@@ -113,7 +114,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <FormWizardModal
           tables={tables}
           queries={queries}
-          onSave={(f) => { setForms([...forms, f]); setShowFormWizard(false); setCurrentView({ type: 'form_designer', formId: f.id }); }}
+          onSave={(f) => { setForms([...forms, f]); setShowFormWizard(false); (onSetView || setCurrentView)({ type: 'form_designer', formId: f.id }); }}
           onClose={() => setShowFormWizard(false)}
         />
       )}

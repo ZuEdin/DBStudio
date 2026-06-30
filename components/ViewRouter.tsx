@@ -28,6 +28,7 @@ import { MultiTenancyWizard } from '../features/backend/MultiTenancyWizard';
 import { DataSeederView } from '../features/tables/DataSeederView';
 import { PageDesigner } from '../features/pages/PageDesigner';
 import { PageView } from '../features/pages/PageView';
+import { AiSwarmDashboard } from '../features/ai/AiSwarmDashboard';
 import { useAppController } from '../hooks/useAppController'; // Need context types or pass down
 import { TicketBoard } from './TicketBoard';
 import { useTicketState } from '../hooks/useTicketState';
@@ -400,6 +401,8 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
           </div>
         );
       }
+      case 'ai_swarm':
+        return <AiSwarmDashboard />;
       default:
         return null;
     }

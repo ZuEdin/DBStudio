@@ -115,21 +115,25 @@ const RenderNode: React.FC<RenderNodeProps> = ({
   );
 };
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onSetView: (view: any) => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
   const store = useProjectStore();
   const ui = useUIStore();
   
   const { tables, queries, reports, forms, charts, workflows, pages } = store;
-  const { isSidebarOpen: isOpen, setIsSidebarOpen: toggleSidebar, setCurrentView, setItemContextMenu } = ui;
+  const { isSidebarOpen: isOpen, setIsSidebarOpen: toggleSidebar, setItemContextMenu } = ui;
 
-  const onSelectTable = (id: string) => setCurrentView({ type: 'table_data', tableId: id });
-  const onSelectQuery = (id: string) => setCurrentView({ type: 'query_results', queryId: id });
-  const onSelectReport = (id: string) => setCurrentView({ type: 'report_view', reportId: id });
-  const onSelectForm = (id: string) => setCurrentView({ type: 'form_view', formId: id });
-  const onSelectChart = (id: string) => setCurrentView({ type: 'chart_view', chartId: id });
-  const onSelectWorkflow = (id: string) => setCurrentView({ type: 'workflow_designer', workflowId: id });
-  const onSelectPage = (id: string) => setCurrentView({ type: 'page_designer', pageId: id });
-  const onSelectScheduler = () => setCurrentView({ type: 'scheduler' });
+  const onSelectTable = (id: string) => onSetView({ type: 'table_data', tableId: id });
+  const onSelectQuery = (id: string) => onSetView({ type: 'query_results', queryId: id });
+  const onSelectReport = (id: string) => onSetView({ type: 'report_view', reportId: id });
+  const onSelectForm = (id: string) => onSetView({ type: 'form_view', formId: id });
+  const onSelectChart = (id: string) => onSetView({ type: 'chart_view', chartId: id });
+  const onSelectWorkflow = (id: string) => onSetView({ type: 'workflow_designer', workflowId: id });
+  const onSelectPage = (id: string) => onSetView({ type: 'page_designer', pageId: id });
+  const onSelectScheduler = () => onSetView({ type: 'scheduler' });
   
   const onItemContextMenu = (e: React.MouseEvent, type: any, id: string) => {
       e.preventDefault();
