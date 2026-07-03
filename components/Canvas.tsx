@@ -1105,7 +1105,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       )}
 
       {/* Canvas Controls & Zoom Toolbar */}
-      <div className="absolute bottom-4 left-4 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-40 select-none transition-colors">
+      <div className="absolute bottom-4 left-4 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-[100] select-none transition-colors">
         {/* Interaction Modes */}
         <button 
           onClick={() => setCanvasMode('select')}

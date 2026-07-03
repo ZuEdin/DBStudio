@@ -12,7 +12,7 @@ interface TableDesignerProps {
   lockedBy?: LockInfo | null;
   currentUserId?: string;
   relationships?: Relationship[];
-  showConfirmation?: (title: string, message: string, onConfirm: () => void) => void;
+  showConfirmation?: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
 }
 
 export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChange, lockedBy, currentUserId, relationships = [], showConfirmation }) => {

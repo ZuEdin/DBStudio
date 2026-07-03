@@ -13,7 +13,7 @@ interface TableViewProps {
   allTables: Table[];
   relationships: Relationship[];
   onTableChange: (table: Table) => void;
-  showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
+  showConfirmation: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
 }
 
 const formatDateValue = (val: any, format?: string, type?: string) => {

@@ -208,9 +208,16 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
     const content = await zip.generateAsync({ type: 'blob' });
     const url = window.URL.createObjectURL(content);
     const a = document.createElement('a');
+    document.body.appendChild(a);
+    a.style.display = 'none';
     a.href = url;
-    a.download = `${localConfig.projectName}_FullStack.zip`;
+    
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
+    a.download = `${localConfig.projectName}_FullStack_${timeStr}.zip`;
+    
     a.click();
+    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   };
 

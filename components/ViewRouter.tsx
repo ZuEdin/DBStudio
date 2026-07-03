@@ -53,7 +53,7 @@ interface ViewRouterProps {
   setRelationships: React.Dispatch<React.SetStateAction<Relationship[]>>;
   executeQuery: (query: Query) => Record<string, any>[];
   saveTable: (table: Table, mode: 'create' | 'edit') => void;
-  showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
+  showConfirmation: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
   formActionTrigger?: { action: string, timestamp: number };
   backendConfig: BackendConfig;
   onUpdateBackendConfig?: (config: BackendConfig) => void; // NEW

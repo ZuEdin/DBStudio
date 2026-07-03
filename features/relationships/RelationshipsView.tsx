@@ -16,7 +16,7 @@ interface RelationshipsViewProps {
   onDeleteRelationship: (id: string) => void;
   onUpdateRelationship: (rel: Relationship) => void;
   onNodeDoubleClick?: (tableId: string) => void;
-  showConfirmation?: (title: string, message: string, onConfirm: () => void) => void;
+  showConfirmation?: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
 }
 
 export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
@@ -91,6 +91,7 @@ export const RelationshipsView: React.FC<RelationshipsViewProps> = ({
         onConnect={onConnect}
         onRelationshipContextMenu={handleRelationshipContextMenu}
         onNodeDoubleClick={onNodeDoubleClick}
+        showConfirmation={showConfirmation}
       />
       {contextMenu && (
         <RelationshipContextMenu

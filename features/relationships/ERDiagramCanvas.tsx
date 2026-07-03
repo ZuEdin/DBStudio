@@ -60,10 +60,21 @@ const ERGroupNodeComponent = ({ data }: any) => {
 
   const selectedUncollapsedColorClass = uncollapsedColorStyles[(group.color as keyof typeof uncollapsedColorStyles) || 'slate'];
 
+  const headerColors: any = {
+    purple: 'bg-purple-600 text-white',
+    blue: 'bg-blue-600 text-white',
+    emerald: 'bg-emerald-600 text-white',
+    rose: 'bg-rose-600 text-white',
+    amber: 'bg-amber-600 text-white',
+    slate: 'bg-slate-700 text-white'
+  };
+
+  const selectedHeaderClass = headerColors[(group.color as keyof typeof headerColors) || 'slate'];
+
   if (isCollapsed) {
     return (
       <div 
-        className={`border-2 shadow-xl rounded-xl p-3 flex flex-col pointer-events-auto select-none hover:shadow-2xl transition-all relative border-solid ring-2 ${selectedColorClass}`}
+        className={`border-2 shadow-xl rounded-xl flex flex-col pointer-events-auto select-none hover:shadow-2xl transition-all relative border-solid ring-2 overflow-hidden ${selectedColorClass}`}
         style={{ width, height }}
       >
         {/* Handles for collapsed state - act as proxy for internal tables */}
@@ -79,19 +90,19 @@ const ERGroupNodeComponent = ({ data }: any) => {
         <Handle type="target" position={Position.Right} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="right" />
         <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="right-s" />
 
-        <div className="flex items-center justify-between gap-2 border-b border-black/10 dark:border-white/10 pb-1.5 mb-1.5">
+        <div className={`flex items-center justify-between gap-2 p-3 ${selectedHeaderClass}`}>
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-bold text-xs truncate font-sans tracking-tight" title={group.name}>{group.name}</span>
           </div>
           <button
             onClick={() => onToggleCollapse(group.id)}
-            className="shrink-0 text-[10px] bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 px-2.5 py-0.5 rounded-md transition-all font-semibold shadow-sm hover:shadow"
+            className="shrink-0 text-[10px] bg-white/20 hover:bg-white/30 text-white px-2.5 py-0.5 rounded-md transition-all font-semibold shadow-sm hover:shadow"
             onMouseDown={(e) => e.stopPropagation()}
           >
             Maximieren
           </button>
         </div>
-        <div className="text-[10px] opacity-70 font-sans truncate" title={tablesInGroup?.join(', ') || 'Keine Tabellen'}>
+        <div className="px-3 py-2 text-[10px] opacity-70 font-sans truncate" title={tablesInGroup?.join(', ') || 'Keine Tabellen'}>
           {tablesInGroup && tablesInGroup.length > 0 ? `${tablesInGroup.length} Tabellen: ${tablesInGroup.join(', ')}` : 'Keine Tabellen'}
         </div>
       </div>
@@ -275,6 +286,7 @@ interface ERDiagramCanvasProps {
   onConnect: (t1: string, f1: string, t2: string, f2: string) => void;
   onRelationshipContextMenu?: (event: React.MouseEvent, relId: string) => void;
   onNodeDoubleClick?: (tableId: string) => void;
+  showConfirmation?: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
 }
 
 // Inner Component with access to useReactFlow
@@ -287,6 +299,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
   onConnect,
   onRelationshipContextMenu,
   onNodeDoubleClick,
+  showConfirmation,
 }) => {
   const [nodesState, setNodesState, onNodesChange] = useNodesState<Node>([]);
   const [edgesState, setEdgesState, onEdgesChange] = useEdgesState<Edge>([]);
@@ -383,20 +396,20 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
           })
           .map((t) => t.name);
         
-        const minX = memberLayoutNodes.length > 0 ? Math.min(...memberLayoutNodes.map((n) => n.x)) - 24 : 100;
+        const minX = memberLayoutNodes.length > 0 ? Math.min(...memberLayoutNodes.map((n) => n.x)) - 20 : 100;
         const minY = memberLayoutNodes.length > 0 ? Math.min(...memberLayoutNodes.map((n) => n.y)) - 100 : 100;
         
         let width = 240;
         let height = 80;
 
         if (!group.isCollapsed) {
-          const maxX = memberLayoutNodes.length > 0 ? Math.max(...memberLayoutNodes.map((n) => n.x + 240)) + 24 : 340;
+          const maxX = memberLayoutNodes.length > 0 ? Math.max(...memberLayoutNodes.map((n) => n.x + 240)) + 20 : 340;
           const maxY = memberLayoutNodes.length > 0 ? Math.max(...memberLayoutNodes.map((n) => {
             const table = tables.find((t) => t.id === n.tableId);
             const fieldCount = table?.fields.length || 0;
             const heightVal = 48 + fieldCount * 32 + 12;
             return n.y + heightVal;
-          })) + 24 : 300;
+          })) + 20 : 300;
 
           width = maxX - minX;
           height = maxY - minY;
@@ -602,7 +615,38 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       
       if (onUpdateNodes) {
         let updated = [...nodes];
+        let potentialGroupId: string | null = null;
+        let tableToGroup: string | null = null;
+
+        // Check for drop on group (only if single table node is dragged)
+        if (nodesToUpdate.length === 1 && !nodesToUpdate[0].id.startsWith('group__')) {
+          const tableNodeId = nodesToUpdate[0].id;
+          const tablePos = nodesToUpdate[0].position;
+          
+          // Find if dropped on a group node
+          const groupNode = nodesState.find(n => 
+            n.type === 'erGroupNode' && 
+            tablePos.x >= n.position.x && 
+            tablePos.x <= n.position.x + (n.style?.width as number || 240) &&
+            tablePos.y >= n.position.y && 
+            tablePos.y <= n.position.y + (n.style?.height as number || 80)
+          );
+
+          if (groupNode) {
+            const groupId = groupNode.id.replace('group__', '');
+            const currentTableNode = nodes.find(n => n.tableId === tableNodeId);
+            if (currentTableNode && currentTableNode.groupId !== groupId) {
+              potentialGroupId = groupId;
+              tableToGroup = tableNodeId;
+            }
+          }
+        }
         
+        const performUpdate = (finalNodes: TableNode[]) => {
+          onUpdateNodes(finalNodes);
+        };
+
+        const baseUpdated = [...updated];
         nodesToUpdate.forEach((dn) => {
           if (dn.id.startsWith('group__')) {
             const groupId = dn.id.replace('group__', '');
@@ -611,22 +655,49 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
               const dx = dn.position.x - startPos.x;
               const dy = dn.position.y - startPos.y;
               
-              updated = updated.map(n => {
+              baseUpdated.forEach((n, idx) => {
                 if (n.groupId === groupId) {
-                  return { ...n, x: Math.round((n.x + dx) / 20) * 20, y: Math.round((n.y + dy) / 20) * 20 };
+                  baseUpdated[idx] = { ...n, x: Math.round((n.x + dx) / 20) * 20, y: Math.round((n.y + dy) / 20) * 20 };
                 }
-                return n;
               });
             }
           } else {
-            updated = updated.map(n => 
-              n.tableId === dn.id 
-                ? { ...n, x: Math.round(dn.position.x / 20) * 20, y: Math.round(dn.position.y / 20) * 20 } 
-                : n
-            );
+            const idx = baseUpdated.findIndex(n => n.tableId === dn.id);
+            if (idx !== -1) {
+              baseUpdated[idx] = { ...baseUpdated[idx], x: Math.round(dn.position.x / 20) * 20, y: Math.round(dn.position.y / 20) * 20 };
+            }
           }
         });
-        onUpdateNodes(updated);
+
+        if (potentialGroupId && tableToGroup) {
+          const targetGroup = tableGroups?.find(g => g.id === potentialGroupId);
+          const targetTable = tables.find(t => t.id === tableToGroup);
+          
+          const applyGroupChange = () => {
+            const finalUpdated = baseUpdated.map(n => 
+              n.tableId === tableToGroup ? { ...n, groupId: potentialGroupId! } : n
+            );
+            performUpdate(finalUpdated);
+          };
+
+          if (showConfirmation && targetGroup && targetTable) {
+            showConfirmation(
+              'Tabelle zur Gruppe hinzufügen?',
+              `Möchten Sie die Tabelle "${targetTable.name}" zur Gruppe "${targetGroup.name}" hinzufügen?`,
+              applyGroupChange,
+              'Hinzufügen',
+              'bg-emerald-600 hover:bg-emerald-700 text-white'
+            );
+            // We still want to update positions even if they cancel or before they confirm?
+            // Actually, if we wait for confirmation, the position might jump back if we don't update it now.
+            // But if we update position now, and then they confirm, we update groupId later.
+            performUpdate(baseUpdated);
+          } else {
+            applyGroupChange();
+          }
+        } else {
+          performUpdate(baseUpdated);
+        }
       } else {
         nodesToUpdate.forEach((dn) => {
           const layoutNode = nodes.find((n) => n.tableId === dn.id);
@@ -637,7 +708,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       }
       dragStartPositions.current = {};
     },
-    [nodes, onMoveNode, onUpdateNodes]
+    [nodes, onMoveNode, onUpdateNodes, nodesState, tableGroups, tables, showConfirmation]
   );
 
   // Handle new link drag & connect triggers
@@ -673,7 +744,30 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
   const triggerPhysicsLayout = () => {
     if (!onUpdateNodes) return;
 
-    const simNodes = nodes.map((n) => ({ ...n, vx: 0, vy: 0 }));
+    // Determine target tables
+    const selectedGroupNodes = nodesState.filter(n => n.selected && n.id.startsWith('group__'));
+    const selectedGroupIds = selectedGroupNodes.map(n => n.id.replace('group__', ''));
+    
+    let targetTableIds: string[] = [];
+    if (selectedGroupIds.length > 0) {
+      targetTableIds = nodes
+        .filter(n => n.groupId && selectedGroupIds.includes(n.groupId))
+        .map(n => n.tableId);
+    } else if (selectedTableIds.length > 0) {
+      targetTableIds = selectedTableIds;
+    }
+
+    const tablesToLayout = targetTableIds.length > 0 
+      ? nodes.filter(n => targetTableIds.includes(n.tableId))
+      : nodes;
+
+    if (tablesToLayout.length === 0) return;
+
+    // Use current bounding box as reference
+    const startX = Math.min(...tablesToLayout.map(n => n.x));
+    const startY = Math.min(...tablesToLayout.map(n => n.y));
+
+    const simNodes = tablesToLayout.map((n) => ({ ...n, vx: 0, vy: 0 }));
     const iterations = 150;
     const repulsion = 800000;
     const attraction = 0.05;
@@ -722,16 +816,16 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       });
     }
 
-    const minX = Math.min(...simNodes.map((n) => n.x));
-    const minY = Math.min(...simNodes.map((n) => n.y));
+    const simMinX = Math.min(...simNodes.map((n) => n.x));
+    const simMinY = Math.min(...simNodes.map((n) => n.y));
 
     const updatedNodes = nodes.map((n) => {
-      const simNode = simNodes.find((sn) => sn.id === n.id);
+      const simNode = simNodes.find((sn) => sn.tableId === n.tableId);
       if (simNode) {
         return {
           ...n,
-          x: Math.round((simNode.x - minX + 80) / 20) * 20,
-          y: Math.round((simNode.y - minY + 80) / 20) * 20,
+          x: Math.round((simNode.x - simMinX + startX) / 20) * 20,
+          y: Math.round((simNode.y - simMinY + startY) / 20) * 20,
         };
       }
       return n;
@@ -744,18 +838,45 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
   const triggerGridLayout = () => {
     if (!onUpdateNodes) return;
 
-    const cols = Math.ceil(Math.sqrt(nodes.length));
+    // Determine target tables
+    const selectedGroupNodes = nodesState.filter(n => n.selected && n.id.startsWith('group__'));
+    const selectedGroupIds = selectedGroupNodes.map(n => n.id.replace('group__', ''));
+    
+    let targetTableIds: string[] = [];
+    if (selectedGroupIds.length > 0) {
+      targetTableIds = nodes
+        .filter(n => n.groupId && selectedGroupIds.includes(n.groupId))
+        .map(n => n.tableId);
+    } else if (selectedTableIds.length > 0) {
+      targetTableIds = selectedTableIds;
+    }
+
+    const tablesToLayout = targetTableIds.length > 0 
+      ? nodes.filter(n => targetTableIds.includes(n.tableId))
+      : nodes;
+
+    if (tablesToLayout.length === 0) return;
+
+    // Use current bounding box as reference
+    const startX = Math.min(...tablesToLayout.map(n => n.x));
+    const startY = Math.min(...tablesToLayout.map(n => n.y));
+
+    const cols = Math.ceil(Math.sqrt(tablesToLayout.length));
     const spacingX = 300;
     const spacingY = 240;
 
-    const updatedNodes = nodes.map((n, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      return {
-        ...n,
-        x: 100 + col * spacingX,
-        y: 100 + row * spacingY,
-      };
+    const updatedNodes = nodes.map((n) => {
+      const idx = tablesToLayout.findIndex(tn => tn.tableId === n.tableId);
+      if (idx !== -1) {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        return {
+          ...n,
+          x: Math.round((startX + col * spacingX) / 20) * 20,
+          y: Math.round((startY + row * spacingY) / 20) * 20,
+        };
+      }
+      return n;
     });
 
     onUpdateNodes(updatedNodes);
@@ -881,7 +1002,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
   };
 
   return (
-    <div className="w-full h-full relative" style={{ height: 'calc(100vh - 120px)' }}>
+    <div className="w-full h-full relative">
       <ReactFlow
         nodes={nodesState}
         edges={edgesState}
@@ -906,7 +1027,68 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
           zoomable 
           pannable 
           position="bottom-right" 
-          style={{ bottom: 80, right: 16, height: 120, width: 180, margin: 12 }} 
+          style={{ bottom: 80, right: 16, height: 120, width: 180, margin: 12 }}
+          nodeColor={(n: any) => {
+            if (n.type === 'erGroupNode') {
+              const groupColor = n.data?.group?.color || 'slate';
+              const isCollapsed = n.data?.group?.isCollapsed;
+              
+              if (isCollapsed) {
+                const solidColors: any = {
+                  purple: '#a855f7',
+                  blue: '#3b82f6',
+                  emerald: '#10b981',
+                  rose: '#f43f5e',
+                  amber: '#f59e0b',
+                  slate: '#64748b'
+                };
+                return solidColors[groupColor] || solidColors.slate;
+              }
+
+              const colors: any = {
+                purple: '#f5f3ff',
+                blue: '#eff6ff',
+                emerald: '#ecfdf5',
+                rose: '#fff1f2',
+                amber: '#fffbeb',
+                slate: '#f8fafc'
+              };
+              return colors[groupColor] || colors.slate;
+            }
+            if (n.type === 'erTableNode') {
+              const table = n.data?.table;
+              const layoutNode = nodes.find(ln => ln.tableId === table?.id);
+              if (layoutNode?.groupId) {
+                const group = tableGroups.find(g => g.id === layoutNode.groupId);
+                const groupColor = group?.color || 'slate';
+                const colors: any = {
+                  purple: '#a855f7',
+                  blue: '#3b82f6',
+                  emerald: '#10b981',
+                  rose: '#f43f5e',
+                  amber: '#f59e0b',
+                  slate: '#64748b'
+                };
+                return colors[groupColor] || colors.slate;
+              }
+            }
+            return '#cbd5e1';
+          }}
+          nodeStrokeColor={(n: any) => {
+            const tableId = n.data?.table?.id;
+            const groupColor = n.data?.group?.color || (n.type === 'erTableNode' ? (tableGroups.find(g => g.id === nodes.find(ln => ln.tableId === tableId)?.groupId)?.color) : null) || 'slate';
+            const colors: any = {
+              purple: '#a855f7',
+              blue: '#3b82f6',
+              emerald: '#10b981',
+              rose: '#f43f5e',
+              amber: '#f59e0b',
+              slate: '#64748b'
+            };
+            return colors[groupColor] || colors.slate;
+          }}
+          nodeStrokeWidth={3}
+          maskColor="rgba(241, 245, 249, 0.7)"
         />
 
         {/* Multi-Selection Contextual Toolbar */}

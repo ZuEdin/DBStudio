@@ -10,7 +10,7 @@ interface FormViewProps {
   allForms: Form[];
   allTables: Table[];
   onTableChange: (table: Table) => void;
-  showConfirmation: (title: string, message: string, onConfirm: () => void) => void;
+  showConfirmation: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
   isSubform?: boolean;
   filteredData?: Record<string, any>[];
   parentRecord?: Record<string, any>;

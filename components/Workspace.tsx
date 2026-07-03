@@ -32,12 +32,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onSetView, onActiveObjectC
   const [exportTrigger, setExportTrigger] = useState(0);
   const [generateTrigger, setGenerateTrigger] = useState(0);
 
-  // Keyboard shortcut for Command Palette (Ctrl+K)
+  // Keyboard shortcut for Command Palette (handled via global event)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowCommandPalette(p => !p);
+      if (e.key === 'Escape') {
+        setShowCommandPalette(false);
       }
     };
     const handleToggleEvent = () => {
@@ -161,7 +160,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onSetView, onActiveObjectC
             setRelationships={setRelationships}
             executeQuery={executeQuery}
             saveTable={saveTable}
-            showConfirmation={(t, m, c) => setConfirmationModal({ title: t, message: m, onConfirm: c })}
+            showConfirmation={(t, m, c, ct, cc) => setConfirmationModal({ title: t, message: m, onConfirm: c, confirmText: ct, confirmClass: cc })}
             formActionTrigger={formActionTrigger}
             backendConfig={backendConfig}
             onUpdateBackendConfig={setBackendConfig}
