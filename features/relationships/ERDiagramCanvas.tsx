@@ -924,23 +924,83 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     const startX = Math.min(...tablesToLayout.map(n => n.x));
     const startY = Math.min(...tablesToLayout.map(n => n.y));
 
-    const cols = Math.ceil(Math.sqrt(tablesToLayout.length));
+    // Group tables by groupId
+    const groupedTables: { [groupId: string]: any[] } = {};
+    const unGroupedTables: any[] = [];
+
+    tablesToLayout.forEach(n => {
+      if (n.groupId) {
+        if (!groupedTables[n.groupId]) groupedTables[n.groupId] = [];
+        groupedTables[n.groupId].push(n);
+      } else {
+        unGroupedTables.push(n);
+      }
+    });
+
     const spacingX = 300;
     const spacingY = 240;
+    const groupPaddingX = 100;
+    const groupPaddingY = 100;
 
-    const updatedNodes = nodes.map((n) => {
-      const idx = tablesToLayout.findIndex(tn => tn.tableId === n.tableId);
-      if (idx !== -1) {
+    let currentGroupStartX = startX;
+    let currentGroupStartY = startY;
+    let maxGroupHeightInRow = 0;
+    const maxWidth = 1400; // threshold to wrap to next row of groups
+
+    const updatedNodes = [...nodes];
+
+    // Helper to layout a set of tables
+    const layoutTableSet = (tableSet: any[], groupId: string | null) => {
+      if (tableSet.length === 0) return;
+      const cols = Math.ceil(Math.sqrt(tableSet.length));
+      
+      let maxW = 0;
+      let maxH = 0;
+
+      tableSet.forEach((n, idx) => {
         const col = idx % cols;
         const row = Math.floor(idx / cols);
-        return {
-          ...n,
-          x: Math.round((startX + col * spacingX) / 20) * 20,
-          y: Math.round((startY + row * spacingY) / 20) * 20,
-        };
+
+        const newX = currentGroupStartX + col * spacingX;
+        const newY = currentGroupStartY + row * spacingY + (groupId ? 80 : 0); // 80px space for group header
+
+        const originalNodeIdx = updatedNodes.findIndex(un => un.tableId === n.tableId);
+        if (originalNodeIdx !== -1) {
+          updatedNodes[originalNodeIdx] = { 
+            ...updatedNodes[originalNodeIdx], 
+            x: Math.round(newX / 20) * 20, 
+            y: Math.round(newY / 20) * 20 
+          };
+        }
+
+        maxW = Math.max(maxW, col * spacingX + 240); // 240 approx table width
+        maxH = Math.max(maxH, row * spacingY + 300 + (groupId ? 80 : 0)); // 300 approx max table height
+      });
+
+      currentGroupStartX += maxW + groupPaddingX;
+      maxGroupHeightInRow = Math.max(maxGroupHeightInRow, maxH);
+
+      // Wrap logic for groups
+      if (currentGroupStartX - startX > maxWidth) {
+        currentGroupStartX = startX;
+        currentGroupStartY += maxGroupHeightInRow + groupPaddingY;
+        maxGroupHeightInRow = 0;
       }
-      return n;
+    };
+
+    // 1. Layout each group
+    Object.entries(groupedTables).forEach(([groupId, tableSet]) => {
+      layoutTableSet(tableSet, groupId);
     });
+
+    // 2. Layout ungrouped tables below everything
+    if (unGroupedTables.length > 0) {
+      if (currentGroupStartX !== startX && maxGroupHeightInRow > 0) {
+        currentGroupStartX = startX;
+        currentGroupStartY += maxGroupHeightInRow + groupPaddingY;
+      }
+      layoutTableSet(unGroupedTables, null);
+    }
 
     onUpdateNodes(updatedNodes);
   };
