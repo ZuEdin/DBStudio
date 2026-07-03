@@ -8,6 +8,7 @@ import {
 import { 
   Table, Query, Report, Form, NavigationItem, BackendConfig 
 } from '../../types/index';
+import { useProjectStore } from '../../stores/useProjectStore';
 
 // A dynamic icon mapping for easy visual choices
 const AVAILABLE_ICONS = [
@@ -411,7 +412,42 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
       <div key={item.id} className="group flex flex-col">
         {/* Row Container */}
         <div 
-          onClick={() => setSelectedItemId(item.id)}
+          onClick={() => {
+            setSelectedItemId(item.id);
+            if (item.title.toLowerCase() === 'cms') {
+              const store = useProjectStore.getState();
+              // Add Devices table if missing
+              if (!store.tables.find(t => t.name === 'sys_user_devices')) {
+                store.addTable({
+                  id: crypto.randomUUID(),
+                  name: 'sys_user_devices',
+                  fields: [
+                    { id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+                    { id: crypto.randomUUID(), name: 'user_id', type: 'INTEGER', allowNull: false },
+                    { id: crypto.randomUUID(), name: 'device_token', type: 'VARCHAR', length: 255 },
+                    { id: crypto.randomUUID(), name: 'platform', type: 'VARCHAR', length: 255 },
+                    { id: crypto.randomUUID(), name: 'last_active', type: 'TIMESTAMP' }
+                  ],
+                  data: []
+                });
+              }
+              // Add Tokens table if missing
+              if (!store.tables.find(t => t.name === 'sys_user_tokens')) {
+                store.addTable({
+                  id: crypto.randomUUID(),
+                  name: 'sys_user_tokens',
+                  fields: [
+                    { id: crypto.randomUUID(), name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+                    { id: crypto.randomUUID(), name: 'user_id', type: 'INTEGER', allowNull: false },
+                    { id: crypto.randomUUID(), name: 'token', type: 'VARCHAR', length: 255 },
+                    { id: crypto.randomUUID(), name: 'expires_at', type: 'TIMESTAMP' }
+                  ],
+                  data: []
+                });
+              }
+              showMessage("CMS Tabellen erstellt", "Die erforderlichen Tabellen 'sys_user_devices' und 'sys_user_tokens' wurden automatisch erstellt.", "success");
+            }
+          }}
           className={`flex items-center justify-between p-2.5 mx-2 my-0.5 rounded-lg cursor-pointer border select-none transition-all duration-150 ${
             isSelected 
               ? 'bg-sky-50 border-sky-300 shadow-sm text-sky-950 font-medium' 

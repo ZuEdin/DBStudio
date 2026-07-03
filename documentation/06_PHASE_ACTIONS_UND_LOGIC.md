@@ -18,6 +18,6 @@ Nachdem das Layout und die Datenstruktur perfekt generiert werden, rückt die **
 *   [x] **Die Generierung**: Generierung von Global Context Providern (`GlobalStateContext.tsx`), die durch Dropdowns & Buttons im Layout aktualisiert werden können.
 
 ## 6.3 Interaktives Onboarding & Produkt-Guided-Tours - [ERLEDIGT ✅]
-*   [x] **Die Idee**: Neue Benutzer in generierten Enterprise-Apps kennen sich oft nicht aus.
+*   [x] **Die Idee**: Neue Benutzer in generierten Firmen-Apps kennen sich oft nicht aus.
 *   [x] **Features**: Ein Feature im Designer (`LogicDesigner.tsx`), um "Tour-Steps" an Elemente anzuhängen (z.B. Schritt 1: "Hier legen Sie neue Kunden an").
 *   [x] **Die Generierung**: Die generierte App enthält Integrationen für Tour-Bibliotheken (`react-joyride`), welche beim Erstlogin den User mit Popovers quer durch das Interface führen.

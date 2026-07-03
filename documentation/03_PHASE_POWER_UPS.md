@@ -1,6 +1,6 @@
-# Phase 3: Ultimate Power-Ups (Enterprise UX & Automation) - [ERLEDIGT ✅]
+# Phase 3: Ultimate Power-Ups (Firmen UX & Automation) - [ERLEDIGT ✅]
 
-Um den **Navigation & Page Designer** von DB Studio Pro in ein unschlagbares Branchen-Highlight zu verwandeln, erweitern wir die Plattform um hochkarätige Enterprise-Features. Diese machen die generierten Apps sofort fit für internationale, datenintensive Großprojekte.
+Um den **Navigation & Page Designer** von DB Studio Pro in ein unschlagbares Branchen-Highlight zu verwandeln, erweitern wir die Plattform um hochkarätige Firmen-Features. Diese machen die generierten Apps sofort fit für internationale, datenintensive Großprojekte.
 
 ## 3.1 Live-Badge-Engine (Dynamische Indikatoren) - [ERLEDIGT ✅]
 Menüpunkte steuern oft kritische Arbeitsabläufe (z.B. offene Bestellungen, unbestätigte Urlaubsanträge, Systemfehler).
@@ -22,5 +22,5 @@ Nicht jede App profitiert von derselben klassischen Sidebar.
 *   [x] **Die Idee**: Der Nutzer kann im Studio die Shell-Navigationsstruktur direkt umschalten:
     1.  *Modern Sidebar* (Einklappbare linke Sidebar mit Untermenüs)
     2.  *Top-Navigation* (Klassische Dropdown-Menüleiste am oberen Bildschirmrand, ideal für Portale)
-    3.  *Enterprise Double Rail* (Hauptkategorien und Navigation aufgeteilt auf zwei linke Spalten)
+    3.  *Firmen Double Rail* (Hauptkategorien und Navigation aufgeteilt auf zwei linke Spalten)
 *   [x] **Die Generierung**: Der Transpiler erzeugt das entsprechende Shell-Design-Gerüst, während alle Sichtbarkeits- und AD-Rechteprüfungen voll erhalten bleiben!

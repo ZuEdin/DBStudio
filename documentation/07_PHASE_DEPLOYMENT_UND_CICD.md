@@ -1,6 +1,6 @@
 # Phase 7: Automatisches Deployment & CI/CD Pipeline Generator
 
-Wenn Enterprise-Apps generiert werden, müssen sie nahtlos im Unternehmensnetzwerk oder in der Cloud ausgerollt werden. DB Studio Pro erstellt nicht nur den Code, sondern auch die exakten Bereitstellungspläne.
+Wenn Firmen-Apps generiert werden, müssen sie nahtlos im Unternehmensnetzwerk oder in der Cloud ausgerollt werden. DB Studio Pro erstellt nicht nur den Code, sondern auch die exakten Bereitstellungspläne.
 
 ## 7.1 Docker & Kubernetes Generator
 - [x] **Die Idee**: Jede generierte App (Frontend/Backend) sollte sofort container-ready sein.

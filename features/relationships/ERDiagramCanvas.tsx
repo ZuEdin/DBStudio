@@ -29,7 +29,8 @@ import {
   AlignLeft, 
   Magnet, 
   Grid3X3,
-  GripVertical
+  GripVertical,
+  Info
 } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
@@ -171,18 +172,43 @@ const ERGroupNodeComponent = ({ data }: any) => {
 };
 
 // Custom Table Node with Multiple Handles (source on right, target on left for every field)
-const ERTableNodeComponent = ({ data, selected }: any) => {
+const ERTableNodeComponent = ({ id, data, selected }: any) => {
   const { table, relationships, nodes, tableGroups, onDoubleClick } = data;
+  const [activeCommentFieldId, setActiveCommentFieldId] = useState<string | null>(null);
+  const { setNodes } = useReactFlow();
+
+  // Ensure node is on top when a comment is active
+  useEffect(() => {
+    if (activeCommentFieldId) {
+      setNodes((nds) => 
+        nds.map((node) => {
+          if (node.id === id) {
+            return { ...node, zIndex: 1000 };
+          }
+          return node;
+        })
+      );
+    } else {
+      setNodes((nds) => 
+        nds.map((node) => {
+          if (node.id === id) {
+            return { ...node, zIndex: undefined };
+          }
+          return node;
+        })
+      );
+    }
+  }, [activeCommentFieldId, id, setNodes]);
 
   // Find if this table belongs to any group
   const layoutNode = nodes?.find((n: any) => n.tableId === table.id);
   const group = tableGroups?.find((g: any) => g.id === layoutNode?.groupId);
 
   return (
-    <div className={`bg-white dark:bg-slate-900 rounded-lg shadow-xl border-2 transition-all duration-150 ${selected ? 'border-purple-500 ring-4 ring-purple-500/25 scale-[1.02] shadow-2xl z-50' : 'border-slate-300 dark:border-slate-800 hover:border-slate-400'} min-w-[240px] overflow-hidden text-xs`}>
+    <div className={`bg-white dark:bg-slate-900 rounded-lg shadow-xl border-2 transition-all duration-150 ${selected || activeCommentFieldId ? 'z-50' : 'z-0'} ${selected ? 'border-purple-500 ring-4 ring-purple-500/25 scale-[1.02] shadow-2xl' : 'border-slate-300 dark:border-slate-800 hover:border-slate-400'} min-w-[240px] text-xs`}>
       {/* Node Header */}
       <div 
-        className="bg-gradient-to-r from-slate-800 to-slate-950 text-white p-3 font-bold flex items-center justify-between cursor-pointer select-none"
+        className="bg-gradient-to-r from-slate-800 to-slate-950 text-white p-3 font-bold flex items-center justify-between cursor-pointer select-none rounded-t-lg"
         onDoubleClick={onDoubleClick}
         title="Doppelklick zum Bearbeiten"
       >
@@ -207,7 +233,7 @@ const ERTableNodeComponent = ({ data, selected }: any) => {
       </div>
 
       {/* Fields List */}
-      <div className="p-1.5 space-y-1 bg-slate-50 dark:bg-slate-950">
+      <div className="p-1.5 space-y-1 bg-slate-50 dark:bg-slate-950 rounded-b-lg nodrag">
         {table.fields.map((field: any) => {
           const isPrimaryKey = field.isPrimaryKey;
           const isForeignKey = relationships?.some(
@@ -217,7 +243,12 @@ const ERTableNodeComponent = ({ data, selected }: any) => {
           return (
             <div
               key={field.id}
-              className="relative h-8 px-2 flex items-center justify-between hover:bg-white dark:hover:bg-slate-800 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all select-none group"
+              className={`relative h-8 px-2 flex items-center justify-between hover:bg-white dark:hover:bg-slate-800 rounded border transition-all select-none group cursor-pointer nodrag ${activeCommentFieldId === field.id ? 'bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-900 ring-1 ring-purple-100 dark:ring-purple-900/30' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
+              onClick={() => {
+                if (field.comment) {
+                  setActiveCommentFieldId(activeCommentFieldId === field.id ? null : field.id);
+                }
+              }}
             >
               {/* Target Handle (Incoming Foreign Key connection) */}
               <Handle
@@ -245,9 +276,41 @@ const ERTableNodeComponent = ({ data, selected }: any) => {
               </div>
 
               {/* Field Type Indicator */}
-              <div className="text-[9px] text-slate-400 font-mono uppercase bg-slate-200/50 dark:bg-slate-800/50 px-1.5 py-0.5 rounded">
-                {field.type.substring(0, 5)}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {field.comment && (
+                  <Info 
+                    size={10} 
+                    className={`${activeCommentFieldId === field.id ? 'text-purple-500' : 'text-slate-400 opacity-0 group-hover:opacity-100'} transition-all`} 
+                  />
+                )}
+                <div className="text-[9px] text-slate-400 font-mono uppercase bg-slate-200/50 dark:bg-slate-800/50 px-1.5 py-0.5 rounded">
+                  {field.type.substring(0, 5)}
+                </div>
               </div>
+
+              {/* Comment Popover */}
+              {activeCommentFieldId === field.id && field.comment && (
+                <div 
+                  className="absolute left-full ml-4 top-0 z-[100] w-64 bg-slate-900 text-white p-3 rounded-lg shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 slide-in-from-left-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-2 mb-1.5 text-purple-400 font-bold uppercase tracking-wider text-[10px]">
+                    <Info size={12} />
+                    <span>Feld-Information</span>
+                  </div>
+                  <div className="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap">
+                    {field.comment}
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-slate-800 flex justify-end">
+                    <button 
+                      onClick={() => setActiveCommentFieldId(null)}
+                      className="text-[9px] text-slate-500 hover:text-white transition-colors"
+                    >
+                      Schließen
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Source Handle (Outgoing connection) */}
               <Handle

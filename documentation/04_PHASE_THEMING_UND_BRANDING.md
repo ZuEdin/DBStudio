@@ -1,6 +1,6 @@
 # Phase 4: Theming & Branding Engine (White-Labeling Pro) - [ERLEDIGT ✅]
 
-Bisher haben wir die strukturelle und sicherheitsrelevante Basis der generierten Applikationen mit Navigation und Rollen ausgestattet. Für den Enterprise-Einsatz fehlt noch eine tiefe, anpassbare Branding-Schicht, damit die Software zu 100% nach dem Corporate Design des Kunden aussieht.
+Bisher haben wir die strukturelle und sicherheitsrelevante Basis der generierten Applikationen mit Navigation und Rollen ausgestattet. Für den Firmen-Einsatz fehlt noch eine tiefe, anpassbare Branding-Schicht, damit die Software zu 100% nach dem Corporate Design des Kunden aussieht.
 
 ## 4.1 Visual Theme Builder (Design System Management) - [ERLEDIGT ✅]
 *   [x] **Die Idee**: Ein grafischer Editor im DB Studio Pro, um das Design-System der App zu definieren.

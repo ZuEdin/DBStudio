@@ -26,4 +26,4 @@ Klickt der User auf "Generieren", übersetzen die Transpiler das JSON-Modell dir
 *   [x] **Controller-Sicherheit**: Automatische Synchronisation der Navigationseinschränkungen mit der Backend-API. Endpunkte von gesperrten Tabellen/Seiten werden direkt mit der passenden Autorisierungs-Dekoration im Code (z.B. `.NET` `[Authorize(Roles = "...")]` oder Express-Rollen-Middlewares) abgesichert.
 
 ---
-*Mit Abschluss der Phasen 1 und 2 ist DB Studio Pro in der Lage, hochgesicherte, rollenbasierte Enterprise-Applikationen (inkl. Active Directory Support) mit dynamischen Menüs völlig automatisiert auf Knopfdruck zu generieren.*
+*Mit Abschluss der Phasen 1 und 2 ist DB Studio Pro in der Lage, hochgesicherte, rollenbasierte Firmen-Applikationen (inkl. Active Directory Support) mit dynamischen Menüs völlig automatisiert auf Knopfdruck zu generieren.*
