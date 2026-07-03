@@ -164,7 +164,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
   const handleLayoutChange = (layout: 'sidebar' | 'top_nav' | 'double_rail') => {
     setSelectedLayout(layout);
     saveToConfig(menuItems, layout);
-    showMessage("Layout aktualisiert", `Das Shell Preset "${layout === 'sidebar' ? 'Modern Sidebar' : layout === 'top_nav' ? 'Top Navigation' : 'Enterprise Double Rail'}" wurde gespeichert.`, "success");
+    showMessage("Layout aktualisiert", `Das Shell Preset "${layout === 'sidebar' ? 'Modern Sidebar' : layout === 'top_nav' ? 'Top Navigation' : 'Double Rail'}" wurde gespeichert.`, "success");
   };
 
   // Helper to toggle folder expanded state
@@ -565,7 +565,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
               }`}
             >
               <Layers size={13} />
-              Enterprise Double Rail
+              Double Rail
             </button>
           </div>
         </div>

@@ -259,7 +259,7 @@ export async function useDynamicTenantDb(req: MultiTenantRequest, res: Response,
                                             <span className="text-xs font-bold text-slate-800 dark:text-white">Schema-per-Tenant / DB (Physisch)</span>
                                         </div>
                                         <p className="text-[11px] text-slate-500 leading-normal">
-                                            Jeder Kunde besitzt seine eigene relationale Datenbank. Höchste physische Datensicherheit und Isolation. Bestens geeignet für große Enterprise-Lösungen oder strenge Compliance-Richtlinien.
+                                            Jeder Kunde besitzt seine eigene relationale Datenbank. Höchste physische Datensicherheit und Isolation. Bestens geeignet für große Firmen-Lösungen oder strenge Compliance-Richtlinien.
                                         </p>
                                     </div>
                                 </div>

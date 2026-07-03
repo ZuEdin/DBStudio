@@ -71,7 +71,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
         <div className="flex justify-between items-center p-5 bg-indigo-900 text-white shrink-0">
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">
-               <Briefcase size={24} className="text-yellow-400"/> Enterprise & Whitelabeling
+               <Briefcase size={24} className="text-yellow-400"/> Whitelabeling & Branding
             </h2>
             <p className="text-indigo-200 text-sm mt-1">Konfigurieren Sie die kommerziellen Aspekte Ihrer generierten App.</p>
           </div>

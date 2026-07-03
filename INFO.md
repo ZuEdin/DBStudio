@@ -1,4 +1,4 @@
-# 🚀 Die Zukunft der Enterprise Software-Entwicklung: Project "Velocity"
+# 🚀 Die Zukunft der Software-Entwicklung: Project "Velocity"
 
 **Sehr geehrter IT-Manager,**
 
@@ -15,8 +15,8 @@ Wir präsentieren Ihnen die **ultimative Rapid Application Development (RAD) Eng
 ### 1. Zero Vendor Lock-in (Ihr Code gehört Ihnen)
 Vergessen Sie proprietäre SaaS-Plattformen, die Sie an teure Lizenzen binden und bei denen Sie den Quellcode nie zu Gesicht bekommen. Unsere Engine generiert **100% nativen, sauberen Quellcode**, den Ihr Inhouse-Team direkt in Visual Studio, VS Code oder Rider übernehmen, debuggen und erweitern kann. Wenn Sie unsere Engine morgen abschalten, läuft Ihre Software ohne einen einzigen Aussetzer weiter.
 
-### 2. State-of-the-Art Enterprise Tech Stacks
-Wir wissen, dass große IT-Abteilungen Standards haben. Darum unterstützen wir nicht nur *ein* Framework, sondern das gesamte Spektrum modernster Enterprise-Architekturen:
+### 2. State-of-the-Art Tech Stacks
+Wir wissen, dass große IT-Abteilungen Standards haben. Darum unterstützen wir nicht nur *ein* Framework, sondern das gesamte Spektrum modernster Architekturen:
 *   **Backend-Power:** Wählen Sie zwischen modernstem **.NET 10** (Zukunftssicher bis Ende 2026 und bereit für kommende LTS-Upgrades), **Node.js**, **Laravel** oder klassischen **PHP** Konzepten. Inklusive robustem API-Design und Entity Framework / ORM-Integration.
 *   **High-End Frontends:** Ob **Angular 18**, **React**, **Vue 3** oder **Blazor WebAssembly** – Sie bekommen hochperformante Single Page Applications (SPAs).
 *   **Styling-Frameworks:** Vollständige Integration von **Tailwind CSS** oder **Bootstrap** – sofort bereit für Ihre Corporate Identity.

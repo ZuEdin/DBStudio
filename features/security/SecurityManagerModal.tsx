@@ -588,7 +588,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                 <span className="font-bold text-slate-800">Windows Authentifizierung (Active Directory)</span>
                             </label>
                             <p className="text-sm text-slate-600 ml-7 mb-4">
-                                Nutzt die Windows-Identität des Benutzers (Intranet/Enterprise). Erfordert IIS oder entsprechenden Proxy.
+                                Nutzt die Windows-Identität des Benutzers (Intranet/Firmennetzwerk). Erfordert IIS oder entsprechenden Proxy.
                             </p>
 
                             {authConfig.useWindowsAuth && (

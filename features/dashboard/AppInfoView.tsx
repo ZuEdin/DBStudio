@@ -164,7 +164,7 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
       <div className="bg-slate-50 py-20">
           <div className="max-w-6xl mx-auto px-4">
               <div className="text-center mb-16">
-                  <h2 className="text-3xl font-bold text-slate-800 mb-4">Umfassende Enterprise Features inklusive</h2>
+                  <h2 className="text-3xl font-bold text-slate-800 mb-4">Umfassende Features inklusive</h2>
                   <p className="text-slate-500 max-w-2xl mx-auto text-sm md:text-base">
                       Wir bauen keine simplen "Hello World"-Beispiele. DB Studio Pro entwirft und konfiguriert die komplexe, relationale Logik und die Infrastruktur, die moderne Teams benötigen.
                   </p>

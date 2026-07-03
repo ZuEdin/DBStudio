@@ -2,12 +2,12 @@
 import { Project, Collaborator, LockInfo } from '../types/index';
 import { DbType } from '../types/index';
 
-// MOCK SERVICE: Simulates interaction with a DB Studio Pro Enterprise Server
+// MOCK SERVICE: Simulates interaction with a DB Studio Pro Server
 
 const MOCK_CLOUD_PROJECTS: Project[] = [
     {
         id: 'cloud-1',
-        name: 'Enterprise CRM (Team)',
+        name: 'Cloud CRM (Team)',
         lastModified: Date.now(),
         isCloud: true,
         owner: 'Max Mustermann',
