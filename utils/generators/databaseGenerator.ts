@@ -169,8 +169,40 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
                 }
             });
         }
+
+        // 4. Indexes (Performance Optimization)
+        sql += `\n-- Performance Indexes\n`;
+        // Automatic indexes for foreign keys
+        relationships.forEach(rel => {
+            const child = processingTables.find(t => t.id === rel.toTableId);
+            const childField = child?.fields.find(f => f.id === rel.toFieldId);
+            if (child && childField) {
+                const indexName = `IX_${child.name.replace(/\s/g, '_')}_${childField.name.replace(/\s/g, '_')}`;
+                sql += `CREATE INDEX ${quoteIdentifier(indexName, config.dbType)} ON ${quoteIdentifier(toPascalCase(child.name), config.dbType)} (${quoteIdentifier(childField.name, config.dbType)});\n`;
+            }
+        });
+
+        // Specific indexes for club_id, user_id, conversation_id and ending with _id
+        const specialFields = ['club_id', 'user_id', 'conversation_id', 'clubid', 'userid', 'conversationid'];
+        processingTables.forEach(table => {
+            table.fields.forEach(field => {
+                const isSpecial = specialFields.includes(field.name.toLowerCase()) || field.name.toLowerCase().endsWith('_id');
+                const alreadyIndexed = relationships.some(rel => rel.toTableId === table.id && rel.toFieldId === field.id);
+                
+                if ((field.isIndexed || isSpecial) && !alreadyIndexed && !field.isPrimaryKey) {
+                    const indexName = `IX_${table.name.replace(/\s/g, '_')}_${field.name.replace(/\s/g, '_')}`;
+                    sql += `CREATE INDEX ${quoteIdentifier(indexName, config.dbType)} ON ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (${quoteIdentifier(field.name, config.dbType)});\n`;
+                }
+            });
+            
+            // Performance Tip for High-Volume Data (e.g. Prayer Schedule)
+            if (table.name.toLowerCase().includes('prayerschedule') || table.name.toLowerCase().includes('calendar')) {
+                sql += `-- PERFORMANCE TIP: Table '${table.name}' might grow large. \n`;
+                sql += `-- Consider using a monthly JSON blob for caching to reduce SELECT overhead for yearly views.\n`;
+            }
+        });
         
-        // 4. Views (for Queries)
+        // 5. Views (for Queries)
         sql += `\n-- Views\n`;
         queries.forEach(q => {
             if (q.type === 'SELECT') {
@@ -185,7 +217,7 @@ export const generateDatabaseScripts = (tables: Table[], relationships: Relation
 
         files.push({ name: 'schema.sql', path: `${root}/schema.sql`, content: sql, language: 'sql' });
         
-        // 5. Extended ORM Exports (Prisma, Drizzle, TypeORM)
+        // 6. Extended ORM Exports (Prisma, Drizzle, TypeORM)
         try {
             // Prisma Schema
             const prismaCode = generatePrismaSchema(processingTables, relationships, config);

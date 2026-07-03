@@ -4,11 +4,15 @@ import { LanguageSelector } from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { CollaborationBar } from './CollaborationBar';
 import { cloudService } from '../services/cloudService';
-import { Cloud, GitBranch, MessageSquare, Sun, Moon } from 'lucide-react';
+import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 
-export const AppHeader: React.FC = () => {
+interface AppHeaderProps {
+  onAction?: (action: string, payload?: any) => void;
+}
+
+export const AppHeader: React.FC<AppHeaderProps> = ({ onAction }) => {
   const { t } = useTranslation();
   const store = useProjectStore();
   const ui = useUIStore();
@@ -20,7 +24,11 @@ export const AppHeader: React.FC = () => {
   const collaborators = cloudService.getCollaborators('mock-id');
 
   const onExport = () => {
-      setFormActionTrigger({ action: 'backend_export', timestamp: Date.now() });
+      if (onAction) {
+          onAction('project_backup');
+      } else {
+          setFormActionTrigger({ action: 'backend_export', timestamp: Date.now() });
+      }
   };
 
   return (
@@ -65,7 +73,11 @@ export const AppHeader: React.FC = () => {
             <div className="h-4 w-px bg-slate-600 mx-1"></div>
             <LanguageSelector />
             <div className="h-4 w-px bg-slate-600 mx-2"></div>
-            <button onClick={onExport} className="hover:text-blue-300 font-medium">
+            <button 
+                onClick={onExport} 
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-700/50 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 transition-all border border-blue-500/30 hover:border-blue-400/50 font-semibold"
+            >
+                <Download size={14} />
                 {t('app.save_backup')}
             </button>
         </div>

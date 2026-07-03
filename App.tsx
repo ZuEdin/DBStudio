@@ -24,7 +24,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300">
-      <AppHeader />
+      <AppHeader onAction={app.handleRibbonAction} />
       
       <Ribbon onAction={app.handleRibbonAction} />
       

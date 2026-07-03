@@ -4,16 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "node dist/server.cjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@faker-js/faker": "^10.5.0",
     "@google/genai": "^1.33.0",
     "@monaco-editor/react": "^4.6.0",
+    "@types/express": "^5.0.6",
     "@xyflow/react": "^12.11.1",
+    "esbuild": "^0.28.1",
+    "express": "^5.2.1",
     "i18next": "23.10.0",
     "i18next-browser-languagedetector": "7.2.0",
     "immer": "10.0.3",
@@ -27,6 +30,7 @@
     "react-i18next": "14.0.5",
     "recharts": "2.12.7",
     "sql.js": "1.10.2",
+    "tsx": "^4.23.0",
     "xlsx": "0.18.5",
     "zustand": "4.5.0"
   },

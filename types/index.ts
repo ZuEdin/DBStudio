@@ -19,6 +19,7 @@ export interface Field {
   isPrimaryKey?: boolean;
   isAutoIncrement?: boolean;
   isUnique?: boolean;
+  isIndexed?: boolean;
   allowNull?: boolean;
   defaultValue?: string;
   length?: number;

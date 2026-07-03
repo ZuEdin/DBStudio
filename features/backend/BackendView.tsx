@@ -6,7 +6,6 @@ import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDow
 import { generateBackendCode } from '../../utils/backendGenerators';
 import { generateDeploymentScripts } from '../../utils/generators/deploymentGenerator';
 import JSZip from 'jszip';
-import { GoogleGenAI } from '@google/genai';
 import { GitPushModal } from '../versioning/GitPushModal';
 
 interface BackendViewProps {
@@ -220,21 +219,25 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
       setIsAiProcessing(true);
       
       try {
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-          
-          const contentPrompt = "Du bist ein Senior Developer. Hier ist der Code der Datei '" + selectedFile.name + "' (" + selectedFile.language + ").\n" +
-              "Projekt-Kontext: " + localConfig.language + ", " + localConfig.projectName + ".\n\n" +
-              "Code:\n" + selectedFile.content + "\n\n" +
-              "Aufgabe: " + aiPrompt + "\n\n" +
-              "Gib NUR den kompletten, neuen Code zurück, ohne Markdown-Formatierung.";
-
-          const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: contentPrompt
+          const response = await fetch('/api/refactor', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  prompt: aiPrompt,
+                  currentCode: selectedFile.content,
+                  fileName: selectedFile.name,
+                  language: selectedFile.language,
+                  projectName: localConfig.projectName
+              })
           });
-          
-          const newCode = response.text?.trim() || selectedFile.content;
-          const cleanCode = newCode.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '');
+
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Fehler bei der AI-Anfrage');
+          }
+
+          const data = await response.json();
+          const cleanCode = data.code;
 
           const newFiles = generatedFiles.map(f => f.path === selectedFile.path ? { ...f, content: cleanCode } : f);
           setGeneratedFiles(newFiles);

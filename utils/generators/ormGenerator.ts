@@ -112,6 +112,25 @@ export const generatePrismaSchema = (tables: Table[], relationships: Relationshi
       }
     });
 
+    // Indexes
+    const specialFields = ['club_id', 'user_id', 'conversation_id', 'clubid', 'userid', 'conversationid'];
+    const indexedFields: string[] = [];
+    
+    table.fields.forEach(field => {
+        const isSpecial = specialFields.includes(field.name.toLowerCase()) || field.name.toLowerCase().endsWith('_id');
+        const isFk = relationships.some(rel => rel.toTableId === table.id && rel.toFieldId === field.id);
+        
+        if ((field.isIndexed || isSpecial || isFk) && !field.isPrimaryKey) {
+            indexedFields.push(field.name);
+        }
+    });
+
+    if (indexedFields.length > 0) {
+        indexedFields.forEach(f => {
+            code += `  @@index([${f}])\n`;
+        });
+    }
+
     code += `}\n\n`;
   });
 
@@ -126,11 +145,11 @@ export const generateDrizzleSchema = (tables: Table[], relationships: Relationsh
 
   let imports = `import { `;
   if (isMySql) {
-    imports += `mysqlTable, varchar, integer, boolean, datetime, double, text, serial`;
+    imports += `mysqlTable, varchar, integer, boolean, datetime, double, text, serial, index`;
   } else if (isSqlite) {
-    imports += `sqliteTable, text, integer, real, numeric`;
+    imports += `sqliteTable, text, integer, real, numeric, index`;
   } else {
-    imports += `pgTable, varchar, integer, boolean, timestamp, doublePrecision, text, serial, uuid`;
+    imports += `pgTable, varchar, integer, boolean, timestamp, doublePrecision, text, serial, uuid, index`;
   }
   imports += ` } from 'drizzle-orm/`;
   imports += isMySql ? 'mysql-core' : isSqlite ? 'sqlite-core' : 'pg-core';
@@ -198,6 +217,26 @@ export const generateDrizzleSchema = (tables: Table[], relationships: Relationsh
 
       code += `  ${field.name}: ${colDef},\n`;
     });
+
+    // Drizzle Indexes
+    const specialFields = ['club_id', 'user_id', 'conversation_id', 'clubid', 'userid', 'conversationid'];
+    const indexedFields: string[] = [];
+    table.fields.forEach(field => {
+        const isSpecial = specialFields.includes(field.name.toLowerCase()) || field.name.toLowerCase().endsWith('_id');
+        const isFk = relationships.some(rel => rel.toTableId === table.id && rel.toFieldId === field.id);
+        
+        if ((field.isIndexed || isSpecial || isFk) && !field.isPrimaryKey) {
+            indexedFields.push(field.name);
+        }
+    });
+
+    if (indexedFields.length > 0) {
+        code += `}, (table) => {\n  return {\n`;
+        indexedFields.forEach(f => {
+            code += `    ${f}Idx: index('${f}_idx').on(table.${f}),\n`;
+        });
+        code += `  };\n`;
+    }
 
     code += `});\n\n`;
   });

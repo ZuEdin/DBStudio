@@ -883,6 +883,42 @@ export const useAppController = () => {
         case 'open_envs': ui.setShowEnvModal(true); break;
         case 'open_migrations': ui.setShowMigrationModal(true); break;
         case 'open_deployment_modal': ui.setShowDeploymentModal(true); break;
+        
+        case 'project_backup': {
+            const project = {
+                id: store.projectId,
+                name: store.projectName,
+                lastModified: Date.now(),
+                data: {
+                    tables: store.tables,
+                    relationships: store.relationships,
+                    queries: store.queries,
+                    forms: store.forms,
+                    reports: store.reports,
+                    pages: store.pages,
+                    charts: store.charts,
+                    workflows: store.workflows,
+                    layout: store.layout,
+                    tableGroups: store.tableGroups,
+                    tickets: store.tickets,
+                    chats: store.chats,
+                    backendConfig: store.backendConfig
+                }
+            };
+            const dataStr = JSON.stringify(project, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10);
+            const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+            a.download = `${store.projectName}_Backup_${dateStr}_${timeStr}.dbsp`;
+            a.click();
+            URL.revokeObjectURL(url);
+            ui.addToast("Sicherungsdatei wurde erstellt und heruntergeladen.", 'success');
+            break;
+        }
       }
     } catch (error: any) { ui.showMessage("Systemfehler", error.message, 'error'); }
   };

@@ -2,9 +2,11 @@
 import { useState, useEffect } from 'react';
 import { Chat } from '../types/index';
 import { getLocalChats, saveLocalChat } from '../services/chatStorageService';
+import { useUIStore } from '../stores/useUIStore';
 
 export const useChatState = () => {
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const ui = useUIStore();
+  const { isChatOpen, setIsChatOpen } = ui;
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
 
