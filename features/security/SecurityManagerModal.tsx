@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Table, Form, Report, BackendConfig, Field, Query } from '../../types/index';
-import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type, Users, Key, Plus, UserCog, Wand2, RefreshCw, Database } from 'lucide-react';
+import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type, Users, Key, Plus, UserCog, Wand2, RefreshCw, Database, Folder } from 'lucide-react';
+import { useProjectStore } from '../../stores/useProjectStore';
 
 interface SecurityManagerModalProps {
   tables: Table[];
@@ -331,6 +332,109 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
 
   const businessTables = tables.filter(t => !t.name.startsWith('sys_'));
 
+  const { layout, tableGroups } = useProjectStore();
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroupExpand = (groupId: string) => {
+      setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
+  };
+
+  const groupedTablesMap = new Map<string | undefined, Table[]>();
+  const tableToGroupMap = new Map<string, string>();
+
+  layout.forEach(node => {
+      if (node.groupId) {
+          tableToGroupMap.set(node.tableId, node.groupId);
+      }
+  });
+
+  businessTables.forEach(table => {
+      const groupId = tableToGroupMap.get(table.id);
+      if (!groupedTablesMap.has(groupId)) {
+          groupedTablesMap.set(groupId, []);
+      }
+      groupedTablesMap.get(groupId)!.push(table);
+  });
+
+  groupedTablesMap.forEach(groupTables => {
+      groupTables.sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const groupsToRender = Array.from(groupedTablesMap.entries()).map(([groupId, groupTables]) => {
+      const groupInfo = groupId ? tableGroups.find(g => g.id === groupId) : undefined;
+      return {
+          id: groupId || 'ungrouped',
+          name: groupInfo?.name || 'Ohne Gruppe',
+          tables: groupTables,
+          isUngrouped: !groupId
+      };
+  });
+
+  groupsToRender.sort((a, b) => {
+      if (a.isUngrouped && !b.isUngrouped) return 1;
+      if (!a.isUngrouped && b.isUngrouped) return -1;
+      return a.name.localeCompare(b.name);
+  });
+
+  const toggleGroupPermission = (roleId: any, groupId: string, groupTables: Table[], permType: 'CanRead' | 'CanWrite' | 'CanDelete') => {
+      if (!permTable) return;
+      
+      const newPermissions = [...permissions];
+      
+      // Determine target state (if any table misses the perm, we set to true; else false)
+      let allHavePerm = true;
+      for (const t of groupTables) {
+          const p = getPerm(roleId, 'Table', t.id);
+          if (!p[permType]) {
+              allHavePerm = false;
+              break;
+          }
+      }
+      const targetState = !allHavePerm;
+
+      groupTables.forEach(t => {
+          const existingIdx = newPermissions.findIndex(p => 
+              String(p.RoleId) === String(roleId) && 
+              p.ObjectType === 'Table' && 
+              p.ObjectId === t.id
+          );
+
+          if (existingIdx > -1) {
+              const row = { ...newPermissions[existingIdx] };
+              row[permType] = targetState;
+              
+              if ((permType === 'CanWrite' || permType === 'CanDelete') && row[permType]) {
+                  row.CanRead = true;
+              }
+              if (permType === 'CanRead' && !row.CanRead) {
+                  row.CanWrite = false;
+                  row.CanDelete = false;
+              }
+              newPermissions[existingIdx] = row;
+          } else {
+              const newRow: any = {
+                  Id: (newPermissions.length > 0 ? Math.max(...newPermissions.map(p => Number(p.Id))) : 0) + 1,
+                  RoleId: roleId,
+                  ObjectType: 'Table',
+                  ObjectId: t.id,
+                  CanRead: true,
+                  CanWrite: false,
+                  CanDelete: false
+              };
+              if (permType !== 'CanRead') newRow[permType] = targetState;
+              else newRow.CanRead = targetState;
+
+              if ((permType === 'CanWrite' || permType === 'CanDelete') && newRow[permType]) {
+                  newRow.CanRead = true;
+              }
+
+              newPermissions.push(newRow);
+          }
+      });
+
+      onUpdateTable({ ...permTable, data: newPermissions });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-[90vw] h-[90vh] flex flex-col border border-slate-300 overflow-hidden">
@@ -396,56 +500,118 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                                 </tr>
                             </thead>
                             <tbody>
-                                {businessTables.map((table) => {
-                                    const isExpanded = expandedTables[table.id];
+                                {groupsToRender.map(group => {
+                                    const isGroupExpanded = expandedGroups[group.id];
                                     return (
-                                        <React.Fragment key={table.id}>
-                                            <tr className="hover:bg-slate-50 border-b border-slate-200 bg-slate-50/30">
-                                                <td className="p-2 pl-3 border-r border-slate-200 bg-white sticky left-0 font-bold text-slate-800 flex items-center gap-2 z-10">
-                                                    <button onClick={() => toggleTableExpand(table.id)} className="text-slate-400 hover:text-slate-700">
-                                                        {isExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                                        <React.Fragment key={group.id}>
+                                            <tr className="hover:bg-slate-100 border-b border-slate-300 bg-slate-200/50">
+                                                <td className="p-2 pl-3 border-r border-slate-300 bg-slate-100 sticky left-0 font-bold text-slate-800 flex items-center gap-2 z-10">
+                                                    <button onClick={() => toggleGroupExpand(group.id)} className="text-slate-500 hover:text-slate-800">
+                                                        {isGroupExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
                                                     </button>
                                                     <div className="flex items-center gap-2">
-                                                        <TableIcon size={14} className="text-orange-600"/>
-                                                        {table.name}
+                                                        <Folder size={14} className="text-slate-600"/>
+                                                        {group.name}
                                                     </div>
                                                 </td>
                                                 {roles.map((role: any) => {
-                                                    const p = getPerm(role.Id, 'Table', table.id);
+                                                    let allRead = true, someRead = false;
+                                                    let allWrite = true, someWrite = false;
+                                                    let allDelete = true, someDelete = false;
+
+                                                    if (group.tables.length === 0) {
+                                                        allRead = false; allWrite = false; allDelete = false;
+                                                    } else {
+                                                        group.tables.forEach(t => {
+                                                            const p = getPerm(role.Id, 'Table', t.id);
+                                                            if (p.CanRead) someRead = true; else allRead = false;
+                                                            if (p.CanWrite) someWrite = true; else allWrite = false;
+                                                            if (p.CanDelete) someDelete = true; else allDelete = false;
+                                                        });
+                                                    }
+
                                                     return (
-                                                        <PermissionCell 
-                                                            key={role.Id} 
-                                                            roleId={role.Id} 
-                                                            objectType="Table" 
-                                                            objectId={table.id} 
-                                                            perm={p} 
-                                                            onToggle={togglePermission} 
-                                                        />
+                                                        <td key={role.Id} className="p-2 border-r border-slate-300 text-center align-middle bg-slate-100/50">
+                                                            <div className="flex justify-center items-center gap-2 h-full">
+                                                                <button 
+                                                                    onClick={() => toggleGroupPermission(role.Id, group.id, group.tables, 'CanRead')}
+                                                                    className={`p-1.5 rounded-full transition-colors ${allRead ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : someRead ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                                                    title="Gruppen-Leserecht umschalten"
+                                                                >
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => toggleGroupPermission(role.Id, group.id, group.tables, 'CanWrite')}
+                                                                    className={`p-1.5 rounded-full transition-colors ${allWrite ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : someWrite ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                                                    title="Gruppen-Schreibrecht umschalten"
+                                                                >
+                                                                    <Edit2 size={16} />
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => toggleGroupPermission(role.Id, group.id, group.tables, 'CanDelete')}
+                                                                    className={`p-1.5 rounded-full transition-colors ${allDelete ? 'bg-rose-100 text-rose-700 hover:bg-rose-200' : someDelete ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                                                    title="Gruppen-Löschrecht umschalten"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
                                                     );
                                                 })}
                                             </tr>
-                                            {isExpanded && table.fields.map(field => (
-                                                <tr key={field.id} className="hover:bg-slate-50 border-b border-slate-100">
-                                                    <td className="p-2 pl-12 border-r border-slate-200 bg-slate-50/50 sticky left-0 text-slate-600 flex items-center gap-2 text-xs z-10">
-                                                        {field.type === 'INTEGER' ? <Hash size={12} className="text-slate-400"/> : <Type size={12} className="text-slate-400"/>}
-                                                        {field.name}
-                                                    </td>
-                                                    {roles.map((role: any) => {
-                                                        const p = getPerm(role.Id, 'Field', field.id);
-                                                        return (
-                                                            <PermissionCell 
-                                                                key={role.Id} 
-                                                                roleId={role.Id} 
-                                                                objectType="Field" 
-                                                                objectId={field.id} 
-                                                                perm={p} 
-                                                                onToggle={togglePermission}
-                                                                isField={true}
-                                                            />
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))}
+                                            {isGroupExpanded && group.tables.map(table => {
+                                                const isTableExpanded = expandedTables[table.id];
+                                                return (
+                                                    <React.Fragment key={table.id}>
+                                                        <tr className="hover:bg-slate-50 border-b border-slate-200 bg-slate-50/30">
+                                                            <td className="p-2 pl-8 border-r border-slate-200 bg-white sticky left-0 font-bold text-slate-800 flex items-center gap-2 z-10">
+                                                                <button onClick={() => toggleTableExpand(table.id)} className="text-slate-400 hover:text-slate-700">
+                                                                    {isTableExpanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                                                                </button>
+                                                                <div className="flex items-center gap-2">
+                                                                    <TableIcon size={14} className="text-orange-600"/>
+                                                                    {table.name}
+                                                                </div>
+                                                            </td>
+                                                            {roles.map((role: any) => {
+                                                                const p = getPerm(role.Id, 'Table', table.id);
+                                                                return (
+                                                                    <PermissionCell 
+                                                                        key={role.Id} 
+                                                                        roleId={role.Id} 
+                                                                        objectType="Table" 
+                                                                        objectId={table.id} 
+                                                                        perm={p} 
+                                                                        onToggle={togglePermission} 
+                                                                    />
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                        {isTableExpanded && table.fields.map(field => (
+                                                            <tr key={field.id} className="hover:bg-slate-50 border-b border-slate-100">
+                                                                <td className="p-2 pl-16 border-r border-slate-200 bg-slate-50/50 sticky left-0 text-slate-600 flex items-center gap-2 text-xs z-10">
+                                                                    {field.type === 'INTEGER' ? <Hash size={12} className="text-slate-400"/> : <Type size={12} className="text-slate-400"/>}
+                                                                    {field.name}
+                                                                </td>
+                                                                {roles.map((role: any) => {
+                                                                    const p = getPerm(role.Id, 'Field', field.id);
+                                                                    return (
+                                                                        <PermissionCell 
+                                                                            key={role.Id} 
+                                                                            roleId={role.Id} 
+                                                                            objectType="Field" 
+                                                                            objectId={field.id} 
+                                                                            perm={p} 
+                                                                            onToggle={togglePermission}
+                                                                            isField={true}
+                                                                        />
+                                                                    );
+                                                                })}
+                                                            </tr>
+                                                        ))}
+                                                    </React.Fragment>
+                                                );
+                                            })}
                                         </React.Fragment>
                                     );
                                 })}

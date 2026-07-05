@@ -4,7 +4,16 @@ import { resolveType, quoteIdentifier, toPascalCase } from './common';
 import { generateSqlSelect } from '../sqlHelper';
 import { generatePrismaSchema, generateDrizzleSchema, generateTypeOrmEntities } from './ormGenerator';
 
-export const generateDatabaseScripts = (tables: Table[], relationships: Relationship[], config: BackendConfig, queries: Query[] = []): VirtualFile[] => {
+export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relationship[], config: BackendConfig, queries: Query[] = []): VirtualFile[] => {
+    const relationships = rawRelationships.filter((rel, index, self) =>
+        index === self.findIndex((r) =>
+          r.fromTableId === rel.fromTableId &&
+          r.fromFieldId === rel.fromFieldId &&
+          r.toTableId === rel.toTableId &&
+          r.toFieldId === rel.toFieldId
+        )
+      );
+
     const root = `Backend/${config.projectName}/database`;
     const files: VirtualFile[] = [];
 

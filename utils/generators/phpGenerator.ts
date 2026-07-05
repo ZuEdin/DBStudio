@@ -2,7 +2,16 @@
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
 import { resolveType, toPascalCase, toCamelCase } from './common';
 
-export const generatePhp = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
+export const generatePhp = (tables: Table[], rawRelationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
+  const relationships = rawRelationships.filter((rel, index, self) =>
+    index === self.findIndex((r) =>
+      r.fromTableId === rel.fromTableId &&
+      r.fromFieldId === rel.fromFieldId &&
+      r.toTableId === rel.toTableId &&
+      r.toFieldId === rel.toFieldId
+    )
+  );
+
   const files: VirtualFile[] = [];
   const root = `Backend/${config.projectName}`;
 

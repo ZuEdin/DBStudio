@@ -2,7 +2,16 @@ import { Table, Relationship, BackendConfig, VirtualFile, DbType } from '../../t
 import { toPascalCase } from './common';
 
 // 1. Prisma Schema Generator
-export const generatePrismaSchema = (tables: Table[], relationships: Relationship[], config: BackendConfig): string => {
+export const generatePrismaSchema = (tables: Table[], rawRelationships: Relationship[], config: BackendConfig): string => {
+  const relationships = rawRelationships.filter((rel, index, self) =>
+    index === self.findIndex((r) =>
+      r.fromTableId === rel.fromTableId &&
+      r.fromFieldId === rel.fromFieldId &&
+      r.toTableId === rel.toTableId &&
+      r.toFieldId === rel.toFieldId
+    )
+  );
+
   let provider = 'postgresql';
   if (config.dbType === DbType.MySQL) provider = 'mysql';
   else if (config.dbType === DbType.SQLite) provider = 'sqlite';
@@ -138,7 +147,16 @@ export const generatePrismaSchema = (tables: Table[], relationships: Relationshi
 };
 
 // 2. Drizzle ORM Schema Generator
-export const generateDrizzleSchema = (tables: Table[], relationships: Relationship[], config: BackendConfig): string => {
+export const generateDrizzleSchema = (tables: Table[], rawRelationships: Relationship[], config: BackendConfig): string => {
+  const relationships = rawRelationships.filter((rel, index, self) =>
+    index === self.findIndex((r) =>
+      r.fromTableId === rel.fromTableId &&
+      r.fromFieldId === rel.fromFieldId &&
+      r.toTableId === rel.toTableId &&
+      r.toFieldId === rel.toFieldId
+    )
+  );
+
   let isPg = config.dbType === DbType.SQL || config.dbType === DbType.PostgreSQL || config.dbType === undefined;
   let isMySql = config.dbType === DbType.MySQL;
   let isSqlite = config.dbType === DbType.SQLite;
@@ -280,7 +298,16 @@ export const generateDrizzleSchema = (tables: Table[], relationships: Relationsh
 };
 
 // 3. TypeORM Entity Generator
-export const generateTypeOrmEntities = (tables: Table[], relationships: Relationship[], config: BackendConfig): VirtualFile[] => {
+export const generateTypeOrmEntities = (tables: Table[], rawRelationships: Relationship[], config: BackendConfig): VirtualFile[] => {
+  const relationships = rawRelationships.filter((rel, index, self) =>
+    index === self.findIndex((r) =>
+      r.fromTableId === rel.fromTableId &&
+      r.fromFieldId === rel.fromFieldId &&
+      r.toTableId === rel.toTableId &&
+      r.toFieldId === rel.toFieldId
+    )
+  );
+
   const root = `Backend/${config.projectName}/database/orm/typeorm`;
   const files: VirtualFile[] = [];
 
