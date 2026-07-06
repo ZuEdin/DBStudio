@@ -10,6 +10,7 @@ import { generateBlazor } from './generators/blazorGenerator';
 import { generateElectron } from './generators/electronGenerator';
 import { generateVue } from './generators/vueGenerator';
 import { generatePython } from './generators/pythonGenerator';
+import { generateMarkdownApiDocs } from "./generators/markdownApiGenerator";
 import { generateDatabaseScripts } from './generators/databaseGenerator';
 import { generateSolution } from './generators/dotnet/solution';
 
@@ -61,7 +62,7 @@ export const generateBackendCode = (
 
   // 3. Generate Frontend Code
   if (activeConfig.frontendFramework === 'angular') {
-    const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports);
+    const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports, pages);
     files = [...files, ...angularFiles];
   } else if (activeConfig.frontendFramework === 'react') {
     const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages);
@@ -99,5 +100,7 @@ export const generateBackendCode = (
       files.push(generateSolution(activeConfig));
   }
 
+  const apiDocsMd = generateMarkdownApiDocs(tables, activeConfig);
+  files.push({ name: "API_DOCUMENTATION.md", path: "API_DOCUMENTATION.md", content: apiDocsMd, language: "markdown" });
   return files;
 };

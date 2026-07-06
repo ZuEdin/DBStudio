@@ -8,8 +8,20 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // API Routes
+  app.post("/api/backup/download", (req, res) => {
+    try {
+      const { filename, content } = req.body;
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Type", "application/json");
+      res.send(content);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/refactor", async (req, res) => {
     try {
       const { prompt, currentCode, fileName, language, projectName } = req.body;

@@ -46,7 +46,7 @@ const collectAngularSubforms = (element: FormElement | undefined, tables: Table[
     return accumulated;
 };
 
-export const generateAngularComponents = (tables: Table[], relationships: Relationship[], forms: Form[], reports: Report[], config: BackendConfig, appRoot: string, queries: Query[]): { files: VirtualFile[], routes: RouteInfo[] } => {
+export const generateAngularComponents = (tables: Table[], relationships: Relationship[], forms: Form[], reports: Report[], config: BackendConfig, appRoot: string, queries: Query[], pages: any[] = []): { files: VirtualFile[], routes: RouteInfo[] } => {
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
   const useAuth = config.authConfig?.useUserLogin;
@@ -449,6 +449,206 @@ export class ${pascalName}ReportComponent implements OnInit {
       files.push({ name: `${kebabName}-report.component.html`, path: `${appRoot}/pages/${folder}/${kebabName}-report.component.html`, content: reportHtml, language: 'html' });
       files.push({ name: `${kebabName}-report.component.ts`, path: `${appRoot}/pages/${folder}/${kebabName}-report.component.ts`, content: reportTs, language: 'typescript' });
       routes.push({ path: `reports/${kebabName}`, component: `${pascalName}ReportComponent`, folder: folder, file: `${kebabName}-report.component` });
+  });
+
+  // --- CUSTOM PAGE GENERATION ---
+  pages.forEach(page => {
+      const pascalName = toPascalCase(page.name);
+      const kebabName = toKebabCase(page.name);
+      const folder = 'custom';
+      const compName = `${pascalName}CustomComponent`;
+
+      const states: string[] = [];
+      const initCalls: string[] = [];
+      const methods: string[] = [];
+
+      const generateNode = (node: any): string => {
+          if (!node) return '';
+          
+          let classNameStr = node.props?.className || '';
+          let styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
+          
+          switch(node.type) {
+              case 'container': {
+                  const childrenStr = (node.children || []).map((c: any) => generateNode(c)).join('\n');
+                  return `<div class="${classNameStr || 'p-4 border rounded'}" ${styleAttr}>${childrenStr}</div>`;
+              }
+              case 'text': {
+                  return `<div class="break-words ${classNameStr}" ${styleAttr}>${node.props?.text || ''}</div>`;
+              }
+              case 'button': {
+                  return `<button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition ${classNameStr}" ${styleAttr}>${node.props?.label || 'Button'}</button>`;
+              }
+              case 'divider': {
+                  return `<hr class="border-slate-200 my-4 ${classNameStr}" ${styleAttr} />`;
+              }
+              case 'image': {
+                  return `<img referrerPolicy="no-referrer" src="${node.props?.src || ''}" class="max-w-full h-auto rounded ${classNameStr}" ${styleAttr} alt="${node.props?.alt || ''}" />`;
+              }
+              case 'html': {
+                  const escapedHtml = (node.props?.html || '').replace(/'/g, "\\'");
+                  return `<div [innerHTML]="'${escapedHtml}'" class="${classNameStr}" ${styleAttr}></div>`;
+              }
+              case 'dropdown': {
+                  const stateName = `dropdownData_${node.id.replace(/-/g, '_')}`;
+                  const loadingState = `dropdownLoading_${node.id.replace(/-/g, '_')}`;
+                  states.push(`${stateName}: any[] = [];`);
+                  states.push(`${loadingState} = false;`);
+                  
+                  let fetchUrl = '';
+                  if (node.props?.queryId) {
+                      const qObj = queries.find(q => q.id === node.props.queryId);
+                      if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                  } else if (node.props?.dataSourceId) {
+                      const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                      if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+                  }
+                  
+                  if (fetchUrl) {
+                      initCalls.push(`this.loadDropdown_${node.id.replace(/-/g, '_')}();`);
+                      methods.push(`
+  loadDropdown_${node.id.replace(/-/g, '_')}() {
+    this.${loadingState} = true;
+    this.api.getAll('${fetchUrl}', 1, 1000).subscribe({
+      next: (res: any) => {
+        this.${stateName} = res.data || res || [];
+        this.${loadingState} = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.${loadingState} = false;
+      }
+    });
+  }`);
+                  }
+                  
+                  const valueField = node.props?.valueField || 'id';
+                  const labelField = node.props?.labelField || 'name';
+                  
+                  return `
+                  <div class="p-2 ${classNameStr}" ${styleAttr}>
+                      <select class="border border-slate-300 rounded px-3 py-2 bg-white w-full max-w-xs">
+                          <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
+                          <option *ngIf="${loadingState}" disabled>Lade Daten...</option>
+                          <ng-container *ngIf="!${loadingState}">
+                              <option *ngFor="let row of ${stateName}; let idx = index" [value]="row['${valueField}'] || row.id || idx">
+                                  {{ row['${labelField}'] || row.id || idx }}
+                              </option>
+                          </ng-container>
+                      </select>
+                  </div>`;
+              }
+              case 'table_view': {
+                  const stateName = `tableData_${node.id.replace(/-/g, '_')}`;
+                  const loadingState = `tableLoading_${node.id.replace(/-/g, '_')}`;
+                  states.push(`${stateName}: any[] = [];`);
+                  states.push(`${loadingState} = false;`);
+                  
+                  let fetchUrl = '';
+                  if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+                      const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                      if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+                  } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+                      const qObj = queries.find(q => q.id === node.props.dataSourceId);
+                      if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                  }
+                  
+                  if (fetchUrl) {
+                      initCalls.push(`this.loadTable_${node.id.replace(/-/g, '_')}();`);
+                      methods.push(`
+  loadTable_${node.id.replace(/-/g, '_')}() {
+    this.${loadingState} = true;
+    this.api.getAll('${fetchUrl}', 1, 100).subscribe({
+      next: (res: any) => {
+        this.${stateName} = res.data || res || [];
+        this.${loadingState} = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.${loadingState} = false;
+      }
+    });
+  }`);
+                  }
+                  
+                  const columnsStr = node.props?.columns || '';
+                  const columns = columnsStr ? columnsStr.split(',').map((c: string) => c.trim()) : [];
+                  
+                  let headerCells = '';
+                  let bodyCells = '';
+                  
+                  if (columns.length > 0) {
+                      headerCells = columns.map((col: string) => `<th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">${col}</th>`).join('\n');
+                      bodyCells = columns.map((col: string) => `<td class="px-3 py-2 whitespace-nowrap text-sm text-slate-600">{{ row['${col}'] || '' }}</td>`).join('\n');
+                  } else {
+                      headerCells = `<th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Daten</th>`;
+                      bodyCells = `<td class="px-3 py-2 text-sm text-slate-600 font-mono">{{ row | json }}</td>`;
+                  }
+                  
+                  return `
+                  <div class="p-4 w-full overflow-x-auto ${classNameStr}" ${styleAttr}>
+                      <div *ngIf="${loadingState}" class="flex items-center justify-center p-8">
+                          <div class="animate-spin text-slate-400">Lade Daten...</div>
+                      </div>
+                      <table *ngIf="!${loadingState}" class="min-w-full divide-y divide-slate-200 bg-white">
+                          <thead class="bg-slate-50">
+                              <tr>
+                                  ${headerCells}
+                              </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-200">
+                              <tr *ngFor="let row of ${stateName}; let idx = index" class="hover:bg-slate-50">
+                                  ${bodyCells}
+                              </tr>
+                              <tr *ngIf="${stateName}.length === 0">
+                                  <td class="p-4 text-center text-slate-400 italic" colspan="100">Keine Einträge.</td>
+                              </tr>
+                          </tbody>
+                      </table>
+                  </div>`;
+              }
+              default:
+                  return `<div class="p-4 bg-slate-50 rounded border text-sm text-slate-400">${node.type} Component</div>`;
+          }
+      };
+
+      const customHtml = `
+      <div class="p-8">
+          <div class="mb-6 flex justify-between items-center">
+              <h1 class="text-3xl font-bold text-slate-800">${page.name}</h1>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              ${generateNode(page.layout)}
+          </div>
+      </div>`;
+
+      const customTs = `import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { ApiService } from '../../services/api.service';
+
+@Component({
+  selector: 'app-${kebabName}-custom',
+  standalone: true,
+  imports: [CommonModule, FormsModule, RouterModule],
+  templateUrl: './${kebabName}-custom.component.html'
+})
+export class ${pascalName}CustomComponent implements OnInit {
+  ${states.join('\n  ')}
+
+  constructor(private api: ApiService) {}
+
+  ngOnInit() {
+    ${initCalls.join('\n    ')}
+  }
+
+  ${methods.join('\n\n  ')}
+}`;
+
+      files.push({ name: `${kebabName}-custom.component.html`, path: `${appRoot}/pages/${folder}/${kebabName}-custom.component.html`, content: customHtml, language: 'html' });
+      files.push({ name: `${kebabName}-custom.component.ts`, path: `${appRoot}/pages/${folder}/${kebabName}-custom.component.ts`, content: customTs, language: 'typescript' });
+      routes.push({ path: `custom/${kebabName}`, component: compName, folder: folder, file: `${kebabName}-custom.component` });
   });
 
   return { files, routes };

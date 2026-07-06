@@ -16,6 +16,7 @@ interface PropertiesPanelProps {
   onShowLookupModal: () => void;
   onToggleFullScreen: () => void;
   onToggleEditButton: () => void;
+  onToggleTableSplitView: () => void;
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
@@ -30,7 +31,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onDeleteSelected,
   onShowLookupModal,
   onToggleFullScreen,
-  onToggleEditButton
+  onToggleEditButton,
+  onToggleTableSplitView
 }) => {
   return (
     <div className="w-72 bg-white border-l border-slate-300 flex flex-col h-full overflow-y-auto">
@@ -325,9 +327,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <input type="checkbox" checked={form.settings?.isFullScreen || false} onChange={onToggleFullScreen} className="rounded" />
                     <span>Vollbild-Modus</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer mb-4">
+                <label className="flex items-center gap-2 cursor-pointer mb-2">
                     <input type="checkbox" checked={form.settings?.showEditToggle || false} onChange={onToggleEditButton} className="rounded" />
                     <span>Bearbeiten-Toggle anzeigen</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer mb-4">
+                    <input type="checkbox" checked={form.settings?.showTableSplitView || false} onChange={onToggleTableSplitView} className="rounded" />
+                    <span>Tabelle & Formular (Split View)</span>
                 </label>
                 
                 <div className="border border-indigo-200 bg-indigo-50 rounded p-2 text-xs space-y-2">

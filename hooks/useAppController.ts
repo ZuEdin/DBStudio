@@ -906,12 +906,7 @@ export const useAppController = () => {
                 }
             };
             const dataStr = JSON.stringify(project, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            document.body.appendChild(a);
-            a.style.display = 'none';
-            a.href = url;
+            
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -921,11 +916,52 @@ export const useAppController = () => {
             const seconds = String(now.getSeconds()).padStart(2, '0');
             const dateStr = `${year}${month}${day}`;
             const timeStr = `${hours}${minutes}${seconds}`;
-            a.download = `${store.projectName || 'DBStudioPro'}_Backup_${dateStr}_${timeStr}.dbsp`;
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            ui.addToast("Sicherungsdatei wurde erstellt und heruntergeladen.", 'success');
+            const filename = `${store.projectName || 'DBStudioPro'}_Backup_${dateStr}_${timeStr}.dbsp`;
+
+            // Try form submit backend download first (foolproof for iframes)
+            try {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/api/backup/download';
+                form.style.display = 'none';
+
+                const filenameInput = document.createElement('input');
+                filenameInput.type = 'hidden';
+                filenameInput.name = 'filename';
+                filenameInput.value = filename;
+                form.appendChild(filenameInput);
+
+                const contentInput = document.createElement('input');
+                contentInput.type = 'hidden';
+                contentInput.name = 'content';
+                contentInput.value = dataStr;
+                form.appendChild(contentInput);
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+                
+                // Copy to clipboard fallback
+                try {
+                    navigator.clipboard.writeText(dataStr);
+                    ui.addToast("Backup wurde heruntergeladen und zur Sicherheit auch in Ihre Zwischenablage kopiert!", 'success');
+                } catch {
+                    ui.addToast("Backup heruntergeladen!", 'success');
+                }
+            } catch (formError) {
+                // Fallback to client-side blob download
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                document.body.appendChild(a);
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                ui.addToast("Backup-Datei heruntergeladen.", 'success');
+            }
             break;
         }
       }

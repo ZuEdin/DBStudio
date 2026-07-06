@@ -273,6 +273,7 @@ export interface FormField {
 export interface FormSettings {
     isFullScreen?: boolean;
     showEditToggle?: boolean;
+    showTableSplitView?: boolean;
 }
 
 export interface CrossFieldValidation {

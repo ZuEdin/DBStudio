@@ -25,7 +25,7 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
 
       const parentName = toPascalCase(parentTable.name);
       const childName = toPascalCase(childTable.name);
-      const fkName = childField.name;
+      const fkName = toPascalCase(childField.name);
 
       let deleteBehavior = 'DeleteBehavior.ClientSetNull'; // Default safe
       if (rel.onDelete === 'CASCADE') deleteBehavior = 'DeleteBehavior.Cascade';
@@ -206,6 +206,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       
       const nullable = isNullable(f);
 
+      attributes.push(`[Column("${f.name}")]`);
       if (f.isPrimaryKey) attributes.push('[Key]');
       if (typeConfig && typeConfig.mappings.csharp.attributes) {
           attributes.push(...typeConfig.mappings.csharp.attributes({ length: f.length, precision: f.precision, scale: f.scale }));
@@ -232,7 +233,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
 
       const indent = "        "; 
       const attrBlock = attributes.length > 0 ? attributes.map(a => `${indent}${a}`).join('\n') + '\n' : '';
-      return `${attrBlock}${indent}public ${type} ${f.name} { get; set; }${initializer}`;
+      return `${attrBlock}${indent}public ${type} ${toPascalCase(f.name)} { get; set; }${initializer}`;
     }).join('\n\n');
 
     let tenantProp = '';
@@ -264,7 +265,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
             return `        // [SKIPPED] Navigation to ${toPascalCase(parentTable.name)} skipped due to Type Mismatch: ${fkField.name} (${fkField.type}) vs PK ${parentPk.name} (${parentPk.type})`;
         }
 
-        return `        [ForeignKey("${fkField.name}")]\n        public virtual ${toPascalCase(parentTable.name)}? ${toPascalCase(parentTable.name)} { get; set; }`;
+        return `        [ForeignKey("${toPascalCase(fkField.name)}")]\n        public virtual ${toPascalCase(parentTable.name)}? ${toPascalCase(parentTable.name)} { get; set; }`;
     }).join('\n\n');
 
     const combinedProps = [props, tenantProp, childProps, parentProps].filter(p => p).join('\n\n');
@@ -317,7 +318,12 @@ ${validationMethod}
           }
           usedNames.add(propName);
 
-          return `        public ${type} ${propName} { get; set; }`;
+          let initializer = '';
+          if (type === 'string') {
+              initializer = ' = string.Empty;';
+          }
+
+          return `        public ${type} ${propName} { get; set; }${initializer}`;
       }).join('\n\n');
 
       const content = `namespace ${config.projectName}.Models

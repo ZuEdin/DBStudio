@@ -482,18 +482,63 @@ export const FormView: React.FC<FormViewProps> = ({
             )}
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6">
-                {(isUnbound || data.length > 0 || isCreating) ? (form.layout ? renderElement(form.layout) : <div>Kein Layout definiert.</div>) : (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                        <p className="mb-4">Keine Daten vorhanden.</p>
-                        {!isReadOnly && !isCreating && (
-                            <button onClick={startCreate} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm transition-all">
-                                <Plus size={16}/> Ersten Datensatz anlegen
-                            </button>
+            {form.settings?.showTableSplitView && !isSubform && !isUnbound ? (
+                <div className="flex-1 flex overflow-hidden">
+                    <div className="w-1/3 border-r border-slate-200 overflow-y-auto bg-slate-50/50">
+                        {data.map((row, idx) => {
+                            const mainField = sourceTable?.fields.find(f => !f.isAutoIncrement && f.type === 'VARCHAR') || sourceTable?.fields.find(f => !f.isAutoIncrement) || sourceTable?.fields[0];
+                            const pkField = sourceTable?.fields.find(f => f.isPrimaryKey) || sourceTable?.fields[0];
+                            return (
+                                <div 
+                                    key={idx} 
+                                    onClick={() => !isCreating && setCurrentIndex(idx)}
+                                    className={`p-3 border-b border-slate-200 cursor-pointer hover:bg-white transition-colors ${currentIndex === idx && !isCreating ? 'bg-white border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'}`}
+                                >
+                                    <div className="font-semibold text-sm text-slate-700 truncate">
+                                        {mainField ? (row[mainField.name] || `Datensatz #${idx+1}`) : `Datensatz #${idx+1}`}
+                                    </div>
+                                    <div className="text-xs text-slate-400 mt-1">
+                                        {pkField ? `${pkField.name}: ${row[pkField.name]}` : `Index: ${idx}`}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {data.length === 0 && (
+                            <div className="p-4 text-center text-xs text-slate-400">Keine Daten</div>
                         )}
                     </div>
-                )}
-            </div>
+                    <div className="flex-1 overflow-y-auto p-6 relative">
+                        {isCreating && (
+                            <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center backdrop-blur-[1px] pointer-events-none">
+                                {/* Dimmed overlay if needed, or just let it be */}
+                            </div>
+                        )}
+                        {(isUnbound || data.length > 0 || isCreating) ? (form.layout ? renderElement(form.layout) : <div>Kein Layout definiert.</div>) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                <p className="mb-4">Keine Daten vorhanden.</p>
+                                {!isReadOnly && !isCreating && (
+                                    <button onClick={startCreate} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm transition-all">
+                                        <Plus size={16}/> Ersten Datensatz anlegen
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="flex-1 overflow-y-auto p-6">
+                    {(isUnbound || data.length > 0 || isCreating) ? (form.layout ? renderElement(form.layout) : <div>Kein Layout definiert.</div>) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                            <p className="mb-4">Keine Daten vorhanden.</p>
+                            {!isReadOnly && !isCreating && (
+                                <button onClick={startCreate} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm transition-all">
+                                    <Plus size={16}/> Ersten Datensatz anlegen
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Footer */}
             {(!isUnbound && (isCreating || !hideNavigation || !hideActions || !!onClose)) && (

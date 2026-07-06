@@ -580,6 +580,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 onShowLookupModal={() => setShowLookupModal(true)}
                 onToggleFullScreen={() => onFormChange({...form, settings: {...form.settings, isFullScreen: !form.settings?.isFullScreen}})}
                 onToggleEditButton={() => onFormChange({...form, settings: {...form.settings, showEditToggle: !form.settings?.showEditToggle}})}
+                onToggleTableSplitView={() => onFormChange({...form, settings: {...form.settings, showTableSplitView: !form.settings?.showTableSplitView}})}
             />
           </div>
           <div className="h-1/3 border-t border-slate-300 p-4 overflow-y-auto bg-slate-50">

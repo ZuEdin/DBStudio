@@ -197,23 +197,64 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
           {headers.map(header => {
             const field = table.fields.find(f => f.name === header);
             const isAutoInc = field?.isAutoIncrement;
-            const isDate = field?.type === 'DATE' || field?.type === 'TIME' || field?.type === 'DATETIME' || field?.type === 'TIMESTAMP';
             const rawVal = row[header] ?? '';
-            const displayVal = isDate ? formatDateValue(rawVal, field?.displayFormat, field?.type) : rawVal;
             const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
             const isFK = !!rel;
             const showLink = isFK && rawVal;
 
+            let inputType = "text";
+            let inputValue: any = rawVal;
+            
+            if (field?.type === 'INTEGER' || field?.type === 'DECIMAL' || field?.type === 'REAL') {
+                inputType = "number";
+            } else if (field?.type === 'DATE') {
+                inputType = "date";
+                if (rawVal) {
+                    const d = new Date(rawVal);
+                    if (!isNaN(d.getTime())) {
+                        inputValue = d.toISOString().split('T')[0];
+                    }
+                }
+            } else if (field?.type === 'TIME') {
+                inputType = "time";
+                if (typeof rawVal === 'string' && rawVal.length > 5) {
+                    inputValue = rawVal.substring(0, 5);
+                }
+            } else if (field?.type === 'DATETIME' || field?.type === 'TIMESTAMP') {
+                inputType = "datetime-local";
+                if (rawVal) {
+                    const d = new Date(rawVal);
+                    if (!isNaN(d.getTime())) {
+                        inputValue = d.toISOString().slice(0, 16);
+                    }
+                }
+            } else if (field?.type === 'BOOLEAN') {
+                inputType = "checkbox";
+                inputValue = Boolean(rawVal) && String(rawVal).toLowerCase() !== 'false' && String(rawVal) !== '0';
+            }
+
             return (
                 <div key={`${rowIndex}-${header}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''} flex items-center`}>
-                    <input
-                        type="text"
-                        value={displayVal} 
-                        title={String(rawVal)} 
-                        onChange={(e) => { handleDataChange(row, header, e.target.value) }}
-                        readOnly={isAutoInc}
-                        className={`flex-1 h-full px-2 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''} ${showLink ? 'pr-8' : ''}`}
-                    />
+                    {inputType === 'checkbox' ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <input
+                                type="checkbox"
+                                checked={inputValue as boolean}
+                                onChange={(e) => { handleDataChange(row, header, e.target.checked) }}
+                                disabled={isAutoInc}
+                                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                            />
+                        </div>
+                    ) : (
+                        <input
+                            type={inputType}
+                            value={inputValue as string} 
+                            title={String(rawVal)} 
+                            onChange={(e) => { handleDataChange(row, header, e.target.value) }}
+                            readOnly={isAutoInc}
+                            className={`flex-1 h-full px-2 w-full bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''} ${showLink ? 'pr-8' : ''}`}
+                        />
+                    )}
                     {showLink && (
                         <button 
                             onClick={() => setDetailView({ targetTableId: rel.toTableId, recordId: rawVal })}

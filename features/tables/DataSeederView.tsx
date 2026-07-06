@@ -194,16 +194,59 @@ export const DataSeederView: React.FC<DataSeederViewProps> = ({ tables, backendC
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                     {rows.map((row, rowIdx) => (
                                         <tr key={rowIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                                            {activeTable.fields.map(field => (
-                                                <td key={field.id} className="p-1">
-                                                    <input 
-                                                        type="text"
-                                                        value={row[field.name] ?? ''}
-                                                        onChange={e => handleUpdateCell(rowIdx, field.name, e.target.value)}
-                                                        className="w-full bg-transparent p-1.5 focus:bg-white dark:focus:bg-slate-900 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-emerald-500 font-mono text-xs dark:text-white"
-                                                    />
-                                                </td>
-                                            ))}
+                                            {activeTable.fields.map(field => {
+                                                const rawVal = row[field.name] ?? '';
+                                                let inputType = "text";
+                                                let inputValue: any = rawVal;
+                                                
+                                                if (field?.type === 'INTEGER' || field?.type === 'DECIMAL' || field?.type === 'REAL') {
+                                                    inputType = "number";
+                                                } else if (field?.type === 'DATE') {
+                                                    inputType = "date";
+                                                    if (rawVal) {
+                                                        const d = new Date(rawVal);
+                                                        if (!isNaN(d.getTime())) {
+                                                            inputValue = d.toISOString().split('T')[0];
+                                                        }
+                                                    }
+                                                } else if (field?.type === 'TIME') {
+                                                    inputType = "time";
+                                                    if (typeof rawVal === 'string' && rawVal.length > 5) {
+                                                        inputValue = rawVal.substring(0, 5);
+                                                    }
+                                                } else if (field?.type === 'DATETIME' || field?.type === 'TIMESTAMP') {
+                                                    inputType = "datetime-local";
+                                                    if (rawVal) {
+                                                        const d = new Date(rawVal);
+                                                        if (!isNaN(d.getTime())) {
+                                                            inputValue = d.toISOString().slice(0, 16);
+                                                        }
+                                                    }
+                                                } else if (field?.type === 'BOOLEAN') {
+                                                    inputType = "checkbox";
+                                                    inputValue = Boolean(rawVal) && String(rawVal).toLowerCase() !== 'false' && String(rawVal) !== '0';
+                                                }
+
+                                                return (
+                                                    <td key={field.id} className="p-1 text-center">
+                                                        {inputType === 'checkbox' ? (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={inputValue as boolean}
+                                                                onChange={e => handleUpdateCell(rowIdx, field.name, e.target.checked)}
+                                                                className="w-4 h-4 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500"
+                                                            />
+                                                        ) : (
+                                                            <input 
+                                                                type={inputType}
+                                                                value={inputValue as string}
+                                                                onChange={e => handleUpdateCell(rowIdx, field.name, e.target.value)}
+                                                                className="w-full bg-transparent p-1.5 focus:bg-white dark:focus:bg-slate-900 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-emerald-500 font-mono text-xs dark:text-white"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
                                             <td className="p-1 text-center">
                                                 <button onClick={() => handleRemoveRow(rowIdx)} className="text-slate-400 hover:text-red-500 p-1.5 rounded">
                                                     <Trash2 size={12}/>

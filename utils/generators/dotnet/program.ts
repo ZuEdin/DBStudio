@@ -51,7 +51,38 @@ builder.Services.AddScoped<${config.projectName}.Services.IAdService, ${config.p
     .AllowAnyHeader()
     .AllowCredentials());`;
 
+  let bypassMiddlewareSection = '';
+  if (authConfig?.devBypass) {
+      bypassMiddlewareSection = `
+
+#region Bypass Middleware
+public class WindowsDevBypassMiddleware
+{
+    private readonly RequestDelegate _next;
+    public WindowsDevBypassMiddleware(RequestDelegate next) { _next = next; }
+    public async Task InvokeAsync(HttpContext context)
+    {
+        if (context.User?.Identity?.IsAuthenticated != true)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, "Fronius\\\\HR LA Trainer Team User"),
+                new Claim(ClaimTypes.NameIdentifier, "S-1-5-21-dev-user-id"),
+                new Claim(ClaimTypes.Email, "dev-user@fronius.com"),
+                new Claim(ClaimTypes.Role, "User"),
+                new Claim(ClaimTypes.Role, "Admin")
+            };
+            var identity = new ClaimsIdentity(claims, "WindowsDevBypass");
+            context.User = new ClaimsPrincipal(identity);
+        }
+        await _next(context);
+    }
+}
+#endregion`;
+  }
+
   const content = `using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using ${config.projectName}.Data;
 ${namespaces}
@@ -64,7 +95,11 @@ var builder = WebApplication.CreateBuilder(args);
 // We explicitly bind to all interfaces here to ensure accessibility (e.g. from LAN).
 builder.WebHost.UseUrls("http://*:${config.port}");
 
-builder.Services.AddControllers().AddJsonOptions(options => { options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; });
+builder.Services.AddControllers().AddJsonOptions(options => { 
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; 
+    options.JsonSerializerOptions.Converters.Add(new SafeDateTimeConverter());
+    options.JsonSerializerOptions.Converters.Add(new SafeNullableDateTimeConverter());
+});
 ${config.multiTenancy?.enabled ? `builder.Services.AddScoped<ITenantService, TenantService>();` : ''}
 
 ${dbConfigCode}
@@ -103,29 +138,65 @@ ${authAppUse}
 app.MapControllers();
 ${isBlazor ? 'app.MapFallbackToFile("index.html");' : 'app.MapFallbackToFile("index.html");'}
 
-app.Run();
+app.Run();${bypassMiddlewareSection}
 
-#region Bypass Middleware
-public class WindowsDevBypassMiddleware
+#region Safe DateTime Converters
+public class SafeDateTimeConverter : JsonConverter<DateTime>
 {
-    private readonly RequestDelegate _next;
-    public WindowsDevBypassMiddleware(RequestDelegate next) { _next = next; }
-    public async Task InvokeAsync(HttpContext context)
+    public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        if (context.User?.Identity?.IsAuthenticated != true)
+        if (reader.TokenType == JsonTokenType.String)
         {
-            var claims = new List<Claim>
+            string val = reader.GetString();
+            if (string.IsNullOrEmpty(val))
             {
-                new Claim(ClaimTypes.Name, "Fronius\\\\HR LA Trainer Team User"),
-                new Claim(ClaimTypes.NameIdentifier, "S-1-5-21-dev-user-id"),
-                new Claim(ClaimTypes.Email, "dev-user@fronius.com"),
-                new Claim(ClaimTypes.Role, "User"),
-                new Claim(ClaimTypes.Role, "Admin")
-            };
-            var identity = new ClaimsIdentity(claims, "WindowsDevBypass");
-            context.User = new ClaimsPrincipal(identity);
+                return DateTime.MinValue;
+            }
+            if (DateTime.TryParse(val, out DateTime dt))
+            {
+                return dt;
+            }
         }
-        await _next(context);
+        return reader.GetDateTime();
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString("o"));
+    }
+}
+
+public class SafeNullableDateTimeConverter : JsonConverter<DateTime?>
+{
+    public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return null;
+        }
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            string val = reader.GetString();
+            if (string.IsNullOrEmpty(val))
+            {
+                return null;
+            }
+            if (DateTime.TryParse(val, out DateTime dt))
+            {
+                return dt;
+            }
+        }
+        try {
+            return reader.GetDateTime();
+        } catch {
+            return null;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+    {
+        if (value == null) writer.WriteNullValue();
+        else writer.WriteStringValue(value.Value.ToString("o"));
     }
 }
 #endregion`;

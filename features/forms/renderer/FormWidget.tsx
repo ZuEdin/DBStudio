@@ -194,14 +194,33 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
       );
   }
 
+  let finalType = 'text';
+  if (widget === 'date') finalType = 'date';
+  else if (widget === 'time') finalType = 'time';
+  else if (widget === 'datetime-local') finalType = 'datetime-local';
+  else if (widget === 'number') finalType = 'number';
+
+  let displayValue: any = value || '';
+  if (displayValue) {
+      if (finalType === 'date') {
+          const d = new Date(displayValue);
+          if (!isNaN(d.getTime())) displayValue = d.toISOString().split('T')[0];
+      } else if (finalType === 'datetime-local') {
+          const d = new Date(displayValue);
+          if (!isNaN(d.getTime())) displayValue = d.toISOString().slice(0, 16);
+      } else if (finalType === 'time' && typeof displayValue === 'string' && displayValue.length > 5) {
+          displayValue = displayValue.substring(0, 5);
+      }
+  }
+
   return (
       <div className={element.className}>
           <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
           <input
             id={elementId}
-            type={widget === 'date' ? 'date' : widget === 'number' ? 'number' : 'text'}
+            type={finalType}
             readOnly={isReadOnly || field?.isAutoIncrement}
-            value={value || ''}
+            value={displayValue}
             onChange={(e) => onChange(fieldName, e.target.value)}
             className={`w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none ${field?.isAutoIncrement ? 'bg-slate-100 text-slate-500 italic' : ''}`}
           />

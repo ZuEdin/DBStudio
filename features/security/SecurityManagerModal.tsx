@@ -45,6 +45,9 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
 
+  const { layout, tableGroups } = useProjectStore();
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
   const saveAuthChanges = () => {
       if (backendConfig && onUpdateBackendConfig) {
           onUpdateBackendConfig({ ...backendConfig, authConfig });
@@ -91,7 +94,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       let permCounter = 1;
 
       // Generate Defaults for ALL existing non-system tables
-      const contentTables = tables.filter(t => !t.name.startsWith('sys_'));
+      const contentTables = tables.filter(t => !t.name?.startsWith('sys_'));
       
       contentTables.forEach(table => {
           // Admin (1): Full Access
@@ -147,7 +150,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           // Reset Permissions
           const initialPerms: any[] = [];
           let permCounter = 1;
-          const contentTables = tables.filter(t => !t.name.startsWith('sys_'));
+          const contentTables = tables.filter(t => !t.name?.startsWith('sys_'));
           
           contentTables.forEach(table => {
               initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: true, CanDelete: true });
@@ -330,10 +333,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       }
   };
 
-  const businessTables = tables.filter(t => !t.name.startsWith('sys_'));
-
-  const { layout, tableGroups } = useProjectStore();
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const businessTables = tables.filter(t => !t.name?.startsWith('sys_'));
 
   const toggleGroupExpand = (groupId: string) => {
       setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -357,7 +357,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   });
 
   groupedTablesMap.forEach(groupTables => {
-      groupTables.sort((a, b) => a.name.localeCompare(b.name));
+      groupTables.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   });
 
   const groupsToRender = Array.from(groupedTablesMap.entries()).map(([groupId, groupTables]) => {
@@ -373,7 +373,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   groupsToRender.sort((a, b) => {
       if (a.isUngrouped && !b.isUngrouped) return 1;
       if (!a.isUngrouped && b.isUngrouped) return -1;
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
   });
 
   const toggleGroupPermission = (roleId: any, groupId: string, groupTables: Table[], permType: 'CanRead' | 'CanWrite' | 'CanDelete') => {
