@@ -451,7 +451,7 @@ import { Table, Layout, FileText, Search, Database, Moon, Sun, X, Menu, LogOut, 
 import { useTheme } from './theme-provider';
 ${useAuth ? "import { useAuth } from '../context/AuthContext';" : ""}
 
-export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+export const Sidebar = ({ isOpen, onClose, isTopNav }: { isOpen: boolean; onClose: () => void; isTopNav?: boolean }) => {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'de');
@@ -475,7 +475,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     <>
       {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
       
-      <aside className={\`fixed lg:static inset-y-0 left-0 z-50 \${isDoubleRail ? 'w-72' : 'w-64'} bg-[${wl.secondaryColor}] text-slate-100 flex flex-col transition-transform duration-300 \${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}\`}>
+      <aside className={\`fixed inset-y-0 left-0 z-50 \${isDoubleRail ? 'w-72' : 'w-64'} bg-[${wl.secondaryColor}] text-slate-100 flex flex-col transition-transform duration-300 \${isOpen ? 'translate-x-0' : (isTopNav ? '-translate-x-full' : '-translate-x-full lg:translate-x-0 lg:static')}\`}>
         
         {/* Simple visual Double Rail ribbon effect decoration */}
         {isDoubleRail && (
@@ -541,35 +541,185 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 };`;
   files.push({ name: 'Sidebar.tsx', path: `${root}/src/components/Sidebar.tsx`, content: sidebarTsx, language: 'typescript' });
 
+  // 3.5. Top Navigation Dropdown Component
+  const topNavTsx = `import React, { useState, useRef, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import * as Icons from 'lucide-react';
+import { NavigationItem } from '../types';
+${useAuth ? "import { useAuth } from '../context/AuthContext';" : ""}
+
+interface TopNavProps {
+  items: NavigationItem[];
+}
+
+export const TopNav: React.FC<TopNavProps> = ({ items }) => {
+  const location = useLocation();
+  const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'de');
+  ${useAuth ? "const { user } = useAuth();" : ""}
+
+  useEffect(() => {
+    const handleLangChange = () => {
+      setLang(localStorage.getItem('app_lang') || 'de');
+    };
+    window.addEventListener('storage', handleLangChange);
+    const interval = setInterval(handleLangChange, 500);
+    return () => {
+      window.removeEventListener('storage', handleLangChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const getLabel = (item: any) => {
+    return item.translations?.[lang] || item.title;
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname.startsWith(path);
+  };
+
+  const hasAccess = (item: NavigationItem) => {
+    const requiredRoles = item.requiredRoles || [];
+    if (requiredRoles.length === 0) return true;
+    ${useAuth ? "return user && requiredRoles.includes(user.role);" : "return true;"}
+  };
+
+  const getIconComponent = (name: string, size = 14) => {
+    let iconName = 'BookOpen';
+    if (name === 'home') iconName = 'Home';
+    else if (name === 'database') iconName = 'Database';
+    else if (name === 'search') iconName = 'Search';
+    else if (name === 'file-text') iconName = 'FileText';
+    else if (name === 'form') iconName = 'Layout';
+    else if (name === 'calendar') iconName = 'Calendar';
+    else if (name === 'chart') iconName = 'PieChart';
+    else if (name === 'shield') iconName = 'Shield';
+    else if (name === 'settings') iconName = 'Sun';
+    else if (name === 'folder') iconName = 'Folder';
+    
+    const IconComponent = (Icons as any)[iconName] || Icons.BookOpen;
+    return <IconComponent size={size} />;
+  };
+
+  const NavItem: React.FC<{ item: NavigationItem; isSubmenu?: boolean }> = ({ item, isSubmenu = false }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const timeoutRef = useRef<any>(null);
+
+    if (!hasAccess(item)) return null;
+
+    const handleMouseEnter = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setIsOpen(true);
+    };
+
+    const handleMouseLeave = () => {
+      timeoutRef.current = setTimeout(() => {
+        setIsOpen(false);
+      }, 150);
+    };
+
+    const active = item.route ? isActive(item.route) : false;
+
+    if (item.type === 'folder') {
+      const visibleChildren = (item.children || []).filter(hasAccess);
+      if (visibleChildren.length === 0) return null;
+
+      return (
+        <div 
+          className="relative group"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <button
+            type="button"
+            className={\`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer \${
+              isSubmenu 
+                ? 'w-full text-left justify-between hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' 
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }\`}
+          >
+            <span className="flex items-center gap-1.5">
+              {getIconComponent(item.icon)}
+              <span>{getLabel(item)}</span>
+            </span>
+            <Icons.ChevronDown size={12} className={\`transition-transform duration-200 text-slate-400 \${isOpen ? 'rotate-180' : ''}\`} />
+          </button>
+
+          {isOpen && (
+            <div 
+              className={\`absolute z-50 min-w-[220px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1.5 animate-in fade-in slide-in-from-top-2 duration-150 \${
+                isSubmenu ? 'left-full top-0 ml-1' : 'left-0 top-full mt-1'
+              }\`}
+            >
+              {visibleChildren.map(child => (
+                <NavItem key={child.id} item={child} isSubmenu={true} />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <Link
+        to={item.route}
+        className={\`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 \${
+          isSubmenu
+            ? \`hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 \${active ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold' : ''}\`
+            : \`\${active ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}\`
+        }\`}
+      >
+        {getIconComponent(item.icon)}
+        <span>{getLabel(item)}</span>
+      </Link>
+    );
+  };
+
+  return (
+    <nav className="flex items-center gap-1">
+      {items.map(item => (
+        <NavItem key={item.id} item={item} />
+      ))}
+    </nav>
+  );
+};`;
+  files.push({ name: 'TopNav.tsx', path: `${root}/src/components/TopNav.tsx`, content: topNavTsx, language: 'typescript' });
+
   // 4. Layout Wrapper with modern preset views
   const layoutTsx = `import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
+import { TopNav } from './TopNav';
 import { Menu, Search, Command } from 'lucide-react';
 import { CommandPalette } from './CommandPalette';
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const isTopNav = ${config.navigationPreset === 'top_nav' ? 'true' : 'false'};
+    const menuItems = ${JSON.stringify(config.navigationConfig || [])};
 
     return (
         <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-            {!isTopNav && <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isTopNav={isTopNav} />
             
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        {!isTopNav && (
-                          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white">
-                              <Menu size={20} />
-                          </button>
-                        )}
-                        <span className="font-bold text-base dark:text-white flex items-center gap-2">
-                          <span>${wl.appName}</span>
-                          <span className="text-[10px] bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300 py-0.5 px-2 rounded-full font-mono font-bold hidden md:inline">STRG+K</span>
+                    <div className="flex items-center gap-6 flex-1 min-w-0">
+                        <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white shrink-0">
+                            <Menu size={20} />
+                        </button>
+                        
+                        <span className="font-bold text-base dark:text-white flex items-center gap-2 mr-4 shrink-0">
+                            <span>${wl.appName}</span>
+                            <span className="text-[10px] bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300 py-0.5 px-2 rounded-full font-mono font-bold hidden md:inline">STRG+K</span>
                         </span>
+
+                        {isTopNav && (
+                            <div className="hidden lg:block overflow-x-auto">
+                                <TopNav items={menuItems} />
+                            </div>
+                        )}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
                         <button 
                             onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
                             className="bg-slate-50 border border-slate-200 hover:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:hover:bg-slate-600 dark:text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 cursor-pointer font-semibold shadow-sm text-slate-600"

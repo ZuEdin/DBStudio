@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Database, Plus, Upload, FolderOpen, Clock, Trash2, Shield, Code, Briefcase, Package, Layout, Monitor, PlayCircle, Smartphone, Users, Cloud, HardDrive, Wifi, RefreshCw } from 'lucide-react';
+import { Database, Plus, Upload, FolderOpen, Clock, Trash2, Shield, Code, Briefcase, Package, Layout, Monitor, PlayCircle, Smartphone, Users, Cloud, HardDrive, Wifi, RefreshCw, Copy, Edit2 } from 'lucide-react';
 import { DbType, Project, BackendLanguage, AuthConfig, BackendConfig, ProjectData } from '../../types/index';
-import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage } from '../../services/storageService';
+import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage, getProjectById } from '../../services/storageService';
 import { cloudService } from '../../services/cloudService';
 import { getTemplates } from '../../data/templates/index';
 import { LanguageSelector } from '../../components/LanguageSelector';
@@ -36,6 +36,10 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
       message: string; 
       onConfirm?: () => void; 
   } | null>(null);
+
+  const [copyingProject, setCopyingProject] = useState<Project | null>(null);
+  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   // Auth Config
   const [authConfig, setAuthConfig] = useState<AuthConfig>({
@@ -87,6 +91,18 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
             closeDialog();
         }
     });
+  };
+
+  const handleCopyClick = (e: React.MouseEvent, p: Project) => {
+    e.stopPropagation();
+    setCopyingProject(p);
+    setRenameValue(`${p.name} - Kopie`);
+  };
+
+  const handleRenameClick = (e: React.MouseEvent, p: Project) => {
+    e.stopPropagation();
+    setRenamingProject(p);
+    setRenameValue(p.name);
   };
 
   const handleCreate = () => {
@@ -255,13 +271,29 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                     {p.owner && <span className="flex items-center gap-1 text-blue-500"><Users size={10}/> {p.owner}</span>}
                                 </div>
                             </div>
-                            <button 
-                                onClick={(e) => handleDelete(e, p.id)}
-                                className="text-slate-300 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Projekt löschen"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <button 
+                                    onClick={(e) => handleRenameClick(e, p)}
+                                    className="text-slate-400 hover:text-blue-500 p-1.5 rounded-full hover:bg-blue-50 transition-colors"
+                                    title="Projekt umbenennen"
+                                >
+                                    <Edit2 size={13} />
+                                </button>
+                                <button 
+                                    onClick={(e) => handleCopyClick(e, p)}
+                                    className="text-slate-400 hover:text-indigo-500 p-1.5 rounded-full hover:bg-indigo-50 transition-colors"
+                                    title="Projekt kopieren"
+                                >
+                                    <Copy size={13} />
+                                </button>
+                                <button 
+                                    onClick={(e) => handleDelete(e, p.id)}
+                                    className="text-slate-400 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50 transition-colors"
+                                    title="Projekt löschen"
+                                >
+                                    <Trash2 size={13} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))
@@ -529,9 +561,9 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                  </div>
              )}
          </div>
-      </div>
+             </div>
 
-      {/* Local Dialog for Confirm/Alert */}
+       {/* Local Dialog for Confirm/Alert */}
       {dialog && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] animate-in fade-in-25 backdrop-blur-sm">
               <div className="bg-white p-6 rounded-lg shadow-2xl border border-slate-300 max-w-sm w-full mx-4">
@@ -546,6 +578,126 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                         className={`px-4 py-2 text-white rounded font-bold text-sm shadow-sm ${dialog.type === 'confirm' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                       >
                           {dialog.type === 'confirm' ? 'Ja, fortfahren' : 'OK'}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Dialog for Copying Project */}
+      {copyingProject && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] animate-in fade-in-25 backdrop-blur-sm">
+              <div className="bg-white p-6 rounded-lg shadow-2xl border border-slate-300 max-w-sm w-full mx-4">
+                  <h3 className="font-bold text-lg mb-2 text-slate-800">Projekt kopieren</h3>
+                  <p className="mb-4 text-xs text-slate-500">Geben Sie einen Namen für das kopierte Projekt ein:</p>
+                  <input
+                      type="text"
+                      className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold mb-6 text-slate-800"
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      autoFocus
+                      onKeyDown={async e => {
+                          if (e.key === 'Enter' && renameValue.trim()) {
+                              document.getElementById('btn-confirm-copy')?.click();
+                          }
+                      }}
+                  />
+                  <div className="flex justify-end gap-2">
+                      <button onClick={() => setCopyingProject(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded text-slate-700 text-sm">Abbrechen</button>
+                      <button 
+                        id="btn-confirm-copy"
+                        onClick={async () => {
+                            if (!renameValue.trim()) return;
+                            setLoading(true);
+                            try {
+                                const original = await getProjectById(copyingProject.id);
+                                if (original) {
+                                    const newId = crypto.randomUUID();
+                                    const cleanName = renameValue.replace(/\s+/g, '') || 'MyProject';
+                                    const clone: Project = {
+                                        ...original,
+                                        id: newId,
+                                        name: renameValue,
+                                        lastModified: Date.now(),
+                                        data: {
+                                            ...original.data,
+                                            backendConfig: {
+                                                ...original.data.backendConfig,
+                                                projectName: cleanName
+                                            } as BackendConfig
+                                        }
+                                    };
+                                    await saveProjectToStorage(clone);
+                                    await loadProjects();
+                                }
+                            } finally {
+                                setLoading(false);
+                                setCopyingProject(null);
+                            }
+                        }} 
+                        disabled={!renameValue.trim()}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-sm shadow-sm disabled:opacity-50"
+                      >
+                          Kopieren
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Dialog for Renaming Project */}
+      {renamingProject && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] animate-in fade-in-25 backdrop-blur-sm">
+              <div className="bg-white p-6 rounded-lg shadow-2xl border border-slate-300 max-w-sm w-full mx-4">
+                  <h3 className="font-bold text-lg mb-2 text-slate-800">Projekt umbenennen</h3>
+                  <p className="mb-4 text-xs text-slate-500">Geben Sie den neuen Namen für das Projekt ein:</p>
+                  <input
+                      type="text"
+                      className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold mb-6 text-slate-800"
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      autoFocus
+                      onKeyDown={async e => {
+                          if (e.key === 'Enter' && renameValue.trim()) {
+                              document.getElementById('btn-confirm-rename')?.click();
+                          }
+                      }}
+                  />
+                  <div className="flex justify-end gap-2">
+                      <button onClick={() => setRenamingProject(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded text-slate-700 text-sm">Abbrechen</button>
+                      <button 
+                        id="btn-confirm-rename"
+                        onClick={async () => {
+                            if (!renameValue.trim()) return;
+                            setLoading(true);
+                            try {
+                                const original = await getProjectById(renamingProject.id);
+                                if (original) {
+                                    const cleanName = renameValue.replace(/\s+/g, '') || 'MyProject';
+                                    const updated: Project = {
+                                        ...original,
+                                        name: renameValue,
+                                        lastModified: Date.now(),
+                                        data: {
+                                            ...original.data,
+                                            backendConfig: {
+                                                ...original.data.backendConfig,
+                                                projectName: cleanName
+                                            } as BackendConfig
+                                        }
+                                    };
+                                    await saveProjectToStorage(updated);
+                                    await loadProjects();
+                                }
+                            } finally {
+                                setLoading(false);
+                                setRenamingProject(null);
+                            }
+                        }} 
+                        disabled={!renameValue.trim()}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-sm shadow-sm disabled:opacity-50"
+                      >
+                          Umbenennen
                       </button>
                   </div>
               </div>

@@ -48,6 +48,7 @@ interface ProjectStore extends ProjectData {
     updateWorkflowEdges: (workflowId: string, edges: WorkflowEdge[]) => void;
     setRelationships: (relationships: Relationship[]) => void;
     setBackendConfig: (config: BackendConfig) => void;
+    renameProject: (name: string) => Promise<void>;
     setLayout: (layout: TableNode[]) => void;
     setTableGroups: (groups: TableGroup[]) => void;
     setTickets: (tickets: any[]) => void;
@@ -257,6 +258,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setTableGroups: (tableGroups) => get().executeAction(s => { s.tableGroups = tableGroups; }),
     
     setBackendConfig: (config) => get().executeAction(s => { s.backendConfig = config; }),
+    
+    renameProject: async (name) => {
+        const cleanName = name.replace(/\s+/g, '') || 'MyProject';
+        set({
+            projectName: name,
+            backendConfig: {
+                ...get().backendConfig,
+                projectName: cleanName
+            }
+        });
+        await get().saveProject();
+    },
     
     snapshot: () => {
         get().executeAction(s => {

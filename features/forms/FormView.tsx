@@ -85,7 +85,11 @@ export const FormView: React.FC<FormViewProps> = ({
         if (field.defaultValue !== undefined && field.defaultValue !== '') {
             if (field.type === 'BOOLEAN') {
                 acc[field.name] = field.defaultValue === 'true';
-            } else if ((field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') && field.defaultValue.toUpperCase() === 'NOW') {
+            } else if ((field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') && 
+                       (field.defaultValue.toUpperCase() === 'NOW' || 
+                        field.defaultValue.toLowerCase() === 'now()' || 
+                        field.defaultValue.toUpperCase() === 'CURRENT_TIMESTAMP' || 
+                        field.defaultValue.toLowerCase() === 'current_timestamp()')) {
                 acc[field.name] = new Date().toISOString();
             } else {
                 acc[field.name] = field.defaultValue;
@@ -462,8 +466,8 @@ export const FormView: React.FC<FormViewProps> = ({
   }, [initialMode, sourceTable, isReadOnly]);
 
   return (
-    <div className={`h-full flex flex-col ${isSubform || embedded || (form.settings?.isFullScreen && !embedded) ? '' : 'p-4 bg-slate-100'}`}>
-        <div className={`bg-white shadow border border-slate-200 rounded-lg flex flex-col h-full ${(form.settings?.isFullScreen && !embedded) ? 'fixed inset-0 z-[100] m-0 rounded-none' : 'max-w-4xl mx-auto w-full'}`}>
+    <div className={`relative h-full flex flex-col ${isSubform || embedded || (form.settings?.isFullScreen && !embedded) ? '' : 'p-4 bg-slate-100'}`}>
+        <div className={`bg-white shadow border border-slate-200 rounded-lg flex flex-col h-full ${(form.settings?.isFullScreen && !embedded) ? 'absolute inset-0 z-[50] m-0 rounded-none' : 'max-w-4xl mx-auto w-full'}`}>
             
             {/* Header */}
             {!hideHeader && (

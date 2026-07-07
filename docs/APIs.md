@@ -390,4 +390,120 @@ As prioritized, all collaborative elements are backed by standard **IndexedDB** 
   ```
 - **Updates**: Any sent message is instantly pushed into the local object store asynchronously before updating local React state, minimizing the risk of data loss.
 
+---
+
+## 9. Premium Backend-API Proxy & Cache-Manager (Option A & Option B)
+
+Um CORS-Fehler im Browser zu vermeiden, sensible API-Schlüssel/Credentials sicher zu verbergen und Offline-Betrieb zu garantieren, verfügt das System über eine integrierte Premium-Schnittstelle im Node.js-Backend.
+
+Diese verwaltet registrierte externe APIs im Dateisystem unter `data/backend_api_configs.json` und unterstützt zwei flexible Betriebsmodi:
+
+### 9.1. Betriebsmodi
+
+*   **Option A: Live Echtzeit-Proxy**
+    *   Der Server fungiert als direkter Proxy. Bei jedem Aufruf von `/api/backend-apis/:name/data` holt der Server die Daten live von der konfigurierten URL ab, fügt evtl. definierte Header oder Query-Parameter hinzu, führt sie aus und reicht das Ergebnis an das Frontend weiter.
+    *   *Vorteil*: Extrem sicher (keine Credentials im Browser sichtbar) und immer top-aktuelle Daten.
+*   **Option B: Server-Datenbank & Cache**
+    *   Der Server zieht die Daten von der externen Quelle ab und legt sie in einer lokalen JSON-Datenbankdatei auf dem Server ab (z. B. `data/api_cache_Kunden.json`). Abfragen werden blitzschnell und ohne Netzwerklatenz direkt aus dem Cache bedient.
+    *   Der Cache kann manuell aktualisiert werden oder über ein Hintergrund-Intervall (z. B. alle 10 Minuten, 30 Minuten, stündlich, täglich).
+    *   *Vorteil*: Voller Offline-Betrieb, keine externen API-Ausfälle, und die gecachten Daten können direkt auf dem Server editiert und manipuliert werden.
+
+### 9.2. API Endpunkte (Backend-APIs)
+
+#### `GET /api/backend-apis`
+Gibt eine Liste aller im Backend registrierten API-Konfigurationen zurück.
+*   **Response (200 OK)**:
+    ```json
+    [
+      {
+        "name": "KundenAPI",
+        "url": "https://jsonplaceholder.typicode.com/users",
+        "method": "GET",
+        "option": "B",
+        "refreshInterval": 30,
+        "lastRefreshed": "2026-07-07T15:30:00.000Z"
+      }
+    ]
+    ```
+
+#### `POST /api/backend-apis`
+Registriert oder aktualisiert eine API-Konfiguration im Backend.
+*   **Request Body**:
+    ```json
+    {
+      "name": "KundenAPI",
+      "url": "https://jsonplaceholder.typicode.com/users",
+      "method": "GET",
+      "headers": "{\"Authorization\": \"Bearer SECRET_TOKEN\"}",
+      "queryParams": [],
+      "option": "B",
+      "refreshInterval": 30,
+      "fields": [],
+      "data": []
+    }
+    ```
+*   **Response (200 OK)**: `{ "status": "registered", "name": "KundenAPI" }`
+
+#### `DELETE /api/backend-apis/:name`
+Löscht eine registrierte API-Konfiguration und deren gecachte Server-Datenbankdatei.
+*   **Response (200 OK)**: `{ "status": "deleted", "name": "KundenAPI" }`
+
+#### `POST /api/backend-apis/:name/refresh`
+Erzwingt eine sofortige Synchronisierung des Server-Caches (holt live Daten von der externen API und aktualisiert die lokale JSON-Datenbankdatei auf dem Server).
+*   **Response (200 OK)**: `{ "status": "refreshed", "records": 10 }`
+
+#### `GET /api/backend-apis/:name/data`
+Liefert die Daten der registrierten API zurück.
+*   *Bei Option A*: Holt die Daten live von der externen URL und liefert sie aus.
+*   *Bei Option B*: Liefert die im Server-Cache gespeicherten JSON-Daten extrem schnell und offline-fähig aus.
+*   **Response (200 OK)**: Array von JSON-Objekten (Datensätze).
+
+#### `PUT /api/backend-apis/:name/data`
+Aktualisiert die im Server-Cache (Option B) gespeicherten Daten direkt auf dem Server. Dies ermöglicht es dem Benutzer, Zeilen hinzuzufügen, zu bearbeiten oder zu löschen, welche direkt auf dem Server synchronisiert werden!
+*   **Request Body**: Array aller neuen/modifizierten Datenzeilen.
+*   **Response (200 OK)**: `{ "status": "updated", "records": 10 }`
+
+---
+
+## 10. SharePoint & XML API Integration (Auto-Format-Detection)
+
+Das System verfügt über eine integrierte **Format-Erkennung (JSON oder XML)** im Frontend und Node.js-Backend. Dadurch können sowohl standardmäßige REST-APIs als auch ältere SOAP-Dienste oder Microsoft SharePoint-Listen nahtlos angebunden werden.
+
+### 10.1. Automatische Erkennung & Konvertierung
+*   **XML-Erkennung**: Beginnt eine API-Antwort mit `<` (z. B. `<?xml` oder `<feed`), schaltet das System automatisch in den XML-Parsing-Modus um.
+*   **Namensraum-Bereinigung**: XML-Element-Namensräume (z. B. `<d:Title>` oder `<m:properties>`) werden automatisch bereinigt. Im Frontend-Raster (Grid) erscheinen sie als flache, saubere Schlüssel wie `Title` oder `ID`.
+*   **Listen-Extraktion**: Das System extrahiert automatisch das größte enthaltene Array (z. B. RSS `<item>`-Listen, SOAP-Arrays oder SharePoint `<entry>`-Objekte) und stellt diese als Zeilen im Grid dar.
+
+### 10.2. SharePoint-Listen aufrufen (Anleitung)
+
+Wenn Sie eine bestimmte Liste aus SharePoint Online importieren möchten, führen Sie folgende Schritte im **API-Laden / Import**-Tool aus:
+
+#### 1. Die richtige SharePoint-URL konstruieren
+Die SharePoint REST-API verwendet das OData-Protokoll. Verwenden Sie folgendes URL-Format:
+```text
+https://{ihr-unternehmen}.sharepoint.com/sites/{ihre-website}/_api/web/lists/getbytitle('{listen-name}')/items
+```
+*Beispiel*: `https://acme.sharepoint.com/sites/Vertrieb/_api/web/lists/getbytitle('Kundenliste')/items`
+
+#### 2. Notwendige Header hinzufügen
+Da SharePoint standardmäßig XML im Atom-Feed-Format zurückgibt, können Sie dieses entweder direkt XML-parsen lassen oder durch Angabe von Headern JSON anfordern:
+*   **Für JSON-Rückgabe (Empfohlen)**:
+    Fügen Sie im Header-Bereich folgenden Eintrag hinzu:
+    *   `Accept`: `application/json;odata=verbose`
+*   **Für XML-Rückgabe (Fallunterscheidung)**:
+    Wenn Sie keine Header angeben, liefert SharePoint XML zurück. Unser Parser verarbeitet das Atom-Feed-Format automatisch, holt die `<entry>`-Elemente heraus und flacht die `<content><m:properties>` ab.
+
+#### 3. Authentifizierung (Bearer Token oder Cookie)
+SharePoint Online erfordert eine Authentifizierung. Fügen Sie einen entsprechenden Header hinzu:
+*   `Authorization`: `Bearer {Ihr_OAuth_Token}`
+*   Alternativ können Sie temporäre Session-Cookies im Browser mitsenden, wenn Sie im gleichen Browser bei SharePoint eingeloggt sind (`credentials: "include"`).
+
+#### 4. Registrieren als Premium-Backend-API
+Um CORS-Probleme des SharePoint-Servers im Browser zu umgehen, registrieren Sie die SharePoint-API als **Backend-API (Option A oder B)**:
+1. Tragen Sie SharePoint-URL und Header ein.
+2. Klicken Sie auf **"Als Tabelle speichern"** -> **"Als Backend-API speichern (Premium)"**.
+3. Wählen Sie **Option A (Proxy)** oder **Option B (Server Cache)**.
+4. Das Node.js-Backend übernimmt nun die sichere Kommunikation und reicht die Daten sauber an Ihr Daten-Studio weiter!
+
+
 

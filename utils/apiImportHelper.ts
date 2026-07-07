@@ -25,6 +25,90 @@ export const inferFieldType = (value: any): FieldType => {
     return 'VARCHAR';
 };
 
+// Extremely lightweight, robust regex-based XML to JSON parser for Client and Backend
+export const parseXmlString = (xml: string): any => {
+    // Strip XML header
+    xml = xml.replace(/<\?xml[^>]*\?>/g, "");
+    // Strip comments
+    xml = xml.replace(/<!--[\s\S]*?-->/g, "");
+
+    const parseNode = (str: string): any => {
+        const tags: any = {};
+        const tagRegex = /<([a-zA-Z0-9_:.-]+)([^>]*?)>([\s\S]*?)<\/\1>|<([a-zA-Z0-9_:.-]+)([^>]*?)\/>/g;
+        let match;
+        let hasChildren = false;
+
+        while ((match = tagRegex.exec(str)) !== null) {
+            hasChildren = true;
+            const tagName = match[1] || match[4];
+            const content = match[3] || "";
+
+            // Remove namespace prefix for clean property keys (e.g. d:Title -> Title)
+            const cleanTagName = tagName.includes(":") ? tagName.split(":")[1] : tagName;
+
+            const childObj = parseNode(content);
+
+            if (tags[cleanTagName] === undefined) {
+                tags[cleanTagName] = childObj;
+            } else {
+                if (!Array.isArray(tags[cleanTagName])) {
+                    tags[cleanTagName] = [tags[cleanTagName]];
+                }
+                tags[cleanTagName].push(childObj);
+            }
+        }
+
+        if (!hasChildren) {
+            const trimmed = str.trim();
+            if (trimmed === "true") return true;
+            if (trimmed === "false") return false;
+            if (!isNaN(Number(trimmed)) && trimmed !== "") return Number(trimmed);
+            return trimmed;
+        }
+
+        return tags;
+    };
+
+    return parseNode(xml);
+};
+
+// Detects XML list patterns (like SharePoint feed/entry) or generic XML arrays and returns flat objects
+export const normalizeParsedXml = (obj: any): any[] => {
+    if (!obj || typeof obj !== 'object') return [];
+
+    // 1. SharePoint/Atom Feed detection (feed -> entry)
+    const feedNode = obj.feed || obj;
+    if (feedNode && feedNode.entry) {
+        const entries = Array.isArray(feedNode.entry) ? feedNode.entry : [feedNode.entry];
+        return entries.map((entry: any) => {
+            // SharePoint REST items live in entry.content.properties, entry.properties or fallback
+            return entry.content?.properties || entry.properties || entry.content || entry;
+        });
+    }
+
+    // 2. Generic XML: Find the largest nested array of objects
+    const arrays: any[][] = [];
+    const searchArrays = (current: any) => {
+        if (!current || typeof current !== 'object') return;
+        for (const key in current) {
+            if (Array.isArray(current[key])) {
+                arrays.push(current[key]);
+            } else if (typeof current[key] === 'object') {
+                searchArrays(current[key]);
+            }
+        }
+    };
+    
+    searchArrays(obj);
+    if (arrays.length > 0) {
+        arrays.sort((a, b) => b.length - a.length);
+        return arrays[0];
+    }
+
+    // 3. Fallback: single record
+    return [obj];
+};
+
 // Flattens nested JSON objects to a single level, BUT keeps Arrays intact for extraction tools
 export const flattenApiData = (data: any[]): any[] => {
     return data.map((row, index) => {
@@ -34,8 +118,7 @@ export const flattenApiData = (data: any[]): any[] => {
                 // KEEP ARRAYS as raw data for the Extraction Wizard
                 newRow[key] = row[key];
             } else if (typeof row[key] === 'object' && row[key] !== null) {
-                // Flatten simple objects to string or extract sub-keys could be better, 
-                // but for now stringify objects to avoid [object Object] mess in grid
+                // Flatten simple objects or stringify to avoid [object Object] in grid
                 newRow[key] = JSON.stringify(row[key]);
             } else {
                 newRow[key] = row[key];
@@ -74,7 +157,6 @@ export const fetchApiData = async (baseUrl: string, method: string, headersStr?:
         const response = await fetch(finalUrl, {
             method,
             headers: {
-                'Content-Type': 'application/json',
                 ...headers
             }
         });
@@ -83,19 +165,30 @@ export const fetchApiData = async (baseUrl: string, method: string, headersStr?:
             throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
         }
 
-        const jsonData = await response.json();
+        const textData = await response.text();
+        const trimmed = textData.trim();
         
-        // Normalize data: Ensure it's an array
         let tableData: any[] = [];
-        if (Array.isArray(jsonData)) {
-            tableData = jsonData;
-        } else if (typeof jsonData === 'object' && jsonData !== null) {
-            // Try to find an array property if the root is an object (common in paginated APIs)
-            const possibleArray = Object.values(jsonData).find(val => Array.isArray(val));
-            if (possibleArray) {
-                tableData = possibleArray as any[];
-            } else {
-                tableData = [jsonData]; // Single object -> single row
+
+        // 1. Automatic Type Detection (JSON or XML)
+        if (trimmed.startsWith('<')) {
+            // Parse XML
+            console.log("XML response detected. Parsing via XML processor...");
+            const parsedXml = parseXmlString(trimmed);
+            tableData = normalizeParsedXml(parsedXml);
+        } else {
+            // Parse JSON
+            const jsonData = JSON.parse(trimmed);
+            if (Array.isArray(jsonData)) {
+                tableData = jsonData;
+            } else if (typeof jsonData === 'object' && jsonData !== null) {
+                // Find potential arrays
+                const possibleArray = Object.values(jsonData).find(val => Array.isArray(val));
+                if (possibleArray) {
+                    tableData = possibleArray as any[];
+                } else {
+                    tableData = [jsonData];
+                }
             }
         }
 

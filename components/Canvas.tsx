@@ -24,6 +24,65 @@ type DragState = {
   mouseStartY: number; 
 } | null;
 
+// Local input and textarea to prevent focus loss during store-induced re-renders
+const LocalInput = ({ value, onChange, onBlur, className, placeholder, onMouseDown, ...props }: any) => {
+  const [val, setVal] = useState(value);
+  useEffect(() => {
+    setVal(value);
+  }, [value]);
+  
+  return (
+    <input
+      {...props}
+      className={className}
+      placeholder={placeholder}
+      value={val}
+      onMouseDown={onMouseDown}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={(e) => {
+        if (val !== value) {
+          onChange(e);
+        }
+        if (onBlur) onBlur(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+};
+
+const LocalTextarea = ({ value, onChange, onBlur, className, placeholder, onMouseDown, ...props }: any) => {
+  const [val, setVal] = useState(value);
+  useEffect(() => {
+    setVal(value);
+  }, [value]);
+
+  return (
+    <textarea
+      {...props}
+      className={className}
+      placeholder={placeholder}
+      value={val}
+      onMouseDown={onMouseDown}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={(e) => {
+        if (val !== value) {
+          onChange(e);
+        }
+        if (onBlur) onBlur(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+};
+
 export const Canvas: React.FC<CanvasProps> = ({ 
   nodes, 
   tables, 
@@ -761,28 +820,28 @@ export const Canvas: React.FC<CanvasProps> = ({
                            >
                                <GripVertical size={16} />
                            </div>
-                           <input 
+                           <LocalInput 
                               className={`bg-transparent font-semibold text-sm outline-none w-full pointer-events-auto transition-colors ${isSelected ? 'text-blue-900 placeholder-blue-300' : 'text-slate-800 placeholder-slate-400'}`}
                               value={group.name}
                               placeholder="Gruppenname"
-                              onChange={(e) => {
+                              onChange={(e: any) => {
                                   const newGroups = tableGroups.map(g => g.id === group.id ? { ...g, name: e.target.value } : g);
                                   setTableGroups(newGroups);
                               }}
-                              onMouseDown={(e) => e.stopPropagation()}
+                              onMouseDown={(e: any) => e.stopPropagation()}
                            />
                        </div>
                        {(isSelected || group.comment) && (
-                          <textarea
+                          <LocalTextarea
                              className={`text-xs outline-none w-full resize-none pointer-events-auto leading-relaxed border rounded p-1.5 transition-colors ${isSelected ? 'bg-white/60 text-slate-700 border-blue-200 focus:border-blue-400 focus:bg-white placeholder-slate-400' : 'bg-transparent text-slate-600 border-transparent placeholder-slate-400'}`}
                              value={group.comment || ''}
                              placeholder={isSelected ? "Kommentar hinzufügen..." : ""}
                              rows={2}
-                             onChange={(e) => {
+                             onChange={(e: any) => {
                                  const newGroups = tableGroups.map(g => g.id === group.id ? { ...g, comment: e.target.value } : g);
                                  setTableGroups(newGroups);
                              }}
-                             onMouseDown={(e) => e.stopPropagation()}
+                             onMouseDown={(e: any) => e.stopPropagation()}
                           />
                       )}
                    </div>

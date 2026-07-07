@@ -304,6 +304,50 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     handleUpdateItems(updated);
   };
 
+  // Helper to deep clone navigation tree to prevent state mutation
+  const cloneTree = (tree: NavigationItem[]): NavigationItem[] => {
+    return tree.map(item => ({
+      ...item,
+      children: item.children ? cloneTree(item.children) : undefined
+    }));
+  };
+
+  // Recursively find parent folder ID of a given item
+  const findParentFolderId = (itemId: string, items: NavigationItem[]): string => {
+    for (const item of items) {
+      if (item.children && item.children.some(child => child.id === itemId)) {
+        return item.id;
+      }
+      if (item.children) {
+        const found = findParentFolderId(itemId, item.children);
+        if (found !== 'root') return found;
+      }
+    }
+    return 'root';
+  };
+
+  // Recursively retrieve all folders with their nesting depth
+  const getAllFolders = (items: NavigationItem[], depth = 0): { folder: NavigationItem; depth: number }[] => {
+    let folders: { folder: NavigationItem; depth: number }[] = [];
+    for (const item of items) {
+      if (item.type === 'folder') {
+        folders.push({ folder: item, depth });
+        if (item.children) {
+          folders = [...folders, ...getAllFolders(item.children, depth + 1)];
+        }
+      }
+    }
+    return folders;
+  };
+
+  // Recursively check if targetId is a descendant of ancestorId
+  const isDescendantOf = (ancestorId: string, targetId: string, items: NavigationItem[]): boolean => {
+    const ancestor = findItemById(ancestorId, items);
+    if (!ancestor || !ancestor.children) return false;
+    if (ancestor.children.some(c => c.id === targetId)) return true;
+    return ancestor.children.some(c => isDescendantOf(c.id, targetId, items));
+  };
+
   // Drop source into target folder logic
   const moveItemToFolder = (
     itemId: string, 
@@ -311,6 +355,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     items: NavigationItem[]
   ): NavigationItem[] => {
     let draggedItem: NavigationItem | null = null;
+    const clonedItems = cloneTree(items);
     
     const findAndRemove = (list: NavigationItem[]): NavigationItem[] => {
       return list.filter(item => {
@@ -325,7 +370,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
       });
     };
 
-    const pristineList = findAndRemove(items);
+    const pristineList = findAndRemove(clonedItems);
     if (!draggedItem) return items; // Not found
 
     if (targetFolderId === null) {
@@ -772,7 +817,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                   </div>
 
                   {/* Target folder drop picker if another item is selected */}
-                  {selectedItem.type === 'page' && (
+                  {(selectedItem.type === 'page' || selectedItem.type === 'folder') && (
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-slate-600">Übergeordneter Ordner</label>
                       <select
@@ -782,16 +827,20 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                           const updated = moveItemToFolder(selectedItem.id, targetId, menuItems);
                           handleUpdateItems(updated);
                         }}
-                        value={
-                          menuItems.find(folder => 
-                            folder.type === 'folder' && folder.children && folder.children.some(child => child.id === selectedItem.id)
-                          )?.id || 'root'
-                        }
+                        value={findParentFolderId(selectedItem.id, menuItems)}
                       >
                         <option value="root">Hauptmenü (Hauptebene)</option>
-                        {menuItems.filter(item => item.type === 'folder' && item.id !== selectedItem.id).map(folder => (
-                          <option key={folder.id} value={folder.id}>{folder.title}</option>
-                        ))}
+                        {getAllFolders(menuItems)
+                          .filter(({ folder }) => {
+                            if (folder.id === selectedItem.id) return false;
+                            if (selectedItem.type === 'folder' && isDescendantOf(selectedItem.id, folder.id, menuItems)) return false;
+                            return true;
+                          })
+                          .map(({ folder, depth }) => (
+                            <option key={folder.id} value={folder.id}>
+                              {'\u00A0'.repeat(depth * 3)} {depth > 0 ? '↳ ' : ''}{folder.title}
+                            </option>
+                          ))}
                       </select>
                     </div>
                   )}

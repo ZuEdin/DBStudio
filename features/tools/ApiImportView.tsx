@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server, GitFork } from 'lucide-react';
+import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server, GitFork, Copy, Check, Database, ChevronDown } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -9,6 +9,7 @@ import { Table, Field, ApiQueryParam, BackendConfig } from '../../types/index';
 import { InputModal } from '../../components/InputModal';
 import { fetchApiData, inferFieldType } from '../../utils/apiImportHelper';
 import { ArrayExtractionModal } from './ArrayExtractionModal';
+import { generateSqlServerMigration, generateDotNetCode, generateNodeCode, generatePhpCode } from '../../utils/apiCodeGenerator';
 
 interface ApiImportViewProps {
     onSaveTable?: (table: Table) => void;
@@ -36,8 +37,18 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
   // Schema Mapping State
   const [schemaOverrides, setSchemaOverrides] = useState<Record<string, Field['type']>>({});
-  const [activeViewTab, setActiveViewTab] = useState<'data' | 'schema'>('data');
+  const [activeViewTab, setActiveViewTab] = useState<'data' | 'schema' | 'backend_code'>('data');
   const [primaryKeyCol, setPrimaryKeyCol] = useState<string | null>(null);
+  const [backendLang, setBackendLang] = useState<'dotnet' | 'node' | 'php'>('dotnet');
+  const [copied, setCopied] = useState(false);
+  const [showSaveDropdown, setShowSaveDropdown] = useState(false);
+
+  // Backend API states
+  const [showBackendApiModal, setShowBackendApiModal] = useState(false);
+  const [backendApiName, setBackendApiName] = useState('ApiData');
+  const [backendApiOption, setBackendApiOption] = useState<'A' | 'B'>('A');
+  const [backendRefreshInterval, setBackendRefreshInterval] = useState<number>(0);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   // --- Parameter Logic ---
   const addParam = () => {
@@ -108,6 +119,142 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       if(onSaveTable) {
           onSaveTable(newTable);
           showMessage("Tabelle erstellt", `Die Tabelle "${newTable.name}" wurde aus dem Array extrahiert.`, 'success');
+      }
+  };
+
+  const performBackendSave = async () => {
+      if (!backendApiName) return;
+      setIsRegistering(true);
+
+      try {
+          const columns = getColumns();
+          const sampleRow = data[0];
+
+          let needsAutoId = false;
+          const hasIdColumn = columns.some(c => c.toLowerCase() === 'id');
+          if (!primaryKeyCol && !hasIdColumn) {
+              needsAutoId = true;
+          }
+
+          const fields: Field[] = columns.map(col => {
+              const sampleVal = sampleRow[col];
+              const inferredType = Array.isArray(sampleVal) ? 'TEXT' : inferFieldType(sampleVal);
+              const type = schemaOverrides[col] || inferredType;
+              
+              let isId = false;
+              if (primaryKeyCol) {
+                  isId = col === primaryKeyCol;
+              } else {
+                  isId = col.toLowerCase() === 'id';
+              }
+              
+              return {
+                  id: crypto.randomUUID(),
+                  name: col,
+                  type: type,
+                  isPrimaryKey: isId,
+                  isAutoIncrement: isId && type === 'INTEGER',
+                  allowNull: !isId
+              };
+          });
+
+          if (needsAutoId) {
+              fields.unshift({
+                  id: crypto.randomUUID(),
+                  name: 'id',
+                  type: 'INTEGER',
+                  isPrimaryKey: true,
+                  isAutoIncrement: true,
+                  allowNull: false
+              });
+          } else if (data[0] && data[0]['_ImportId']) {
+              fields.push({ id: crypto.randomUUID(), name: '_ImportId', type: 'INTEGER', allowNull: true });
+          }
+
+          const savedUrl = getEffectiveUrl();
+
+          const cleanData = data.map(row => {
+              const newRow = { ...row };
+              if (needsAutoId) {
+                  newRow['id'] = newRow['_ImportId'];
+              }
+
+              for (const key in newRow) {
+                  const override = schemaOverrides[key];
+                  if (Array.isArray(newRow[key])) {
+                      newRow[key] = JSON.stringify(newRow[key]);
+                  } else if (override === 'INTEGER' && newRow[key] !== null && newRow[key] !== undefined) {
+                      const parsed = parseInt(newRow[key], 10);
+                      newRow[key] = isNaN(parsed) ? null : parsed;
+                  } else if (override === 'REAL' && newRow[key] !== null && newRow[key] !== undefined) {
+                      const parsed = parseFloat(newRow[key]);
+                      newRow[key] = isNaN(parsed) ? null : parsed;
+                  } else if (override === 'BOOLEAN' && newRow[key] !== null && newRow[key] !== undefined) {
+                      newRow[key] = (newRow[key] === 'true' || newRow[key] === true || newRow[key] === 1 || newRow[key] === '1') ? 1 : 0;
+                  } else if (override === 'TEXT' && newRow[key] !== null && newRow[key] !== undefined) {
+                      newRow[key] = String(newRow[key]);
+                  }
+              }
+              return newRow;
+          });
+
+          // 1. Send configuration to backend
+          const response = await fetch('/api/backend-apis', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                  name: backendApiName,
+                  url: savedUrl,
+                  method,
+                  headers: headers || "{}",
+                  queryParams,
+                  option: backendApiOption,
+                  refreshInterval: backendRefreshInterval,
+                  fields: fields,
+                  data: cleanData
+              })
+          });
+
+          if (!response.ok) {
+              const errData = await response.json();
+              throw new Error(errData.error || 'Fehler beim Registrieren im Backend.');
+          }
+
+          // 2. If Option B is chosen, let's trigger a refresh so the backend fetches live data and populates files right away
+          if (backendApiOption === 'B') {
+              const refreshResponse = await fetch(`/api/backend-apis/${encodeURIComponent(backendApiName)}/refresh`, {
+                  method: 'POST'
+              });
+              if (!refreshResponse.ok) {
+                  console.warn("Backend Cache initial sync warning");
+              }
+          }
+
+          // 3. Create active table model in frontend pointing to our backend API!
+          const newTable: Table = {
+              id: crypto.randomUUID(),
+              name: backendApiName,
+              fields: fields,
+              data: cleanData,
+              isApiImport: true,
+              apiConfig: {
+                  url: `/api/backend-apis/${backendApiName}/data`,
+                  method: 'GET',
+                  headers: '{}',
+                  queryParams: [],
+                  refreshOnLoad: true
+              }
+          };
+
+          onSaveTable && onSaveTable(newTable);
+          setShowBackendApiModal(false);
+          showMessage("Backend-API registriert", `Die API "${backendApiName}" wurde erfolgreich registriert (Option ${backendApiOption === 'A' ? 'A - Proxy' : 'B - Cache'}) und als lokale Tabelle gespeichert.`, 'success');
+      } catch (err: any) {
+          showMessage("Fehler bei Backend-Registrierung", err.message || "Es trat ein Fehler auf.", "error");
+      } finally {
+          setIsRegistering(false);
       }
   };
 
@@ -212,6 +359,87 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       showMessage("Tabelle erstellt", `Tabelle "${tableName}" gespeichert.`, 'success');
   };
 
+  const exportToExcel = () => {
+      try {
+          const ws = XLSX.utils.json_to_sheet(data);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "API Daten");
+          XLSX.writeFile(wb, "api_export.xlsx");
+          showMessage("Excel Export", "Die Daten wurden erfolgreich als Excel-Datei exportiert.", "success");
+      } catch (err: any) {
+          showMessage("Fehler beim Export", err.message || "Unbekannter Fehler beim Excel-Export.", "error");
+      }
+  };
+
+  const exportToJson = () => {
+      try {
+          const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+          const downloadAnchor = document.createElement('a');
+          downloadAnchor.setAttribute("href", jsonString);
+          downloadAnchor.setAttribute("download", "api_export.json");
+          document.body.appendChild(downloadAnchor);
+          downloadAnchor.click();
+          downloadAnchor.remove();
+          showMessage("JSON Export", "Die Daten wurden erfolgreich als JSON-Datei exportiert.", "success");
+      } catch (err: any) {
+          showMessage("Fehler beim Export", err.message || "Unbekannter Fehler beim JSON-Export.", "error");
+      }
+  };
+
+  const exportToPdf = () => {
+      try {
+          const doc = new jsPDF();
+          doc.text("API Daten Export", 14, 15);
+          
+          const headers = getColumns();
+          const rows = data.map(item => headers.map(header => {
+              const val = item[header];
+              return Array.isArray(val) ? `[Array(${val.length})]` : String(val ?? '');
+          }));
+
+          autoTable(doc, {
+              head: [headers],
+              body: rows,
+              startY: 20,
+              theme: 'striped',
+              styles: { fontSize: 8, overflow: 'ellipsize' }
+          });
+
+          doc.save("api_export.pdf");
+          showMessage("PDF Export", "Die Daten wurden erfolgreich als PDF-Datei exportiert.", "success");
+      } catch (err: any) {
+          showMessage("Fehler beim Export", err.message || "Unbekannter Fehler beim PDF-Export.", "error");
+      }
+  };
+
+  const getDynamicFields = (): Field[] => {
+      const columns = getColumns();
+      if (columns.length === 0) return [];
+      const sampleRow = data[0];
+
+      return columns.map(col => {
+          const sampleVal = sampleRow[col];
+          const inferredType = Array.isArray(sampleVal) ? 'TEXT' : inferFieldType(sampleVal);
+          const type = schemaOverrides[col] || inferredType;
+          
+          let isId = false;
+          if (primaryKeyCol) {
+              isId = col === primaryKeyCol;
+          } else {
+              isId = col.toLowerCase() === 'id';
+          }
+          
+          return {
+              id: crypto.randomUUID(),
+              name: col,
+              type: type,
+              isPrimaryKey: isId,
+              isAutoIncrement: isId && type === 'INTEGER',
+              allowNull: !isId
+          };
+      });
+  };
+
   const renderRow = (row: any, rowIndex: number) => {
       const cols = getColumns();
       return (
@@ -278,7 +506,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                 )}
                 {data.length > 0 && onSaveTable && (
                     <div className="flex items-center gap-2 border-l pl-2 ml-2">
-                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer border border-slate-300 rounded px-2 py-1 bg-slate-50 hover:bg-white">
+                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer border border-slate-300 rounded px-2 py-1 bg-slate-50 hover:bg-white select-none">
                             <input 
                                 type="checkbox" 
                                 checked={refreshOnLoad} 
@@ -287,12 +515,110 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                             />
                             <span className="flex items-center gap-1"><RefreshCw size={14} /> Live-Verbindung</span>
                         </label>
-                        <button 
-                            onClick={handleSaveClick}
-                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm transition-colors"
-                        >
-                            <Save size={16} /> Speichern
-                        </button>
+                        
+                        <div className="relative inline-block text-left">
+                            <div className="flex items-center shadow-sm rounded-md overflow-hidden">
+                                <button 
+                                    onClick={handleSaveClick}
+                                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white pl-4 pr-3 py-2 text-sm font-semibold transition-colors border-r border-indigo-500"
+                                    title="Daten direkt als eigene Tabelle in IndexedDB speichern"
+                                >
+                                    <Save size={16} /> Speichern als eigene Tabelle
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-2 text-sm font-semibold transition-colors h-[38px] flex items-center justify-center"
+                                    title="Weitere Speicher- & Export-Optionen"
+                                >
+                                    <ChevronDown size={16} className={`transition-transform duration-200 ${showSaveDropdown ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+
+                            {showSaveDropdown && (
+                                <>
+                                    <div 
+                                        className="fixed inset-0 z-10" 
+                                        onClick={() => setShowSaveDropdown(false)}
+                                    />
+                                    <div className="absolute right-0 mt-1.5 w-80 bg-white border border-slate-200 rounded-lg shadow-xl z-20 overflow-hidden divide-y divide-slate-100 origin-top-right animate-in fade-in slide-in-from-top-1 duration-150">
+                                        <div className="p-1">
+                                            <button
+                                                onClick={() => {
+                                                    setShowSaveDropdown(false);
+                                                    handleSaveClick();
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 rounded flex items-start gap-2.5 transition-colors group"
+                                            >
+                                                <TableIcon size={18} className="text-indigo-600 mt-0.5 shrink-0" />
+                                                <div>
+                                                    <span className="font-bold block text-xs text-slate-800">In App-Datenbank speichern</span>
+                                                    <span className="text-[10px] text-slate-500 block leading-normal mt-0.5">
+                                                        Erstellt automatisch eine eigene Tabelle im lokalen App-Speicher (IndexedDB). Kein SQL-Code erforderlich!
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        </div>
+
+                                        <div className="p-1 border-t border-slate-100">
+                                            <button
+                                                onClick={() => {
+                                                    setShowSaveDropdown(false);
+                                                    setBackendApiName('ApiData');
+                                                    setShowBackendApiModal(true);
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 rounded flex items-start gap-2.5 transition-colors group"
+                                            >
+                                                <Server size={18} className="text-indigo-600 mt-0.5 shrink-0" />
+                                                <div>
+                                                    <span className="font-bold block text-xs text-slate-800">Als Backend-API speichern <span className="ml-1 text-[9px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded font-extrabold uppercase">Premium</span></span>
+                                                    <span className="text-[10px] text-slate-500 block leading-normal mt-0.5">
+                                                        Registriert die API am Backend (Option A Proxy / Option B Server-Datenbank) für vollständige Kontrolle.
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        </div>
+
+                                        <div className="p-1.5 bg-slate-50">
+                                            <span className="block px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lokaler Datei-Export</span>
+                                            
+                                            <button
+                                                onClick={() => {
+                                                    setShowSaveDropdown(false);
+                                                    exportToExcel();
+                                                }}
+                                                className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-white hover:text-emerald-700 rounded flex items-center gap-2 transition-colors mt-1 font-medium"
+                                            >
+                                                <FileSpreadsheet size={14} className="text-emerald-600" />
+                                                <span>Excel-Export (.xlsx)</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowSaveDropdown(false);
+                                                    exportToJson();
+                                                }}
+                                                className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-white hover:text-amber-700 rounded flex items-center gap-2 transition-colors font-medium"
+                                            >
+                                                <FileJson size={14} className="text-amber-600" />
+                                                <span>JSON-Export (.json)</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowSaveDropdown(false);
+                                                    exportToPdf();
+                                                }}
+                                                className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 hover:bg-white hover:text-rose-700 rounded flex items-center gap-2 transition-colors font-medium"
+                                            >
+                                                <FileText size={14} className="text-rose-600" />
+                                                <span>PDF-Export (.pdf)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -313,6 +639,46 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                 </div>
             </div>
         )}
+
+        {/* Preset API Selector */}
+        <div className="mb-4 bg-slate-50 border border-slate-200 rounded p-3">
+            <span className="block text-xs font-bold text-slate-500 uppercase mb-2">Beispiel-APIs zum schnellen Testen:</span>
+            <div className="flex flex-wrap gap-2">
+                <button 
+                    type="button"
+                    onClick={() => {
+                        setUrl('https://jsonplaceholder.typicode.com/users');
+                        setMethod('GET');
+                        setQueryParams([]);
+                    }}
+                    className="bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50 text-xs font-medium text-slate-700 px-3 py-1.5 rounded transition-all flex items-center gap-1 shadow-sm"
+                >
+                    <Globe size={12} className="text-blue-500" /> Benutzer-Daten (REST)
+                </button>
+                <button 
+                    type="button"
+                    onClick={() => {
+                        setUrl('https://jsonplaceholder.typicode.com/todos');
+                        setMethod('GET');
+                        setQueryParams([]);
+                    }}
+                    className="bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50 text-xs font-medium text-slate-700 px-3 py-1.5 rounded transition-all flex items-center gap-1 shadow-sm"
+                >
+                    <Globe size={12} className="text-emerald-500" /> Todo-Liste (REST)
+                </button>
+                <button 
+                    type="button"
+                    onClick={() => {
+                        setUrl('https://dummyjson.com/products');
+                        setMethod('GET');
+                        setQueryParams([]);
+                    }}
+                    className="bg-white border border-slate-300 hover:border-blue-500 hover:bg-blue-50 text-xs font-medium text-slate-700 px-3 py-1.5 rounded transition-all flex items-center gap-1 shadow-sm"
+                >
+                    <Globe size={12} className="text-orange-500" /> Produkt-Katalog (DummyJSON)
+                </button>
+            </div>
+        </div>
 
         <div className="flex flex-col gap-4">
             <div className="flex gap-2">
@@ -454,6 +820,9 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
              <button onClick={() => setActiveViewTab('schema')} className={`px-4 py-2 text-sm font-bold border-b-2 flex items-center gap-2 ${activeViewTab === 'schema' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
                  <Sliders size={16} /> Datentyp-Mapper / Schema
              </button>
+             <button onClick={() => setActiveViewTab('backend_code')} className={`px-4 py-2 text-sm font-bold border-b-2 flex items-center gap-2 ${activeViewTab === 'backend_code' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                 <Server size={16} className="text-emerald-500" /> ⚡ SQL Server Backend-Code
+             </button>
          </div>
       )}
 
@@ -467,7 +836,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                 renderRow={renderRow}
                 rowHeight={35}
               />
-             ) : (
+             ) : activeViewTab === 'schema' ? (
                 <div className="p-4 h-full overflow-auto bg-slate-50">
                     <h3 className="text-lg font-bold text-slate-700 mb-2">Schema & Datentyp Mapping</h3>
                     <p className="text-sm text-slate-600 mb-6 max-w-4xl">
@@ -532,6 +901,133 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                         </table>
                     </div>
                 </div>
+             ) : (
+                (() => {
+                    const fieldsForCode = getDynamicFields();
+                    const targetUrlForCode = getEffectiveUrl() || 'https://api.example.com/data';
+                    const tableNameForCode = 'ApiData';
+
+                    let activeCode = '';
+                    if (backendLang === 'dotnet') {
+                        activeCode = generateDotNetCode(tableNameForCode, fieldsForCode, targetUrlForCode);
+                    } else if (backendLang === 'node') {
+                        activeCode = generateNodeCode(tableNameForCode, fieldsForCode, targetUrlForCode);
+                    } else {
+                        activeCode = generatePhpCode(tableNameForCode, fieldsForCode, targetUrlForCode);
+                    }
+
+                    const sqlServerMigration = generateSqlServerMigration(tableNameForCode, fieldsForCode);
+
+                    return (
+                        <div className="p-4 h-full overflow-auto bg-slate-50 flex flex-col gap-4 animate-in fade-in duration-200">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between bg-white border border-slate-200 rounded-lg p-4 shadow-sm shrink-0 gap-4">
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                        <Server size={18} className="text-emerald-500" /> SQL Server Code-Generator
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        Generieren Sie einsatzbereiten Code, um diese API-Struktur automatisch in Ihrer produktiven SQL-Server-Datenbank zu synchronisieren.
+                                    </p>
+                                </div>
+                                <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 self-start md:self-auto shrink-0">
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setBackendLang('dotnet');
+                                            setCopied(false);
+                                        }}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${backendLang === 'dotnet' ? 'bg-white text-slate-800 shadow' : 'text-slate-600 hover:text-slate-800'}`}
+                                    >
+                                        .NET C# (EF Core)
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setBackendLang('node');
+                                            setCopied(false);
+                                        }}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${backendLang === 'node' ? 'bg-white text-slate-800 shadow' : 'text-slate-600 hover:text-slate-800'}`}
+                                    >
+                                        Node.js (Prisma)
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setBackendLang('php');
+                                            setCopied(false);
+                                        }}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${backendLang === 'php' ? 'bg-white text-slate-800 shadow' : 'text-slate-600 hover:text-slate-800'}`}
+                                    >
+                                        PHP (Laravel)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                <div className="lg:col-span-2 flex flex-col bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden min-h-[480px]">
+                                    <div className="bg-slate-50 border-b border-slate-200 p-3 flex justify-between items-center shrink-0">
+                                        <span className="font-mono text-xs text-slate-500 font-semibold">
+                                            {backendLang === 'dotnet' ? 'SqlServerApiImporter/SyncController.cs' : backendLang === 'node' ? 'server.js & schema.prisma' : 'SyncController.php & migrations.php'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(activeCode);
+                                                setCopied(true);
+                                                setTimeout(() => setCopied(false), 2000);
+                                                showMessage("Kopiert", "Backend-Code wurde in die Zwischenablage kopiert.", "success");
+                                            }}
+                                            className="flex items-center gap-1.5 text-xs font-bold bg-white border border-slate-300 rounded px-2.5 py-1 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+                                        >
+                                            {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                            {copied ? 'Kopiert!' : 'Code kopieren'}
+                                        </button>
+                                    </div>
+                                    <pre className="flex-1 p-4 font-mono text-xs overflow-auto bg-slate-950 text-emerald-400 select-text leading-relaxed">
+                                        <code>{activeCode}</code>
+                                    </pre>
+                                </div>
+
+                                <div className="flex flex-col gap-4">
+                                    <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-4">
+                                        <h4 className="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5 border-b pb-2 uppercase tracking-wider">
+                                            <Database size={14} className="text-blue-500" /> SQL Server Tabellen-Schema (DDL)
+                                        </h4>
+                                        <p className="text-xs text-slate-600 mb-3">
+                                            Führen Sie diese SQL-Anweisung in Ihrem SQL-Client (z.B. SSMS, DBeaver) aus, um die Struktur anzulegen:
+                                        </p>
+                                        <div className="relative">
+                                            <pre className="bg-slate-950 text-slate-300 p-3 rounded font-mono text-[10px] overflow-auto max-h-[160px] select-text leading-normal">
+                                                <code>{sqlServerMigration}</code>
+                                            </pre>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(sqlServerMigration);
+                                                    showMessage("Kopiert", "SQL-Migrationsskript kopiert.", "success");
+                                                }}
+                                                className="absolute right-2 top-2 p-1 bg-slate-800 border border-slate-700 rounded text-slate-400 hover:text-white transition-colors"
+                                                title="Kopieren"
+                                            >
+                                                <Copy size={12} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-lg shadow-sm p-4">
+                                        <h4 className="text-xs font-bold text-indigo-900 mb-2 uppercase tracking-wider">Anleitung zur Einrichtung:</h4>
+                                        <ol className="text-xs text-indigo-950 space-y-2 list-decimal list-inside leading-relaxed">
+                                            <li>Kopieren Sie den DDL-Code links und erstellen Sie die Tabelle auf Ihrem SQL-Server.</li>
+                                            <li>Kopieren Sie den generierten Backend-Code für Ihr Wunschframework (.NET, Node, PHP).</li>
+                                            <li>Fügen Sie den Code in Ihr Backend-Projekt ein und konfigurieren Sie die SQL Server-Verbindung.</li>
+                                            <li>Verwenden Sie die Route, um Daten aus der API abzuholen und direkt in Ihre produktive SQL-Server-Tabelle zu speichern!</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()
              )
           ) : (
               !isLoading && (
@@ -553,6 +1049,128 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
             onConfirm={performSave} 
             onCancel={() => setShowSaveModal(false)} 
         />
+      )}
+
+      {showBackendApiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Server size={18} className="text-indigo-600" /> Backend-API registrieren (Premium)
+              </h3>
+              <button 
+                onClick={() => setShowBackendApiModal(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tabellen- / API-Name</label>
+                <input 
+                  type="text" 
+                  value={backendApiName}
+                  onChange={e => setBackendApiName(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                  placeholder="KundenAPI"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">Wird im Backend als Endpunkt <code>/api/backend-apis/{backendApiName || 'name'}/data</code> freigegeben.</span>
+              </div>
+
+              {/* Options A & B Cards */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Backend-Ausführungsmodus</label>
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Option A */}
+                  <div 
+                    onClick={() => setBackendApiOption('A')}
+                    className={`border rounded-lg p-3.5 cursor-pointer transition-all ${backendApiOption === 'A' ? 'border-indigo-600 bg-indigo-50/40 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${backendApiOption === 'A' ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>
+                          {backendApiOption === 'A' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </span>
+                        Option A: Echtzeit Backend-Proxy
+                      </span>
+                      <span className="text-[9px] bg-sky-100 text-sky-800 font-extrabold px-1.5 py-0.5 rounded uppercase">Live</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-normal pl-5">
+                      Der Server ruft die Daten live bei jedem Client-Request von der externen API ab. Verbirgt API-Keys/Auth-Header sicher vor dem Browser des Nutzers und umgeht CORS.
+                    </p>
+                  </div>
+
+                  {/* Option B */}
+                  <div 
+                    onClick={() => setBackendApiOption('B')}
+                    className={`border rounded-lg p-3.5 cursor-pointer transition-all ${backendApiOption === 'B' ? 'border-indigo-600 bg-indigo-50/40 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${backendApiOption === 'B' ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>
+                          {backendApiOption === 'B' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </span>
+                        Option B: Server-Datenbank & Cache
+                      </span>
+                      <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded uppercase">Fast & Offline</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-normal pl-5">
+                      Der Server lädt die Daten einmalig herunter und speichert sie als lokale JSON-Tabelle. Erlaubt direktes Editieren/Manipulieren der Zeilen auf dem Server sowie vollen Offline-Betrieb.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sync Interval */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Automatisches Synchronisierungs-Intervall</label>
+                <select 
+                  value={backendRefreshInterval}
+                  onChange={e => setBackendRefreshInterval(Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value={0}>Nur Manuell (über Aktualisieren-Button)</option>
+                  <option value={10}>Alle 10 Minuten im Hintergrund synchronisieren</option>
+                  <option value={30}>Alle 30 Minuten im Hintergrund synchronisieren</option>
+                  <option value={60}>Stündlich im Hintergrund synchronisieren</option>
+                  <option value={1440}>Täglich im Hintergrund synchronisieren</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex justify-end gap-2 shrink-0">
+              <button 
+                type="button"
+                onClick={() => setShowBackendApiModal(false)}
+                disabled={isRegistering}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button 
+                type="button"
+                onClick={performBackendSave}
+                disabled={isRegistering || !backendApiName}
+                className="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                {isRegistering ? (
+                  <>
+                    <RefreshCw className="animate-spin text-white" size={14} /> Registriere...
+                  </>
+                ) : (
+                  <>
+                    <Save size={14} /> API im Backend speichern
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {extractColumn && (

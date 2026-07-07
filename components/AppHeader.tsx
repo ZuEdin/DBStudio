@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { LanguageSelector } from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { CollaborationBar } from './CollaborationBar';
 import { cloudService } from '../services/cloudService';
-import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download } from 'lucide-react';
+import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download, Edit2 } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 
@@ -19,6 +19,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction }) => {
   
   const { projectName, backendConfig } = store;
   const { darkMode, toggleDarkMode, isChatOpen, setIsChatOpen, setFormActionTrigger } = ui;
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempName, setTempName] = useState(projectName);
 
   // Mock Data: In a real app, this would come from a Context/Store connected to Websockets
   const collaborators = cloudService.getCollaborators('mock-id');
@@ -35,8 +38,46 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction }) => {
     <div className="bg-slate-800 text-white text-xs px-2 py-1 flex justify-between items-center select-none shrink-0 print:hidden h-10 border-b border-slate-700">
         <div className="flex items-center gap-4">
             <span className="font-bold flex items-center gap-2">
-                <Cloud size={14} className="text-blue-400" />
-                {t('app.name')} <span className="opacity-50 mx-1">/</span> {projectName}
+                <Cloud size={14} className="text-blue-400 font-bold shrink-0" />
+                <span>{t('app.name')}</span>
+                <span className="opacity-50">/</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={tempName}
+                    onChange={e => setTempName(e.target.value)}
+                    onKeyDown={async e => {
+                      if (e.key === 'Enter') {
+                        if (tempName.trim() && tempName !== projectName) {
+                          await store.renameProject(tempName);
+                        }
+                        setIsEditing(false);
+                      } else if (e.key === 'Escape') {
+                        setIsEditing(false);
+                      }
+                    }}
+                    onBlur={async () => {
+                      if (tempName.trim() && tempName !== projectName) {
+                        await store.renameProject(tempName);
+                      }
+                      setIsEditing(false);
+                    }}
+                    className="bg-slate-700 text-white font-semibold px-2 py-0.5 rounded outline-none border border-blue-500 text-xs w-40"
+                    autoFocus
+                  />
+                ) : (
+                  <span 
+                    className="hover:bg-slate-700/50 px-1.5 py-0.5 rounded cursor-pointer flex items-center gap-1 group transition-colors"
+                    onDoubleClick={() => {
+                      setTempName(projectName);
+                      setIsEditing(true);
+                    }}
+                    title="Doppelklick zum Umbenennen"
+                  >
+                    {projectName}
+                    <Edit2 size={10} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </span>
+                )}
             </span>
             <div className="bg-slate-700 rounded px-2 py-0.5 flex items-center gap-1 text-[10px]">
                 <GitBranch size={10} className="text-green-400"/>

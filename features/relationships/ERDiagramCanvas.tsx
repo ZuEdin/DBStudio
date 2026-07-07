@@ -34,6 +34,65 @@ import {
 } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
+// Local input and textarea to prevent focus loss during store-induced re-renders
+const LocalInput = ({ value, onChange, onBlur, className, placeholder, onMouseDown, ...props }: any) => {
+  const [val, setVal] = useState(value);
+  useEffect(() => {
+    setVal(value);
+  }, [value]);
+  
+  return (
+    <input
+      {...props}
+      className={className}
+      placeholder={placeholder}
+      value={val}
+      onMouseDown={onMouseDown}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={(e) => {
+        if (val !== value) {
+          onChange(e);
+        }
+        if (onBlur) onBlur(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+};
+
+const LocalTextarea = ({ value, onChange, onBlur, className, placeholder, onMouseDown, ...props }: any) => {
+  const [val, setVal] = useState(value);
+  useEffect(() => {
+    setVal(value);
+  }, [value]);
+
+  return (
+    <textarea
+      {...props}
+      className={className}
+      placeholder={placeholder}
+      value={val}
+      onMouseDown={onMouseDown}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={(e) => {
+        if (val !== value) {
+          onChange(e);
+        }
+        if (onBlur) onBlur(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+};
+
 // Custom Group Node Component
 const ERGroupNodeComponent = ({ data }: any) => {
   const { group, width, height, onNameChange, onCommentChange, onSelectMembers, onToggleCollapse, tablesInGroup, onColorChange } = data;
@@ -117,12 +176,12 @@ const ERGroupNodeComponent = ({ data }: any) => {
         <div className="flex items-center justify-between gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <span className="text-slate-400 shrink-0 cursor-grab active:cursor-grabbing">📁</span>
-            <input
+            <LocalInput
               className="bg-transparent font-bold text-xs outline-none w-full text-slate-800 dark:text-slate-200 border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-purple-500 font-sans tracking-tight truncate"
               value={group.name}
-              onChange={(e) => onNameChange(group.id, e.target.value)}
+              onChange={(e: any) => onNameChange(group.id, e.target.value)}
               placeholder="Gruppenname"
-              onMouseDown={(e) => e.stopPropagation()} // Prevent node drag when typing
+              onMouseDown={(e: any) => e.stopPropagation()} // Prevent node drag when typing
             />
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -157,12 +216,12 @@ const ERGroupNodeComponent = ({ data }: any) => {
             </button>
           </div>
         </div>
-        <textarea
+        <LocalTextarea
           className="text-[11px] outline-none w-full resize-none leading-relaxed border rounded p-1.5 bg-white/90 dark:bg-slate-900/90 shadow-sm text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-purple-500 placeholder-slate-400 font-sans h-12 shrink-0"
           value={group.comment || ''}
           placeholder="Kommentar hinzufügen..."
-          onChange={(e) => onCommentChange(group.id, e.target.value)}
-          onMouseDown={(e) => e.stopPropagation()} // Prevent node drag when typing
+          onChange={(e: any) => onCommentChange(group.id, e.target.value)}
+          onMouseDown={(e: any) => e.stopPropagation()} // Prevent node drag when typing
         />
       </div>
 
