@@ -64,7 +64,12 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:${config.port}/api/") });
+builder.Services.AddScoped(sp => {
+    var navigationManager = sp.GetRequiredService<NavigationManager>();
+    var baseUri = navigationManager.BaseUri;
+    string apiUri = baseUri.Contains("localhost") || baseUri.Contains("127.0.0.1") ? "http://localhost:${config.port}/api/" : $"{baseUri}api/";
+    return new HttpClient { BaseAddress = new Uri(apiUri) };
+});
 builder.Services.AddScoped<ApiService>();
 `;
 

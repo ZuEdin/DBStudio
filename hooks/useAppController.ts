@@ -918,38 +918,8 @@ export const useAppController = () => {
             const timeStr = `${hours}${minutes}${seconds}`;
             const filename = `${store.projectName || 'DBStudioPro'}_Backup_${dateStr}_${timeStr}.dbsp`;
 
-            // Try form submit backend download first (foolproof for iframes)
+            // Try client-side blob download first (works on any static or custom server without backend endpoint)
             try {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/api/backup/download';
-                form.style.display = 'none';
-
-                const filenameInput = document.createElement('input');
-                filenameInput.type = 'hidden';
-                filenameInput.name = 'filename';
-                filenameInput.value = filename;
-                form.appendChild(filenameInput);
-
-                const contentInput = document.createElement('input');
-                contentInput.type = 'hidden';
-                contentInput.name = 'content';
-                contentInput.value = dataStr;
-                form.appendChild(contentInput);
-
-                document.body.appendChild(form);
-                form.submit();
-                document.body.removeChild(form);
-                
-                // Copy to clipboard fallback
-                try {
-                    navigator.clipboard.writeText(dataStr);
-                    ui.addToast("Backup wurde heruntergeladen und zur Sicherheit auch in Ihre Zwischenablage kopiert!", 'success');
-                } catch {
-                    ui.addToast("Backup heruntergeladen!", 'success');
-                }
-            } catch (formError) {
-                // Fallback to client-side blob download
                 const blob = new Blob([dataStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -960,7 +930,46 @@ export const useAppController = () => {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                ui.addToast("Backup-Datei heruntergeladen.", 'success');
+                
+                // Copy to clipboard fallback / extra safety
+                try {
+                    navigator.clipboard.writeText(dataStr);
+                    ui.addToast("Backup wurde heruntergeladen und zur Sicherheit auch in Ihre Zwischenablage kopiert!", 'success');
+                } catch {
+                    ui.addToast("Backup heruntergeladen!", 'success');
+                }
+            } catch (blobError) {
+                // Fallback to server POST form submit if client-side blob fails (e.g. strict iframe sandboxes)
+                try {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/api/backup/download';
+                    form.style.display = 'none';
+
+                    const filenameInput = document.createElement('input');
+                    filenameInput.type = 'hidden';
+                    filenameInput.name = 'filename';
+                    filenameInput.value = filename;
+                    form.appendChild(filenameInput);
+
+                    const contentInput = document.createElement('input');
+                    contentInput.type = 'hidden';
+                    contentInput.name = 'content';
+                    contentInput.value = dataStr;
+                    form.appendChild(contentInput);
+
+                    document.body.appendChild(form);
+                    form.submit();
+                    document.body.removeChild(form);
+                } catch (formError) {
+                    // Try clipboard-only if all download methods fail
+                    try {
+                        navigator.clipboard.writeText(dataStr);
+                        ui.showMessage("Download fehlgeschlagen", "Der automatische Download ist fehlgeschlagen, aber Ihr Backup-Inhalt wurde zur Sicherheit in Ihre Zwischenablage kopiert. Sie können ihn in eine Textdatei einfügen.", 'warning');
+                    } catch {
+                        ui.showMessage("Fehler beim Sichern", "Das Backup konnte nicht heruntergeladen werden. Bitte kopieren Sie Ihre Modelldaten manuell.", 'error');
+                    }
+                }
             }
             break;
         }

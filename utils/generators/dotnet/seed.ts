@@ -1,6 +1,7 @@
 
-import { Table, BackendConfig, VirtualFile, DbType, Relationship } from '../../../types/index';
+import { Table, BackendConfig, VirtualFile, DbType, Relationship, Query, SelectQuery } from '../../../types/index';
 import { toPascalCase, quoteIdentifier } from '../common';
+import { generateSqlSelect } from '../../sqlHelper';
 
 export const sortTablesByDependencies = (tables: Table[], relationships: Relationship[]): Table[] => {
     const dependencyMap = new Map<string, Set<string>>();
@@ -45,9 +46,34 @@ export const sortTablesByDependencies = (tables: Table[], relationships: Relatio
     return sorted;
 };
 
-export const generateDbInitializer = (tables: Table[], relationships: Relationship[], config: BackendConfig, root: string): VirtualFile => {
+export const generateDbInitializer = (tables: Table[], relationships: Relationship[], config: BackendConfig, root: string, queries: Query[] = []): VirtualFile => {
     let seedLogic = '';
     const dbType = config.dbType;
+
+    // Create database views for custom queries if they don't exist
+    const selectQueries = queries.filter(q => q.type === 'SELECT');
+    if (selectQueries.length > 0) {
+        seedLogic += `                // Create database views for custom select queries\n`;
+        selectQueries.forEach(q => {
+            const selectQ = q as SelectQuery;
+            const selectSql = generateSqlSelect(selectQ.nodes, selectQ.columns, tables, relationships, config.dbType, true);
+            if (selectSql) {
+                const viewName = toPascalCase(q.name);
+                let createViewSql = '';
+                if (config.dbType === DbType.SQLite) {
+                    createViewSql = `CREATE VIEW IF NOT EXISTS [${viewName}] AS ${selectSql};`;
+                } else if (config.dbType === DbType.MySQL) {
+                    createViewSql = `CREATE OR REPLACE VIEW \`${viewName}\` AS ${selectSql};`;
+                } else {
+                    // SQL Server
+                    createViewSql = `IF NOT EXISTS (SELECT * FROM sys.views WHERE name = '${viewName}') EXEC('CREATE VIEW [${viewName}] AS ${selectSql.replace(/'/g, "''")}');`;
+                }
+                const escapedViewSql = createViewSql.replace(/"/g, '""');
+                seedLogic += `                context.Database.ExecuteSqlRaw(@"${escapedViewSql}");\n`;
+            }
+        });
+        seedLogic += `\n`;
+    }
 
     // Sort tables so dependent tables are seeded after their referenced tables (parent tables)
     const sortedTables = sortTablesByDependencies(tables, relationships || []);

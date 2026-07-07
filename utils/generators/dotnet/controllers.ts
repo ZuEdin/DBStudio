@@ -1,6 +1,6 @@
 
 import { Table, Relationship, BackendConfig, VirtualFile, Query } from '../../../types/index';
-import { resolveType, toPascalCase } from '../common';
+import { resolveType, toPascalCase, toCamelCase } from '../common';
 
 export const generateControllers = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -131,10 +131,10 @@ namespace ${config.projectName}.Controllers
 
       // AUDIT LOGIC (CreatedBy / ModifiedBy / Dates)
       const auditFields = {
-          createdBy: table.fields.find(f => ['createdby', 'erstellt_von', 'erstelltvon'].includes(f.name.toLowerCase())),
-          modifiedBy: table.fields.find(f => ['modifiedby', 'updatedby', 'geaendert_von', 'bearbeitetvon'].includes(f.name.toLowerCase())),
-          createdDate: table.fields.find(f => ['createddate', 'createdat', 'erstellt_am'].includes(f.name.toLowerCase())),
-          modifiedDate: table.fields.find(f => ['modifieddate', 'updatedat', 'geaendert_am'].includes(f.name.toLowerCase()))
+          createdBy: table.fields.find(f => ['createdby', 'created_by', 'erstellt_von', 'erstelltvon', 'created_user', 'createduser'].includes(f.name.toLowerCase())),
+          modifiedBy: table.fields.find(f => ['modifiedby', 'modified_by', 'updatedby', 'updated_by', 'geaendert_von', 'bearbeitetvon', 'bearbeitet_von'].includes(f.name.toLowerCase())),
+          createdDate: table.fields.find(f => ['createddate', 'created_date', 'createdat', 'created_at', 'erstellt_am', 'erstelltam'].includes(f.name.toLowerCase())),
+          modifiedDate: table.fields.find(f => ['modifieddate', 'modified_date', 'updatedat', 'updated_at', 'geaendert_am', 'bearbeitet_am'].includes(f.name.toLowerCase()))
       };
       
       let onCreateAudit = '';
@@ -142,8 +142,61 @@ namespace ${config.projectName}.Controllers
       if (auditFields.createdDate) onCreateAudit += `                item.${toPascalCase(auditFields.createdDate.name)} = DateTime.Now;\n`;
       
       let onUpdateAudit = '';
-      if (auditFields.modifiedBy) onUpdateAudit += `            item.${toPascalCase(auditFields.modifiedBy.name)} = _currentUser.Username ?? "System";\n`;
-      if (auditFields.modifiedDate) onUpdateAudit += `            item.${toPascalCase(auditFields.modifiedDate.name)} = DateTime.Now;\n`;
+      if (auditFields.modifiedBy) onUpdateAudit += `            existing.${toPascalCase(auditFields.modifiedBy.name)} = _currentUser.Username ?? "System";\n`;
+      if (auditFields.modifiedDate) onUpdateAudit += `            existing.${toPascalCase(auditFields.modifiedDate.name)} = DateTime.Now;\n`;
+
+      // Fallback logic for status fields to default to 1 if 0 (e.g. SQLite Status field)
+      const statusField = table.fields.find(f => ['status', 'statusid'].includes(f.name.toLowerCase()) && f.type === 'INTEGER');
+      let statusDefaultLogic = '';
+      if (statusField) {
+          statusDefaultLogic = `            if (item.${toPascalCase(statusField.name)} == 0)
+            {
+                item.${toPascalCase(statusField.name)} = 1;
+            }\n`;
+      }
+
+      // Default values logic (e.g. TIMESTAMP with DEFAULT CURRENT_TIMESTAMP / NOW)
+      let defaultValuesLogic = '';
+      table.fields.forEach(f => {
+          const fieldPascal = toPascalCase(f.name);
+          const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
+          const hasNowDefault = f.defaultValue && (
+              f.defaultValue.toLowerCase().includes('now') ||
+              f.defaultValue.toLowerCase().includes('current_timestamp') ||
+              f.defaultValue.toLowerCase().includes('getdate')
+          );
+          const isCreatedAtField = ['created_at', 'createdat', 'erstellt_am', 'created_date', 'createddate'].includes(f.name.toLowerCase());
+          
+          if (isDateType && (hasNowDefault || isCreatedAtField)) {
+              defaultValuesLogic += `            if (item.${fieldPascal} == default(DateTime) || item.${fieldPascal} == DateTime.MinValue)
+            {
+                item.${fieldPascal} = DateTime.Now;
+            }\n`;
+          } else if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+              if (f.type === 'INTEGER' || f.type === 'TINYINT') {
+                  const numVal = parseInt(f.defaultValue, 10);
+                  if (!isNaN(numVal)) {
+                      defaultValuesLogic += `            if (item.${fieldPascal} == 0)
+            {
+                item.${fieldPascal} = ${numVal};
+            }\n`;
+                  }
+              } else if (f.type === 'BOOLEAN') {
+                  const boolVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
+                  if (boolVal) {
+                      defaultValuesLogic += `            if (!item.${fieldPascal})
+            {
+                item.${fieldPascal} = true;
+            }\n`;
+                  }
+              } else if (['VARCHAR', 'TEXT', 'EMAIL', 'PHONE', 'URL'].includes(f.type)) {
+                  defaultValuesLogic += `            if (string.IsNullOrEmpty(item.${fieldPascal}))
+            {
+                item.${fieldPascal} = "${f.defaultValue.replace(/"/g, '\\"')}";
+            }\n`;
+              }
+          }
+      });
 
       const content = `using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -193,7 +246,7 @@ namespace ${config.projectName}.Controllers
         { 
             // Audit: Create
             ${onCreateAudit}
-            
+${statusDefaultLogic}${defaultValuesLogic}            
             _context.Add(item); 
             await _context.SaveChangesAsync(); 
             return Ok(item); 
@@ -204,10 +257,16 @@ namespace ${config.projectName}.Controllers
         { 
             if (id != item.${toPascalCase(pkField.name)}) return BadRequest();
 
+            var existing = await _context.${safeName}s.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            // Retain original creation info to make it unmanipulatable
+${auditFields.createdBy ? `            item.${toPascalCase(auditFields.createdBy.name)} = existing.${toPascalCase(auditFields.createdBy.name)};\n` : ''}${auditFields.createdDate ? `            item.${toPascalCase(auditFields.createdDate.name)} = existing.${toPascalCase(auditFields.createdDate.name)};\n` : ''}
+            _context.Entry(existing).CurrentValues.SetValues(item);
+
             // Audit: Update
             ${onUpdateAudit}
 
-            _context.Entry(item).State = EntityState.Modified; 
             await _context.SaveChangesAsync(); 
             return Ok(); 
         }
@@ -218,6 +277,52 @@ namespace ${config.projectName}.Controllers
 }`;
       files.push({ name: `${safeName}Controller.cs`, path: `${root}/Controllers/${safeName}Controller.cs`, content: content, language: 'csharp' });
   });
+
+  const selectQueries = queries.filter(q => q.type === 'SELECT');
+  if (selectQueries.length > 0) {
+      const queryEndpoints = selectQueries.map(q => {
+          const safeName = toPascalCase(q.name);
+          const camelName = toCamelCase(q.name);
+          return `        [HttpGet("${camelName}")]
+        public async Task<ActionResult<PagedResult<${safeName}>>> Get${safeName}([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var q = _context.${safeName}s.AsQueryable();
+            var total = await q.CountAsync();
+            var items = await q.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return new PagedResult<${safeName}> 
+            { 
+                Data = items, 
+                Total = total, 
+                Page = page, 
+                PageSize = pageSize, 
+                TotalPages = (int)Math.Ceiling(total / (double)pageSize) 
+            };
+        }`;
+      }).join('\n\n');
+
+      const queriesControllerContent = `using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ${config.projectName}.Data;
+using ${config.projectName}.Models;
+
+namespace ${config.projectName}.Controllers
+{
+    [Route("api/queries")]
+    [ApiController]
+    public class QueriesController : ControllerBase
+    {
+        private readonly AppDbContext _context;
+
+        public QueriesController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+${queryEndpoints}
+    }
+}`;
+      files.push({ name: 'QueriesController.cs', path: `${root}/Controllers/QueriesController.cs`, content: queriesControllerContent, language: 'csharp' });
+  }
 
   return files;
 };

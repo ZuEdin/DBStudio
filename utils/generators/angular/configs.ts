@@ -136,22 +136,29 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   files.push({ name: 'angular.json', path: `${root}/angular.json`, content: JSON.stringify(angularJson, null, 2), language: 'json' });
   
   // Environments
+  const getApiUrlExpr = (url: string) => {
+      if (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+          return `typeof window !== 'undefined' ? (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? '${url}' : window.location.origin + '/api') : '/api'`;
+      }
+      return `'${url}'`;
+  };
+
   files.push({
       name: 'environment.ts',
       path: `${root}/src/environments/environment.ts`,
-      content: `export const environment = {\n  production: false,\n  apiUrl: '${devApiUrl}'\n};`,
+      content: `export const environment = {\n  production: false,\n  apiUrl: ${getApiUrlExpr(devApiUrl)}\n};`,
       language: 'typescript'
   });
   files.push({
       name: 'environment.prod.ts',
       path: `${root}/src/environments/environment.prod.ts`,
-      content: `export const environment = {\n  production: true,\n  apiUrl: '${prodApiUrl}'\n};`,
+      content: `export const environment = {\n  production: true,\n  apiUrl: ${getApiUrlExpr(prodApiUrl)}\n};`,
       language: 'typescript'
   });
   files.push({
       name: 'environment.staging.ts',
       path: `${root}/src/environments/environment.staging.ts`,
-      content: `export const environment = {\n  production: false,\n  apiUrl: '${stagingApiUrl}'\n};`,
+      content: `export const environment = {\n  production: false,\n  apiUrl: ${getApiUrlExpr(stagingApiUrl)}\n};`,
       language: 'typescript'
   });
 

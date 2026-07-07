@@ -251,8 +251,17 @@ const save = async () => { if(isNew) await post('${c}', data.value); else await 
   // Base files (Sidebar, App, style)
   files.push({ name: 'main.ts', path: `${root}/src/main.ts`, content: `import { createApp } from 'vue';\nimport './style.css';\nimport App from './App.vue';\nimport router from './router';\n\ncreateApp(App).use(router).mount('#app');`, language: 'typescript' });
   
-  // UPDATED: Added withCredentials: true
-  const apiContent = "import axios from 'axios';\nconst API_URL = 'http://localhost:" + config.port + "/api';\nconst api = axios.create({ baseURL: API_URL, withCredentials: true });\nexport const get = async (e: string, p?: any) => (await api.get(e, { params: p })).data;\nexport const post = async (e: string, d: any) => (await api.post(e, d)).data;\nexport const put = async (e: string, d: any) => (await api.put(e, d)).data;\nexport const remove = async (e: string) => await api.delete(e);";
+  // UPDATED: Added withCredentials: true & dynamic API_URL
+  const apiContent = "import axios from 'axios';\n" +
+                     "const API_URL = import.meta.env.VITE_API_URL || " +
+                     "(typeof window !== 'undefined' ? " +
+                     "(window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:" + config.port + "/api' : window.location.origin + '/api') " +
+                     ": '/api');\n" +
+                     "const api = axios.create({ baseURL: API_URL, withCredentials: true });\n" +
+                     "export const get = async (e: string, p?: any) => (await api.get(e, { params: p })).data;\n" +
+                     "export const post = async (e: string, d: any) => (await api.post(e, d)).data;\n" +
+                     "export const put = async (e: string, d: any) => (await api.put(e, d)).data;\n" +
+                     "export const remove = async (e: string) => await api.delete(e);";
   files.push({ name: 'api.ts', path: `${root}/src/services/api.ts`, content: apiContent, language: 'typescript' });
 
   return files;

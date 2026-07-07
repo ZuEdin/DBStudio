@@ -768,10 +768,18 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('auth_token');
         if (token) {
-            // Fake decode for demo
-            setUser({ username: 'Admin User', role: 'Admin' });
+            const savedUser = localStorage.getItem('auth_user');
+            if (savedUser) {
+                try {
+                    setUser(JSON.parse(savedUser));
+                } catch {
+                    setUser({ username: 'Admin User', role: 'Admin' });
+                }
+            } else {
+                setUser({ username: 'Admin User', role: 'Admin' });
+            }
         }
         setLoading(false);
     }, []);
@@ -779,21 +787,36 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     const login = async (u: string, p: string) => {
         const res: any = await post('auth/login', { username: u, password: p });
         if (res.token) {
-            localStorage.setItem('token', res.token);
-            setUser(res.user);
+            localStorage.setItem('auth_token', res.token);
+            if (res.user) {
+                localStorage.setItem('auth_user', JSON.stringify(res.user));
+                setUser(res.user);
+            } else {
+                const userObj = { username: u, role: 'Admin' };
+                localStorage.setItem('auth_user', JSON.stringify(userObj));
+                setUser(userObj);
+            }
         }
     };
     
     const loginWithSso = async (provider: string) => {
         const res: any = await post('auth/login-sso', { provider });
         if (res.token) {
-            localStorage.setItem('token', res.token);
-            setUser(res.user);
+            localStorage.setItem('auth_token', res.token);
+            if (res.user) {
+                localStorage.setItem('auth_user', JSON.stringify(res.user));
+                setUser(res.user);
+            } else {
+                const userObj = { username: provider + ' User', role: 'User' };
+                localStorage.setItem('auth_user', JSON.stringify(userObj));
+                setUser(userObj);
+            }
         }
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
         setUser(null);
     };
 

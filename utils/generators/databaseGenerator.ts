@@ -215,7 +215,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
         sql += `\n-- Views\n`;
         queries.forEach(q => {
             if (q.type === 'SELECT') {
-                const selectSql = generateSqlSelect((q as SelectQuery).nodes, (q as SelectQuery).columns, processingTables, relationships, config.dbType);
+                const selectSql = generateSqlSelect((q as SelectQuery).nodes, (q as SelectQuery).columns, processingTables, relationships, config.dbType, true);
                 if (selectSql) {
                     // Simple wrapper to avoid SQL errors if view logic is complex, 
                     // but for standard SQL generation we output it.

@@ -163,6 +163,40 @@ module.exports = upload;`;
       const routeName = toCamelCase(t.name);
       const searchableFields = t.fields.filter(f => f.type === 'VARCHAR' || f.type === 'TEXT').map(f => f.name);
 
+      const createdByField = t.fields.find(f => ['createdby', 'created_by', 'erstellt_von', 'erstelltvon', 'created_user', 'createduser'].includes(f.name.toLowerCase()));
+      const modifiedByField = t.fields.find(f => ['modifiedby', 'modified_by', 'updatedby', 'updated_by', 'geaendert_von', 'bearbeitetvon', 'bearbeitet_von'].includes(f.name.toLowerCase()));
+      const createdDateField = t.fields.find(f => ['createddate', 'created_date', 'createdat', 'created_at', 'erstellt_am', 'erstelltam'].includes(f.name.toLowerCase()));
+      const modifiedDateField = t.fields.find(f => ['modifieddate', 'modified_date', 'updatedat', 'updated_at', 'geaendert_am', 'bearbeitet_am'].includes(f.name.toLowerCase()));
+
+      const nowDefaultFields = t.fields.filter(f => {
+          const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
+          const hasNowDefault = f.defaultValue && (
+              f.defaultValue.toLowerCase().includes('now') ||
+              f.defaultValue.toLowerCase().includes('current_timestamp') ||
+              f.defaultValue.toLowerCase().includes('getdate')
+          );
+          return isDateType && hasNowDefault;
+      });
+
+      let postAuditCode = `        const payload = { ...req.body };
+        const username = getLoggedInUser(req);
+`;
+      if (createdByField) postAuditCode += `        payload.${createdByField.name} = username;\n`;
+      if (modifiedByField) postAuditCode += `        payload.${modifiedByField.name} = username;\n`;
+      if (createdDateField) postAuditCode += `        payload.${createdDateField.name} = new Date();\n`;
+      if (modifiedDateField) postAuditCode += `        payload.${modifiedDateField.name} = new Date();\n`;
+      nowDefaultFields.forEach(df => {
+          postAuditCode += `        if (!payload.${df.name}) payload.${df.name} = new Date();\n`;
+      });
+
+      let putAuditCode = `        const payload = { ...req.body };
+        const username = getLoggedInUser(req);
+`;
+      if (createdByField) putAuditCode += `        payload.${createdByField.name} = existing.${createdByField.name};\n`;
+      if (createdDateField) putAuditCode += `        payload.${createdDateField.name} = existing.${createdDateField.name};\n`;
+      if (modifiedByField) putAuditCode += `        payload.${modifiedByField.name} = username;\n`;
+      if (modifiedDateField) putAuditCode += `        payload.${modifiedDateField.name} = new Date();\n`;
+
       routes += `
 // ${modelName} Routes
 app.get('/api/${routeName}', async (req, res) => {
@@ -205,7 +239,8 @@ app.get('/api/${routeName}/:id', async (req, res) => {
 app.post('/api/${routeName}', async (req, res) => {
     const t = await db.sequelize.transaction();
     try { 
-        const item = await db.${modelName}.create(req.body, { transaction: t }); 
+${postAuditCode}
+        const item = await db.${modelName}.create(payload, { transaction: t }); 
         await t.commit();
         webhooks.notify('create', item); // Trigger Webhook
         res.status(201).json(item); 
@@ -220,20 +255,16 @@ app.post('/api/${routeName}', async (req, res) => {
 app.put('/api/${routeName}/:id', async (req, res) => {
     const t = await db.sequelize.transaction();
     try { 
-        const [updated] = await db.${modelName}.update(req.body, { 
-            where: { [db.${modelName}.primaryKeyAttribute]: req.params.id },
-            transaction: t
-        });
-        
-        if (updated) { 
-            const updatedItem = await db.${modelName}.findByPk(req.params.id, { transaction: t }); 
-            await t.commit();
-            webhooks.notify('update', updatedItem); // Trigger Webhook
-            res.json(updatedItem); 
-        } else { 
+        const existing = await db.${modelName}.findByPk(req.params.id, { transaction: t });
+        if (!existing) {
             await t.rollback();
-            res.status(404).json({error: 'Not found'});
+            return res.status(404).json({error: 'Not found'});
         }
+${putAuditCode}
+        await existing.update(payload, { transaction: t });
+        await t.commit();
+        webhooks.notify('update', existing); // Trigger Webhook
+        res.json(existing); 
     } 
     catch (e) { 
         await t.rollback();
@@ -278,6 +309,21 @@ const upload = require('./services/storageService');
 ${integrations.sso.length > 0 ? "const passport = require('passport');" : ""}
 
 const app = express();
+
+const getLoggedInUser = (req) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        if (token.startsWith('dummy-jwt-token-for-')) {
+            return token.replace('dummy-jwt-token-for-', '');
+        }
+        if (token.startsWith('dummy-jwt-token-sso-')) {
+            return token.replace('dummy-jwt-token-sso-', '') + ' User';
+        }
+        return token;
+    }
+    return 'System';
+};
 
 // Enable CORS with Credentials support (fixes Status 0 errors in fetch)
 app.use(cors({

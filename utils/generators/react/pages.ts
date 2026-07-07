@@ -221,8 +221,53 @@ export const ${listName} = () => {
               const childField = m.table.fields.find(f => f.id === m.childField)?.name;
               return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Eintrag hinzufügen: ${m.form.name}"><SubFormWrapper onSave={async (subData) => { if(id && id!=='new') { subData.${toCamelCase(childField || '')} = id; await post('${childTableCamel}', subData); const subRes = await get('${childTableCamel}', { search: '' }); set${toPascalCase(toCamelCase(m.table.name))}SubList_${m.id.replace('sub_field_', '')}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField || '')}) === String(id))); } else { alert('Bitte erst Hauptdatensatz speichern.'); } toggleModal('${m.id}', false); }}>{${subLayout.replace(/data\./g, 'subData.')}}</SubFormWrapper></Modal>`;
           }
+          if (m.type === 'user-picker') {
+              return `<UserPickerModal isOpen={modals['${m.id}']} initialTab="${m.mode}" onSelect={(username, displayName) => { setData(prev => ({ ...prev, ${m.targetField}: username })); toggleModal('${m.id}', false); }} onClose={() => toggleModal('${m.id}', false)} />`;
+          }
           return '';
       }).join('\n');
+
+      const defaultFields: string[] = [];
+      const payloadSetups: string[] = [];
+
+      sourceTable.fields.forEach(f => {
+          const camelName = toCamelCase(f.name);
+          const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
+          const hasNowDefault = f.defaultValue && (
+              f.defaultValue.toLowerCase().includes('now') ||
+              f.defaultValue.toLowerCase().includes('current_timestamp') ||
+              f.defaultValue.toLowerCase().includes('getdate')
+          );
+          const isCreatedAtField = ['created_at', 'createdat', 'erstellt_am', 'created_date', 'createddate'].includes(f.name.toLowerCase());
+          const isCreatedByField = ['created_by', 'createdby', 'erstellt_von', 'created_user', 'createduser'].includes(f.name.toLowerCase());
+
+          if (isDateType && (hasNowDefault || isCreatedAtField)) {
+              if (f.type === 'DATE') {
+                  defaultFields.push(`${camelName}: new Date().toISOString().split('T')[0]`);
+                  payloadSetups.push(`if (!payload.${camelName}) payload.${camelName} = new Date().toISOString().split('T')[0];`);
+              } else if (f.type === 'TIME') {
+                  defaultFields.push(`${camelName}: new Date().toTimeString().slice(0, 5)`);
+                  payloadSetups.push(`if (!payload.${camelName}) payload.${camelName} = new Date().toTimeString().slice(0, 5);`);
+              } else {
+                  defaultFields.push(`${camelName}: new Date().toISOString().slice(0, 16)`);
+                  payloadSetups.push(`if (!payload.${camelName}) payload.${camelName} = new Date().toISOString().slice(0, 16);`);
+              }
+          } else if (isCreatedByField) {
+              defaultFields.push(`${camelName}: getLoggedInUser()`);
+              payloadSetups.push(`if (!payload.${camelName}) payload.${camelName} = getLoggedInUser();`);
+          } else if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+              if (f.type === 'BOOLEAN') {
+                  const bVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
+                  defaultFields.push(`${camelName}: ${bVal}`);
+              } else if (f.type === 'INTEGER' || f.type === 'DECIMAL') {
+                  defaultFields.push(`${camelName}: ${f.defaultValue}`);
+              } else {
+                  defaultFields.push(`${camelName}: "${f.defaultValue.replace(/"/g, '\\"')}"`);
+              }
+          }
+      });
+      const initialDataObjStr = defaultFields.length > 0 ? `{\n      ${defaultFields.join(',\n      ')}\n    }` : '{}';
+      const payloadSetupsCode = payloadSetups.length > 0 ? `const payload = { ...data };\n    ${payloadSetups.join('\n    ')}` : 'const payload = { ...data };';
 
       const content = `import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -246,6 +291,17 @@ export const ${compName} = () => {
   const { states, setGlobalState, addToast } = useGlobalState() || { states: {}, setGlobalState: () => {}, addToast: () => {} };
   
   const UXRules = ${JSON.stringify(form.crossFieldValidations || [])};
+
+  const getLoggedInUser = () => {
+      try {
+          const savedUser = localStorage.getItem('auth_user');
+          if (savedUser) {
+              const parsed = JSON.parse(savedUser);
+              return parsed.username || 'Admin';
+          }
+      } catch (e) {}
+      return 'Admin';
+  };
 
   // Phase 5: Cross-field rule evaluator
   const evaluateUXRule = (rule: any, currentData: any) => {
@@ -279,6 +335,8 @@ export const ${compName} = () => {
                 const res = await get(\`${sourceTableCamel}/\${id}\`);
                 setData(res.data || res);
                 ${subformLoadLogic}
+            } else {
+                setData(${initialDataObjStr});
             }
         } catch (e) { console.error(e); }
         setLoading(false);
@@ -286,7 +344,20 @@ export const ${compName} = () => {
       init();
   }, [id]);
 
-  const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); try { if (id && id !== 'new') await put(\`${sourceTableCamel}/\${id}\`, data); else await post('${sourceTableCamel}', data); navigate(-1); } catch (e) { alert('Fehler'); } };
+  const handleSubmit = async (e: React.FormEvent) => { 
+    e.preventDefault(); 
+    try { 
+      ${payloadSetupsCode}
+      if (id && id !== 'new') {
+          await put(\`${sourceTableCamel}/\${id}\`, payload); 
+      } else {
+          await post('${sourceTableCamel}', payload); 
+      }
+      navigate(-1); 
+    } catch (e) { 
+      alert('Fehler'); 
+    } 
+  };
 
   if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin inline-block mr-2 text-blue-500"/> Lade...</div>;
   const subData: any = {}; const setSubData = (d: any) => {};

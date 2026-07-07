@@ -89,7 +89,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                     onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(formatIdentifier(fromF.name), dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(formatIdentifier(toF.name), dbType)}`;
                 }
 
-                joins += `\nINNER JOIN ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
+                joins += `\nLEFT JOIN ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
                 joinedNodeIds.add(targetNode.id);
                 queue.push(targetNode.id);
             }

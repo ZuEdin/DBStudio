@@ -228,6 +228,63 @@ class BaseModel {
   tables.forEach(table => {
       const modelName = toPascalCase(table.name);
       const tableName = toPascalCase(table.name);
+
+      const createdByField = table.fields.find(f => ['createdby', 'created_by', 'erstellt_von', 'erstelltvon', 'created_user', 'createduser'].includes(f.name.toLowerCase()));
+      const modifiedByField = table.fields.find(f => ['modifiedby', 'modified_by', 'updatedby', 'updated_by', 'geaendert_von', 'bearbeitetvon', 'bearbeitet_von'].includes(f.name.toLowerCase()));
+      const createdDateField = table.fields.find(f => ['createddate', 'created_date', 'createdat', 'created_at', 'erstellt_am', 'erstelltam'].includes(f.name.toLowerCase()));
+      const modifiedDateField = table.fields.find(f => ['modifieddate', 'modified_date', 'updatedat', 'updated_at', 'geaendert_am', 'bearbeitet_am'].includes(f.name.toLowerCase()));
+
+      const nowDefaultFields = table.fields.filter(f => {
+          const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
+          const hasNowDefault = f.defaultValue && (
+              f.defaultValue.toLowerCase().includes('now') ||
+              f.defaultValue.toLowerCase().includes('current_timestamp') ||
+              f.defaultValue.toLowerCase().includes('getdate')
+          );
+          return isDateType && hasNowDefault;
+      });
+
+      let onCreateAuditNoSql = '';
+      if (createdByField) onCreateAuditNoSql += `        $doc['${createdByField.name}'] = \\getLoggedInUser();\n`;
+      if (modifiedByField) onCreateAuditNoSql += `        $doc['${modifiedByField.name}'] = \\getLoggedInUser();\n`;
+      if (createdDateField) onCreateAuditNoSql += `        $doc['${createdDateField.name}'] = date('Y-m-d H:i:s');\n`;
+      if (modifiedDateField) onCreateAuditNoSql += `        $doc['${modifiedDateField.name}'] = date('Y-m-d H:i:s');\n`;
+      nowDefaultFields.forEach(df => {
+          onCreateAuditNoSql += `        if (empty($doc['${df.name}'])) $doc['${df.name}'] = date('Y-m-d H:i:s');\n`;
+      });
+
+      let onUpdateAuditNoSql = '';
+      onUpdateAuditNoSql += `        $existing = $this->getById($id);\n`;
+      if (createdByField) onUpdateAuditNoSql += `        if ($existing) { $existingArr = (array)$existing; if (isset($existingArr['${createdByField.name}'])) $doc['${createdByField.name}'] = $existingArr['${createdByField.name}']; }\n`;
+      if (createdDateField) onUpdateAuditNoSql += `        if ($existing) { $existingArr = (array)$existing; if (isset($existingArr['${createdDateField.name}'])) $doc['${createdDateField.name}'] = $existingArr['${createdDateField.name}']; }\n`;
+      if (modifiedByField) onUpdateAuditNoSql += `        $doc['${modifiedByField.name}'] = \\getLoggedInUser();\n`;
+      if (modifiedDateField) onUpdateAuditNoSql += `        $doc['${modifiedDateField.name}'] = date('Y-m-d H:i:s');\n`;
+
+      let onCreateAuditSql = '';
+      if (createdByField) onCreateAuditSql += `        $data->${createdByField.name} = \\getLoggedInUser();\n`;
+      if (modifiedByField) onCreateAuditSql += `        $data->${modifiedByField.name} = \\getLoggedInUser();\n`;
+      if (createdDateField) {
+          const fmt = createdDateField.type === 'DATE' ? 'Y-m-d' : (createdDateField.type === 'TIME' ? 'H:i:s' : 'Y-m-d H:i:s');
+          onCreateAuditSql += `        $data->${createdDateField.name} = date('${fmt}');\n`;
+      }
+      if (modifiedDateField) {
+          const fmt = modifiedDateField.type === 'DATE' ? 'Y-m-d' : (modifiedDateField.type === 'TIME' ? 'H:i:s' : 'Y-m-d H:i:s');
+          onCreateAuditSql += `        $data->${modifiedDateField.name} = date('${fmt}');\n`;
+      }
+      nowDefaultFields.forEach(df => {
+          const fmt = df.type === 'DATE' ? 'Y-m-d' : (df.type === 'TIME' ? 'H:i:s' : 'Y-m-d H:i:s');
+          onCreateAuditSql += `        if (empty($data->${df.name})) $data->${df.name} = date('${fmt}');\n`;
+      });
+
+      let onUpdateAuditSql = '';
+      onUpdateAuditSql += `        $existing = $this->getById($id);\n`;
+      if (createdByField) onUpdateAuditSql += `        if ($existing && isset($existing['${createdByField.name}'])) $data->${createdByField.name} = $existing['${createdByField.name}'];\n`;
+      if (createdDateField) onUpdateAuditSql += `        if ($existing && isset($existing['${createdDateField.name}'])) $data->${createdDateField.name} = $existing['${createdDateField.name}'];\n`;
+      if (modifiedByField) onUpdateAuditSql += `        $data->${modifiedByField.name} = \\getLoggedInUser();\n`;
+      if (modifiedDateField) {
+          const fmt = modifiedDateField.type === 'DATE' ? 'Y-m-d' : (modifiedDateField.type === 'TIME' ? 'H:i:s' : 'Y-m-d H:i:s');
+          onUpdateAuditSql += `        $data->${modifiedDateField.name} = date('${fmt}');\n`;
+      }
       
       let modelContent = '';
       if (isNoSql) {
@@ -253,7 +310,7 @@ class ${modelName} extends BaseModel {
         $collection = $this->db->selectCollection($this->collection_name);
         // Cast object to array for MongoDB driver
         $doc = (array) $data;
-        $this->applyHashes($doc);
+${onCreateAuditNoSql}        $this->applyHashes($doc);
         $result = $collection->insertOne($doc);
         return $result->getInsertedCount() > 0;
     }
@@ -261,7 +318,7 @@ class ${modelName} extends BaseModel {
     public function update($id, $data) {
         $collection = $this->db->selectCollection($this->collection_name);
         $doc = (array) $data;
-        $this->applyHashes($doc);
+${onUpdateAuditNoSql}        $this->applyHashes($doc);
         $result = $collection->updateOne(
             ['_id' => new \\MongoDB\\BSON\\ObjectId($id)],
             ['$set' => $doc]
@@ -295,7 +352,7 @@ class ${modelName} extends BaseModel {
     protected $primary_key = "${pkName}";
 
     public function create($data) {
-        $query = "INSERT INTO " . $this->table_name . " SET ${fieldsList.map(f => `${f}=:${f}`).join(', ')}";
+${onCreateAuditSql}        $query = "INSERT INTO " . $this->table_name . " SET ${fieldsList.map(f => `${f}=:${f}`).join(', ')}";
         $stmt = $this->conn->prepare($query);
 
         // Sanitize & Bind
@@ -306,7 +363,7 @@ class ${modelName} extends BaseModel {
     }
 
     public function update($id, $data) {
-        $query = "UPDATE " . $this->table_name . " SET ${updateStr} WHERE " . $this->primary_key . " = :id";
+${onUpdateAuditSql}        $query = "UPDATE " . $this->table_name . " SET ${updateStr} WHERE " . $this->primary_key . " = :id";
         $stmt = $this->conn->prepare($query);
 
         $stmt->bindParam(":id", $id);
@@ -389,6 +446,31 @@ spl_autoload_register(function ($class_name) {
         require_once $file;
     }
 });
+
+function getLoggedInUser() {
+    $authHeader = '';
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    } else {
+        $headers = array_change_key_case(function_exists('getallheaders') ? getallheaders() : [], CASE_LOWER);
+        if (isset($headers['authorization'])) {
+            $authHeader = $headers['authorization'];
+        }
+    }
+    if (!empty($authHeader) && preg_match('/Bearer\\s+(.*)$/i', $authHeader, $matches)) {
+        $token = $matches[1];
+        if (strpos($token, 'dummy-jwt-token-for-') === 0) {
+            return str_replace('dummy-jwt-token-for-', '', $token);
+        }
+        if (strpos($token, 'dummy-jwt-token-sso-') === 0) {
+            return str_replace('dummy-jwt-token-sso-', '', $token) . ' User';
+        }
+        return $token;
+    }
+    return 'System';
+}
 
 // CORS Config (Allow Credentials and Reflect Origin)
 if (isset($_SERVER['HTTP_ORIGIN'])) {

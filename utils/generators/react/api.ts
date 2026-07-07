@@ -7,7 +7,10 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
   const useAuth = config.authConfig?.useUserLogin;
   
   const apiService = `import axios from 'axios';
-const API_URL = 'http://localhost:${config.port}/api';
+const API_URL = import.meta.env.VITE_API_URL || 
+    (typeof window !== 'undefined' ? 
+        (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:${config.port}/api' : window.location.origin + '/api') 
+        : '/api');
 
 // withCredentials: true is required for Windows Auth (Negotiate) to work cross-origin
 export const api = axios.create({ 
