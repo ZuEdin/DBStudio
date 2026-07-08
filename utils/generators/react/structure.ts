@@ -316,8 +316,8 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
                     const closeCond = isSystem && useAuth ? `)}` : ``;
                     return `${cond}
                     <Link to="/${toCamelCase(t.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
-                        \${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} \${t.name}
-                    </Link>\${closeCond}`;
+                        ${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} ${t.name}
+                    </Link>${closeCond}`;
                 }).join('\n')}
                 </div>
             </div>

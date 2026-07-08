@@ -66,9 +66,9 @@ public class WindowsDevBypassMiddleware
         {
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, "Fronius\\\\HR LA Trainer Team User"),
+                new Claim(ClaimTypes.Name, "COMPANY\\\\Dev User"),
                 new Claim(ClaimTypes.NameIdentifier, "S-1-5-21-dev-user-id"),
-                new Claim(ClaimTypes.Email, "dev-user@fronius.com"),
+                new Claim(ClaimTypes.Email, "dev-user@company.local"),
                 new Claim(ClaimTypes.Role, "User"),
                 new Claim(ClaimTypes.Role, "Admin")
             };

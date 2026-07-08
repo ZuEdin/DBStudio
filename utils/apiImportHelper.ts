@@ -3,6 +3,9 @@ import { FieldType, ApiQueryParam } from '../types/index';
 
 // Infers the best matching field type for a given value
 export const inferFieldType = (value: any): FieldType => {
+    if (value instanceof Date) {
+        return 'DATE';
+    }
     if (typeof value === 'number') {
         // Check for potential timestamps (e.g. > 1990-01-01 in seconds)
         if (value > 631152000 && Number.isInteger(value)) {
