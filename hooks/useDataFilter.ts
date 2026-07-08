@@ -53,7 +53,9 @@ export const useDataFilter = (data: Record<string, any>[]) => {
             return cellValue === search;
         }
         
-        return cellValue.includes(search);
+        const searchTerms = search.trim().split(/\s+/).filter(Boolean);
+        if (searchTerms.length === 0) return true;
+        return searchTerms.every(term => cellValue.includes(term));
       });
     });
   }, [data, filters, columnStats]);

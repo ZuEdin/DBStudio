@@ -26,7 +26,7 @@ export const generateReactPages = (tables: Table[], forms: Form[], reports: Repo
 import { Link } from 'react-router-dom';
 import { ${pascalName} } from '../../types';
 import { get, remove } from '../../services/api';
-import { Trash2, Plus, Edit, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Plus, Edit, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Eye } from 'lucide-react';
 
 export const ${listName} = () => {
   const [data, setData] = useState<{ data: ${pascalName}[], total: number, page: number, totalPages: number }>({ data: [], total: 0, page: 1, totalPages: 1 });
@@ -35,8 +35,32 @@ export const ${listName} = () => {
   const [loading, setLoading] = useState(true);
   ${table.enableMassUpdates ? `const [selectedIds, setSelectedIds] = useState<string[]>([]);` : ''}
 
+  // Double-click Detail modal and single-select keyboard selection states
+  const [activeRecord, setActiveRecord] = useState<${pascalName} | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailRecord, setDetailRecord] = useState<${pascalName} | null>(null);
+
+  // Sorting & Filtering states
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [showFilterBar, setShowFilterBar] = useState(false);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
+
   useEffect(() => { setPage(1); }, [searchTerm]);
   useEffect(() => { loadItems(); }, [searchTerm, page]);
+
+  // Global keydown listener for Enter key triggers
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && activeRecord) {
+        e.preventDefault();
+        setDetailRecord(activeRecord);
+        setShowDetail(true);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [activeRecord]);
 
   const loadItems = async () => {
     try {
@@ -77,6 +101,60 @@ export const ${listName} = () => {
       }
   };` : ''}
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else if (sortDir === 'desc') {
+        setSortField(null);
+        setSortDir(null);
+      }
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  // Memoized local processing of items (local filtering and sorting)
+  const processedItems = React.useMemo(() => {
+    let items = [...data.data];
+    
+    // Apply column filters
+    Object.keys(columnFilters).forEach(key => {
+      const filterVal = columnFilters[key].toLowerCase().trim();
+      if (filterVal) {
+        const searchTerms = filterVal.split(/\s+/).filter(Boolean);
+        items = items.filter(item => {
+          const val = item[key as keyof ${pascalName}];
+          if (val === undefined || val === null) return false;
+          const cellStr = String(val).toLowerCase();
+          return searchTerms.every(term => cellStr.includes(term));
+        });
+      }
+    });
+
+    // Apply sorting
+    if (sortField && sortDir) {
+      items.sort((a, b) => {
+        const valA = a[sortField as keyof ${pascalName}];
+        const valB = b[sortField as keyof ${pascalName}];
+        if (valA === undefined || valA === null) return 1;
+        if (valB === undefined || valB === null) return -1;
+        
+        let comparison = 0;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          comparison = valA - valB;
+        } else if (typeof valA === 'boolean' && typeof valB === 'boolean') {
+          comparison = (valA ? 1 : 0) - (valB ? 1 : 0);
+        } else {
+          comparison = String(valA).localeCompare(String(valB));
+        }
+        return sortDir === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return items;
+  }, [data.data, columnFilters, sortField, sortDir]);
+
   return (
     <div className="p-8 max-w-[95%] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
@@ -88,6 +166,16 @@ export const ${listName} = () => {
                       <Trash2 size={18}/> <span>{selectedIds.length} löschen</span>
                   </button>
               )}` : ''}
+              
+              <button 
+                  onClick={() => setShowFilterBar(prev => !prev)} 
+                  className={\`p-2 border rounded-lg flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700 transition \${showFilterBar ? 'bg-blue-50 border-blue-300 text-blue-600 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400' : 'bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white'}\`}
+                  title="Spaltenfilter anzeigen/ausblenden"
+              >
+                  <Filter size={18}/>
+                  <span className="hidden sm:inline">Filter</span>
+              </button>
+
               <div className="relative flex-1 sm:flex-initial">
                   <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
                   <input 
@@ -110,14 +198,63 @@ export const ${listName} = () => {
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-700 text-slate-500 uppercase text-xs font-semibold">
                     <tr>
                         ${table.enableMassUpdates ? `<th className="p-4 w-12"><input type="checkbox" onChange={(e) => { const ids = e.target.checked ? data.data.map(i => i.${pk}) : []; setSelectedIds(ids); }} /></th>` : ''}
-                        ${table.fields.map(f => `<th className="p-4">${f.name}</th>`).join('')}
+                        <th className="p-4 w-12 text-center text-slate-400" title="Datensatz auswählen (Enter für Details)">Auswahl</th>
+                        ${table.fields.map(f => `
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('${toCamelCase(f.name)}')}>
+                            <div className="flex items-center gap-1.5 select-none">
+                                <span>${f.name}</span>
+                                {sortField === '${toCamelCase(f.name)}' ? (
+                                    sortDir === 'asc' ? <ArrowUp size={14} className="text-blue-500 shrink-0" /> : <ArrowDown size={14} className="text-blue-500 shrink-0" />
+                                ) : (
+                                    <ArrowUpDown size={14} className="text-slate-300 dark:text-slate-600 shrink-0" />
+                                )}
+                            </div>
+                        </th>`).join('')}
                         <th className="p-4 text-right">Aktionen</th>
                     </tr>
+                    {showFilterBar && (
+                        <tr className="bg-slate-100/50 dark:bg-slate-900/50 border-b dark:border-slate-700">
+                            ${table.enableMassUpdates ? `<th className="p-2"></th>` : ''}
+                            <th className="p-2"></th>
+                            ${table.fields.map(f => `
+                            <th className="p-2">
+                                <input 
+                                    type="text"
+                                    placeholder="Filtern..."
+                                    className="w-full px-2 py-1 text-xs font-normal border rounded bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                    value={columnFilters['${toCamelCase(f.name)}'] || ''}
+                                    onChange={e => setColumnFilters({ ...columnFilters, '${toCamelCase(f.name)}': e.target.value })}
+                                />
+                            </th>`).join('')}
+                            <th className="p-2 text-right">
+                                {Object.keys(columnFilters).length > 0 && (
+                                    <button onClick={() => setColumnFilters({})} className="text-red-500 hover:text-red-700 text-xs font-semibold flex items-center justify-end gap-1 ml-auto">
+                                        <X size={12}/> Löschen
+                                    </button>
+                                )}
+                            </th>
+                        </tr>
+                    )}
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {data.data.length > 0 ? data.data.map(i => (
-                        <tr key={i.${pk}} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" style={getRowStyle(i)}>
-                            ${table.enableMassUpdates ? `<td className="p-4"><input type="checkbox" checked={selectedIds.includes(i.${pk} as string)} onChange={(e) => { if(e.target.checked) setSelectedIds([...selectedIds, i.${pk} as string]); else setSelectedIds(selectedIds.filter(id => id !== i.${pk})); }} /></td>` : ''}
+                    {processedItems.length > 0 ? processedItems.map(i => (
+                        <tr 
+                            key={i.${pk}} 
+                            className={\`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer \${activeRecord?.${pk} === i.${pk} ? 'bg-blue-50/70 dark:bg-blue-900/20' : ''}\`}
+                            style={getRowStyle(i)}
+                            onClick={() => setActiveRecord(i)}
+                            onDoubleClick={() => { setDetailRecord(i); setShowDetail(true); }}
+                            title="Doppelklick für Details, Einfacher Klick zur Auswahl (Enter für Details)"
+                        >
+                            ${table.enableMassUpdates ? `<td className="p-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(i.${pk} as string)} onChange={(e) => { if(e.target.checked) setSelectedIds([...selectedIds, i.${pk} as string]); else setSelectedIds(selectedIds.filter(id => id !== i.${pk})); }} /></td>` : ''}
+                            <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={activeRecord?.${pk} === i.${pk}} 
+                                    onChange={() => setActiveRecord(activeRecord?.${pk} === i.${pk} ? null : i)}
+                                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+                                />
+                            </td>
                             ${table.fields.map(f => {
                                 const val = `i.${toCamelCase(f.name)}`;
                                 if (f.rendererType === 'progress') {
@@ -134,15 +271,16 @@ export const ${listName} = () => {
                                 }
                                 return `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(${val} ?? '')}</td>`;
                             }).join('')}
-                            <td className="p-4 text-right">
+                            <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex justify-end gap-2">
-                                    <Link to={'${editLinkPrefix}' + i.${pk}} className="p-2 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-slate-700"><Edit size={16}/></Link>
-                                    <button onClick={()=>handleDelete(i.${pk})} className="p-2 text-red-600 hover:bg-red-50 rounded dark:hover:bg-slate-700"><Trash2 size={16}/></button>
+                                    <button onClick={() => { setDetailRecord(i); setShowDetail(true); }} className="p-2 text-slate-600 hover:bg-slate-50 rounded dark:hover:bg-slate-700" title="Details"><Eye size={16}/></button>
+                                    <Link to={'${editLinkPrefix}' + i.${pk}} className="p-2 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-slate-700" title="Bearbeiten"><Edit size={16}/></Link>
+                                    <button onClick={()=>handleDelete(i.${pk})} className="p-2 text-red-600 hover:bg-red-50 rounded dark:hover:bg-slate-700" title="Löschen"><Trash2 size={16}/></button>
                                 </div>
                             </td>
                         </tr>
                     )) : (
-                        <tr><td colSpan={${table.fields.length + 1}} className="p-8 text-center text-slate-400 italic">Keine Einträge gefunden.</td></tr>
+                        <tr><td colSpan={${table.fields.length + 2 + (table.enableMassUpdates ? 1 : 0)}} className="p-8 text-center text-slate-400 italic">Keine Einträge gefunden.</td></tr>
                     )}
                 </tbody>
             </table>
@@ -169,6 +307,63 @@ export const ${listName} = () => {
             </div>
         </div>
       </div>
+
+      {/* Double click / keyboard selection Detail View Modal */}
+      {showDetail && detailRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={() => { setShowDetail(false); setDetailRecord(null); }}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>${table.name} Details</span>
+                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400">ID: {String(detailRecord.${pk})}</span>
+                </h3>
+              </div>
+              <button 
+                onClick={() => { setShowDetail(false); setDetailRecord(null); }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {${JSON.stringify(table.fields)}.map(field => {
+                  const val = detailRecord[field.name as keyof ${pascalName}];
+                  return (
+                    <div key={field.name} className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                      <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">{field.name}</span>
+                      <span className="text-sm text-slate-800 dark:text-slate-200 font-medium whitespace-pre-wrap break-all">
+                        {val === true ? '✅ Ja' : val === false ? '❌ Nein' : String(val ?? '-')}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/50">
+              <Link 
+                to={'${editLinkPrefix}' + detailRecord.${pk}} 
+                onClick={() => { setShowDetail(false); setDetailRecord(null); }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
+              >
+                <Edit size={16} /> <span>Bearbeiten</span>
+              </Link>
+              <button 
+                onClick={() => { setShowDetail(false); setDetailRecord(null); }}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800"
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };`;

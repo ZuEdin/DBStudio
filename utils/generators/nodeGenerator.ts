@@ -208,9 +208,14 @@ app.get('/api/${routeName}', async (req, res) => {
         
         const whereClause = {};
         if (search) {
-            whereClause[db.Sequelize.Op.or] = [
-                ${searchableFields.map(f => `{ ${f}: { [db.Sequelize.Op.like]: \`%\${search}%\` } }`).join(',\n                ')}
-            ];
+            const searchTerms = String(search).trim().split(/\\s+/).filter(Boolean);
+            if (searchTerms.length > 0) {
+                whereClause[db.Sequelize.Op.and] = searchTerms.map(term => ({
+                    [db.Sequelize.Op.or]: [
+                        ${searchableFields.map(f => `{ ${f}: { [db.Sequelize.Op.like]: \`%\${term}%\` } }`).join(',\n                        ')}
+                    ]
+                }));
+            }
         }
 
         const { count, rows } = await db.${modelName}.findAndCountAll({ 
