@@ -759,6 +759,18 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       } else {
           routes.push(`<Route path="/${camelName}" element={<${listName} />} />`);
       }
+
+      const customForm = forms.find(f => f.sourceId === table.id && f.sourceType === 'table');
+      if (!customForm) {
+          const formCompName = `${pascalName}Form`;
+          imports.push(`import { ${formCompName} } from './pages/${pascalName}/${formCompName}';`);
+          if (useAuth) {
+              routes.push(`<Route element={<ProtectedRoute${rolesProp} />}><Route path="/${camelName}/new" element={<${formCompName} />} /><Route path="/${camelName}/:id" element={<${formCompName} />} /></Route>`);
+          } else {
+              routes.push(`<Route path="/${camelName}/new" element={<${formCompName} />} />`);
+              routes.push(`<Route path="/${camelName}/:id" element={<${formCompName} />} />`);
+          }
+      }
   });
 
   // Custom Form Routes

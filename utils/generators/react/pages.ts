@@ -368,6 +368,201 @@ export const ${listName} = () => {
   );
 };`;
       files.push({ name: `${listName}.tsx`, path: `${root}/src/pages/${pascalName}/${listName}.tsx`, content, language: 'typescript' });
+
+      if (!customForm) {
+          const formCompName = `${pascalName}Form`;
+          const formFieldsJsx = table.fields.filter(f => !f.isPrimaryKey && !f.isAutoIncrement).map(f => {
+              const fCamel = toCamelCase(f.name);
+              const label = f.comment || f.name;
+              let inputJsx = '';
+              if (f.type === 'BOOLEAN') {
+                  inputJsx = `
+                  <div className="flex items-center gap-2 mt-2">
+                      <input 
+                          type="checkbox" 
+                          id="${fCamel}"
+                          checked={!!data.${fCamel}} 
+                          onChange={e => setData({ ...data, ${fCamel}: e.target.checked })}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700" 
+                      />
+                      <label htmlFor="${fCamel}" className="text-sm font-medium text-slate-700 dark:text-slate-300">${label}</label>
+                  </div>`;
+              } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                  inputJsx = `
+                  <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                  <input 
+                      type="number" 
+                      value={data.${fCamel} ?? ''} 
+                      onChange={e => setData({ ...data, ${fCamel}: e.target.value === '' ? null : Number(e.target.value) })}
+                      className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                      step="${f.type === 'INTEGER' ? '1' : 'any'}"
+                  />`;
+              } else if (f.type === 'DATE') {
+                  inputJsx = `
+                  <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                  <input 
+                      type="date" 
+                      value={data.${fCamel} ? String(data.${fCamel}).split('T')[0] : ''} 
+                      onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
+                      className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                  />`;
+              } else if (f.type === 'TIME') {
+                  inputJsx = `
+                  <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                  <input 
+                      type="time" 
+                      value={data.${fCamel} ? String(data.${fCamel}).substring(0, 5) : ''} 
+                      onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
+                      className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                  />`;
+              } else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') {
+                  inputJsx = `
+                  <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                  <input 
+                      type="datetime-local" 
+                      value={data.${fCamel} ? new Date(data.${fCamel}).toISOString().slice(0, 16) : ''} 
+                      onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
+                      className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                  />`;
+              } else {
+                  inputJsx = `
+                  <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                  <input 
+                      type="text" 
+                      value={data.${fCamel} ?? ''} 
+                      onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
+                      className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                  />`;
+              }
+
+              return `              <div className="mb-4">
+                  ${inputJsx}
+              </div>`;
+          }).join('\n');
+
+          const defaultFields: string[] = [];
+          const payloadSetups: string[] = [];
+          table.fields.forEach(f => {
+              const fCamel = toCamelCase(f.name);
+              const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
+              const hasNowDefault = f.defaultValue && (
+                  f.defaultValue.toLowerCase().includes('now') ||
+                  f.defaultValue.toLowerCase().includes('current_timestamp') ||
+                  f.defaultValue.toLowerCase().includes('getdate')
+              );
+              const isCreatedAtField = ['created_at', 'createdat', 'erstellt_am', 'created_date', 'createddate'].includes(f.name.toLowerCase());
+              const isCreatedByField = ['created_by', 'createdby', 'erstellt_von', 'created_user', 'createduser'].includes(f.name.toLowerCase());
+
+              if (isDateType && (hasNowDefault || isCreatedAtField)) {
+                  if (f.type === 'DATE') {
+                      defaultFields.push(`${fCamel}: new Date().toISOString().split('T')[0]`);
+                      payloadSetups.push(`if (!payload.${fCamel}) payload.${fCamel} = new Date().toISOString().split('T')[0];`);
+                  } else if (f.type === 'TIME') {
+                      defaultFields.push(`${fCamel}: new Date().toTimeString().slice(0, 5)`);
+                      payloadSetups.push(`if (!payload.${fCamel}) payload.${fCamel} = new Date().toTimeString().slice(0, 5);`);
+                  } else {
+                      defaultFields.push(`${fCamel}: new Date().toISOString().slice(0, 16)`);
+                      payloadSetups.push(`if (!payload.${fCamel}) payload.${fCamel} = new Date().toISOString().slice(0, 16);`);
+                  }
+              } else if (isCreatedByField) {
+                  defaultFields.push(`${fCamel}: getLoggedInUser()`);
+                  payloadSetups.push(`if (!payload.${fCamel}) payload.${fCamel} = getLoggedInUser();`);
+              } else if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+                  if (f.type === 'BOOLEAN') {
+                      const bVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
+                      defaultFields.push(`${fCamel}: ${bVal}`);
+                  } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                      defaultFields.push(`${fCamel}: ${f.defaultValue}`);
+                  } else {
+                      defaultFields.push(`${fCamel}: "${f.defaultValue.replace(/"/g, '\\"')}"`);
+                  }
+              }
+          });
+
+          const initialDataObjStr = defaultFields.length > 0 ? `{\n      ${defaultFields.join(',\n      ')}\n    }` : '{}';
+          const payloadSetupsCode = payloadSetups.length > 0 ? `const payload = { ...data };\n    ${payloadSetups.join('\n    ')}` : 'const payload = { ...data };';
+
+          const formContent = `import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { get, post, put } from '../../services/api';
+import { Save, ArrowLeft, Loader2 } from 'lucide-react';
+
+export const ${formCompName} = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState<any>({});
+  const [loading, setLoading] = useState(false);
+
+  const getLoggedInUser = () => {
+      try {
+          const savedUser = localStorage.getItem('auth_user');
+          if (savedUser) {
+              const parsed = JSON.parse(savedUser);
+              return parsed.username || 'Admin';
+          }
+      } catch (e) {}
+      return 'Admin';
+  };
+
+  useEffect(() => {
+      const init = async () => {
+        if (id && id !== 'new') {
+            setLoading(true);
+            try {
+                const res = await get(\`${camelName}/\${id}\`);
+                setData(res.data || res);
+            } catch (e) { 
+                console.error(e); 
+            }
+            setLoading(false);
+        } else {
+            setData(${initialDataObjStr});
+        }
+      };
+      init();
+  }, [id]);
+
+  const handleSubmit = async (e: React.FormEvent) => { 
+    e.preventDefault(); 
+    try { 
+      ${payloadSetupsCode}
+      if (id && id !== 'new') {
+          await put(\`${camelName}/\${id}\`, payload); 
+      } else {
+          await post('${camelName}', payload); 
+      }
+      navigate(-1); 
+    } catch (e) { 
+      alert('Fehler beim Speichern'); 
+    } 
+  };
+
+  if (loading) return <div className="p-10 text-center"><Loader2 className="animate-spin inline-block mr-2 text-blue-500"/> Lade...</div>;
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 sm:p-8">
+      <button onClick={() => navigate(-1)} className="mb-4 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center gap-2 transition-colors font-medium text-sm"><ArrowLeft size={16}/> Zurück</button>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+                  {id === 'new' ? '${table.name} erstellen' : '${table.name} bearbeiten'}
+              </h1>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 sm:p-8">
+            <div className="space-y-4">
+                ${formFieldsJsx}
+            </div>
+            <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+                <button type="button" onClick={() => navigate(-1)} className="px-6 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors">Abbrechen</button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all transform hover:-translate-y-0.5"><Save size={18}/> Speichern</button>
+            </div>
+          </form>
+      </div>
+    </div>
+  );
+};`;
+          files.push({ name: `${formCompName}.tsx`, path: `${root}/src/pages/${pascalName}/${formCompName}.tsx`, content: formContent, language: 'typescript' });
+      }
   });
 
   // 2. Custom Forms
@@ -891,10 +1086,23 @@ export const ${compName} = () => {
                   </div>`;
               }
               case 'table_view': {
-                  const stateName = `tableData_${node.id.replace(/-/g, '_')}`;
-                  const loadingState = `tableLoading_${node.id.replace(/-/g, '_')}`;
+                  const idSuffix = node.id.replace(/-/g, '_');
+                  const stateName = `tableData_${idSuffix}`;
+                  const loadingState = `tableLoading_${idSuffix}`;
+                  const searchState = `search_${idSuffix}`;
+                  const columnFiltersState = `columnFilters_${idSuffix}`;
+                  const showFiltersState = `showFilters_${idSuffix}`;
+                  const sortFieldState = `sortField_${idSuffix}`;
+                  const sortDirState = `sortDir_${idSuffix}`;
+                  const processedName = `processedTableData_${idSuffix}`;
+
                   states.push(`const [${stateName}, set_${stateName}] = useState<any[]>([]);`);
                   states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
+                  states.push(`const [${searchState}, set_${searchState}] = useState('');`);
+                  states.push(`const [${columnFiltersState}, set_${columnFiltersState}] = useState<Record<string, string>>({});`);
+                  states.push(`const [${showFiltersState}, set_${showFiltersState}] = useState(false);`);
+                  states.push(`const [${sortFieldState}, set_${sortFieldState}] = useState<string | null>(null);`);
+                  states.push(`const [${sortDirState}, set_${sortDirState}] = useState<'asc' | 'desc' | null>(null);`);
                   
                   let fetchUrl = '';
                   if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
@@ -928,41 +1136,196 @@ export const ${compName} = () => {
                   const columnsStr = node.props?.columns || '';
                   const columns = columnsStr ? columnsStr.split(',').map((c: string) => c.trim()) : [];
                   
+                  effects.push(`
+  const ${processedName} = useMemo(() => {
+    let items = [...${stateName}];
+    const globalSearch = ${searchState}.toLowerCase().trim();
+    if (globalSearch) {
+      const searchTerms = globalSearch.split(/\\s+/).filter(Boolean);
+      items = items.filter(row => {
+        return searchTerms.every(term => {
+          return Object.values(row).some(val => 
+            val !== undefined && val !== null && String(val).toLowerCase().includes(term)
+          );
+        });
+      });
+    }
+
+    Object.keys(${columnFiltersState}).forEach(key => {
+      const filterVal = ${columnFiltersState}[key].toLowerCase().trim();
+      if (filterVal) {
+        const searchTerms = filterVal.split(/\\s+/).filter(Boolean);
+        items = items.filter(row => {
+          const val = row[key];
+          if (val === undefined || val === null) return false;
+          const cellStr = String(val).toLowerCase();
+          return searchTerms.every(term => cellStr.includes(term));
+        });
+      }
+    });
+
+    if (${sortFieldState} && ${sortDirState}) {
+      items.sort((a, b) => {
+        const valA = a[${sortFieldState}];
+        const valB = b[sortFieldState];
+        if (valA === undefined || valA === null) return 1;
+        if (valB === undefined || valB === null) return -1;
+        
+        let comparison = 0;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          comparison = valA - valB;
+        } else if (typeof valA === 'boolean' && typeof valB === 'boolean') {
+          comparison = (valA ? 1 : 0) - (valB ? 1 : 0);
+        } else {
+          comparison = String(valA).localeCompare(String(valB));
+        }
+        return ${sortDirState} === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return items;
+  }, [${stateName}, ${searchState}, ${columnFiltersState}, ${sortFieldState}, ${sortDirState}]);`);
+
                   let headerCells = '';
                   let bodyCells = '';
+                  let filterRow = '';
                   
                   if (columns.length > 0) {
-                      headerCells = columns.map((col: string) => `<th key="${col}" className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">${col}</th>`).join('\n');
-                      bodyCells = columns.map((col: string) => `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600">{String(row['${col}'] || '')}</td>`).join('\n');
-                  } else {
-                      headerCells = `{${stateName}.length > 0 ? Object.keys(${stateName}[0]).map(k => (
-                          <th key={k} className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{k}</th>
-                      )) : <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Keine Daten</th>}`;
+                      headerCells = columns.map((col: string) => `
+                                          <th 
+                                              key="${col}" 
+                                              className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none"
+                                              onClick={() => {
+                                                  if (${sortFieldState} === '${col}') {
+                                                      set_${sortDirState}(${sortDirState} === 'asc' ? 'desc' : ${sortDirState} === 'desc' ? null : 'asc');
+                                                      if (${sortDirState} === 'desc') set_${sortFieldState}(null);
+                                                  } else {
+                                                      set_${sortFieldState}('${col}');
+                                                      set_${sortDirState}('asc');
+                                                  }
+                                              }}
+                                          >
+                                              <div className="flex items-center gap-1.5">
+                                                  <span>${col}</span>
+                                                  {${sortFieldState} === '${col}' ? (
+                                                      ${sortDirState} === 'asc' ? <ArrowUp size={12} className="text-blue-500" /> : <ArrowDown size={12} className="text-blue-500" />
+                                                  ) : (
+                                                      <ArrowUpDown size={12} className="text-slate-300 dark:text-slate-600" />
+                                                  )}
+                                              </div>
+                                          </th>`).join('\n');
                       
-                      bodyCells = `{Object.values(row).map((val: any, vIdx) => (
-                          <td key={vIdx} className="px-3 py-2 whitespace-nowrap text-sm text-slate-600">{String(val)}</td>
-                      ))}`;
+                      bodyCells = columns.map((col: string) => `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{String(row['${col}'] || '')}</td>`).join('\n');
+                      
+                      filterRow = `
+                                  {${showFiltersState} && (
+                                      <tr className="bg-slate-100/50 dark:bg-slate-900/50">
+                                          ${columns.map((col: string) => `
+                                          <th className="p-2">
+                                              <input 
+                                                  type="text"
+                                                  placeholder="Filtern..."
+                                                  className="w-full px-2 py-1 text-xs font-normal border rounded bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                                  value={${columnFiltersState}['${col}'] || ''}
+                                                  onChange={e => set_${columnFiltersState}({ ...${columnFiltersState}, '${col}': e.target.value })}
+                                              />
+                                          </th>`).join('\n')}
+                                      </tr>
+                                  )}`;
+                  } else {
+                      headerCells = `
+                                      {${stateName}.length > 0 ? Object.keys(${stateName}[0]).map(k => (
+                                          <th 
+                                              key={k} 
+                                              className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none"
+                                              onClick={() => {
+                                                  if (${sortFieldState} === k) {
+                                                      set_${sortDirState}(${sortDirState} === 'asc' ? 'desc' : ${sortDirState} === 'desc' ? null : 'asc');
+                                                      if (${sortDirState} === 'desc') set_${sortFieldState}(null);
+                                                  } else {
+                                                      set_${sortFieldState}(k);
+                                                      set_${sortDirState}('asc');
+                                                  }
+                                              }}
+                                          >
+                                              <div className="flex items-center gap-1.5">
+                                                  <span>{k}</span>
+                                                  {${sortFieldState} === k ? (
+                                                      ${sortDirState} === 'asc' ? <ArrowUp size={12} className="text-blue-500" /> : <ArrowDown size={12} className="text-blue-500" />
+                                                  ) : (
+                                                      <ArrowUpDown size={12} className="text-slate-300 dark:text-slate-600" />
+                                                  )}
+                                              </div>
+                                          </th>
+                                      )) : <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Keine Daten</th>}`;
+                      
+                      bodyCells = `
+                                      {Object.values(row).map((val: any, vIdx) => (
+                                          <td key={vIdx} className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{String(val)}</td>
+                                      ))}`;
+                      
+                      filterRow = `
+                                  {${showFiltersState} && ${stateName}.length > 0 && (
+                                      <tr className="bg-slate-100/50 dark:bg-slate-900/50">
+                                          {Object.keys(${stateName}[0]).map(k => (
+                                              <th key={k} className="p-2">
+                                                  <input 
+                                                      type="text"
+                                                      placeholder="Filtern..."
+                                                      className="w-full px-2 py-1 text-xs font-normal border rounded bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                                      value={${columnFiltersState}[k] || ''}
+                                                      onChange={e => set_${columnFiltersState}({ ...${columnFiltersState}, [k]: e.target.value })}
+                                                  />
+                                              </th>
+                                          ))}
+                                      </tr>
+                                  )}`;
                   }
                   
                   return `
-                  <div className="p-4 w-full overflow-x-auto ${classNameStr}" style={${styleStr}}>
+                  <div className="p-4 w-full flex flex-col gap-4 ${classNameStr}" style={${styleStr}}>
+                      <div className="flex justify-between items-center gap-4">
+                          <button 
+                              onClick={() => set_${showFiltersState}(prev => !prev)} 
+                              className={\`p-1.5 border rounded-lg flex items-center gap-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 transition \${${showFiltersState} ? 'bg-blue-50 border-blue-300 text-blue-600 dark:bg-blue-900/20' : 'bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white'}\`}
+                              title="Spaltenfilter anzeigen/ausblenden"
+                          >
+                              <Filter size={14}/>
+                              <span>Filter</span>
+                          </button>
+                          
+                          <div className="relative flex-1 max-w-xs">
+                              <Search className="absolute left-3 top-2 text-slate-400" size={14} />
+                              <input 
+                                  type="text" 
+                                  placeholder="Suchen..." 
+                                  className="pl-9 pr-3 py-1.5 border rounded-lg text-xs w-full bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                  value={${searchState}}
+                                  onChange={e => set_${searchState}(e.target.value)}
+                              />
+                          </div>
+                      </div>
+
                       {${loadingState} ? (
                           <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-slate-400" /></div>
                       ) : (
-                          <table className="min-w-full divide-y divide-slate-200">
-                              <thead className="bg-slate-50">
-                                  <tr>
-                                      ${headerCells}
-                                  </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-slate-200">
-                                  {${stateName}.map((row: any, idx: number) => (
-                                      <tr key={row.id || row.ID || row.uuid || idx} className="hover:bg-slate-50">
-                                          ${bodyCells}
+                          <div className="overflow-x-auto border rounded-lg dark:border-slate-700">
+                              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                                  <thead className="bg-slate-50 dark:bg-slate-900">
+                                      <tr>
+                                          ${headerCells}
                                       </tr>
-                                  ))}
-                              </tbody>
-                          </table>
+                                      ${filterRow}
+                                  </thead>
+                                  <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                                      {${processedName}.map((row: any, idx: number) => (
+                                          <tr key={row.id || row.ID || row.uuid || idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                              ${bodyCells}
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
                       )}
                   </div>`;
               }
@@ -980,11 +1343,12 @@ export const ${compName} = () => {
       const importsStr = Array.from(imports).map(imp => {
           if (imp === 'React' || imp === 'useEffect' || imp === 'useState') return '';
           if (imp === 'get') return "import { get } from '../../services/api';";
-          if (imp === 'Loader2') return "import { Loader2 } from 'lucide-react';";
+          if (imp === 'Loader2') return "";
           return '';
       }).filter(Boolean).join('\n');
       
-      const content = `import React, { useEffect, useState } from 'react';
+      const content = `import React, { useEffect, useState, useMemo } from 'react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Loader2 } from 'lucide-react';
 ${importsStr}
 
 export const ${compName} = () => {
