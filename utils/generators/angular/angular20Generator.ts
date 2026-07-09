@@ -134,7 +134,7 @@ bootstrapApplication(AppComponent, {
   const serviceFiles = generateAngularServices(tables, queries, config, appRoot);
   
   const indexedDbService = `import { Injectable } from '@angular/core';
-import { Observable, from } from 'rxjs';
+import { Observable, from, of } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class IndexedDbService {
@@ -167,16 +167,35 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
     });
   }
 
+  hasStore(storeName: string): Promise<boolean> {
+    return this.initDb().then((db) => {
+      const lower = storeName.toLowerCase();
+      return db.objectStoreNames.contains(lower) || db.objectStoreNames.contains(storeName);
+    }).catch(() => false);
+  }
+
+  private getStoreName(db: IDBDatabase, name: string): string {
+    const lower = name.toLowerCase();
+    if (db.objectStoreNames.contains(lower)) return lower;
+    if (db.objectStoreNames.contains(name)) return name;
+    throw new Error('Object store not found: ' + name);
+  }
+
   getAll(storeName: string): Observable<any[]> {
     return from(
       this.initDb().then((db) => {
         return new Promise<any[]>((resolve, reject) => {
-          const transaction = db.transaction(storeName, 'readonly');
-          const store = transaction.objectStore(transaction.objectStoreNames[0] || storeName);
-          const request = store.getAll();
+          try {
+            const actualName = this.getStoreName(db, storeName);
+            const transaction = db.transaction(actualName, 'readonly');
+            const store = transaction.objectStore(actualName);
+            const request = store.getAll();
 
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          } catch (e) {
+            reject(e);
+          }
         });
       })
     );
@@ -187,12 +206,17 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
     return from(
       this.initDb().then((db) => {
         return new Promise<any>((resolve, reject) => {
-          const transaction = db.transaction(storeName, 'readonly');
-          const store = transaction.objectStore(storeName);
-          const request = store.get(safeId);
+          try {
+            const actualName = this.getStoreName(db, storeName);
+            const transaction = db.transaction(actualName, 'readonly');
+            const store = transaction.objectStore(actualName);
+            const request = store.get(safeId);
 
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          } catch (e) {
+            reject(e);
+          }
         });
       })
     );
@@ -206,12 +230,17 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
     return from(
       this.initDb().then((db) => {
         return new Promise<any>((resolve, reject) => {
-          const transaction = db.transaction(storeName, 'readwrite');
-          const store = transaction.objectStore(storeName);
-          const request = store.put(record);
+          try {
+            const actualName = this.getStoreName(db, storeName);
+            const transaction = db.transaction(actualName, 'readwrite');
+            const store = transaction.objectStore(actualName);
+            const request = store.put(record);
 
-          request.onsuccess = () => resolve(record);
-          request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(record);
+            request.onerror = () => reject(request.error);
+          } catch (e) {
+            reject(e);
+          }
         });
       })
     );
@@ -222,12 +251,17 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
     return from(
       this.initDb().then((db) => {
         return new Promise<any>((resolve, reject) => {
-          const transaction = db.transaction(storeName, 'readwrite');
-          const store = transaction.objectStore(storeName);
-          const request = store.put(record);
+          try {
+            const actualName = this.getStoreName(db, storeName);
+            const transaction = db.transaction(actualName, 'readwrite');
+            const store = transaction.objectStore(actualName);
+            const request = store.put(record);
 
-          request.onsuccess = () => resolve(record);
-          request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(record);
+            request.onerror = () => reject(request.error);
+          } catch (e) {
+            reject(e);
+          }
         });
       })
     );
@@ -238,12 +272,17 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
     return from(
       this.initDb().then((db) => {
         return new Promise<void>((resolve, reject) => {
-          const transaction = db.transaction(storeName, 'readwrite');
-          const store = transaction.objectStore(storeName);
-          const request = store.delete(safeId);
+          try {
+            const actualName = this.getStoreName(db, storeName);
+            const transaction = db.transaction(actualName, 'readwrite');
+            const store = transaction.objectStore(actualName);
+            const request = store.delete(safeId);
 
-          request.onsuccess = () => resolve();
-          request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          } catch (e) {
+            reject(e);
+          }
         });
       })
     );
@@ -261,8 +300,8 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
   if (apiServiceIndex !== -1) {
     serviceFiles[apiServiceIndex].content = `import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, from, of } from 'rxjs';
+import { map, switchMap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { IndexedDbService } from './indexed-db.service';
 
@@ -275,83 +314,147 @@ export class ApiService {
   private useIndexedDb = true;
 
   get<T>(endpoint: string, params: any = {}): Observable<T> {
-    if (this.useIndexedDb) {
-      return this.indexedDb.getAll(endpoint) as unknown as Observable<T>;
-    }
-    return this.http.get<T>(this.baseUrl + '/' + endpoint, { params, withCredentials: true });
+    return from(this.indexedDb.hasStore(endpoint)).pipe(
+      switchMap(hasStore => {
+        if (this.useIndexedDb && hasStore) {
+          return this.indexedDb.getAll(endpoint) as unknown as Observable<T>;
+        }
+        return this.http.get<T>(this.baseUrl + '/' + endpoint, { params, withCredentials: true });
+      }),
+      catchError(err => {
+        console.warn('IndexedDB fallback to HTTP for:', endpoint, err);
+        return this.http.get<T>(this.baseUrl + '/' + endpoint, { params, withCredentials: true });
+      })
+    );
   }
 
   getAll(endpoint: string, page: number = 1, pageSize: number = 20, search: string = ''): Observable<any> {
-    if (this.useIndexedDb) {
-      return this.indexedDb.getAll(endpoint).pipe(
-        map(items => {
-          let filtered = [...items];
-          if (search) {
-            const term = search.toLowerCase();
-            filtered = filtered.filter(item => 
-              Object.values(item).some(val => String(val).toLowerCase().includes(term))
-            );
-          }
-          const total = filtered.length;
-          const start = (page - 1) * pageSize;
-          const paginated = filtered.slice(start, start + pageSize);
-          return {
-            data: paginated,
-            total,
-            page,
-            totalPages: Math.ceil(total / pageSize)
-          };
-        })
-      );
-    }
+    return from(this.indexedDb.hasStore(endpoint)).pipe(
+      switchMap(hasStore => {
+        if (this.useIndexedDb && hasStore) {
+          return this.indexedDb.getAll(endpoint).pipe(
+            map(items => {
+              let filtered = [...items];
+              if (search) {
+                const term = search.toLowerCase();
+                filtered = filtered.filter(item => 
+                  Object.values(item).some(val => String(val).toLowerCase().includes(term))
+                );
+              }
+              const total = filtered.length;
+              const start = (page - 1) * pageSize;
+              const paginated = filtered.slice(start, start + pageSize);
+              return {
+                data: paginated,
+                total,
+                page,
+                totalPages: Math.ceil(total / pageSize)
+              };
+            })
+          );
+        }
 
-    let params = new HttpParams()
-        .set('page', page.toString())
-        .set('pageSize', pageSize.toString());
-    
-    if (search) {
-        params = params.set('search', search);
-    }
+        let params = new HttpParams()
+            .set('page', page.toString())
+            .set('pageSize', pageSize.toString());
+        
+        if (search) {
+            params = params.set('search', search);
+        }
 
-    return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
-      map(response => {
-          if (Array.isArray(response)) {
-              return { data: response, total: response.length, page: 1, totalPages: 1 };
-          }
-          if (response && response.data && Array.isArray(response.data)) {
-              return response;
-          }
-          return { data: [], total: 0, page: 1, totalPages: 0 };
+        return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
+          map(response => {
+              if (Array.isArray(response)) {
+                  return { data: response, total: response.length, page: 1, totalPages: 1 };
+              }
+              if (response && response.data && Array.isArray(response.data)) {
+                  return response;
+              }
+              return { data: [], total: 0, page: 1, totalPages: 0 };
+          })
+        );
+      }),
+      catchError(err => {
+        console.warn('IndexedDB fallback to HTTP for getAll:', endpoint, err);
+        let params = new HttpParams()
+            .set('page', page.toString())
+            .set('pageSize', pageSize.toString());
+        if (search) {
+            params = params.set('search', search);
+        }
+        return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
+          map(response => {
+              if (Array.isArray(response)) {
+                  return { data: response, total: response.length, page: 1, totalPages: 1 };
+              }
+              if (response && response.data && Array.isArray(response.data)) {
+                  return response;
+              }
+              return { data: [], total: 0, page: 1, totalPages: 0 };
+          })
+        );
       })
     );
   }
 
   getById(endpoint: string, id: any): Observable<any> {
-    if (this.useIndexedDb) {
-      return this.indexedDb.getById(endpoint, id);
-    }
-    return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+    return from(this.indexedDb.hasStore(endpoint)).pipe(
+      switchMap(hasStore => {
+        if (this.useIndexedDb && hasStore) {
+          return this.indexedDb.getById(endpoint, id);
+        }
+        return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+      }),
+      catchError(err => {
+        console.warn('IndexedDB fallback to HTTP for getById:', endpoint, err);
+        return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+      })
+    );
   }
 
   create(endpoint: string, item: any): Observable<any> {
-    if (this.useIndexedDb) {
-      return this.indexedDb.create(endpoint, item);
-    }
-    return this.http.post<any>(this.baseUrl + '/' + endpoint, item, { withCredentials: true });
+    return from(this.indexedDb.hasStore(endpoint)).pipe(
+      switchMap(hasStore => {
+        if (this.useIndexedDb && hasStore) {
+          return this.indexedDb.create(endpoint, item);
+        }
+        return this.http.post<any>(this.baseUrl + '/' + endpoint, item, { withCredentials: true });
+      }),
+      catchError(err => {
+        console.warn('IndexedDB fallback to HTTP for create:', endpoint, err);
+        return this.http.post<any>(this.baseUrl + '/' + endpoint, item, { withCredentials: true });
+      })
+    );
   }
 
   update(endpoint: string, id: any, item: any): Observable<any> {
-    if (this.useIndexedDb) {
-      return this.indexedDb.update(endpoint, id, item);
-    }
-    return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item, { withCredentials: true });
+    return from(this.indexedDb.hasStore(endpoint)).pipe(
+      switchMap(hasStore => {
+        if (this.useIndexedDb && hasStore) {
+          return this.indexedDb.update(endpoint, id, item);
+        }
+        return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item, { withCredentials: true });
+      }),
+      catchError(err => {
+        console.warn('IndexedDB fallback to HTTP for update:', endpoint, err);
+        return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item, { withCredentials: true });
+      })
+    );
   }
 
   delete(endpoint: string, id: any): Observable<void> {
-    if (this.useIndexedDb) {
-      return this.indexedDb.delete(endpoint, id);
-    }
-    return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+    return from(this.indexedDb.hasStore(endpoint)).pipe(
+      switchMap(hasStore => {
+        if (this.useIndexedDb && hasStore) {
+          return this.indexedDb.delete(endpoint, id);
+        }
+        return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+      }),
+      catchError(err => {
+        console.warn('IndexedDB fallback to HTTP for delete:', endpoint, err);
+        return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+      })
+    );
   }
 }`;
   }

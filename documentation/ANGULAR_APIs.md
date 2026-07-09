@@ -4,7 +4,7 @@ Diese Dokumentation beschreibt die Generierung, die API-Schnittstellen und die D
 
 ---
 
-## 1. 🗄️ Datenhaltungs-Priorität: Browser-seitige IndexedDB
+## 1. 🗄️ Datenhaltungs-Priorität: Browser-seitige IndexedDB mit intelligentem Backend-Fallback
 
 Um die sofortige, lokale Lauffähigkeit zu garantieren und Datenverlusten durch gelöschten Session-Speicher oder Cookies vorzubeugen, wird standardmäßig **IndexedDB** als Primärdatenbank verwendet. 
 
@@ -18,6 +18,9 @@ Der Service stellt asynchrone, reaktive CRUD-Operationen basierend auf RxJS Obse
 export class IndexedDbService {
   // Initialisiert die Datenbank und erstellt Stores für alle registrierten Entitäten
   private initDb(): Promise<IDBDatabase>;
+
+  // Überprüft, ob ein bestimmter Object Store existiert (verhindert NotFoundError)
+  hasStore(storeName: string): Promise<boolean>;
 
   // Holt alle Datensätze einer Tabelle/Store
   getAll(storeName: string): Observable<any[]>;
@@ -38,11 +41,14 @@ export class IndexedDbService {
 
 ---
 
-## 2. ⚡ Abstraktions-Schicht für nahtlosen SQL/MySQL-Wechsel
+## 2. ⚡ Intelligente Abstraktions-Schicht & Hybride Routing-Logik
 
-Damit kein Umbau der Pages oder Komponenten notwendig ist, wenn die Anwendung auf ein echtes Backend (z.B. .NET Web API, FastAPI, NodeJS mit PostgreSQL/MySQL) portiert wird, fungiert der `ApiService` als einheitliches Gateway.
+Damit kein Umbau der Pages oder Komponenten notwendig ist, wenn die Anwendung auf ein echtes Backend (z.B. NodeJS, PostgreSQL/MySQL) portiert wird, fungiert der `ApiService` als einheitliches Gateway.
 
-Der `ApiService` implementiert dieselbe Schnittstelle, kapselt jedoch beide Welten (Local IndexedDB & HTTP REST-Client) über eine einzige Steuervariable.
+Der `ApiService` implementiert eine **hybride Routing-Logik** mit automatischem Fallback:
+1. **Prüfung der Existenz**: Vor jeder Datenbanktransaktion wird asynchron geprüft, ob für den angefragten `storeName` (z.B. `customers`) ein lokaler IndexedDB-Store vorhanden ist.
+2. **Datenbank-Priorität**: Wenn `useIndexedDb = true` aktiv ist und der Store existiert, wird die Anfrage lokal verarbeitet.
+3. **Automatischer HTTP-Fallback**: Falls der Store *nicht* existiert (z.B. bei System-Schnittstellen wie `auth/login`, `profile` oder benutzerdefinierten SQL-Queries), wird die Anfrage **transparent und fehlerfrei an das REST-Backend** weitergeleitet. Dadurch wird der gefürchtete `NotFoundError: Failed to execute 'transaction' on 'IDBDatabase'` vollständig eliminiert und Backend-Routen werden zuverlässig angesprochen!
 
 ```typescript
 @Injectable({ providedIn: 'root' })
@@ -52,11 +58,11 @@ export class ApiService {
   private indexedDb = inject(IndexedDbService);
 
   // STEUERVARIABLE FÜR DATENHALTUNG:
-  // true  -> Nutzt die Browser-seitige IndexedDB (Standard)
-  // false -> Leitet Anfragen an das REST-Backend (PostgreSQL / MySQL) weiter
+  // true  -> Nutzt bevorzugt die Browser-seitige IndexedDB mit automatischem HTTP-Fallback
+  // false -> Leitet alle Anfragen direkt an das REST-Backend (PostgreSQL / MySQL) weiter
   private useIndexedDb = true;
 
-  // Einheitliche Schnittstellen für Komponenten:
+  // Einheitliche Schnittstellen mit integrierter Fallback-Logik:
   get<T>(endpoint: string, params: any = {}): Observable<T>;
   getAll(endpoint: string, page: number = 1, pageSize: number = 20, search: string = ''): Observable<any>;
   getById(endpoint: string, id: any): Observable<any>;
@@ -66,27 +72,29 @@ export class ApiService {
 }
 ```
 
-### 2.1 Daten-Fluss Diagramm
+### 2.1 Daten-Fluss Diagramm mit Fallback-Mechanismus
 ```text
-+-------------------------------------------------------------+
-|                     Angular Komponente                      |
-| (z.B. Kundenliste, Bestell-Formular, Dashboard-Reports)    |
-+-------------------------------------------------------------+
-                               |
-                               | Ruft auf (z.B. apiService.getAll('customers'))
-                               v
-+-------------------------------------------------------------+
-|                         ApiService                          |
-|                                                             |
-|           Evaluierung: is useIndexedDb == true?             |
-+-------------------------------------------------------------+
-               /                               \
-       JA     /                                 \    NEIN
-             v                                   v
-+--------------------------+         +------------------------+
-|    IndexedDbService      |         |   HttpClient (REST)    |
-| (Browser-Datenbank)      |         | (PostgreSQL, MySQL...) |
-+--------------------------+         +------------------------+
++-------------------------------------------------------------------------+
+|                           Angular Komponente                            |
+|       (z.B. Kundenliste, Login-Schnittstelle, Dashboard-Reports)        |
++-------------------------------------------------------------------------+
+                                     |
+                                     | Ruft auf (z.B. apiService.get('auth/login'))
+                                     v
++-------------------------------------------------------------------------+
+|                               ApiService                                |
+|                                                                         |
+|         Asynchrone Prüfung: Hat IndexedDB einen Store für diesen Pfad?   |
++-------------------------------------------------------------------------+
+                     /                               \
+             JA     /                                 \    NEIN (oder useIndexedDb = false)
+                   v                                   v
++--------------------------------------+   +--------------------------------------+
+|          IndexedDbService            |   |          HttpClient (REST)           |
+|                                      |   |                                      |
+| Führt lokale Transaktion aus.        |   | Proxy an Server-Backend              |
+| (z.B. Offline-Kundenkatalog)         |   | (z.B. Auth-API, SQL-Queries)         |
++--------------------------------------+   +--------------------------------------+
 ```
 
 ---
