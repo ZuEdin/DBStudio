@@ -505,5 +505,27 @@ Um CORS-Probleme des SharePoint-Servers im Browser zu umgehen, registrieren Sie 
 3. Wählen Sie **Option A (Proxy)** oder **Option B (Server Cache)**.
 4. Das Node.js-Backend übernimmt nun die sichere Kommunikation und reicht die Daten sauber an Ihr Daten-Studio weiter!
 
+---
+
+## 11. Erweiterter Excel-Import (Mehrere Arbeitsblätter, Auto-Enums & SVERWEIS)
+
+Das Excel-Import-System verfügt über erstklassige, automatisierte Datenvorbereitungs- und Mapping-Features, um die Datenqualität beim Importieren massiv zu erhöhen.
+
+### 11.1. Arbeitsblatt-Auswahl (Multiple Sheets)
+*   **Automatische Erkennung**: Beim Laden einer Excel-Arbeitsmappe (`.xlsx`) wird geprüft, ob sich darin mehrere Mappenblätter (Arbeitsblätter) befinden.
+*   **Visuelle Auswahlliste**: Sind mehrere Blätter vorhanden, wird dem Benutzer im ersten Schritt eine intuitive Auswahlliste präsentiert. Der Benutzer wählt das gewünschte Arbeitsblatt aus, um den Importvorgang fortzusetzen.
+*   **Dynamische Umschaltung**: Im Spalten-Zuweisungsschritt kann der Benutzer jederzeit über ein Dropdown-Menü zwischen den Arbeitsblättern hin- und herwechseln. Die Tabellenvorschau und die Spaltenerkennung aktualisieren sich verzögerungsfrei.
+
+### 11.2. Intelligente Enum-Erkennung (Dropdowns & Datenüberprüfung)
+*   **Kardinalitäts-Analyse**: Spalten, die weniger als oder genau 15 eindeutige Werte besitzen (und mindestens 3 Zeilen enthalten), werden automatisch als `ENUM`-Datentyp erkannt.
+*   **Interaktiver Enum-Editor**: Im Spaltenzuweisungs-Schritt kann der Benutzer die erkannten Dropdown-Optionen einsehen, löschen oder manuell neue Optionen hinzufügen.
+*   **Payload-Modell**: Enum-Werte werden im Feld-Objekt als `enumValues` vom Typ `string[]` definiert und nahtlos in der IndexedDB gespeichert.
+
+### 11.3. SVERWEIS / Beziehungs-Vorschläge (VLOOKUP Relationships)
+*   **Ähnlichkeits-Suche**: Das System vergleicht Spaltennamen automatisch mit den Namen und Primärschlüsseln aller im Projekt bereits vorhandenen Tabellen (z. B. Spalte `kunde_id` zu Tabelle `Kunden`).
+*   **Verknüpfungs-Dropdown**: Wird eine Ähnlichkeit erkannt, schlägt der Assistent automatisch eine Beziehung vor. Der Benutzer kann die Beziehung manuell anpassen oder auf eine andere Tabelle verweisen.
+*   **Beziehungs-Erstellung**: Nach dem Import wird die neue Tabelle mitsamt allen ausgewählten `1:n`-Beziehungen im globalen Beziehungs-Schema des Daten-Studios registriert. Diese Verknüpfungen stehen sofort in Abfragen (Queries) und im ER-Diagramm zur Verfügung.
+
+
 
 

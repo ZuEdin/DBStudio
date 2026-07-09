@@ -121,7 +121,16 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
 
       {showExcelWizard && (
           <ExcelImportWizard 
-            onSave={addTable} 
+            tables={tables}
+            onSave={(table, newRelations) => {
+              addTable(table);
+              if (newRelations && newRelations.length > 0) {
+                store.setRelationships([...store.relationships, ...newRelations]);
+                addToast(`${newRelations.length} SVERWEIS-Beziehung(en) automatisch erstellt!`, "success");
+              } else {
+                addToast("Tabelle erfolgreich importiert!", "success");
+              }
+            }} 
             onClose={() => setShowExcelWizard(false)} 
           />
       )}
