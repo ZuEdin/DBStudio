@@ -29,6 +29,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveTableName, setSaveTableName] = useState('ApiData');
   const [showParamBuilder, setShowParamBuilder] = useState(true);
   const [showBaseUrlSettings, setShowBaseUrlSettings] = useState(false);
 
@@ -49,6 +50,16 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   const [backendApiOption, setBackendApiOption] = useState<'A' | 'B'>('A');
   const [backendRefreshInterval, setBackendRefreshInterval] = useState<number>(0);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // API Authentication States
+  const [authType, setAuthType] = useState<'none' | 'apiKey' | 'bearer' | 'basic'>('none');
+  const [authApiKeyName, setAuthApiKeyName] = useState('Authorization');
+  const [authApiKeyValue, setAuthApiKeyValue] = useState('');
+  const [authApiKeyPrefix, setAuthApiKeyPrefix] = useState('Bearer ');
+  const [authApiKeyLocation, setAuthApiKeyLocation] = useState<'header' | 'query'>('header');
+  const [authBearerToken, setAuthBearerToken] = useState('');
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
 
   // --- Parameter Logic ---
   const addParam = () => {
@@ -91,13 +102,34 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
     setData([]);
     setPrimaryKeyCol(null); // Reset PK when fetching new data
 
-    const result = await fetchApiData(targetUrl, method, headers, queryParams);
+    const result = await fetchApiData(targetUrl, method, headers, queryParams, {
+        authType,
+        authApiKeyName,
+        authApiKeyValue,
+        authApiKeyPrefix,
+        authApiKeyLocation,
+        authBearerToken,
+        authUsername,
+        authPassword
+    });
     
     if (result.error) {
         setError(result.error);
         showMessage("API Fehler", result.error, 'error');
     } else {
         setData(result.data);
+        if (result.data.length > 0) {
+            const cols = Object.keys(result.data[0]).filter(k => k !== '_ImportId');
+            // Check for exact 'id' (case-insensitive)
+            let detectedPk = cols.find(c => c.toLowerCase() === 'id');
+            if (!detectedPk) {
+                // Check for columns ending with 'id' or '_id'
+                detectedPk = cols.find(c => c.toLowerCase().endsWith('id') || c.toLowerCase().endsWith('_id'));
+            }
+            if (detectedPk) {
+                setPrimaryKeyCol(detectedPk);
+            }
+        }
         if (result.data.length === 0) {
             showMessage("Hinweis", "Die API lieferte eine leere Antwort.", 'info');
         }
@@ -112,6 +144,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
   const handleSaveClick = () => {
       if (!onSaveTable || data.length === 0) return;
+      setSaveTableName('ApiData');
       setShowSaveModal(true);
   };
 
@@ -131,9 +164,11 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
           const sampleRow = data[0];
 
           let needsAutoId = false;
-          const hasIdColumn = columns.some(c => c.toLowerCase() === 'id');
-          if (!primaryKeyCol && !hasIdColumn) {
-              needsAutoId = true;
+          if (!primaryKeyCol) {
+              const hasIdColumn = columns.some(c => c.toLowerCase() === 'id');
+              if (!hasIdColumn) {
+                  needsAutoId = true;
+              }
           }
 
           const fields: Field[] = columns.map(col => {
@@ -213,7 +248,15 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                   option: backendApiOption,
                   refreshInterval: backendRefreshInterval,
                   fields: fields,
-                  data: cleanData
+                  data: backendApiOption === 'A' ? [] : cleanData,
+                  authType,
+                  authApiKeyName,
+                  authApiKeyValue,
+                  authApiKeyPrefix,
+                  authApiKeyLocation,
+                  authBearerToken,
+                  authUsername,
+                  authPassword
               })
           });
 
@@ -265,9 +308,11 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       const sampleRow = data[0];
 
       let needsAutoId = false;
-      const hasIdColumn = columns.some(c => c.toLowerCase() === 'id');
-      if (!primaryKeyCol && !hasIdColumn) {
-          needsAutoId = true;
+      if (!primaryKeyCol) {
+          const hasIdColumn = columns.some(c => c.toLowerCase() === 'id');
+          if (!hasIdColumn) {
+              needsAutoId = true;
+          }
       }
 
       const fields: Field[] = columns.map(col => {
@@ -350,7 +395,15 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
               method,
               headers: headers || undefined,
               queryParams,
-              refreshOnLoad
+              refreshOnLoad,
+              authType,
+              authApiKeyName,
+              authApiKeyValue,
+              authApiKeyPrefix,
+              authApiKeyLocation,
+              authBearerToken,
+              authUsername,
+              authPassword
           }
       };
 
@@ -571,7 +624,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                                             >
                                                 <Server size={18} className="text-indigo-600 mt-0.5 shrink-0" />
                                                 <div>
-                                                    <span className="font-bold block text-xs text-slate-800">Als Backend-API speichern <span className="ml-1 text-[9px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded font-extrabold uppercase">Premium</span></span>
+                                                    <span className="font-bold block text-xs text-slate-800">Als Backend-API speichern</span>
                                                     <span className="text-[10px] text-slate-500 block leading-normal mt-0.5">
                                                         Registriert die API am Backend (Option A Proxy / Option B Server-Datenbank) für vollständige Kontrolle.
                                                     </span>
@@ -793,6 +846,138 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                 </div>
             )}
             
+            {/* API Authentication Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded p-4 mb-2 mt-2">
+                <span className="block text-xs font-bold text-slate-500 uppercase mb-2">📡 API-Authentifizierung (API Auth)</span>
+                
+                {/* Auth Type Buttons */}
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                    <button 
+                        type="button"
+                        onClick={() => setAuthType('none')}
+                        className={`py-1.5 text-xs font-bold rounded border transition-all ${authType === 'none' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                        Keine Auth
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setAuthType('bearer')}
+                        className={`py-1.5 text-xs font-bold rounded border transition-all ${authType === 'bearer' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                        Bearer Token
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setAuthType('apiKey')}
+                        className={`py-1.5 text-xs font-bold rounded border transition-all ${authType === 'apiKey' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                        API-Key
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setAuthType('basic')}
+                        className={`py-1.5 text-xs font-bold rounded border transition-all ${authType === 'basic' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                        Basic Auth
+                    </button>
+                </div>
+
+                {/* Conditional Inputs */}
+                {authType === 'bearer' && (
+                    <div className="space-y-2 animate-in fade-in duration-150">
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1">Bearer Token</label>
+                            <input 
+                                type="password"
+                                placeholder="eyJhbGciOiJIUzI1NiIsIn..."
+                                value={authBearerToken}
+                                onChange={e => setAuthBearerToken(e.target.value)}
+                                className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-mono"
+                            />
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">Fügt automatisch den Header <code>Authorization: Bearer &lt;Token&gt;</code> hinzu.</span>
+                        </div>
+                    </div>
+                )}
+
+                {authType === 'apiKey' && (
+                    <div className="space-y-3 animate-in fade-in duration-150">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 mb-1">Parameter / Header Name</label>
+                                <input 
+                                    type="text"
+                                    placeholder="X-API-Key oder api_key"
+                                    value={authApiKeyName}
+                                    onChange={e => setAuthApiKeyName(e.target.value)}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-mono"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 mb-1">Übertragungsweg</label>
+                                <select 
+                                    value={authApiKeyLocation}
+                                    onChange={e => setAuthApiKeyLocation(e.target.value as 'header' | 'query')}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs bg-white"
+                                >
+                                    <option value="header">Header (Empfohlen)</option>
+                                    <option value="query">Query-Parameter (URL)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1">API Key Wert</label>
+                            <input 
+                                type="password"
+                                placeholder="Geheimer Schlüssel"
+                                value={authApiKeyValue}
+                                onChange={e => setAuthApiKeyValue(e.target.value)}
+                                className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-mono"
+                            />
+                        </div>
+                        {authApiKeyLocation === 'header' && (
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 mb-1">Prefix (Optional)</label>
+                                <input 
+                                    type="text"
+                                    placeholder="z.B. Bearer oder Token (leerlassen für kein Prefix)"
+                                    value={authApiKeyPrefix}
+                                    onChange={e => setAuthApiKeyPrefix(e.target.value)}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-mono"
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {authType === 'basic' && (
+                    <div className="space-y-2 animate-in fade-in duration-150">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 mb-1">Benutzername</label>
+                                <input 
+                                    type="text"
+                                    placeholder="Username / Client ID"
+                                    value={authUsername}
+                                    onChange={e => setAuthUsername(e.target.value)}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-mono"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 mb-1">Passwort</label>
+                                <input 
+                                    type="password"
+                                    placeholder="Password / Secret"
+                                    value={authPassword}
+                                    onChange={e => setAuthPassword(e.target.value)}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs font-mono"
+                                />
+                            </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">Fügt automatisch den Base64-codierten <code>Authorization: Basic ...</code> Header hinzu.</span>
+                    </div>
+                )}
+            </div>
+
             <details className="text-xs">
                 <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-semibold mb-1">Header Optionen (Authorization)</summary>
                 <textarea 
@@ -1042,13 +1227,81 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
       </div>
 
       {showSaveModal && (
-        <InputModal 
-            title="Tabelle speichern" 
-            label="Name der neuen Tabelle:" 
-            initialValue="ApiData" 
-            onConfirm={performSave} 
-            onCancel={() => setShowSaveModal(false)} 
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <TableIcon size={18} className="text-blue-600" /> Tabelle speichern
+              </h3>
+              <button 
+                onClick={() => setShowSaveModal(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tabellenname</label>
+                <input 
+                  type="text" 
+                  value={saveTableName}
+                  onChange={e => setSaveTableName(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                  placeholder="ApiData"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-300"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Primärschlüssel (PK)</label>
+                <select 
+                  value={primaryKeyCol || '__auto_id__'}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setPrimaryKeyCol(val === '__auto_id__' ? null : val);
+                  }}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="__auto_id__">✨ Automatisch generierte ID (id)</option>
+                  {getColumns().map(col => (
+                    <option key={col} value={col}>Eigener PK: {col} ({schemaOverrides[col] || (Array.isArray(data[0][col]) ? 'TEXT' : inferFieldType(data[0][col]))})</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  {primaryKeyCol 
+                    ? `Verwendet das vorhandene Feld "${primaryKeyCol}" als eindeutigen Primärschlüssel.`
+                    : 'Erstellt automatisch eine neue fortlaufende ID-Spalte (id) am Anfang der Tabelle.'
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex justify-end gap-2 shrink-0">
+              <button 
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  performSave(saveTableName);
+                  setShowSaveModal(false);
+                }}
+                disabled={!saveTableName}
+                className="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <Save size={14} /> Speichern
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showBackendApiModal && (
@@ -1057,7 +1310,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
             {/* Header */}
             <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <Server size={18} className="text-indigo-600" /> Backend-API registrieren (Premium)
+                <Server size={18} className="text-indigo-600" /> Backend-API registrieren
               </h3>
               <button 
                 onClick={() => setShowBackendApiModal(false)}
@@ -1079,6 +1332,29 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">Wird im Backend als Endpunkt <code>/api/backend-apis/{backendApiName || 'name'}/data</code> freigegeben.</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Primärschlüssel (PK)</label>
+                <select 
+                  value={primaryKeyCol || '__auto_id__'}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setPrimaryKeyCol(val === '__auto_id__' ? null : val);
+                  }}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="__auto_id__">✨ Automatisch generierte ID (id)</option>
+                  {getColumns().map(col => (
+                    <option key={col} value={col}>Eigener PK: {col} ({schemaOverrides[col] || (Array.isArray(data[0][col]) ? 'TEXT' : inferFieldType(data[0][col]))})</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  {primaryKeyCol 
+                    ? `Verwendet das vorhandene Feld "${primaryKeyCol}" als eindeutigen Primärschlüssel.`
+                    : 'Erstellt automatisch eine neue fortlaufende ID-Spalte (id) am Anfang der Tabelle.'
+                  }
+                </span>
               </div>
 
               {/* Options A & B Cards */}

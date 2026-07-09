@@ -58,6 +58,14 @@ export interface ApiConfig {
   headers?: string;
   queryParams?: ApiQueryParam[];
   refreshOnLoad?: boolean;
+  authType?: 'none' | 'apiKey' | 'bearer' | 'basic';
+  authApiKeyName?: string;
+  authApiKeyValue?: string;
+  authApiKeyPrefix?: string;
+  authApiKeyLocation?: 'header' | 'query';
+  authBearerToken?: string;
+  authUsername?: string;
+  authPassword?: string;
 }
 
 export interface ToastInfo {

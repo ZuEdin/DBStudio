@@ -137,23 +137,69 @@ export interface FetchResult {
     fullUrl: string; // Return the constructed URL for debugging
 }
 
-export const fetchApiData = async (baseUrl: string, method: string, headersStr?: string, queryParams?: ApiQueryParam[]): Promise<FetchResult> => {
+export const fetchApiData = async (
+    baseUrl: string, 
+    method: string, 
+    headersStr?: string, 
+    queryParams?: ApiQueryParam[],
+    auth?: {
+        authType?: 'none' | 'apiKey' | 'bearer' | 'basic';
+        authApiKeyName?: string;
+        authApiKeyValue?: string;
+        authApiKeyPrefix?: string;
+        authApiKeyLocation?: 'header' | 'query';
+        authBearerToken?: string;
+        authUsername?: string;
+        authPassword?: string;
+    }
+): Promise<FetchResult> => {
     try {
-        const headers: HeadersInit = headersStr ? JSON.parse(headersStr) : {};
+        const headers: Record<string, string> = headersStr ? JSON.parse(headersStr) : {};
         
+        if (auth) {
+            if (auth.authType === 'bearer' && auth.authBearerToken) {
+                headers['Authorization'] = `Bearer ${auth.authBearerToken}`;
+            } else if (auth.authType === 'apiKey' && auth.authApiKeyLocation === 'header' && auth.authApiKeyName) {
+                const prefix = auth.authApiKeyPrefix || '';
+                headers[auth.authApiKeyName] = `${prefix}${auth.authApiKeyValue || ''}`;
+            } else if (auth.authType === 'basic' && (auth.authUsername || auth.authPassword)) {
+                const credentials = `${auth.authUsername || ''}:${auth.authPassword || ''}`;
+                const encoded = btoa(unescape(encodeURIComponent(credentials)));
+                headers['Authorization'] = `Basic ${encoded}`;
+            }
+        }
+
         // Construct URL with params
         let finalUrl = baseUrl;
-        if (queryParams && queryParams.length > 0) {
-            try {
-                const urlObj = new URL(baseUrl);
+        try {
+            const urlObj = new URL(baseUrl);
+            if (queryParams && queryParams.length > 0) {
                 queryParams.forEach(p => {
                     if (p.isActive && p.key) {
                         urlObj.searchParams.append(p.key, p.value);
                     }
                 });
-                finalUrl = urlObj.toString();
-            } catch (e) {
-                console.warn("Invalid Base URL for param appending", e);
+            }
+            if (auth && auth.authType === 'apiKey' && auth.authApiKeyLocation === 'query' && auth.authApiKeyName) {
+                urlObj.searchParams.append(auth.authApiKeyName, auth.authApiKeyValue || '');
+            }
+            finalUrl = urlObj.toString();
+        } catch (e) {
+            console.warn("Invalid Base URL for param appending", e);
+            const searchParams = new URLSearchParams();
+            if (queryParams && queryParams.length > 0) {
+                queryParams.forEach(p => {
+                    if (p.isActive && p.key) {
+                        searchParams.append(p.key, p.value);
+                    }
+                });
+            }
+            if (auth && auth.authType === 'apiKey' && auth.authApiKeyLocation === 'query' && auth.authApiKeyName) {
+                searchParams.append(auth.authApiKeyName, auth.authApiKeyValue || '');
+            }
+            const qs = searchParams.toString();
+            if (qs) {
+                finalUrl = baseUrl.includes('?') ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
             }
         }
 

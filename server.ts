@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
@@ -120,19 +121,43 @@ function normalizeParsedXml(obj: any): any[] {
 }
 
 // Helper to fetch from external API on the server
-async function fetchExternalApi(url: string, method: string, headersStr?: string, queryParams?: any[]) {
+async function fetchExternalApi(
+  url: string, 
+  method: string, 
+  headersStr?: string, 
+  queryParams?: any[],
+  auth?: {
+    authType?: string;
+    authApiKeyName?: string;
+    authApiKeyValue?: string;
+    authApiKeyPrefix?: string;
+    authApiKeyLocation?: string;
+    authBearerToken?: string;
+    authUsername?: string;
+    authPassword?: string;
+  }
+) {
   let finalUrl = url;
+  const searchParams = new URLSearchParams();
+
   if (queryParams && queryParams.length > 0) {
-    const searchParams = new URLSearchParams();
     queryParams.forEach(p => {
-      if (p.name && p.value !== undefined) {
-        searchParams.append(p.name, p.value);
+      const isParamActive = p.isActive !== false;
+      const paramKey = p.key || p.name;
+      if (isParamActive && paramKey && p.value !== undefined) {
+        searchParams.append(paramKey, p.value);
       }
     });
-    const qs = searchParams.toString();
-    if (qs) {
-      finalUrl += (finalUrl.includes('?') ? '&' : '?') + qs;
-    }
+  }
+
+  // Inject Api Key if location is query
+  if (auth && auth.authType === 'apiKey' && auth.authApiKeyLocation === 'query' && auth.authApiKeyName) {
+    searchParams.append(auth.authApiKeyName, auth.authApiKeyValue || '');
+  }
+
+  const qs = searchParams.toString();
+  if (qs) {
+    finalUrl += (finalUrl.includes('?') ? '&' : '?') + qs;
   }
 
   let headersObj: Record<string, string> = {
@@ -146,6 +171,20 @@ async function fetchExternalApi(url: string, method: string, headersStr?: string
       headersObj = { ...headersObj, ...parsed };
     } catch (e) {
       // ignore
+    }
+  }
+
+  // Inject auth headers if configured
+  if (auth) {
+    if (auth.authType === 'bearer' && auth.authBearerToken) {
+      headersObj['Authorization'] = `Bearer ${auth.authBearerToken}`;
+    } else if (auth.authType === 'apiKey' && auth.authApiKeyLocation === 'header' && auth.authApiKeyName) {
+      const prefix = auth.authApiKeyPrefix || '';
+      headersObj[auth.authApiKeyName] = `${prefix}${auth.authApiKeyValue || ''}`;
+    } else if (auth.authType === 'basic' && (auth.authUsername || auth.authPassword)) {
+      const credentials = `${auth.authUsername || ''}:${auth.authPassword || ''}`;
+      const encoded = Buffer.from(credentials).toString('base64');
+      headersObj['Authorization'] = `Basic ${encoded}`;
     }
   }
 
@@ -225,7 +264,16 @@ async function startServer() {
         option: config.option || "A", // "A" = Live-Proxy, "B" = Server-Storage / Cache
         refreshInterval: Number(config.refreshInterval || 0),
         fields: config.fields || [],
-        lastSync: Date.now()
+        lastSync: Date.now(),
+        // Optional Auth configuration:
+        authType: config.authType || 'none',
+        authApiKeyName: config.authApiKeyName || '',
+        authApiKeyValue: config.authApiKeyValue || '',
+        authApiKeyPrefix: config.authApiKeyPrefix || '',
+        authApiKeyLocation: config.authApiKeyLocation || 'header',
+        authBearerToken: config.authBearerToken || '',
+        authUsername: config.authUsername || '',
+        authPassword: config.authPassword || ''
       };
 
       if (existingIdx >= 0) {
@@ -285,7 +333,7 @@ async function startServer() {
       }
 
       // Fetch external data on server
-      const rows = await fetchExternalApi(config.url, config.method, config.headers, config.queryParams);
+      const rows = await fetchExternalApi(config.url, config.method, config.headers, config.queryParams, config);
 
       // Save to server-side cache file
       const cacheFile = getCacheFilePath(name);
@@ -316,7 +364,7 @@ async function startServer() {
       if (config.option === "A") {
         // Option A: Live-Proxy
         console.log(`[Proxy] Fetching live data for ${name} from ${config.url}`);
-        const rows = await fetchExternalApi(config.url, config.method, config.headers, config.queryParams);
+        const rows = await fetchExternalApi(config.url, config.method, config.headers, config.queryParams, config);
         return res.json(rows);
       } else {
         // Option B: Server-Cache
@@ -327,7 +375,7 @@ async function startServer() {
         } else {
           // Cache doesn't exist yet, trigger initial sync
           console.log(`[Cache-Init] Triggering first sync for Option B API: ${name}`);
-          const rows = await fetchExternalApi(config.url, config.method, config.headers, config.queryParams);
+          const rows = await fetchExternalApi(config.url, config.method, config.headers, config.queryParams, config);
           fs.writeFileSync(cacheFile, JSON.stringify(rows, null, 2), "utf-8");
           
           config.lastSync = Date.now();

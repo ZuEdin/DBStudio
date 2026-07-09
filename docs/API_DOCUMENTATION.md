@@ -8,6 +8,14 @@ Dieses Dokument beschreibt die Funktionalität und Datenstrukturen des in der So
 
 Der Importer ermittelt die Struktur einer API anhand einer JSON-Struktur oder einer Live-Abfrage. 
 
+### Primärschlüssel-Erkennung & -Konfiguration
+Um redundante Spalten zu vermeiden und vorhandene Identifikatoren optimal zu nutzen, verfügt der Importer über eine intelligente Primärschlüssel-Steuerung:
+
+1. **Automatische Erkennung**: Beim Laden einer API sucht der Importer automatisch im Datensatz nach Spalten wie `id` (case-insensitiv) oder solchen, die auf `id` oder `_id` enden (z. B. `userId`, `customer_id`). Wird eine solche Spalte gefunden, wird sie automatisch als Primärschlüssel vorausgewählt.
+2. **Benutzerdefinierter PK**: Der Benutzer kann beim Speichern einer Tabelle oder Registrieren einer Backend-API flexibel wählen:
+   - **Eigener PK**: Eine beliebige detektierte Spalte aus dem API-Response wird als Primärschlüssel definiert (`isPrimaryKey: true`). In diesem Fall wird **keine** zusätzliche, künstliche `id`-Spalte generiert oder mitgelistet.
+   - **Automatische ID**: Ist kein passendes Feld im Datensatz vorhanden oder wünscht der Nutzer eine künstliche ID, generiert das System eine automatische, fortlaufende `id`-Spalte.
+
 ### Typ-Inferenz (`inferFieldType`)
 Der Importer analysiert die Datentypen der erhaltenen JSON-Keys und weist ihnen SQL-kompatible Typen zu:
 
@@ -22,6 +30,23 @@ Der Importer analysiert die Datentypen der erhaltenen JSON-Keys und weist ihnen 
 | `String` | Zeitangabe (HH:MM:SS) | `TIME` |
 | `String` | Jeder andere String | `VARCHAR` |
 | `Array` / `Object` | Verschachtelt | `TEXT` (oder JSON-flachgelegt) |
+
+### API-Authentifizierung (Authentifizierungsmöglichkeiten)
+Der Importer unterstützt standardmäßig vier gängige Authentifizierungsverfahren, um gesicherte Enterprise- und Public-APIs sicher abzufragen und zu integrieren:
+
+1. **Keine Authentifizierung (None)**: Standardmodus für öffentlich zugängliche Schnittstellen.
+2. **Bearer Token (JWT / OAuth2)**:
+   - Fügt automatisch den Header `Authorization: Bearer <token>` zu jeder ausgehenden Anfrage hinzu.
+   - Ideal für gesicherte APIs, die über temporäre oder statische OAuth-Token verfügen.
+3. **API-Key (Schlüssel-Wert-Paare)**:
+   - Ermöglicht das Senden eines API-Schlüssels auf zwei Wegen:
+     - **Header**: Ein benutzerdefinierter Header (z. B. `X-API-Key` oder `apikey`) wird mit einem optionalen Präfix gesendet.
+     - **Query-Parameter (URL)**: Der Schlüssel wird als URL-Parameter (z. B. `?api_key=secret_value`) an die Anfrage angehängt.
+4. **Basic Auth (Benutzername & Passwort)**:
+   - Führt im Browser und auf dem Server eine Base64-Codierung von `username:password` durch.
+   - Fügt den Header `Authorization: Basic <base64>` hinzu.
+
+Sämtliche Authentifizierungseinstellungen werden in der lokalen IndexedDB-Tabellenkonfiguration (`Table.apiConfig`) und bei Registrierung als Backend-API auch gesichert in der Server-Konfiguration (`api-configs.json`) gespeichert, sodass automatisierte Hintergrund-Synchronisierungen (Option B) oder Live-Proxies (Option A) reibungslos autorisiert werden können.
 
 ---
 
