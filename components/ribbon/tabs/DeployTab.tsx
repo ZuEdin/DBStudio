@@ -103,8 +103,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         const updatedConfig = { 
                             ...backendConfig, 
                             frontendFramework: fw,
-                            frontendPort: getDefaultPort(fw),
-                            frontendVersion: fw === 'angular' ? '19' : undefined
+                            frontendPort: getDefaultPort(fw)
                         };
                         setBackendConfig(updatedConfig);
                     }}
@@ -116,23 +115,6 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                     <option value="none">Keins (Nur API)</option>
                 </select>
              </div>
-
-             {backendConfig.frontendFramework === 'angular' && (
-                  <div className="w-16 animate-in fade-in slide-in-from-left-1">
-                     <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Version</label>
-                     <select 
-                         className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white font-mono text-indigo-700 font-bold"
-                         value={backendConfig.frontendVersion || '19'}
-                         onChange={e => setBackendConfig({ ...backendConfig, frontendVersion: e.target.value })}
-                         title="Wähle die Angular Version"
-                     >
-                         <option value="21">21</option>
-                         <option value="20">20</option>
-                         <option value="19">19 (Default)</option>
-                         <option value="18">18</option>
-                     </select>
-                  </div>
-             )}
 
              <div className="w-24">
                 <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Styling</label>

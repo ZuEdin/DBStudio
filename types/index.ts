@@ -555,7 +555,6 @@ export interface ProductTour {
 export interface BackendConfig {
   language: BackendLanguage;
   backendVersion?: string;
-  frontendVersion?: string;
   dbType: DbType;
   projectName: string;
   port: number; // Backend API Port
