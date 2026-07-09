@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server, GitFork, Copy, Check, Database, ChevronDown } from 'lucide-react';
+import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server, GitFork, Copy, Check, Database, ChevronDown, ChevronUp } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -50,6 +50,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   const [backendApiOption, setBackendApiOption] = useState<'A' | 'B'>('A');
   const [backendRefreshInterval, setBackendRefreshInterval] = useState<number>(0);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
 
   // API Authentication States
   const [authType, setAuthType] = useState<'none' | 'apiKey' | 'bearer' | 'basic'>('none');
@@ -542,12 +543,21 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
   return (
     <div className="h-full flex flex-col bg-slate-50">
       {/* Config Bar */}
-      <div className="bg-white p-4 border-b border-slate-200 shadow-sm shrink-0">
+      <div className="bg-white p-4 border-b border-slate-200 shadow-sm shrink-0 max-h-[50vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold text-slate-700 flex items-center gap-2">
                 <Globe className="text-blue-600" /> API Abfrage & Import
             </h2>
             <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => setIsConfigCollapsed(!isConfigCollapsed)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 transition-colors mr-1"
+                    title={isConfigCollapsed ? "Einstellungen maximieren" : "Einstellungen minimieren"}
+                >
+                    {isConfigCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                    <span>{isConfigCollapsed ? "Ausklappen" : "Einklappen"}</span>
+                </button>
                 {backendConfig && (
                     <button 
                         onClick={() => setShowBaseUrlSettings(!showBaseUrlSettings)} 
@@ -676,8 +686,39 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                 )}
             </div>
         </div>
-        
-        {/* Base URL Settings Panel */}
+
+        {isConfigCollapsed && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded text-xs font-medium text-slate-700 animate-in fade-in duration-150">
+                <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-400">Methode:</span>
+                    <span className="font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px]">{method}</span>
+                </div>
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span className="font-bold text-slate-400 shrink-0">URL:</span>
+                    <span className="truncate font-mono text-[11px] text-slate-600 bg-white border px-2 py-0.5 rounded" title={url}>{url || '(Keine URL angegeben)'}</span>
+                </div>
+                {data.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-400">Geladen:</span>
+                        <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                            {data.length} Datensätze
+                        </span>
+                    </div>
+                )}
+                <button
+                    type="button"
+                    onClick={handleFetch}
+                    disabled={isLoading || !url}
+                    className="ml-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded text-[11px] flex items-center gap-1.5 disabled:opacity-50 transition-colors animate-pulse-subtle"
+                >
+                    {isLoading ? 'Laden...' : <><Play size={12} /> Abrufen</>}
+                </button>
+            </div>
+        )}
+
+        {!isConfigCollapsed && (
+            <>
+                {/* Base URL Settings Panel */}
         {showBaseUrlSettings && backendConfig && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded animate-in slide-in-from-top-2">
                 <label className="block text-xs font-bold text-blue-800 uppercase mb-1">Globale Projekt Basis-URL</label>
@@ -988,6 +1029,8 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
                 />
             </details>
         </div>
+        </>
+        )}
       </div>
 
       {error && (
