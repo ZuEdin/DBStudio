@@ -41,14 +41,15 @@ export class IndexedDbService {
 
 ---
 
-## 2. ⚡ Intelligente Abstraktions-Schicht & Hybride Routing-Logik
+## 2. ⚡ Intelligente Abstraktions-Schicht & Hybride Routing-Logik mit automatischem Backend-Sync
 
 Damit kein Umbau der Pages oder Komponenten notwendig ist, wenn die Anwendung auf ein echtes Backend (z.B. NodeJS, PostgreSQL/MySQL) portiert wird, fungiert der `ApiService` als einheitliches Gateway.
 
-Der `ApiService` implementiert eine **hybride Routing-Logik** mit automatischem Fallback:
+Der `ApiService` implementiert eine **hybride Routing-Logik** mit automatischem Fallback und **vollautomatischem Server-Synchronisierungs-Mechanismus**:
 1. **Prüfung der Existenz**: Vor jeder Datenbanktransaktion wird asynchron geprüft, ob für den angefragten `storeName` (z.B. `customers`) ein lokaler IndexedDB-Store vorhanden ist.
-2. **Datenbank-Priorität**: Wenn `useIndexedDb = true` aktiv ist und der Store existiert, wird die Anfrage lokal verarbeitet.
-3. **Automatischer HTTP-Fallback**: Falls der Store *nicht* existiert (z.B. bei System-Schnittstellen wie `auth/login`, `profile` oder benutzerdefinierten SQL-Queries), wird die Anfrage **transparent und fehlerfrei an das REST-Backend** weitergeleitet. Dadurch wird der gefürchtete `NotFoundError: Failed to execute 'transaction' on 'IDBDatabase'` vollständig eliminiert und Backend-Routen werden zuverlässig angesprochen!
+2. **Datenbank-Priorität**: Wenn `useIndexedDb = true` aktiv ist und der Store existiert, wird die Anfrage bevorzugt lokal verarbeitet.
+3. **Vollautomatischer Server-Sync (Seeding)**: Um zu verhindern, dass neu angelegte Tabellen oder Server-Daten (z.B. aus Excel-Importen, die über Swagger sichtbar sind) auf dem Client leer bleiben, prüft der `ApiService` im `localStorage` den Synchronisierungsstatus (`synced_[endpoint]`). Wenn dieser für den Store noch nicht auf `true` steht, wird **automatisch beim ersten Abruf** ein Hintergrund-Fetch an das Backend abgesetzt, der lokale IndexedDB-Store damit initial befüllt und die Tabelle als synchronisiert markiert. Ab diesem Zeitpunkt wird performant und offline-fähig direkt aus der IndexedDB gelesen!
+4. **Automatischer HTTP-Fallback**: Falls der Store *nicht* existiert (z.B. bei System-Schnittstellen wie `auth/login`, `profile` oder benutzerdefinierten SQL-Queries), wird die Anfrage **transparent und fehlerfrei an das REST-Backend** weitergeleitet. Dadurch wird der gefürchtete `NotFoundError: Failed to execute 'transaction' on 'IDBDatabase'` vollständig eliminiert und Backend-Routen werden zuverlässig angesprochen!
 
 ```typescript
 @Injectable({ providedIn: 'root' })

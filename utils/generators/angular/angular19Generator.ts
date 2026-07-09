@@ -231,8 +231,8 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
 
   create(storeName: string, item: any): Observable<any> {
     const record = { ...item };
-    if (!record.id) {
-      record.id = Math.random().toString(36).substr(2, 9);
+    if (record.id === undefined || record.id === null || record.id === '') {
+      delete record.id;
     }
     return from(
       this.initDb().then((db) => {
@@ -243,7 +243,10 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
             const store = transaction.objectStore(actualName);
             const request = store.put(record);
 
-            request.onsuccess = () => resolve(record);
+            request.onsuccess = (event: any) => {
+              record.id = event.target.result;
+              resolve(record);
+            };
             request.onerror = () => reject(request.error);
           } catch (e) {
             reject(e);
@@ -254,7 +257,8 @@ ${tables.map(t => `        if (!db.objectStoreNames.contains('${t.name.toLowerCa
   }
 
   update(storeName: string, id: any, item: any): Observable<any> {
-    const record = { ...item, id };
+    const safeId = typeof id === 'string' && !isNaN(Number(id)) ? Number(id) : id;
+    const record = { ...item, id: safeId };
     return from(
       this.initDb().then((db) => {
         return new Promise<any>((resolve, reject) => {
@@ -327,6 +331,10 @@ export class ApiService {
     return from(this.indexedDb.hasStore(endpoint)).pipe(
       switchMap(hasStore => {
         if (this.useIndexedDb && hasStore) {
+          const syncKey = \`synced_\${endpoint}\`;
+          if (localStorage.getItem(syncKey) !== 'true') {
+            return this.syncAndGetLocal<T>(endpoint, params);
+          }
           return this.indexedDb.getAll(endpoint) as unknown as Observable<T>;
         }
         return this.http.get<T>(this.baseUrl + '/' + endpoint, { params, withCredentials: true });
@@ -342,67 +350,116 @@ export class ApiService {
     return from(this.indexedDb.hasStore(endpoint)).pipe(
       switchMap(hasStore => {
         if (this.useIndexedDb && hasStore) {
-          return this.indexedDb.getAll(endpoint).pipe(
-            map(items => {
-              let filtered = [...items];
-              if (search) {
-                const term = search.toLowerCase();
-                filtered = filtered.filter(item => 
-                  Object.values(item).some(val => String(val).toLowerCase().includes(term))
-                );
-              }
-              const total = filtered.length;
-              const start = (page - 1) * pageSize;
-              const paginated = filtered.slice(start, start + pageSize);
-              return {
-                data: paginated,
-                total,
-                page,
-                totalPages: Math.ceil(total / pageSize)
-              };
-            })
-          );
+          const syncKey = \`synced_\${endpoint}\`;
+          if (localStorage.getItem(syncKey) !== 'true') {
+            return this.syncAndGetAllLocal(endpoint, page, pageSize, search);
+          }
+          return this.getPaginatedLocal(endpoint, page, pageSize, search);
         }
 
-        let params = new HttpParams()
-            .set('page', page.toString())
-            .set('pageSize', pageSize.toString());
-        
-        if (search) {
-            params = params.set('search', search);
-        }
-
-        return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
-          map(response => {
-              if (Array.isArray(response)) {
-                  return { data: response, total: response.length, page: 1, totalPages: 1 };
-              }
-              if (response && response.data && Array.isArray(response.data)) {
-                  return response;
-              }
-              return { data: [], total: 0, page: 1, totalPages: 0 };
-          })
-        );
+        return this.fetchFromHttp(endpoint, page, pageSize, search);
       }),
       catchError(err => {
         console.warn('IndexedDB fallback to HTTP for getAll:', endpoint, err);
-        let params = new HttpParams()
-            .set('page', page.toString())
-            .set('pageSize', pageSize.toString());
-        if (search) {
-            params = params.set('search', search);
+        return this.fetchFromHttp(endpoint, page, pageSize, search);
+      })
+    );
+  }
+
+  private syncAndGetLocal<T>(endpoint: string, params: any): Observable<T> {
+    const syncKey = \`synced_\${endpoint}\`;
+    return this.http.get<any[]>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
+      switchMap(response => {
+        const items = Array.isArray(response) ? response : (response && (response as any).data ? (response as any).data : []);
+        if (items && items.length > 0) {
+          const savePromises = items.map(item => this.indexedDb.create(endpoint, item).toPromise());
+          return from(Promise.all(savePromises)).pipe(
+            map(() => {
+              localStorage.setItem(syncKey, 'true');
+            }),
+            switchMap(() => this.indexedDb.getAll(endpoint) as unknown as Observable<T>)
+          );
+        } else {
+          localStorage.setItem(syncKey, 'true');
+          return this.indexedDb.getAll(endpoint) as unknown as Observable<T>;
         }
-        return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
-          map(response => {
-              if (Array.isArray(response)) {
-                  return { data: response, total: response.length, page: 1, totalPages: 1 };
-              }
-              if (response && response.data && Array.isArray(response.data)) {
-                  return response;
-              }
-              return { data: [], total: 0, page: 1, totalPages: 0 };
-          })
-        );
+      }),
+      catchError(err => {
+        console.warn('Could not sync from server for:', endpoint, err);
+        localStorage.setItem(syncKey, 'true');
+        return this.indexedDb.getAll(endpoint) as unknown as Observable<T>;
+      })
+    );
+  }
+
+  private syncAndGetAllLocal(endpoint: string, page: number, pageSize: number, search: string): Observable<any> {
+    const syncKey = \`synced_\${endpoint}\`;
+    let params = new HttpParams().set('page', '1').set('pageSize', '100000');
+    return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
+      switchMap(response => {
+        const items = Array.isArray(response) ? response : (response && response.data ? response.data : []);
+        if (items && items.length > 0) {
+          const savePromises = items.map(item => this.indexedDb.create(endpoint, item).toPromise());
+          return from(Promise.all(savePromises)).pipe(
+            map(() => {
+              localStorage.setItem(syncKey, 'true');
+            }),
+            switchMap(() => this.getPaginatedLocal(endpoint, page, pageSize, search))
+          );
+        } else {
+          localStorage.setItem(syncKey, 'true');
+          return this.getPaginatedLocal(endpoint, page, pageSize, search);
+        }
+      }),
+      catchError(err => {
+        console.warn('Could not sync from server for getAll:', endpoint, err);
+        localStorage.setItem(syncKey, 'true');
+        return this.getPaginatedLocal(endpoint, page, pageSize, search);
+      })
+    );
+  }
+
+  private getPaginatedLocal(endpoint: string, page: number, pageSize: number, search: string): Observable<any> {
+    return this.indexedDb.getAll(endpoint).pipe(
+      map(items => {
+        let filtered = [...items];
+        if (search) {
+          const term = search.toLowerCase();
+          filtered = filtered.filter(item => 
+            Object.values(item).some(val => String(val).toLowerCase().includes(term))
+          );
+        }
+        const total = filtered.length;
+        const start = (page - 1) * pageSize;
+        const paginated = filtered.slice(start, start + pageSize);
+        return {
+          data: paginated,
+          total,
+          page,
+          totalPages: Math.ceil(total / pageSize)
+        };
+      })
+    );
+  }
+
+  private fetchFromHttp(endpoint: string, page: number, pageSize: number, search: string): Observable<any> {
+    let params = new HttpParams()
+        .set('page', page.toString())
+        .set('pageSize', pageSize.toString());
+    
+    if (search) {
+        params = params.set('search', search);
+    }
+
+    return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
+      map(response => {
+          if (Array.isArray(response)) {
+              return { data: response, total: response.length, page: 1, totalPages: 1 };
+          }
+          if (response && response.data && Array.isArray(response.data)) {
+              return response;
+          }
+          return { data: [], total: 0, page: 1, totalPages: 0 };
       })
     );
   }
