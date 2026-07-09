@@ -1078,8 +1078,8 @@ export const ${compName} = () => {
                           <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
                           {${loadingState} && <option disabled>Lade Daten...</option>}
                           {!${loadingState} && ${stateName}.map((row, idx) => {
-                              const val = row['${valueField}'] || row.id || idx;
-                              const label = row['${labelField}'] || Object.values(row)[0] || '';
+                              const val = row['${toCamelCase(valueField)}'] || row['${valueField}'] || row.id || idx;
+                              const label = row['${toCamelCase(labelField)}'] || row['${labelField}'] || Object.values(row)[0] || '';
                               return <option key={val || idx} value={val}>{String(label)}</option>;
                           })}
                       </select>
@@ -1196,18 +1196,18 @@ export const ${compName} = () => {
                                               key="${col}" 
                                               className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none"
                                               onClick={() => {
-                                                  if (${sortFieldState} === '${col}') {
+                                                  if (${sortFieldState} === '${toCamelCase(col)}') {
                                                       set_${sortDirState}(${sortDirState} === 'asc' ? 'desc' : ${sortDirState} === 'desc' ? null : 'asc');
                                                       if (${sortDirState} === 'desc') set_${sortFieldState}(null);
                                                   } else {
-                                                      set_${sortFieldState}('${col}');
+                                                      set_${sortFieldState}('${toCamelCase(col)}');
                                                       set_${sortDirState}('asc');
                                                   }
                                               }}
                                           >
                                               <div className="flex items-center gap-1.5">
                                                   <span>${col}</span>
-                                                  {${sortFieldState} === '${col}' ? (
+                                                  {${sortFieldState} === '${toCamelCase(col)}' ? (
                                                       ${sortDirState} === 'asc' ? <ArrowUp size={12} className="text-blue-500" /> : <ArrowDown size={12} className="text-blue-500" />
                                                   ) : (
                                                       <ArrowUpDown size={12} className="text-slate-300 dark:text-slate-600" />
@@ -1215,7 +1215,7 @@ export const ${compName} = () => {
                                               </div>
                                           </th>`).join('\n');
                       
-                      bodyCells = columns.map((col: string) => `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{String(row['${col}'] || '')}</td>`).join('\n');
+                      bodyCells = columns.map((col: string) => `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{String(row['${toCamelCase(col)}'] || row['${col}'] || '')}</td>`).join('\n');
                       
                       filterRow = `
                                   {${showFiltersState} && (
@@ -1226,8 +1226,8 @@ export const ${compName} = () => {
                                                   type="text"
                                                   placeholder="Filtern..."
                                                   className="w-full px-2 py-1 text-xs font-normal border rounded bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                                  value={${columnFiltersState}['${col}'] || ''}
-                                                  onChange={e => set_${columnFiltersState}({ ...${columnFiltersState}, '${col}': e.target.value })}
+                                                  value={${columnFiltersState}['${toCamelCase(col)}'] || ''}
+                                                  onChange={e => set_${columnFiltersState}({ ...${columnFiltersState}, '${toCamelCase(col)}': e.target.value })}
                                               />
                                           </th>`).join('\n')}
                                       </tr>

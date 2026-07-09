@@ -290,4 +290,75 @@ All models expose highly standardized CRUD routes. For a table `customers`:
 * **Status**: `204 No Content`
 
 
+---
+
+## 8. Interactive Search, Case-Insensitive Filtering & Pagination APIs
+
+To support smooth user interactions and high-performance tables, the client-side rendering engine (custom pages) and the generated multi-platform backends (EF Core, Node.js, PHP, Python) share a unified, case-insensitive, partial-match querying protocol.
+
+### 8.1 API Query Parameters for Search & Pagination
+
+Standard generated controllers across all backend architectures support the following unified query parameters:
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `search` | `string` | `""` | Search query for global, partial-match, case-insensitive filtering across all text columns. |
+| `page` | `integer` | `1` | The current page index (1-based). |
+| `pageSize` | `integer` | `10` | The number of records to return per page. |
+
+#### Example Query Request
+```http
+GET /api/employees?search=schmidt&page=1&pageSize=10
+```
+
+### 8.2 Database-Agnostic Implementation Specifications
+
+The search mechanism is designed to handle partial word matches case-insensitively across different backend stacks:
+
+#### A. .NET Entity Framework Core (.NET 9.0)
+EF Core controllers compile queries directly into SQL `LIKE` or `ILIKE` clauses:
+```csharp
+var query = _context.Employees.AsQueryable();
+if (!string.IsNullOrEmpty(search)) {
+    query = query.Where(e => e.Vorname.ToLower().Contains(search.ToLower()) 
+                          || e.Nachname.ToLower().Contains(search.ToLower()));
+}
+```
+
+#### B. Node.js (Sequelize)
+Node.js Sequelize query operators translate `Op.iLike` (case-insensitive `like`) for PostgreSQL or client-agnostic partial matching:
+```typescript
+const { Op } = require('sequelize');
+const whereClause = search ? {
+    [Op.or]: [
+        { Vorname: { [Op.iLike]: `%${search}%` } },
+        { Nachname: { [Op.iLike]: `%${search}%` } }
+    ]
+} : {};
+```
+
+#### C. Python (SQLAlchemy / FastAPI)
+SQLAlchemy queries utilize `.ilike()` for backend-enforced case-insensitive partial-word matching:
+```python
+if search:
+    query = query.filter(
+        or_(
+            Employee.Vorname.ilike(f"%{search}%"),
+            Employee.Nachname.ilike(f"%{search}%")
+        )
+    )
+```
+
+### 8.3 Frontend Implementation Flow (Custom & Standard Pages)
+
+1. **Global Search Input**: Interactive text fields automatically reload pages instantly on text input or reset on clearance.
+2. **Column-Specific Search**: Clicking the table header filter button unveils individual column text inputs, filtering client-side instantly via case-insensitive contains algorithms:
+   ```typescript
+   const val = getNestedValueCaseInsensitive(row, colName);
+   val.toLowerCase().includes(columnSearchTerm.toLowerCase());
+   ```
+3. **Paging Footer**: Displays entries indicators ("Zeige X bis Y von Z Einträgen") and interactive paging triggers (First, Prev, Page indicator, Next, Last) using elegant transition animations.
+
+
+
 

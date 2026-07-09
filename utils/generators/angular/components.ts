@@ -66,7 +66,7 @@ export const generateAngularComponents = (tables: Table[], relationships: Relati
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-slate-800">${table.name}</h1>
             <div class="flex gap-4">
-                <input type="text" [(ngModel)]="search" (keyup.enter)="page=1;load()" placeholder="Suche..." class="border rounded px-3 py-2 text-sm" />
+                <input type="text" [(ngModel)]="search" (input)="page=1;load()" placeholder="Suche..." class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
                 <a routerLink="/${camelName}/new" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Neu</a>
             </div>
         </div>
@@ -559,8 +559,8 @@ export class ${pascalName}ReportComponent implements OnInit {
                           <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
                           <option *ngIf="${loadingState}" disabled>Lade Daten...</option>
                           <ng-container *ngIf="!${loadingState}">
-                              <option *ngFor="let row of ${stateName}; let idx = index" [value]="row['${valueField}'] || row.id || idx">
-                                  {{ row['${labelField}'] || row.id || idx }}
+                              <option *ngFor="let row of ${stateName}; let idx = index" [value]="row['${toCamelCase(valueField)}'] || row['${valueField}'] || row.id || idx">
+                                  {{ row['${toCamelCase(labelField)}'] || row['${labelField}'] || row.id || idx }}
                               </option>
                           </ng-container>
                       </select>
@@ -607,7 +607,7 @@ export class ${pascalName}ReportComponent implements OnInit {
                   
                   if (columns.length > 0) {
                       headerCells = columns.map((col: string) => `<th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">${col}</th>`).join('\n');
-                      bodyCells = columns.map((col: string) => `<td class="px-3 py-2 whitespace-nowrap text-sm text-slate-600">{{ row['${col}'] || '' }}</td>`).join('\n');
+                      bodyCells = columns.map((col: string) => `<td class="px-3 py-2 whitespace-nowrap text-sm text-slate-600">{{ row['${toCamelCase(col)}'] || row['${col}'] || '' }}</td>`).join('\n');
                   } else {
                       headerCells = `<th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Daten</th>`;
                       bodyCells = `<td class="px-3 py-2 text-sm text-slate-600 font-mono">{{ row | json }}</td>`;

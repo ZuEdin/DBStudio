@@ -121,7 +121,7 @@ namespace ${config.projectName}.Controllers
       const stringFields = table.fields.filter(f => f.type === 'VARCHAR' || f.type === 'TEXT');
       let searchLogic = '';
       if (stringFields.length > 0) {
-          const predicate = stringFields.map(f => `x.${toPascalCase(f.name)}.Contains(search)`).join(' || ');
+          const predicate = stringFields.map(f => `(x.${toPascalCase(f.name)} != null && x.${toPascalCase(f.name)}.ToLower().Contains(search.ToLower()))`).join(' || ');
           searchLogic = `
             if (!string.IsNullOrEmpty(search))
             {

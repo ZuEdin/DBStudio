@@ -81,7 +81,8 @@ public class WindowsDevBypassMiddleware
 #endregion`;
   }
 
-  const content = `using Microsoft.EntityFrameworkCore;
+  const content = `#pragma warning disable CA1416
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ${config.projectName}.Data;
@@ -105,7 +106,7 @@ ${config.multiTenancy?.enabled ? `builder.Services.AddScoped<ITenantService, Ten
 ${dbConfigCode}
 ${swaggerSetup}
 
-builder.Services.AddQuartz(q => { q.UseMicrosoftDependencyInjectionJobFactory(); });
+builder.Services.AddQuartz();
 builder.Services.AddQuartzHostedService(opt => { opt.WaitForJobsToComplete = true; });
 
 ${authServices}
@@ -147,7 +148,7 @@ public class SafeDateTimeConverter : JsonConverter<DateTime>
     {
         if (reader.TokenType == JsonTokenType.String)
         {
-            string val = reader.GetString();
+            string? val = reader.GetString();
             if (string.IsNullOrEmpty(val))
             {
                 return DateTime.MinValue;
@@ -176,7 +177,7 @@ public class SafeNullableDateTimeConverter : JsonConverter<DateTime?>
         }
         if (reader.TokenType == JsonTokenType.String)
         {
-            string val = reader.GetString();
+            string? val = reader.GetString();
             if (string.IsNullOrEmpty(val))
             {
                 return null;

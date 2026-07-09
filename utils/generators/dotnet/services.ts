@@ -38,9 +38,9 @@ ${tenantImpl}
     public interface IPermissionService { Task<bool> CanReadTableAsync(ClaimsPrincipal u, string t); Task<bool> CanWriteTableAsync(ClaimsPrincipal u, string t); Task<bool> CanDeleteTableAsync(ClaimsPrincipal u, string t); }
     public class PermissionService : IPermissionService {
         public PermissionService(AppDbContext c) { }
-        public async Task<bool> CanReadTableAsync(ClaimsPrincipal u, string t) => true;
-        public async Task<bool> CanWriteTableAsync(ClaimsPrincipal u, string t) => true;
-        public async Task<bool> CanDeleteTableAsync(ClaimsPrincipal u, string t) => true;
+        public Task<bool> CanReadTableAsync(ClaimsPrincipal u, string t) => Task.FromResult(true);
+        public Task<bool> CanWriteTableAsync(ClaimsPrincipal u, string t) => Task.FromResult(true);
+        public Task<bool> CanDeleteTableAsync(ClaimsPrincipal u, string t) => Task.FromResult(true);
     }
 }`;
     files.push({ name: 'PermissionService.cs', path: `${root}/Services/PermissionService.cs`, content: permissionContent, language: 'csharp' });
@@ -151,7 +151,7 @@ namespace ${config.projectName}.Services
             }
             
             // 3. Last Resort: Return simple Identity info
-            return new AdUserInfo { Username = principal.Identity.Name, DisplayName = principal.Identity.Name };
+            return new AdUserInfo { Username = principal.Identity.Name ?? "", DisplayName = principal.Identity.Name ?? "" };
         }
 
         public List<AdUserInfo> SearchUsers(string query)
@@ -212,9 +212,9 @@ namespace ${config.projectName}.Services
         {
             var info = new AdUserInfo
             {
-                Username = user.SamAccountName,
-                DisplayName = user.DisplayName ?? user.Name,
-                Email = user.EmailAddress,
+                Username = user.SamAccountName ?? "",
+                DisplayName = user.DisplayName ?? user.Name ?? "",
+                Email = user.EmailAddress ?? "",
                 Department = "Unknown"
             };
             
@@ -229,8 +229,8 @@ namespace ${config.projectName}.Services
             {
                 try {
                     var groups = user.GetAuthorizationGroups();
-                    info.Groups = groups.Select(g => g.Name).ToList();
-                } 
+                    info.Groups = groups.Select(g => g.Name ?? "").ToList();
+                }  
                 catch (Exception ex) 
                 { 
                     // Swallow group fetch errors specifically (common source of crashes)

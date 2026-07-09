@@ -212,7 +212,7 @@ app.get('/api/${routeName}', async (req, res) => {
             if (searchTerms.length > 0) {
                 whereClause[db.Sequelize.Op.and] = searchTerms.map(term => ({
                     [db.Sequelize.Op.or]: [
-                        ${searchableFields.map(f => `{ ${f}: { [db.Sequelize.Op.like]: \`%\${term}%\` } }`).join(',\n                        ')}
+                        ${searchableFields.map(f => `{ ${f}: { [db.Sequelize.Op.iLike]: \`%\${term}%\` } }`).join(',\n                        ')}
                     ]
                 }));
             }
