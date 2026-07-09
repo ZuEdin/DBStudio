@@ -32,18 +32,63 @@ export const PageViewContext = createContext<{
     activeRole: 'Admin'
 });
 
+// Helper to get nested properties case-insensitively, supporting row.xyz, item.xyz notation
+const getNestedValueCaseInsensitive = (obj: any, path: string): any => {
+    if (!obj || typeof obj !== 'object') return undefined;
+    
+    let cleanPath = path.trim();
+    // Support row.xyz, item.xyz, etc.
+    if (cleanPath.startsWith('row.')) {
+        cleanPath = cleanPath.substring(4);
+    } else if (cleanPath.startsWith("row['") && cleanPath.endsWith("']")) {
+        cleanPath = cleanPath.substring(5, cleanPath.length - 2);
+    } else if (cleanPath.startsWith('row["') && cleanPath.endsWith('"]')) {
+        cleanPath = cleanPath.substring(5, cleanPath.length - 2);
+    } else if (cleanPath.startsWith('item.')) {
+        cleanPath = cleanPath.substring(5);
+    } else if (cleanPath.startsWith("item['") && cleanPath.endsWith("']")) {
+        cleanPath = cleanPath.substring(6, cleanPath.length - 2);
+    } else if (cleanPath.startsWith('item["') && cleanPath.endsWith('"]')) {
+        cleanPath = cleanPath.substring(6, cleanPath.length - 2);
+    }
+
+    // Try exact lookup first
+    if (obj[cleanPath] !== undefined) return obj[cleanPath];
+
+    // Case-insensitive lookup of cleanPath in obj
+    const lowerKey = cleanPath.toLowerCase();
+    const foundKey = Object.keys(obj).find(k => k.toLowerCase() === lowerKey);
+    if (foundKey) return obj[foundKey];
+
+    // Fallback: search in deep children if obj has a property like row or item
+    for (const key of Object.keys(obj)) {
+        if (obj[key] && typeof obj[key] === 'object' && (key === 'row' || key === 'item')) {
+            const nestedVal = getNestedValueCaseInsensitive(obj[key], cleanPath);
+            if (nestedVal !== undefined) return nestedVal;
+        }
+    }
+
+    return undefined;
+};
+
 // Helper to safely replace placeholders like {{name}} or {{selectedId}}
 const resolvePlaceholders = (text: string, context?: Record<string, any>, params?: Record<string, any>): string => {
     if (!text) return '';
     return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
         const trimmedKey = key.trim();
-        // 1. Check local loop context first
-        if (context && context[trimmedKey] !== undefined) {
-            return String(context[trimmedKey]);
+        // 1. Check local loop context first (case-insensitive)
+        if (context) {
+            const contextVal = getNestedValueCaseInsensitive(context, trimmedKey);
+            if (contextVal !== undefined && contextVal !== null) {
+                return String(contextVal);
+            }
         }
-        // 2. Check page-level parameters
-        if (params && params[trimmedKey] !== undefined) {
-            return String(params[trimmedKey]);
+        // 2. Check page-level parameters (case-insensitive)
+        if (params) {
+            const paramVal = getNestedValueCaseInsensitive(params, trimmedKey);
+            if (paramVal !== undefined && paramVal !== null) {
+                return String(paramVal);
+            }
         }
         return '';
     });
@@ -61,8 +106,9 @@ const getRowLabelAndValue = (row: any, props: any, idx: number) => {
     }
 
     let val: any = idx;
-    if (props.valueField && row[props.valueField] !== undefined && row[props.valueField] !== null) {
-        val = row[props.valueField];
+    const valueFieldVal = props.valueField ? getNestedValueCaseInsensitive(row, props.valueField) : undefined;
+    if (valueFieldVal !== undefined && valueFieldVal !== null) {
+        val = valueFieldVal;
     } else {
         const idKey = keys.find(k => k.toLowerCase() === 'id' || k.toLowerCase().endsWith('_id') || k.toLowerCase() === 'uuid');
         if (idKey && row[idKey] !== undefined && row[idKey] !== null) {
@@ -76,8 +122,9 @@ const getRowLabelAndValue = (row: any, props: any, idx: number) => {
     }
 
     let label = '';
-    if (props.labelField && row[props.labelField] !== undefined && row[props.labelField] !== null) {
-        label = String(row[props.labelField]);
+    const labelFieldVal = props.labelField ? getNestedValueCaseInsensitive(row, props.labelField) : undefined;
+    if (labelFieldVal !== undefined && labelFieldVal !== null) {
+        label = String(labelFieldVal);
     } else {
         const labelKeywords = ['name', 'label', 'title', 'titel', 'text', 'bezeichnung', 'username', 'email', 'description'];
         const matchedKey = keys.find(k => {
@@ -174,10 +221,14 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
 
         // Check in loop context first, then fallback to parameters
         let actualVal = '';
-        if (context && context[vField] !== undefined) {
-            actualVal = String(context[vField]);
-        } else if (params && params[vField] !== undefined) {
-            actualVal = String(params[vField]);
+        const contextVal = context ? getNestedValueCaseInsensitive(context, vField) : undefined;
+        if (contextVal !== undefined) {
+            actualVal = String(contextVal);
+        } else {
+            const paramVal = params ? getNestedValueCaseInsensitive(params, vField) : undefined;
+            if (paramVal !== undefined) {
+                actualVal = String(paramVal);
+            }
         }
 
         let isVisible = false;
@@ -233,7 +284,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                  const filterParam = node.props.filterParamName;
                  const filterVal = params[filterParam];
                  if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     finalData = fetchedData.filter(row => String(row[filterField]) === String(filterVal));
+                     finalData = fetchedData.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
                  } else {
                      // Empty result if param not set
                      finalData = [];
@@ -274,8 +325,9 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                      if (node.props.navigateTargetParams && Array.isArray(node.props.navigateTargetParams)) {
                          node.props.navigateTargetParams.forEach((m: any) => {
                              let val: any;
-                             if (context && context[m.sourceKey] !== undefined) {
-                                 val = context[m.sourceKey];
+                             const sourceVal = context ? getNestedValueCaseInsensitive(context, m.sourceKey) : undefined;
+                             if (sourceVal !== undefined) {
+                                 val = sourceVal;
                              } else if (params[m.sourceKey] !== undefined) {
                                  val = params[m.sourceKey];
                              } else if (m.sourceKey === 'id' && context) {
@@ -343,10 +395,14 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                          const targetPage = pages.find(p => p.id === node.props.targetPageId);
                          const expected = targetPage?.expectedParams || [];
                          expected.forEach((pName: string) => {
-                             if (params[pName] !== undefined) {
-                                 targetParams[pName] = params[pName];
-                             } else if (context && context[pName] !== undefined) {
-                                 targetParams[pName] = context[pName];
+                             const paramVal = params ? getNestedValueCaseInsensitive(params, pName) : undefined;
+                             if (paramVal !== undefined) {
+                                 targetParams[pName] = paramVal;
+                             } else if (context) {
+                                 const contextVal = getNestedValueCaseInsensitive(context, pName);
+                                 if (contextVal !== undefined) {
+                                     targetParams[pName] = contextVal;
+                                 }
                              }
                          });
                      }
@@ -374,7 +430,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                  const filterParam = node.props.filterParamName;
                  const filterVal = params[filterParam];
                  if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     finalData = fetchedData.filter(row => String(row[filterField]) === String(filterVal));
+                     finalData = fetchedData.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
                  } else {
                      finalData = [];
                  }
@@ -414,7 +470,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                  const filterParam = node.props.filterParamName;
                  const filterVal = params[filterParam];
                  if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     finalData = fetchedData.filter(row => String(row[filterField]) === String(filterVal));
+                     finalData = fetchedData.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
                  } else {
                      // Empty filter parameter -> optionally show no data or all data. Let's show none to avoid confusion
                      finalData = [];
@@ -423,7 +479,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
 
              const displayData = columns.length > 0 ? finalData.map(row => {
                  const newRow: any = {};
-                 columns.forEach((c: string) => newRow[c] = row[c]);
+                 columns.forEach((c: string) => newRow[c] = getNestedValueCaseInsensitive(row, c));
                  return { ...newRow, _raw: row }; // Keep original record in _raw
              }) : finalData.map(row => ({ ...row, _raw: row }));
 
@@ -510,7 +566,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                                                >
                                                    {allColumns.map((colName, vIdx) => (
                                                        <td key={vIdx} className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 font-medium">
-                                                           {String(row[colName] ?? '')}
+                                                           {String(getNestedValueCaseInsensitive(row, colName) ?? '')}
                                                        </td>
                                                    ))}
                                                    
@@ -589,7 +645,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                  const filterParam = node.props.filterParamName;
                  const filterVal = params[filterParam];
                  if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     finalData = fetchedData.filter(row => String(row[filterField]) === String(filterVal));
+                     finalData = fetchedData.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
                  } else {
                      finalData = [];
                  }
@@ -631,10 +687,14 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
              // 1. Automatic Parameter takeover for expected child parameters
              const expected = subPage.expectedParams || [];
              expected.forEach((paramName: string) => {
-                 if (params[paramName] !== undefined && params[paramName] !== null) {
-                     mappedParams[paramName] = params[paramName];
-                 } else if (context && context[paramName] !== undefined && context[paramName] !== null) {
-                     mappedParams[paramName] = context[paramName];
+                 const paramVal = params ? getNestedValueCaseInsensitive(params, paramName) : undefined;
+                 if (paramVal !== undefined && paramVal !== null) {
+                     mappedParams[paramName] = paramVal;
+                 } else if (context) {
+                     const contextVal = getNestedValueCaseInsensitive(context, paramName);
+                     if (contextVal !== undefined && contextVal !== null) {
+                         mappedParams[paramName] = contextVal;
+                     }
                  }
              });
 
@@ -694,8 +754,9 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
              if (node.props.navigateTargetParams && Array.isArray(node.props.navigateTargetParams)) {
                  node.props.navigateTargetParams.forEach((m: any) => {
                      let val: any;
-                     if (context && context[m.sourceKey] !== undefined) {
-                         val = context[m.sourceKey];
+                     const sourceVal = context ? getNestedValueCaseInsensitive(context, m.sourceKey) : undefined;
+                     if (sourceVal !== undefined) {
+                         val = sourceVal;
                      } else if (params[m.sourceKey] !== undefined) {
                          val = params[m.sourceKey];
                      } else {
@@ -721,7 +782,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                      hasFilter = true;
                      const targetTable = tables.find(t => t.id === formToRender.sourceId);
                      if (targetTable && targetTable.data && filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                         formFilteredData = targetTable.data.filter(row => String(row[filterField]) === String(filterVal));
+                         formFilteredData = targetTable.data.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
                      }
                  }
              }

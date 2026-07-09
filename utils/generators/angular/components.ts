@@ -82,8 +82,9 @@ export const generateAngularComponents = (tables: Table[], relationships: Relati
                     <tr *ngFor="let item of items" class="border-b hover:bg-slate-50">
                         ${table.fields.map(f => `<td class="p-4">{{item.${toCamelCase(f.name)}}}</td>`).join('')}
                         <td class="p-4">
-                            <a [routerLink]="['/${camelName}', item.${pkCamel}]" class="text-blue-600 hover:underline mr-3">Edit</a>
-                            <button (click)="delete(item.${pkCamel})" class="text-red-600 hover:underline">Delete</button>
+                            <button (click)="viewDetails(item)" class="text-indigo-600 hover:underline mr-3 font-semibold">Details</button>
+                            <a [routerLink]="['/${camelName}', item.${pkCamel}]" class="text-blue-600 hover:underline mr-3 font-semibold">Edit</a>
+                            <button (click)="delete(item.${pkCamel})" class="text-red-600 hover:underline font-semibold">Delete</button>
                         </td>
                     </tr>
                     <tr *ngIf="items.length === 0">
@@ -98,6 +99,29 @@ export const generateAngularComponents = (tables: Table[], relationships: Relati
                 <div class="flex gap-2">
                     <button (click)="changePage(page - 1)" [disabled]="page <= 1" class="px-3 py-1 border rounded bg-white hover:bg-slate-100 disabled:opacity-50">Zurück</button>
                     <button (click)="changePage(page + 1)" [disabled]="page >= totalPages" class="px-3 py-1 border rounded bg-white hover:bg-slate-100 disabled:opacity-50">Weiter</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div *ngIf="selectedItem" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" (click)="closeDetails()">
+            <div class="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200" (click)="$event.stopPropagation()">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h3 class="text-lg font-bold text-slate-800">${table.name} Details</h3>
+                    <button (click)="closeDetails()" class="text-slate-400 hover:text-slate-600 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                    ${table.fields.map(f => `
+                    <div class="grid grid-cols-3 gap-2 py-2 border-b border-slate-100 last:border-0">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">${f.name}</span>
+                        <span class="col-span-2 text-sm text-slate-800 font-medium whitespace-pre-wrap">{{ selectedItem.${toCamelCase(f.name)} !== null && selectedItem.${toCamelCase(f.name)} !== undefined && selectedItem.${toCamelCase(f.name)} !== '' ? selectedItem.${toCamelCase(f.name)} : '-' }}</span>
+                    </div>`).join('')}
+                </div>
+                <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                    <a [routerLink]="['/${camelName}', selectedItem.${pkCamel}]" (click)="closeDetails()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm transition">Bearbeiten</a>
+                    <button (click)="closeDetails()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-semibold transition">Schließen</button>
                 </div>
             </div>
         </div>
@@ -125,6 +149,7 @@ export class ${pascalName}ListComponent implements OnInit {
   total = 0;
   totalPages = 0;
   search = '';
+  selectedItem: any = null;
 
   constructor(private api: ApiService) {}
   
@@ -147,6 +172,9 @@ export class ${pascalName}ListComponent implements OnInit {
   }
 
   delete(id: any) { if(confirm('Löschen?')) this.api.delete('${camelName}', id).subscribe(() => this.load()); }
+
+  viewDetails(item: any) { this.selectedItem = item; }
+  closeDetails() { this.selectedItem = null; }
 }`;
 
       files.push({ name: `${kebabName}-list.component.html`, path: `${appRoot}/pages/${folder}/${kebabName}-list.component.html`, content: listHtml, language: 'html' });

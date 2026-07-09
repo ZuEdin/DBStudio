@@ -176,18 +176,23 @@ const save = async () => {
       const c = toCamelCase(table.name);
       const pk = toCamelCase(table.fields.find(f => f.isPrimaryKey)?.name || 'id');
 
-      // List View
-      files.push({
-          name: `${p}List.vue`, path: `${root}/src/views/${p}List.vue`,
-          content: `<script setup lang="ts">
+       // List View
+       files.push({
+           name: `${p}List.vue`, path: `${root}/src/views/${p}List.vue`,
+           content: `<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { get, remove } from '@/services/api';
-import { Plus, Edit, Trash2 } from 'lucide-vue-next';
+import { Plus, Edit, Trash2, Eye } from 'lucide-vue-next';
 
 const items = ref<any[]>([]);
+const selectedItem = ref<any>(null);
+
 const load = async () => { const res = await get('${c}'); items.value = res.data || res; };
 onMounted(load);
 const del = async (id: any) => { if(confirm('Löschen?')) { await remove('${c}/' + id); load(); } };
+
+const viewDetails = (item: any) => { selectedItem.value = item; };
+const closeDetails = () => { selectedItem.value = null; };
 </script>
 <template>
   <div>
@@ -198,22 +203,46 @@ const del = async (id: any) => { if(confirm('Löschen?')) { await remove('${c}/'
     <div class="bg-white rounded shadow overflow-hidden">
         <table class="w-full text-left">
             <thead class="bg-gray-50 border-b">
-                <tr>${table.fields.map(f => `<th class="p-4 font-bold text-sm text-gray-600">${f.name}</th>`).join('')}<th class="p-4"></th></tr>
+                <tr>${table.fields.map(f => `<th class="p-4 font-bold text-sm text-gray-600">${f.name}</th>`).join('')}<th class="p-4">Aktionen</th></tr>
             </thead>
             <tbody>
                 <tr v-for="i in items" :key="i.${pk}" class="border-b hover:bg-gray-50">
                     ${table.fields.map(f => `<td class="p-4 text-sm">{{i.${toCamelCase(f.name)}}}</td>`).join('')}
-                    <td class="p-4 text-right">
-                        <router-link :to="'/${c}/' + i.${pk}" class="text-blue-600 mr-4"><Edit size={16}/></router-link>
-                        <button @click="del(i.${pk})" class="text-red-600"><Trash2 size={16}/></button>
+                    <td class="p-4 text-right flex justify-end gap-3">
+                        <button @click="viewDetails(i)" class="text-indigo-600 hover:text-indigo-800" title="Details"><Eye size={16}/></button>
+                        <router-link :to="'/${c}/' + i.${pk}" class="text-blue-600 hover:text-blue-800" title="Bearbeiten"><Edit size={16}/></router-link>
+                        <button @click="del(i.${pk})" class="text-red-600 hover:text-red-800" title="Löschen"><Trash2 size={16}/></button>
                     </td>
                 </tr>
             </tbody>
         </table>
     </div>
+
+    <!-- Details Modal -->
+    <div v-if="selectedItem" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click="closeDetails">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200" @click.stop>
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800">${table.name} Details</h3>
+                <button @click="closeDetails" class="text-slate-400 hover:text-slate-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                ${table.fields.map(f => `
+                <div class="grid grid-cols-3 gap-2 py-2 border-b border-slate-100 last:border-0 text-left">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">${f.name}</span>
+                    <span class="col-span-2 text-sm text-slate-800 font-medium whitespace-pre-wrap">{{ selectedItem.${toCamelCase(f.name)} !== null && selectedItem.${toCamelCase(f.name)} !== undefined && selectedItem.${toCamelCase(f.name)} !== '' ? selectedItem.${toCamelCase(f.name)} : '-' }}</span>
+                </div>`).join('')}
+            </div>
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <router-link :to="'/${c}/' + selectedItem.${pk}" @click="closeDetails" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm transition">Bearbeiten</router-link>
+                <button @click="closeDetails" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-semibold transition">Schließen</button>
+            </div>
+        </div>
+    </div>
   </div>
 </template>`, language: 'html'
-      });
+       });
 
       // Default Form View (if no custom form exists)
       if (!forms.some(f => f.sourceId === table.id)) {
