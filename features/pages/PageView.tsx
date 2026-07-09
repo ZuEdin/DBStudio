@@ -405,7 +405,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
         }
 
         case 'table_view': {
-             const columns = node.props.columns ? node.props.columns.split(',').map((c: string) => c.trim()) : [];
+             const columns = node.props.columns ? node.props.columns.split(',').map((c: string) => c.trim()).filter(Boolean) : [];
              let finalData = fetchedData;
 
              // Apply runtime parameter filter (Master-Detail matching)
@@ -429,10 +429,13 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
 
              const tableId = node.props.dataSourceId;
              const targetTable = tables.find(t => t.id === tableId);
+             const query = queries.find(q => q.id === tableId);
+             const displayName = targetTable?.name || query?.name || 'Tabelle';
              const pkField = targetTable?.fields.find(f => f.isPrimaryKey) || targetTable?.fields[0];
              const pkFieldName = pkField?.name || 'Id';
 
-             const allColumns = columns.length > 0 ? columns : (targetTable ? targetTable.fields.map(f => f.name) : []);
+             const queryColumns = query && query.type === 'SELECT' ? query.columns.filter(c => c.show).map(c => c.alias || c.fieldName) : [];
+             const allColumns = columns.length > 0 ? columns : (targetTable ? targetTable.fields.map(f => f.name) : (queryColumns.length > 0 ? queryColumns : []));
 
              const triggerMode = node.props.rowClickTrigger || 'click';
 
@@ -470,7 +473,7 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                        {/* Table Header Controls */}
                        <div className="flex items-center justify-between mb-4">
                            <div className="text-sm font-semibold text-slate-700">
-                               {targetTable?.name || 'Tabelle'} {node.props.filterParamField && `(Gefiltert nach ${node.props.filterParamField})`}
+                               {displayName} {node.props.filterParamField && `(Gefiltert nach ${node.props.filterParamField})`}
                            </div>
                            {node.props.enableCrudActions && node.props.createFormId && (
                                <button 
@@ -505,9 +508,9 @@ const LiveNode: React.FC<{ node: PageComponent; context?: Record<string, any> }>
                                                    onDoubleClick={() => handleRowDoubleClick(row)}
                                                    className={`hover:bg-slate-50 transition cursor-pointer select-none ${isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''}`}
                                                >
-                                                   {Object.keys(row).filter(k => k !== '_raw').map((key, vIdx) => (
+                                                   {allColumns.map((colName, vIdx) => (
                                                        <td key={vIdx} className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 font-medium">
-                                                           {String(row[key] ?? '')}
+                                                           {String(row[colName] ?? '')}
                                                        </td>
                                                    ))}
                                                    
