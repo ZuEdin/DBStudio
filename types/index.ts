@@ -494,6 +494,9 @@ export interface WhitelabelConfig {
     fontFamily?: string;
     borderRadius?: 'none' | 'sm' | 'md' | 'lg' | 'full';
     elevation?: 'none' | 'sm' | 'md' | 'lg';
+    customCss?: string;
+    useBootstrap?: boolean;
+    customNpmPackages?: string;
     darkModeColors?: {
         primary?: string;
         secondary?: string;

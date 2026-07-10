@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Table, FormElement } from '../../types/index';
+import { Form, Table, FormElement, Query } from '../../types/index';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FormWidget } from './renderer/FormWidget';
@@ -9,6 +9,8 @@ interface FormViewProps {
   form: Form;
   allForms: Form[];
   allTables: Table[];
+  queries?: Query[];
+  executeQuery?: (q: Query) => Record<string, any>[];
   onTableChange: (table: Table) => void;
   showConfirmation: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
   isSubform?: boolean;
@@ -25,7 +27,7 @@ interface FormViewProps {
 }
 
 export const FormView: React.FC<FormViewProps> = ({ 
-  form, allForms, allTables, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode, hideNavigation, hideActions, hideHeader, embedded, defaultValues 
+  form, allForms, allTables, queries, executeQuery, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode, hideNavigation, hideActions, hideHeader, embedded, defaultValues 
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
@@ -182,13 +184,31 @@ export const FormView: React.FC<FormViewProps> = ({
   };
 
   const getLookupOptions = (config: any) => {
-      const table = allTables.find(t => t.id === config.tableId);
-      if (!table || !table.data) return [];
+      let rows: any[] = [];
+      let fields: any[] = [];
       
-      let rows = [...table.data];
+      const table = allTables.find(t => t.id === config.tableId);
+      if (table) {
+          rows = [...(table.data || [])];
+          fields = table.fields.map(f => ({ id: f.id, name: f.name, isPrimaryKey: f.isPrimaryKey }));
+      } else if (queries && executeQuery) {
+          const query = queries.find(q => q.id === config.tableId);
+          if (query && query.type === 'SELECT') {
+              const context: Record<string, any> = {};
+              if (form.name && currentRecord) {
+                  for (const key in currentRecord) {
+                      context[`forms.${form.name.toLowerCase()}.${key.toLowerCase()}`] = currentRecord[key];
+                  }
+              }
+              rows = [...executeQuery(query, context)];
+              fields = query.columns.map(c => ({ id: c.id, name: c.alias || c.fieldName, isPrimaryKey: false }));
+          }
+      }
+
+      if (rows.length === 0) return [];
       
       if (config.sort && config.sort.fieldId) {
-          const sortField = table.fields.find(f => f.id === config.sort.fieldId);
+          const sortField = fields.find(f => f.id === config.sort.fieldId);
           if (sortField) {
               const fieldName = sortField.name;
               const direction = config.sort.direction || 'ASC';
@@ -212,10 +232,10 @@ export const FormView: React.FC<FormViewProps> = ({
       if (config.displayFormat && config.displayFormat.length > 0) {
           return rows.map(row => {
               const label = config.displayFormat.map((item: any) => {
-                  const f = table.fields.find(field => field.id === item.fieldId);
+                  const f = fields.find(field => field.id === item.fieldId);
                   return `${item.prefix || ''}${f ? row[f.name] : ''}${item.suffix || ''}`;
               }).join('');
-              const valField = table.fields.find(f => f.id === config.valueFieldId) || table.fields.find(f => f.isPrimaryKey);
+              const valField = fields.find(f => f.id === config.valueFieldId) || fields.find(f => f.isPrimaryKey);
               return { value: valField ? row[valField.name] : '', label: label };
           });
       }
@@ -326,6 +346,8 @@ export const FormView: React.FC<FormViewProps> = ({
                             form={subDef}
                             allForms={allForms}
                             allTables={allTables}
+                            queries={queries}
+                            executeQuery={executeQuery}
                             onTableChange={onTableChange}
                             showConfirmation={showConfirmation}
                             isSubform={true}
@@ -401,6 +423,8 @@ export const FormView: React.FC<FormViewProps> = ({
                         form={targetForm}
                         allForms={allForms}
                         allTables={allTables}
+                        queries={queries}
+                        executeQuery={executeQuery}
                         onTableChange={handleQuickCreateSave}
                         showConfirmation={showConfirmation}
                         isSubform={false}
@@ -433,6 +457,8 @@ export const FormView: React.FC<FormViewProps> = ({
                         form={targetForm}
                         allForms={allForms}
                         allTables={allTables}
+                        queries={queries}
+                        executeQuery={executeQuery}
                         onTableChange={handleSubformSaveFromModal}
                         showConfirmation={showConfirmation}
                         isSubform={false} // It's a modal top-level view now

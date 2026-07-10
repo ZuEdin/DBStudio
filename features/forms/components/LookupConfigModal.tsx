@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Table, Field } from '../../../types/index';
+import { Table, Field, Query, SelectQuery } from '../../../types/index';
 import { X, GripVertical, ArrowRight, Check, Search, Plus, Trash2, AlignCenter, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
 
 interface DisplayConfigItem {
@@ -11,6 +11,7 @@ interface DisplayConfigItem {
 
 interface LookupConfigModalProps {
   allTables: Table[];
+  queries?: Query[];
   initialConfig: {
     tableId: string;
     valueFieldId: string;
@@ -24,11 +25,42 @@ interface LookupConfigModalProps {
 
 export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
   allTables,
+  queries,
   initialConfig,
   onSave,
   onClose,
 }) => {
-  const [tableId, setTableId] = useState(initialConfig?.tableId || (allTables[0]?.id || ''));
+  // Map tables and queries into a unified data structure
+  const dataSources = React.useMemo(() => {
+    const tableSources = allTables.map(t => ({
+      id: t.id,
+      name: t.name,
+      type: 'Tabelle',
+      fields: t.fields.map(f => ({ id: f.id, name: f.name, isPrimaryKey: f.isPrimaryKey })),
+      data: t.data
+    }));
+
+    const querySources = (queries || []).filter(q => q.type === 'SELECT').map(q => {
+      const sq = q as SelectQuery;
+      // Extract unique fields from columns
+      const fields = sq.columns.map(c => ({
+        id: c.id, 
+        name: c.alias || c.fieldName,
+        isPrimaryKey: false
+      }));
+      return {
+        id: q.id,
+        name: q.name,
+        type: 'Abfrage',
+        fields: fields,
+        data: [] // No preview data available for queries currently
+      };
+    });
+
+    return [...tableSources, ...querySources];
+  }, [allTables, queries]);
+
+  const [tableId, setTableId] = useState(initialConfig?.tableId || (dataSources[0]?.id || ''));
   const [valueFieldId, setValueFieldId] = useState(initialConfig?.valueFieldId || '');
   
   // Sort State
@@ -39,7 +71,7 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
   const [selectedItems, setSelectedItems] = useState<DisplayConfigItem[]>([]);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
-  const selectedTable = allTables.find((t) => t.id === tableId);
+  const selectedTable = dataSources.find((t) => t.id === tableId);
 
   // Init state from props
   useEffect(() => {
@@ -157,7 +189,7 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
                             value={tableId}
                             onChange={(e) => setTableId(e.target.value)}
                         >
-                            {allTables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            {dataSources.map(t => <option key={t.id} value={t.id}>{t.type}: {t.name}</option>)}
                         </select>
                     </div>
                     

@@ -2,7 +2,7 @@
 import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
 import { quoteIdentifier, toPascalCase } from './generators/common';
 
-export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType, useRawNames: boolean = false): string => {
+export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType, useRawNames: boolean = false, context?: Record<string, any>): string => {
     if (nodes.length === 0) return '';
     
     const formatIdentifier = (name: string) => useRawNames ? name : toPascalCase(name);
@@ -17,7 +17,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     });
 
     // 2. Map Columns to their Aliases
-    const selectClause = columns.filter(c => c.show).map(c => {
+    const selectClause = columns.filter(c => c.show || (c.criteria && c.criteria.some(cr => cr && cr.trim() !== ''))).map(c => {
         const alias = c.alias ? formatIdentifier(c.alias) : formatIdentifier(c.fieldName);
         const quotedAlias = quoteIdentifier(alias, dbType);
         
@@ -113,6 +113,29 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         
         const conditions = validCriteria.map(crit => {
             let criteria = crit.trim();
+
+            if (/\[Forms\]!/i.test(criteria)) {
+                if (context) {
+                    let matchStr = criteria.replace(/^=|like |>|<|>=|<=/i, '').trim();
+                    const formMatch = matchStr.match(/\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/i) || matchStr.match(/\[Forms\]!([^!]+)!([^!]+)/i);
+                    if (formMatch && formMatch.length >= 3) {
+                        const formName = formMatch[1].toLowerCase();
+                        const fieldName = formMatch[2].toLowerCase();
+                        const contextKey = `forms.${formName}.${fieldName}`;
+                        let resolvedValue = context[contextKey] !== undefined ? context[contextKey] : '';
+                        
+                        // preserve operator if it existed, otherwise default to '='
+                        const opMatch = criteria.match(/^(=|like |>|<|>=|<=)/i);
+                        const op = opMatch ? opMatch[0] : '=';
+                        criteria = `${op}'${String(resolvedValue).replace(/'/g, "''")}'`;
+                    }
+                } else {
+                    return null;
+                }
+            }
+
+            if (criteria === null) return null;
+
             if (criteria.includes('"')) criteria = criteria.replace(/"/g, "'");
             if (criteria.includes('TODAY')) {
                 const todaySql = dbType === DbType.SQL ? "CAST(GETDATE() AS DATE)" : (dbType === DbType.SQLite ? "DATE('now')" : "CURDATE()");
@@ -123,8 +146,8 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
             if (upper === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
             if (upper === 'IS NULL' || upper === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
             return `${fieldRef} ${criteria}`; 
-        });
-        return conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0];
+        }).filter(Boolean);
+        return conditions.length > 0 ? (conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0]) : null;
     }).filter(Boolean);
 
     const whereClause = whereConditions.length > 0 ? `\nWHERE\n  ${whereConditions.join('\n  AND ')}` : '';

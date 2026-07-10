@@ -22,6 +22,13 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
       const childField = childTable?.fields.find(f => f.id === rel.toFieldId);
 
       if (!parentTable || !childTable || !childField) return '';
+      
+      const parentPk = parentTable.fields.find(f => f.isPrimaryKey) || parentTable.fields[0];
+      if (!parentPk) return '';
+      
+      if (childField.type !== parentPk.type) {
+          return `            // [SKIPPED] Relationship ${toPascalCase(parentTable.name)} -> ${toPascalCase(childTable.name)} skipped due to Type Mismatch: FK ${childField.name} (${childField.type}) vs PK ${parentPk.name} (${parentPk.type})`;
+      }
 
       const parentName = toPascalCase(parentTable.name);
       const childName = toPascalCase(childTable.name);
@@ -249,7 +256,14 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
     const childRels = relationships.filter(r => r.fromTableId === table.id);
     const childProps = childRels.map(r => {
         const childTable = tables.find(t => t.id === r.toTableId);
-        if (!childTable) return '';
+        const childField = childTable?.fields.find(f => f.id === r.toFieldId);
+        const parentPk = table.fields.find(f => f.isPrimaryKey) || table.fields[0];
+        if (!childTable || !childField || !parentPk) return '';
+        
+        if (childField.type !== parentPk.type) {
+            return `        // [SKIPPED] Collection of ${toPascalCase(childTable.name)} skipped due to Type Mismatch: FK ${childField.name} (${childField.type}) vs PK ${parentPk.name} (${parentPk.type})`;
+        }
+
         return `        public virtual ICollection<${toPascalCase(childTable.name)}> ${toPascalCase(childTable.name)}s { get; set; } = new List<${toPascalCase(childTable.name)}>();`;
     }).join('\n\n');
 
@@ -293,7 +307,7 @@ ${validationMethod}
       const safeName = toPascalCase(q.name);
       const usedNames = new Set<string>();
 
-      const props = selectQ.columns.filter(c => c.show).map(c => {
+      const props = selectQ.columns.filter(c => c.show || (c.criteria && c.criteria.some(cr => cr && cr.trim() !== ''))).map(c => {
           const table = tables.find(t => t.id === c.tableId);
           const field = table?.fields.find(f => f.id === c.fieldId);
           let type = 'string';

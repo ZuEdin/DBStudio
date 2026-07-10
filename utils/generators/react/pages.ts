@@ -572,9 +572,9 @@ export const ${formCompName} = () => {
       if(!sourceTable) return;
       
       const sourceTableCamel = toCamelCase(sourceTable.name);
-      const lookups = form.layout ? collectLookups(form.layout, tables) : [];
+      const lookups = form.layout ? collectLookups(form.layout, tables, queries) : [];
       const requiredModals: any[] = [];
-      const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables, forms, 'data', requiredModals) : '<div>Kein Layout definiert.</div>';
+      const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables, forms, "data", requiredModals, queries) : '<div>Kein Layout definiert.</div>';
       
       const subformStateDecls = requiredModals.filter(m => m.type === 'subform').map(m => {
             const camelChild = toCamelCase(m.table.name);
@@ -586,7 +586,7 @@ export const ${formCompName} = () => {
             const childTableCamel = toCamelCase(m.table.name);
             const childField = m.table.fields.find(f => f.id === m.childField)?.name;
             const varName = `${childTableCamel}SubList_${m.id.replace('sub_field_', '')}`;
-            return `if(id && id!=='new') { const subRes = await get('${childTableCamel}', { search: '' }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
+            return `if(id && id!=='new') { const subRes = await get('${childTableCamel}', { search: '', pageSize: 10000 }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
         }).join('\n        ');
 
       const modalJsx = requiredModals.map(m => {
@@ -603,13 +603,13 @@ export const ${formCompName} = () => {
                   return `<div className="mb-3"><label className="block text-sm font-bold mb-1 text-slate-700">${label}</label>${input}</div>`;
               }).join('');
               
-              return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Neu: ${m.table.name}"><form onSubmit={async (e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); const payload: any = {}; formData.forEach((value, key) => { if(value==='true') payload[key]=true; else if(value==='false') payload[key]=false; else payload[key]=value; }); try { await post('${toCamelCase(m.table.name)}', payload); const res = await get('${toCamelCase(m.table.name)}'); set${toPascalCase(toCamelCase(m.table.name))}List(res.data || res); toggleModal('${m.id}', false); } catch (err) { alert('Fehler'); } }}><div className="space-y-2">${fields}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => toggleModal('${m.id}', false)} className="px-4 py-2 border rounded">Abbrechen</button><button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button></div></form></Modal>`;
+              return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Neu: ${m.table.name}"><form onSubmit={async (e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); const payload: any = {}; formData.forEach((value, key) => { if(value==='true') payload[key]=true; else if(value==='false') payload[key]=false; else payload[key]=value; }); try { await post('${toCamelCase(m.table.name)}', payload); const res = await get('${toCamelCase(m.table.name)}', { pageSize: 10000 }); set${toPascalCase(toCamelCase(m.table.name))}List(res.data || res); toggleModal('${m.id}', false); } catch (err) { alert('Fehler'); } }}><div className="space-y-2">${fields}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => toggleModal('${m.id}', false)} className="px-4 py-2 border rounded">Abbrechen</button><button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button></div></form></Modal>`;
           }
           if (m.type === 'subform') {
-              const subLayout = m.form.layout ? generateJsxForLayout(m.form.layout, tables, forms, 'subData') : '<div>Formular leer</div>';
+              const subLayout = m.form.layout ? generateJsxForLayout(m.form.layout, tables, forms, "subData", [], queries) : '<div>Formular leer</div>';
               const childTableCamel = toCamelCase(m.table.name);
               const childField = m.table.fields.find(f => f.id === m.childField)?.name;
-              return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Eintrag hinzufügen: ${m.form.name}"><SubFormWrapper onSave={async (subData) => { if(id && id!=='new') { subData.${toCamelCase(childField || '')} = id; await post('${childTableCamel}', subData); const subRes = await get('${childTableCamel}', { search: '' }); set${toPascalCase(toCamelCase(m.table.name))}SubList_${m.id.replace('sub_field_', '')}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField || '')}) === String(id))); } else { alert('Bitte erst Hauptdatensatz speichern.'); } toggleModal('${m.id}', false); }}>{${subLayout.replace(/data\./g, 'subData.')}}</SubFormWrapper></Modal>`;
+              return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Eintrag hinzufügen: ${m.form.name}"><SubFormWrapper onSave={async (subData) => { if(id && id!=='new') { subData.${toCamelCase(childField || '')} = id; await post('${childTableCamel}', subData); const subRes = await get('${childTableCamel}', { search: '', pageSize: 10000 }); set${toPascalCase(toCamelCase(m.table.name))}SubList_${m.id.replace('sub_field_', '')}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField || '')}) === String(id))); } else { alert('Bitte erst Hauptdatensatz speichern.'); } toggleModal('${m.id}', false); }}>{${subLayout.replace(/data\./g, 'subData.')}}</SubFormWrapper></Modal>`;
           }
           if (m.type === 'user-picker') {
               return `<UserPickerModal isOpen={modals['${m.id}']} initialTab="${m.mode}" onSelect={(username, displayName) => { setData(prev => ({ ...prev, ${m.targetField}: username })); toggleModal('${m.id}', false); }} onClose={() => toggleModal('${m.id}', false)} />`;
@@ -720,7 +720,15 @@ export const ${compName} = () => {
       const init = async () => {
         setLoading(true);
         try {
-            ${lookups.map(l => `const ${l.variableName}Res = await get('${l.endpoint}'); set${toPascalCase(l.variableName)}(${l.variableName}Res.data || ${l.variableName}Res);`).join('\n            ')}
+            ${lookups.map(l => `const ${l.variableName}Res = await get('${l.endpoint}', { pageSize: 10000 });
+            let ${l.variableName}Data = ${l.variableName}Res.data || ${l.variableName}Res;
+            ${l.sort ? `
+                const sortField = ${l.table.fields?.find((f:any) => f.id === l.sort.fieldId) ? "'" + toCamelCase(l.table.fields?.find((f:any) => f.id === l.sort.fieldId).name || l.table.fields?.find((f:any) => f.id === l.sort.fieldId).alias || l.table.fields?.find((f:any) => f.id === l.sort.fieldId).fieldName) + "'" : 'null'};
+                if (sortField) {
+                    ${l.variableName}Data = ${l.variableName}Data.sort((a: any, b: any) => (a[sortField] > b[sortField] ? ${l.sort.direction === 'DESC' ? -1 : 1} : -1 * ${l.sort.direction === 'DESC' ? -1 : 1}));
+                }
+            ` : ''}
+            set${toPascalCase(l.variableName)}(${l.variableName}Data);`).join('\n            ')}
             if (id && id !== 'new') {
                 const res = await get(\`${sourceTableCamel}/\${id}\`);
                 setData(res.data || res);
@@ -1057,7 +1065,7 @@ export const ${compName} = () => {
     const fetchDropdownData = async () => {
       try {
         set_${loadingState}(true);
-        const res = await get<any>('${fetchUrl}');
+        const res = await get<any>('${fetchUrl}', { pageSize: 10000 });
         set_${stateName}(res.data || res || []);
       } catch (err) {
         console.error(err);

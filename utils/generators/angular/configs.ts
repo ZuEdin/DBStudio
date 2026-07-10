@@ -52,6 +52,13 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
       devDependencies["autoprefixer"] = "^10.4.19";
   }
 
+  if (config.whitelabel?.customNpmPackages) {
+      const pkgs = config.whitelabel.customNpmPackages.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      for (const pkg of pkgs) {
+          dependencies[pkg] = 'latest';
+      }
+  }
+
   const packageJsonContent = {
     "name":"angular-client",
     "version":"0.0.0",

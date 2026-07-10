@@ -368,8 +368,54 @@ async def delete_item(id: ${pkType}, db: AsyncSession = Depends(get_db)):
   });
 
   // 6. main.py
-  const routerImports = tables.map(t => `from routers.${toSnakeCase(t.name)} import router as ${toCamelCase(t.name)}Router`).join('\n');
-  const routerIncludes = tables.map(t => `app.include_router(${toCamelCase(t.name)}Router)`).join('\n');
+  let routerImports = tables.map(t => `from routers.${toSnakeCase(t.name)} import router as ${toCamelCase(t.name)}Router`).join('\n');
+  let routerIncludes = tables.map(t => `app.include_router(${toCamelCase(t.name)}Router)`).join('\n');
+
+  const selectQueries = queries.filter(q => q.type === 'SELECT');
+  if (selectQueries.length > 0 && !isNoSql) {
+      let queryRouterContent = `from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+from config.database import get_db
+
+router = APIRouter(prefix="/api/queries", tags=["Queries"])
+
+`;
+      selectQueries.forEach(q => {
+          const camelName = toCamelCase(q.name);
+          const safeName = toPascalCase(q.name);
+          queryRouterContent += `@router.get("/${camelName}")
+async def get_${camelName}(request: Request, page: int = 1, page_size: int = 20, db: AsyncSession = Depends(get_db)):
+    # Handle MS Access style form references passed as query parameters (e.g. ?form_FormName_FieldName=Value)
+    form_filters = {k: v for k, v in request.query_params.items() if k.startswith("form_")}
+    
+    offset = (page - 1) * page_size
+    query_sql = f'SELECT * FROM "{safeName}" WHERE 1=1 '
+    
+    result = await db.execute(text(query_sql + " LIMIT :limit OFFSET :offset"), {"limit": page_size, "offset": offset})
+    items = [dict(row._mapping) for row in result.fetchall()]
+    
+    count_result = await db.execute(text(f'SELECT COUNT(*) FROM "{safeName}"'))
+    total = count_result.scalar()
+    
+    return {
+        "data": items,
+        "total": total,
+        "page": page,
+        "pageSize": page_size
+    }
+
+`;
+      });
+      files.push({
+          name: `queries.py`,
+          path: `${root}/routers/queries.py`,
+          content: queryRouterContent,
+          language: 'python'
+      });
+      routerImports += `\nfrom routers.queries import router as queriesRouter`;
+      routerIncludes += `\napp.include_router(queriesRouter)`;
+  }
 
   let mainContent = `from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

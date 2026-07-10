@@ -1,5 +1,5 @@
 
-import { Table, Relationship, BackendConfig, VirtualFile, Query } from '../../../types/index';
+import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery } from '../../../types/index';
 import { resolveType, toPascalCase, toCamelCase } from '../common';
 
 export const generateControllers = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
@@ -283,10 +283,59 @@ ${auditFields.createdBy ? `            item.${toPascalCase(auditFields.createdBy
       const queryEndpoints = selectQueries.map(q => {
           const safeName = toPascalCase(q.name);
           const camelName = toCamelCase(q.name);
+          
+          // Generate the dynamic C# EF where clauses based on the form parameters criteria
+          const filterLogics: string[] = [];
+          (q as SelectQuery).columns?.forEach(c => {
+              c.criteria?.forEach(cr => {
+                  if (cr && /\[Forms\]!/i.test(cr)) {
+                      const matchStr = cr.replace(/^=|like |>|<|>=|<=/i, '').trim();
+                      const formMatch = matchStr.match(/\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/i) || matchStr.match(/\[Forms\]!([^!]+)!([^!]+)/i);
+                      if (formMatch && formMatch.length >= 3) {
+                          const formName = formMatch[1].toLowerCase();
+                          const fieldName = formMatch[2].toLowerCase();
+                          const paramName = `form_${formName}_${fieldName}`;
+                          const opMatch = cr.match(/^(=|like |>|<|>=|<=)/i);
+                          const op = opMatch ? opMatch[0].toUpperCase().trim() : '=';
+                          const colName = toPascalCase(c.alias || c.fieldName);
+                          
+                          let whereClause = '';
+                          if (op === 'LIKE') {
+                              whereClause = `q = q.Where(x => EF.Functions.Like(x.${colName}, $"%{val}%"));`;
+                          } else if (op === '>') {
+                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) > 0);`;
+                          } else if (op === '<') {
+                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) < 0);`;
+                          } else if (op === '>=') {
+                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) >= 0);`;
+                          } else if (op === '<=') {
+                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) <= 0);`;
+                          } else {
+                              whereClause = `q = q.Where(x => x.${colName}.ToString() == val);`;
+                          }
+
+                          filterLogics.push(`            if (Request.Query.ContainsKey("${paramName}"))
+            {
+                var val = Request.Query["${paramName}"].ToString();
+                if (!string.IsNullOrEmpty(val) && val != "undefined" && val != "null")
+                {
+                    ${whereClause}
+                }
+            }`);
+                      }
+                  }
+              });
+          });
+          const queryFiltering = filterLogics.length > 0 ? filterLogics.join('\n') : `            // No active dynamic form filters on this query`;
+
           return `        [HttpGet("${camelName}")]
         public async Task<ActionResult<PagedResult<${safeName}>>> Get${safeName}([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var q = _context.${safeName}s.AsQueryable();
+            
+            // Dynamic Query Filtering for [Forms]! criteria
+${queryFiltering}
+
             var total = await q.CountAsync();
             var items = await q.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
             return new PagedResult<${safeName}> 

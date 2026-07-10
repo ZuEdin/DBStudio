@@ -306,6 +306,67 @@ class AuthController extends Controller
       apiRoutes += `use App\\Http\\Controllers\\AuthController;\nRoute::post('auth/login', [AuthController::class, 'login']);\nRoute::post('auth/register', [AuthController::class, 'register']);\nRoute::post('auth/login-sso', [AuthController::class, 'loginSso']);\n`;
   }
   
+  // Queries
+  const selectQueries = queries.filter(q => q.type === 'SELECT');
+  if (selectQueries.length > 0) {
+      let queryMethods = '';
+      apiRoutes += `\n// Queries\nuse Illuminate\\Support\\Facades\\DB;\nuse App\\Http\\Controllers\\QueriesController;\n`;
+      selectQueries.forEach(q => {
+          const camelName = toCamelCase(q.name);
+          const safeName = toPascalCase(q.name);
+          
+          apiRoutes += `Route::get('queries/${camelName}', [QueriesController::class, 'get${safeName}']);\n`;
+          
+          queryMethods += `
+    public function get${safeName}(Request $request) {
+        $page = $request->input('page', 1);
+        $pageSize = $request->input('pageSize', 20);
+        $offset = ($page - 1) * $pageSize;
+        
+        $sql = "SELECT * FROM \`" . "${safeName}" . "\` WHERE 1=1";
+        $bindings = [];
+        
+        // Handle MS Access style form references passed as query parameters
+        foreach ($request->query() as $key => $value) {
+            if (str_starts_with($key, 'form_')) {
+                // Filter mapping logic goes here
+            }
+        }
+        
+        $countResult = DB::select("SELECT COUNT(*) as count FROM \`" . "${safeName}" . "\`");
+        $total = $countResult[0]->count ?? 0;
+        
+        $sql .= " LIMIT ? OFFSET ?";
+        $bindings[] = $pageSize;
+        $bindings[] = $offset;
+        
+        $results = DB::select($sql, $bindings);
+        
+        return response()->json([
+            'data' => $results,
+            'total' => (int)$total,
+            'page' => (int)$page,
+            'pageSize' => (int)$pageSize,
+            'totalPages' => ceil($total / $pageSize)
+        ]);
+    }
+`;
+      });
+      
+      const queriesControllerContent = `<?php
+
+namespace App\\Http\\Controllers;
+
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\DB;
+
+class QueriesController extends Controller
+{${queryMethods}
+}
+`;
+      files.push({ name: `QueriesController.php`, path: `${root}/app/Http/Controllers/QueriesController.php`, content: queriesControllerContent, language: 'php' });
+  }
+
   files.push({ name: 'api.php', path: `${root}/routes/api.php`, content: apiRoutes, language: 'php' });
 
   // Docs

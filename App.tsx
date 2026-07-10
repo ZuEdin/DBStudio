@@ -9,6 +9,7 @@ import { AppHeader } from './components/AppHeader';
 import { ModalLayer } from './components/ModalLayer';
 import { ToastContainer } from './components/Toast';
 import { ChatPanel } from './components/ChatPanel';
+import { ThemeInjector } from './components/ThemeInjector';
 import { useAppController } from './hooks/useAppController';
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300">
+      <ThemeInjector />
       <AppHeader onAction={app.handleRibbonAction} />
       
       <Ribbon onAction={app.handleRibbonAction} />

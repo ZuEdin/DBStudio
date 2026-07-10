@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
-import { QueryColumn, Table, AggregateFunction } from '../../../types/index';
-import { Trash2, GripVertical, Plus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { QueryColumn, Table, AggregateFunction, Form, Query } from '../../../types/index';
+import { Trash2, GripVertical, Plus, Wand2 } from 'lucide-react';
 
 const CalculatedFieldEditor: React.FC<{
   column: QueryColumn;
@@ -67,11 +67,127 @@ const CalculatedFieldEditor: React.FC<{
 interface QueryGridProps {
   columns: QueryColumn[];
   tables: Table[];
+  forms?: Form[];
+  queries?: Query[];
   onUpdateColumns: (cols: QueryColumn[]) => void;
   showTotals: boolean;
 }
 
-export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, onUpdateColumns, showTotals }) => {
+const CriteriaInput: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  forms: Form[];
+  tables: Table[];
+}> = ({ value, onChange, placeholder, forms, tables }) => {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setShowSuggestions(false);
+      return;
+    }
+    
+    const lowerVal = value.toLowerCase();
+    let newSuggestions: string[] = [];
+    let shouldShow = false;
+
+    if (lowerVal.match(/\[forms\]!\[[^\]]+\]!\[$/i)) {
+       const match = lowerVal.match(/\[forms\]!\[([^\]]+)\]!\[$/i);
+       if (match && match[1]) {
+           const formName = match[1];
+           const form = forms.find(f => f.name.toLowerCase() === formName);
+           if (form) {
+               const table = tables.find(t => t.id === form.sourceId);
+               if (table) {
+                   newSuggestions = table.fields.map(f => f.name);
+                   shouldShow = true;
+               }
+           }
+       }
+    } else if (lowerVal.endsWith('[forms]![')) {
+       newSuggestions = forms.map(f => f.name);
+       shouldShow = true;
+    } else if (lowerVal.endsWith('[')) {
+       newSuggestions = ['Forms'];
+       shouldShow = true;
+    }
+
+    setSuggestions(newSuggestions);
+    setShowSuggestions(shouldShow);
+  }, [value, isFocused, forms, tables]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+  };
+
+  const handleSelect = (suggestion: string) => {
+    let newVal = value;
+    const lowerVal = value.toLowerCase();
+    if (lowerVal.match(/\[forms\]!\[[^\]]+\]!\[$/i)) {
+       newVal = value + suggestion + ']';
+    } else if (lowerVal.endsWith('[forms]![')) {
+       newVal = value + suggestion + ']![';
+    } else if (lowerVal.endsWith('[')) {
+       newVal = value + suggestion + ']![';
+    }
+    onChange(newVal);
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className={`relative w-full h-full flex items-center group ${showSuggestions || isFocused ? 'z-50' : ''}`}>
+       <input
+         ref={inputRef}
+         type="text"
+         className="w-full h-full p-1 border-none bg-transparent outline-none focus:ring-1 focus:ring-blue-400"
+         value={value}
+         onChange={handleChange}
+         placeholder={placeholder}
+         onFocus={() => setIsFocused(true)}
+         onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+       />
+       {/* Expression Builder Button Stub */}
+       <button 
+         title="Ausdrucks-Generator"
+         className="absolute right-1 opacity-0 group-hover:opacity-100 hover:text-blue-600 text-slate-400 p-1 bg-white"
+         onClick={() => {
+             // In a full implementation, this would open a dialog.
+             // For now, we simulate a click to just focus or alert.
+             if (!value) onChange('[Forms]![');
+             inputRef.current?.focus();
+         }}
+       >
+         <Wand2 size={12} />
+       </button>
+       
+       {showSuggestions && suggestions.length > 0 && (
+         <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 shadow-2xl rounded z-[9999] text-xs py-1">
+           <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-b border-slate-100 mb-1">
+               Vorschläge
+           </div>
+           {suggestions.map(s => (
+             <div 
+               key={s} 
+               className="px-3 py-1.5 hover:bg-blue-50 cursor-pointer text-slate-700 font-medium"
+               onMouseDown={(e) => {
+                   e.preventDefault(); // Keep focus
+                   handleSelect(s);
+               }}
+             >
+               {s}
+             </div>
+           ))}
+         </div>
+       )}
+    </div>
+  );
+};
+
+export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, forms = [], queries = [], onUpdateColumns, showTotals }) => {
   const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
 
   const updateColumn = (id: string, updates: Partial<QueryColumn>) => {
@@ -119,7 +235,7 @@ export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, onUpdateC
   const maxCriteriaRows = Math.max(1, ...columns.map(c => c.criteria.length));
 
   return (
-    <div className="flex-1 p-2 overflow-auto bg-white">
+    <div className="flex-1 p-2 pb-48 overflow-auto bg-white">
       <table className="w-full text-xs border-collapse table-fixed min-w-max">
         <tbody>
           <tr className="bg-slate-50">
@@ -238,13 +354,13 @@ export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, onUpdateC
                 {rowIndex === 0 ? 'Kriterien:' : 'oder:'}
               </th>
               {columns.map((col) => (
-                <td key={col.id} className="border border-slate-300 p-0">
-                  <input 
-                    type="text" 
-                    className="w-full h-full p-1 border-none bg-transparent" 
-                    value={col.criteria[rowIndex] ?? ''} 
-                    onChange={e => handleCriteriaChange(col.id, rowIndex, e.target.value)}
+                <td key={col.id} className="border border-slate-300 p-0 relative focus-within:z-50">
+                  <CriteriaInput
+                    value={col.criteria[rowIndex] ?? ''}
+                    onChange={(val) => handleCriteriaChange(col.id, rowIndex, val)}
                     placeholder={rowIndex === 0 ? 'z.B. >10' : ''}
+                    forms={forms}
+                    tables={tables}
                   />
                 </td>
               ))}

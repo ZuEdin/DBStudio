@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Canvas } from '../../components/Canvas';
 import { QueryGrid } from './components/QueryGrid';
-import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType } from '../../types/index';
+import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType, Form } from '../../types/index';
 import { Calculator, Sigma, Sparkles, Wand2, Loader2, Check, HelpCircle, X, Terminal } from 'lucide-react';
 import { generateSqlSelect } from '../../utils/sqlHelper';
 
@@ -11,6 +11,8 @@ interface QueryDesignerViewProps {
   query: Query;
   onQueryChange: (query: Query) => void;
   tables: Table[];
+  forms?: Form[];
+  queries?: Query[];
   relationships: Relationship[];
   dbType: DbType;
 }
@@ -19,6 +21,8 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   query,
   onQueryChange,
   tables,
+  forms = [],
+  queries = [],
   relationships,
   dbType,
 }) => {
@@ -233,6 +237,8 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
            <QueryGrid 
              columns={queryColumns} 
              tables={tables} 
+             forms={forms}
+             queries={queries}
              onUpdateColumns={setQueryColumns} 
              showTotals={showTotals}
            />

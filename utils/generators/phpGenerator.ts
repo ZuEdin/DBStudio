@@ -434,6 +434,89 @@ class ${modelName}Controller {
       files.push({ name: `${modelName}Controller.php`, path: `${root}/controllers/${modelName}Controller.php`, content: controllerContent, language: 'php' });
   });
 
+  // --- Queries Controller ---
+  const selectQueries = queries.filter(q => q.type === 'SELECT');
+  if (selectQueries.length > 0) {
+      let queryMethods = '';
+      selectQueries.forEach(q => {
+          const camelName = toCamelCase(q.name);
+          const safeName = toPascalCase(q.name);
+          queryMethods += `
+    private function get${safeName}() {
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $pageSize = isset($_GET['pageSize']) ? (int)$_GET['pageSize'] : 20;
+        $offset = ($page - 1) * $pageSize;
+        
+        $sql = "SELECT * FROM \`" . "${safeName}" . "\` WHERE 1=1";
+        
+        // Handle MS Access style form references passed as query parameters
+        foreach ($_GET as $key => $value) {
+            if (strpos($key, 'form_') === 0) {
+                // Filter mapping logic goes here
+            }
+        }
+        
+        $sql .= " LIMIT :limit OFFSET :offset";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $pageSize, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $countSql = "SELECT COUNT(*) FROM \`" . "${safeName}" . "\`";
+        $stmtCount = $this->db->query($countSql);
+        $total = $stmtCount->fetchColumn();
+        
+        echo json_encode([
+            'data' => $results,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize,
+            'totalPages' => ceil($total / $pageSize)
+        ]);
+    }
+`;
+      });
+      
+      let endpointCases = selectQueries.map(q => {
+          return `
+            case '${toCamelCase(q.name)}':
+                $this->get${toPascalCase(q.name)}();
+                break;`;
+      }).join('');
+      
+      const queriesControllerContent = `<?php
+namespace App\\Controllers;
+
+use PDO;
+
+class QueriesController {
+    private $db;
+
+    public function __construct($db) {
+        $this->db = $db;
+    }
+
+    public function processRequest($method, $queryName) {
+        if ($method !== 'GET') {
+            http_response_code(405);
+            echo json_encode(['message' => 'Method not allowed']);
+            return;
+        }
+
+        switch ($queryName) {${endpointCases}
+            default:
+                http_response_code(404);
+                echo json_encode(['message' => 'Query not found']);
+                break;
+        }
+    }
+${queryMethods}
+}
+?>`;
+      files.push({ name: 'QueriesController.php', path: `${root}/controllers/QueriesController.php`, content: queriesControllerContent, language: 'php' });
+  }
+
   // 5. Main Router (index.php)
   const routerContent = `<?php
 use App\\Config\\Database;

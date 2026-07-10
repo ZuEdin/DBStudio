@@ -74,13 +74,21 @@ export class ApiService {
   }
 
   // List Get with Pagination normalization
-  getAll(endpoint: string, page: number = 1, pageSize: number = 20, search: string = ''): Observable<any> {
+  getAll(endpoint: string, page: number = 1, pageSize: number = 20, search: string = '', extraParams: any = {}): Observable<any> {
     let params = new HttpParams()
         .set('page', page.toString())
         .set('pageSize', pageSize.toString());
     
     if (search) {
         params = params.set('search', search);
+    }
+
+    if (extraParams) {
+        Object.keys(extraParams).forEach(key => {
+            if (extraParams[key] !== null && extraParams[key] !== undefined && extraParams[key] !== '') {
+                params = params.set(key, extraParams[key].toString());
+            }
+        });
     }
 
     return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(

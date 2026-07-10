@@ -11,19 +11,41 @@ interface RouteInfo {
 }
 
 // Helper: Collect all unique lookup tables required by a form layout
-const collectAngularLookups = (element: FormElement | undefined, tables: Table[], accumulated: Set<string> = new Set()): string[] => {
-    if (!element) return Array.from(accumulated);
+const collectAngularLookups = (element: FormElement | undefined, tables: Table[], queries: Query[] = [], accumulated: Map<string, any> = new Map()): any[] => {
+    if (!element) return Array.from(accumulated.values());
     
     if (element.widgetType === 'select' && element.lookup?.tableId) {
         const table = tables.find(t => t.id === element.lookup!.tableId);
+        
+        let targetName = '';
+        let sortInfo = undefined;
+        let isQuery = false;
         if (table) {
-            accumulated.add(table.name);
+            targetName = table.name;
+            if (element.lookup!.sort) {
+                const sortField = table.fields.find(f => f.id === element.lookup!.sort!.fieldId);
+                if (sortField) sortInfo = { field: toCamelCase(sortField.name), dir: element.lookup!.sort!.direction };
+            }
+        } else {
+            const query = queries.find(q => q.id === element.lookup!.tableId);
+            if (query) {
+                targetName = query.name;
+                isQuery = true;
+                if (element.lookup!.sort) {
+                    const sortField = (query as any).columns?.find((c: any) => c.id === element.lookup!.sort!.fieldId);
+                    if (sortField) sortInfo = { field: toCamelCase(sortField.alias || sortField.fieldName), dir: element.lookup!.sort!.direction };
+                }
+            }
         }
+        if (targetName && !accumulated.has(targetName)) {
+            accumulated.set(targetName, { name: targetName, sort: sortInfo, isQuery });
+        }
+    
     }
     if (element.children) {
-        element.children.forEach(child => collectAngularLookups(child, tables, accumulated));
+        element.children.forEach(child => collectAngularLookups(child, tables, queries, accumulated));
     }
-    return Array.from(accumulated);
+    return Array.from(accumulated.values());
 };
 
 // Helper: Collect Subforms to init arrays
@@ -59,6 +81,11 @@ export const generateAngularComponents = (tables: Table[], relationships: Relati
       const folder = pascalName;
       const pkField = table.fields.find(f => f.isPrimaryKey)?.name || 'id';
       const pkCamel = toCamelCase(pkField);
+
+      let lookupMethodsCode = '';
+      let onFieldChangeCode = `  onFieldChange(fieldName: string, value: any) {
+    (this.data as any)[fieldName] = value;
+  }`;
 
       // --- LIST COMPONENT ---
       const listHtml = `
@@ -202,7 +229,7 @@ export class ${pascalName}ListComponent implements OnInit {
       }).filter(s => s).join('\n      ');
 
       if (linkedForm && linkedForm.layout) {
-          const layoutHtml = generateHtmlForLayout(linkedForm.layout, tables, forms);
+          const layoutHtml = generateHtmlForLayout(linkedForm.layout, tables, forms, "data", queries);
           formHtml = `<div class="p-6 max-w-4xl mx-auto">
             <div class="bg-white shadow-xl rounded-xl border border-slate-200 overflow-hidden">
                 <div class="p-4 bg-slate-800 text-white font-bold">${linkedForm.name}</div>
@@ -223,9 +250,44 @@ export class ${pascalName}ListComponent implements OnInit {
             ></app-user-picker>
           </div>`;
 
-          const lookupTableNames = collectAngularLookups(linkedForm.layout, tables);
-          listDeclarations = lookupTableNames.map(name => `  public ${toCamelCase(name)}List: any[] = [];`).join('\n');
-          listFetches = lookupTableNames.map(name => `    this.api.getAll('${toCamelCase(name)}').subscribe((res: any) => this.${toCamelCase(name)}List = res.data || res);`).join('\n');
+          const lookups = collectAngularLookups(linkedForm.layout, tables, queries);
+          listDeclarations = lookups.map((l: any) => `  public ${toCamelCase(l.name)}List: any[] = [];`).join('\n');
+          
+          lookupMethodsCode = lookups.map((l: any) => {
+              const camel = toCamelCase(l.name);
+              let sortLogic = '';
+              if (l.sort) {
+                  const dir = l.sort.dir === 'DESC' ? -1 : 1;
+                  sortLogic = `.sort((a: any, b: any) => (a.${l.sort.field} > b.${l.sort.field} ? ${dir} : -1 * ${dir}))`;
+              }
+              if (l.isQuery) {
+                  const formName = linkedForm.name.toLowerCase();
+                  return `  loadLookup_${camel}() {
+    const params: Record<string, any> = {};
+    if (this.data) {
+        Object.keys(this.data).forEach(key => {
+            const val = (this.data as any)[key];
+            if (val !== undefined && val !== null && val !== 'undefined' && val !== 'null' && val !== '') {
+                params['form_${formName}_' + key.toLowerCase()] = val;
+            }
+        });
+    }
+    this.api.getAll('queries/${camel}', 1, 10000, '', params).subscribe((res: any) => this.${camel}List = (res.data || res)${sortLogic});
+  }`;
+              } else {
+                  return `  loadLookup_${camel}() {
+    this.api.getAll('${camel}', 1, 10000).subscribe((res: any) => this.${camel}List = (res.data || res)${sortLogic});
+  }`;
+              }
+          }).join('\n\n');
+
+          listFetches = lookups.map((l: any) => `    this.loadLookup_${toCamelCase(l.name)}();`).join('\n');
+
+          onFieldChangeCode = `  onFieldChange(fieldName: string, value: any) {
+    (this.data as any)[fieldName] = value;
+    // Reload query-based lookups to handle cascading changes
+    ${lookups.filter((l: any) => l.isQuery).map((l: any) => `this.loadLookup_${toCamelCase(l.name)}();`).join('\n    ')}
+  }`;
           
           const subforms = collectAngularSubforms(linkedForm.layout, tables, forms);
           subformDeclarations = subforms.map(s => `  public ${toCamelCase(s.tableName)}SubList_${s.id.substring(0,8)}: any[] = [];`).join('\n');
@@ -233,7 +295,7 @@ export class ${pascalName}ListComponent implements OnInit {
               const tName = toCamelCase(s.tableName);
               const fName = toCamelCase(s.childField);
               const listVar = `${tName}SubList_${s.id.substring(0,8)}`;
-              return `    if(id && id!=='new') this.api.getAll('${tName}', 1, 1000).subscribe((res: any) => this.${listVar} = (res.data || res).filter((x:any) => String(x.${fName}) == String(id)));`;
+              return `    if(id && id!=='new') this.api.getAll('${tName}', 1, 10000).subscribe((res: any) => this.${listVar} = (res.data || res).filter((x:any) => String(x.${fName}) == String(id)));`;
           }).join('\n');
           
           subformSaveLogic = `
@@ -246,7 +308,7 @@ export class ${pascalName}ListComponent implements OnInit {
       
       this.api.create(table, this.tempSubData).subscribe(() => {
           this.closeModal(modalId);
-          this.api.getAll(table, 1, 1000).subscribe((res: any) => {
+          this.api.getAll(table, 1, 10000).subscribe((res: any) => {
              const listKeyPrefix = table + 'SubList_';
              const modalHash = modalId.replace('sub_','').substring(0,8);
              const targetKey = Object.keys(this).find(k => k.startsWith(listKeyPrefix) && k.includes(modalHash));
@@ -366,7 +428,7 @@ ${listFetches}
   saveLookup(table: string, modalId: string) {
       this.api.create(table, this.tempData).subscribe(() => {
           this.closeModal(modalId);
-          this.api.getAll(table).subscribe((res: any) => (this as any)[table + 'List'] = res.data || res);
+          this.api.getAll(table, 1, 10000).subscribe((res: any) => (this as any)[table + 'List'] = res.data || res);
       });
   }
 
@@ -382,6 +444,10 @@ ${listFetches}
       }
       this.userPickerOpen = false;
   }
+
+${lookupMethodsCode}
+
+${onFieldChangeCode}
 
   ${subformSaveLogic}
 }`;
@@ -537,7 +603,7 @@ export class ${pascalName}ReportComponent implements OnInit {
                       methods.push(`
   loadDropdown_${node.id.replace(/-/g, '_')}() {
     this.${loadingState} = true;
-    this.api.getAll('${fetchUrl}', 1, 1000).subscribe({
+    this.api.getAll('${fetchUrl}', 1, 10000).subscribe({
       next: (res: any) => {
         this.${stateName} = res.data || res || [];
         this.${loadingState} = false;
@@ -606,7 +672,7 @@ export class ${pascalName}ReportComponent implements OnInit {
                       methods.push(`
   loadTable_${suffix}() {
     this.${loadingState} = true;
-    this.api.getAll('${fetchUrl}', 1, 1000).subscribe({
+    this.api.getAll('${fetchUrl}', 1, 10000).subscribe({
       next: (res: any) => {
         this.${stateName} = res.data || res || [];
         this.${loadingState} = false;

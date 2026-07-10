@@ -2,9 +2,30 @@
 import { Query, Table, Relationship, SelectQuery, QueryColumn } from '../../../types/index';
 
 // Helper to evaluate criteria
-const matchesCriteria = (value: any, criteria: string): boolean => {
+const matchesCriteria = (value: any, criteria: string, context?: Record<string, any>): boolean => {
   if (!criteria) return true; 
-  const crit = criteria.trim().toLowerCase();
+  let crit = criteria.trim();
+
+  // Support for MS Access style form references e.g., [Forms]![FormName]![FieldName]
+  if (context && (crit.toLowerCase().startsWith('=[forms]!') || crit.toLowerCase().startsWith('[forms]!'))) {
+      let matchStr = crit.replace(/^=/, '');
+      // E.g., "[Forms]![MyForm]![MyField]"
+      const formMatch = matchStr.match(/\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/i) || matchStr.match(/\[Forms\]!([^!]+)!([^!]+)/i);
+      if (formMatch && formMatch.length >= 3) {
+          const formName = formMatch[1].toLowerCase();
+          const fieldName = formMatch[2].toLowerCase();
+          // Replace criteria with the value from context
+          const contextKey = `forms.${formName}.${fieldName}`;
+          if (context[contextKey] !== undefined) {
+              crit = String(context[contextKey]);
+          } else {
+              // If form is not open or variable doesn't exist, we might treat it as empty
+              crit = '';
+          }
+      }
+  }
+
+  crit = crit.toLowerCase();
   if (crit === '') return true;
 
   const strValue = String(value !== null && value !== undefined ? value : '').toLowerCase();
@@ -139,7 +160,7 @@ const resolveExpression = (row: Record<string, any>, expression: string): any =>
   }
 };
 
-export const executeSelectQuery = (query: SelectQuery, tables: Table[], relationships: Relationship[]): Record<string, any>[] => {
+export const executeSelectQuery = (query: SelectQuery, tables: Table[], relationships: Relationship[], context?: Record<string, any>): Record<string, any>[] => {
     if (query.nodes.length === 0 || query.columns.length === 0) return [];
 
     // 1. Prepare Data (Cartesian Product / Join)
@@ -215,7 +236,7 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
                     cellValue = row[`${col.tableName}.${col.fieldName}`];
                 }
 
-                const orConditionsMet = validCriteria.some(crit => matchesCriteria(cellValue, crit));
+                const orConditionsMet = validCriteria.some(crit => matchesCriteria(cellValue, crit, context));
                 if (!orConditionsMet) return false;
             }
         }

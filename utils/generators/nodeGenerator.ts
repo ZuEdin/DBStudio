@@ -1,5 +1,5 @@
 
-import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
+import { Table, Relationship, Query, SelectQuery, BackendConfig, VirtualFile, DbType } from '../../types/index';
 import { generateSequelizeModels } from './nodejs/models';
 import { generatePrismaSchema } from './nodejs/prisma';
 import { generateTypeOrmModels } from './nodejs/typeorm';
@@ -27,6 +27,13 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
     "multer": "^1.4.5-lts.1",
     "dotenv": "^16.4.7",
     ${dbDriverInfo}`;
+
+  if (config.whitelabel?.customNpmPackages) {
+      const pkgs = config.whitelabel.customNpmPackages.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      for (const pkg of pkgs) {
+          dependencies += `,\n    "${pkg}": "latest"`;
+      }
+  }
 
   if (integrations.sso.length > 0) {
       dependencies += `,\n    "passport": "^0.7.0",\n    "passport-google-oauth20": "^2.0.0"`; 
@@ -303,6 +310,80 @@ app.delete('/api/${routeName}/:id', async (req, res) => {
 });`;
   });
 
+  // --- Dynamic Query Endpoints ---
+  let queryEndpoints = '';
+  queries.filter(q => q.type === 'SELECT').forEach(q => {
+      const selectQ = q as SelectQuery;
+      const routeName = toCamelCase(q.name);
+      const viewName = toPascalCase(q.name);
+      
+      // Generate Node.js parameter-based filtering code
+      const filterStatements: string[] = [];
+      selectQ.columns?.forEach(c => {
+          c.criteria?.forEach(cr => {
+              if (cr && /\[Forms\]!/i.test(cr)) {
+                  const matchStr = cr.replace(/^=|like |>|<|>=|<=/i, '').trim();
+                  const formMatch = matchStr.match(/\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/i) || matchStr.match(/\[Forms\]!([^!]+)!([^!]+)/i);
+                  if (formMatch && formMatch.length >= 3) {
+                      const formName = formMatch[1].toLowerCase();
+                      const fieldName = formMatch[2].toLowerCase();
+                      const paramName = `form_${formName}_${fieldName}`;
+                      const opMatch = cr.match(/^(=|like |>|<|>=|<=)/i);
+                      const op = opMatch ? opMatch[0].toUpperCase().trim() : '=';
+                      const colName = c.alias && c.alias.trim() !== '' ? c.alias : c.fieldName;
+                      
+                      let filterCode = '';
+                      if (op === 'LIKE') {
+                          filterCode = `            whereClause += ' AND "${colName}" LIKE :${paramName}';\n            replacements['${paramName}'] = \`%\${req.query.${paramName}}%\`;`;
+                      } else {
+                          filterCode = `            whereClause += ' AND "${colName}" ${op} :${paramName}';\n            replacements['${paramName}'] = req.query.${paramName};`;
+                      }
+                      
+                      filterStatements.push(`        if (req.query.${paramName} !== undefined && req.query.${paramName} !== '' && req.query.${paramName} !== 'undefined' && req.query.${paramName} !== 'null') {\n${filterCode}\n        }`);
+                  }
+              }
+          });
+      });
+      const nodeQueryFiltering = filterStatements.length > 0 ? filterStatements.join('\n') : `        // No active dynamic form filters on this query`;
+
+      queryEndpoints += `
+app.get('/api/queries/${routeName}', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.pageSize) || 20;
+        const offset = (page - 1) * limit;
+        
+        let whereClause = ' WHERE 1=1';
+        const replacements = {};
+        
+        // Handle MS Access style form references passed as query parameters (e.g. ?form_FormName_FieldName=Value)
+${nodeQueryFiltering}
+
+        const results = await db.sequelize.query(\`SELECT * FROM "\${'${viewName}'}"\` + whereClause + \` LIMIT :limit OFFSET :offset\`, { 
+            replacements: { ...replacements, limit, offset },
+            type: db.Sequelize.QueryTypes.SELECT 
+        });
+        
+        const countResult = await db.sequelize.query(\`SELECT COUNT(*) as count FROM "\${'${viewName}'}"\` + whereClause, { 
+            replacements,
+            type: db.Sequelize.QueryTypes.SELECT 
+        });
+        
+        res.json({
+            data: results,
+            total: countResult[0]?.count || 0,
+            page: page,
+            pageSize: limit,
+            totalPages: Math.ceil((countResult[0]?.count || 0) / limit)
+        });
+    } catch (e) { 
+        console.error('Error fetching query ${routeName}:', e); 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+`;
+  });
+
   // --- Main Server ---
   const serverJs = `require('dotenv').config();
 const express = require('express');
@@ -359,6 +440,7 @@ app.post('/api/auth/login-sso', (req, res) => {
 
 // Routes
 ${routes}
+${queryEndpoints}
 
 // Upload Route
 app.post('/api/upload', upload.single('file'), (req, res) => {

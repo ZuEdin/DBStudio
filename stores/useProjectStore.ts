@@ -55,7 +55,7 @@ interface ProjectStore extends ProjectData {
     setChats: (chats: any[]) => void;
     snapshot: () => void;
     saveProject: () => Promise<void>; 
-    executeQuery: (query: Query) => Record<string, any>[];
+    executeQuery: (query: Query, context?: Record<string, any>) => Record<string, any>[];
 }
 
 const initialData: ProjectData = {
@@ -305,15 +305,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         await saveProjectToStorage(project);
     },
 
-    executeQuery: (query) => {
+    executeQuery: (query, context) => {
         if (query.type !== 'SELECT') return [];
         try {
-            const sql = generateSqlSelect(query.nodes, query.columns, get().tables, get().relationships, DbType.SQLite, true);
+            const sql = generateSqlSelect(query.nodes, query.columns, get().tables, get().relationships, DbType.SQLite, true, context);
             if (!sql) return [];
             return executeRawSql(sql);
         } catch (e) {
             console.warn("SQL Engine failed, falling back to JS", e);
-            return executeJsQuery(query, get().tables, get().relationships);
+            return executeJsQuery(query, get().tables, get().relationships, context);
         }
     }
 }));

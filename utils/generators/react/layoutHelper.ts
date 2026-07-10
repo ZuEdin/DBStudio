@@ -1,15 +1,15 @@
-
 import { Table, FormElement, Form } from '../../../types/index';
 import { toCamelCase, toPascalCase } from '../common';
 import { Plus, Layout, User, Search } from 'lucide-react';
 
-export const collectLookups = (element: FormElement, tables: Table[], accumulated: any[] = []) => {
+export const collectLookups = (element: FormElement, tables: Table[], queries: any[] = [], accumulated: any[] = []) => {
     if (element.widgetType === 'select' && element.lookup && element.lookup.tableId) {
-        const table = tables.find(t => t.id === element.lookup!.tableId);
+        let table: any = tables.find(t => t.id === element.lookup!.tableId);
+        if (!table) table = queries.find((q: any) => q.id === element.lookup!.tableId);
         if (table) {
             const variableName = `${toCamelCase(table.name)}List`;
             if (!accumulated.find(l => l.variableName === variableName)) {
-                accumulated.push({
+                accumulated.push({ sort: element.lookup!.sort,
                     table,
                     variableName,
                     endpoint: toCamelCase(table.name)
@@ -18,13 +18,13 @@ export const collectLookups = (element: FormElement, tables: Table[], accumulate
         }
     }
     if (element.children) {
-        element.children.forEach(child => collectLookups(child, tables, accumulated));
+        element.children.forEach(child => collectLookups(child, tables, queries, accumulated));
     }
     return accumulated;
 };
 
 // Returns JSX string AND potentially side-effect info (used by pages.ts to know which modals to create)
-export const generateJsxForLayout = (element: FormElement, tables: Table[], forms: Form[], dataVar: string = 'data', modals: any[] = []): string => {
+export const generateJsxForLayout = (element: FormElement, tables: Table[], forms: Form[], dataVar: string = "data", modals: any[] = [], queries: any[] = []): string => {
     if (element.type === 'container') {
         const childrenJsx = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals)).join('\n') || '';
         let className = element.className || '';
@@ -109,7 +109,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                         <tbody>
                             {${listVar} && ${listVar}.length > 0 ? ${listVar}.map((item: any, idx: number) => (
                                 <tr key={idx} className="border-b dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                    ${displayFields.map(f => `<td className="p-2">{item.${toCamelCase(f.name)}}</td>`).join('')}
+                                    ${displayFields.map(f => `<td className="p-2">{item.${toCamelCase((f as any).name || (f as any).alias || (f as any).fieldName)}}</td>`).join('')}
                                     <td className="p-2 text-right">
                                     </td>
                                 </tr>
@@ -152,11 +152,17 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
 
         // Select / Lookup
         if (element.widgetType === 'select' && element.lookup) {
-             const lookupTable = tables.find(t => t.id === element.lookup!.tableId);
+             let lookupTable: any = tables.find(t => t.id === element.lookup!.tableId);
+             if (!lookupTable) {
+                 lookupTable = queries.find((q: any) => q.id === element.lookup!.tableId);
+                 if (lookupTable) {
+                     lookupTable = { ...lookupTable, fields: lookupTable.columns || [] };
+                 }
+             }
              if (lookupTable) {
                  const listVar = `${toCamelCase(lookupTable.name)}List`;
                  const valField = lookupTable.fields.find(f => f.id === element.lookup!.valueFieldId);
-                 const valProp = valField ? toCamelCase(valField.name) : 'id';
+                 const valProp = valField ? toCamelCase((valField as any).name || (valField as any).alias || (valField as any).fieldName) : "id";
                  const modalId = `lookup_${element.id}`;
 
                  if (element.lookup.allowQuickCreate) {

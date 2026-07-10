@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { WhitelabelConfig, MultiTenancyConfig, LicensingConfig } from '../../types/index';
-import { X, Save, Palette, Users, Key, Briefcase, Database } from 'lucide-react';
+import { X, Save, Palette, Users, Key, Briefcase, Database, Code } from 'lucide-react';
 
 interface WhitelabelModalProps {
   whitelabel: WhitelabelConfig | undefined;
@@ -12,7 +12,7 @@ interface WhitelabelModalProps {
 }
 
 export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, multiTenancy, licensing, onSave, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'branding' | 'tenancy' | 'license'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'tenancy' | 'license' | 'css'>('branding');
 
   // Local State
   const [wlConfig, setWlConfig] = useState<WhitelabelConfig>(() => {
@@ -100,6 +100,12 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                     className={`w-full text-left p-3 rounded flex items-center gap-3 transition-colors ${activeTab === 'license' ? 'bg-white shadow text-indigo-600 font-bold border border-slate-200' : 'text-slate-600 hover:bg-slate-200'}`}
                 >
                     <Key size={18} /> Lizenzierung
+                </button>
+                <button 
+                    onClick={() => setActiveTab('css')}
+                    className={`w-full text-left p-3 rounded flex items-center gap-3 transition-colors ${activeTab === 'css' ? 'bg-white shadow text-indigo-600 font-bold border border-slate-200' : 'text-slate-600 hover:bg-slate-200'}`}
+                >
+                    <Code size={18} /> Design System (CSS)
                 </button>
             </div>
 
@@ -412,7 +418,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                         <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-3 rounded border border-slate-200">
                             <input 
                                 type="checkbox" 
-                                checked={wlConfig.removeBranding}
+                                checked={wlConfig.removeBranding || false}
                                 onChange={e => setWlConfig({...wlConfig, removeBranding: e.target.checked})}
                                 className="rounded text-indigo-600"
                             />
@@ -433,7 +439,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                                 <input 
                                     type="checkbox" 
                                     className="sr-only peer" 
-                                    checked={mtConfig.enabled}
+                                    checked={mtConfig.enabled || false}
                                     onChange={e => setMtConfig({...mtConfig, enabled: e.target.checked})}
                                 />
                                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -475,7 +481,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                                         <label className="block text-sm font-bold text-slate-700 mb-1">Feldname</label>
                                         <input 
                                             type="text" 
-                                            value={mtConfig.tenantField}
+                                            value={mtConfig.tenantField || ''}
                                             onChange={e => setMtConfig({...mtConfig, tenantField: e.target.value})}
                                             className="w-full border p-2 rounded font-mono"
                                             placeholder="TenantId"
@@ -497,7 +503,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input 
                                 type="checkbox" 
-                                checked={licConfig.enabled}
+                                checked={licConfig.enabled || false}
                                 onChange={e => setLicConfig({...licConfig, enabled: e.target.checked})}
                                 className="rounded text-indigo-600"
                             />
@@ -510,7 +516,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                                     <label className="block text-sm font-bold text-slate-700 mb-1">Initialer Lizenzschlüssel</label>
                                     <input 
                                         type="text" 
-                                        value={licConfig.licenseKey}
+                                        value={licConfig.licenseKey || ''}
                                         onChange={e => setLicConfig({...licConfig, licenseKey: e.target.value})}
                                         className="w-full border p-2 rounded font-mono text-sm"
                                         placeholder="XXXX-XXXX-XXXX-XXXX"
@@ -520,7 +526,7 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input 
                                         type="checkbox" 
-                                        checked={licConfig.validateOnline}
+                                        checked={licConfig.validateOnline || false}
                                         onChange={e => setLicConfig({...licConfig, validateOnline: e.target.checked})}
                                         className="rounded text-indigo-600"
                                     />
@@ -528,6 +534,52 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
                                 </label>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* CSS TAB */}
+                {activeTab === 'css' && (
+                    <div className="space-y-6 animate-in slide-in-from-right-4">
+                        <div className="bg-slate-50 border border-slate-200 p-4 rounded text-sm text-slate-600">
+                            Binden Sie Ihr eigenes Design-System (z. B. Bootstrap) oder eigene CSS-Regeln ein, damit das Prototyping mit Ihrem Corporate Design übereinstimmt.
+                        </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-3 rounded border border-slate-200">
+                            <input 
+                                type="checkbox" 
+                                checked={wlConfig.useBootstrap || false}
+                                onChange={e => setWlConfig({...wlConfig, useBootstrap: e.target.checked})}
+                                className="rounded text-indigo-600"
+                            />
+                            <span className="font-bold text-slate-700">Bootstrap (CDN) global laden</span>
+                        </label>
+                        {wlConfig.useBootstrap && (
+                            <p className="text-xs text-slate-500 ml-8 -mt-4">Läd Bootstrap 5 via CDN, damit Sie Bootstrap-Klassen in den Custom-Views verwenden können.</p>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Custom NPM Packages</label>
+                            <p className="text-xs text-slate-500 mb-2">Kommagetrennte Liste von NPM-Paketen, die beim Start der generierten App automatisch mitinstalliert werden sollen (z.B. <code>@mycompany/design-system, lodash</code>).</p>
+                            <input 
+                                type="text"
+                                value={wlConfig.customNpmPackages || ''}
+                                onChange={e => setWlConfig({...wlConfig, customNpmPackages: e.target.value})}
+                                className="w-full border p-2 rounded font-mono text-sm"
+                                placeholder="@mycompany/ui, moment"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Custom CSS Injection</label>
+                            <p className="text-xs text-slate-500 mb-2">Dieses CSS wird dynamisch in das DB Studio und die generierte App injiziert. Sie können Tailwind-Klassen überschreiben oder eigene verwenden.</p>
+                            <textarea 
+                                value={wlConfig.customCss || ''}
+                                onChange={e => setWlConfig({...wlConfig, customCss: e.target.value})}
+                                className="w-full h-64 border p-3 rounded font-mono text-sm bg-slate-800 text-green-400"
+                                placeholder=".my-custom-btn {&#10;  background-color: var(--primary);&#10;  border-radius: 8px;&#10;}"
+                                spellCheck={false}
+                            />
+                        </div>
                     </div>
                 )}
 

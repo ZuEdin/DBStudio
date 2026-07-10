@@ -232,6 +232,8 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 form={activeObject as Form} 
                 allForms={forms} 
                 allTables={tables} 
+                queries={queries}
+                executeQuery={executeQuery}
                 onTableChange={(t) => saveTable(t, 'edit')} 
                 showConfirmation={showConfirmation} 
             />;
@@ -239,7 +241,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         return null;
       case 'form_designer':
         if (activeObject && 'sourceType' in activeObject && 'layout' in activeObject) {
-            return <FormDesignerView form={activeObject as Form} allForms={forms} allTables={tables} relationships={relationships} onFormChange={onActiveObjectChange as any} actionTrigger={formActionTrigger} />;
+            return <FormDesignerView form={activeObject as Form} allForms={forms} allTables={tables} queries={queries} relationships={relationships} onFormChange={onActiveObjectChange as any} actionTrigger={formActionTrigger} />;
         }
         return null;
       case 'chart_view':
@@ -291,7 +293,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         />;
       case 'query_designer':
         if (activeObject && 'nodes' in activeObject) {
-           return <QueryDesignerView query={activeObject as SelectQuery} onQueryChange={onActiveObjectChange as any} tables={tables} relationships={relationships} dbType={backendConfig.dbType} />;
+           return <QueryDesignerView query={activeObject as SelectQuery} onQueryChange={onActiveObjectChange as any} tables={tables} forms={forms} queries={queries} relationships={relationships} dbType={backendConfig.dbType} />;
         }
        return null;
       case 'api_import':

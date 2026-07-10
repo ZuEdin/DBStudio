@@ -59,6 +59,13 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
       devDependencies["autoprefixer"] = "^10.4.0";
   }
 
+  if (config.whitelabel?.customNpmPackages) {
+      const pkgs = config.whitelabel.customNpmPackages.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      for (const pkg of pkgs) {
+          dependencies[pkg] = 'latest';
+      }
+  }
+
   // 1. Configs & Base (package.json, index.html, main.ts, router)
   files.push({
       name: 'package.json', path: `${root}/package.json`,

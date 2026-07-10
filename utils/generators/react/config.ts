@@ -54,6 +54,13 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
       devDependencies["tailwindcss"] = "^3.4.4";
   }
 
+  if (config.whitelabel?.customNpmPackages) {
+      const pkgs = config.whitelabel.customNpmPackages.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      for (const pkg of pkgs) {
+          dependencies[pkg] = 'latest';
+      }
+  }
+
   const packageJson = {
     "name": "react-client",
     "private": true,

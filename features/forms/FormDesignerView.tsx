@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Form, Table, FormElement, Relationship } from '../../types/index';
+import { Form, Table, Query, FormElement, Relationship } from '../../types/index';
 import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
@@ -10,12 +10,13 @@ interface FormDesignerViewProps {
   form: Form;
   allForms: Form[];
   allTables: Table[];
+  queries: Query[];
   relationships: Relationship[];
   onFormChange: (form: Form) => void;
   actionTrigger?: { action: string, timestamp: number }; 
 }
 
-export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allForms, allTables, relationships, onFormChange, actionTrigger }) => {
+export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allForms, allTables, queries, relationships, onFormChange, actionTrigger }) => {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [linkingSubform, setLinkingSubform] = useState<Form | null>(null);
   const [showLookupModal, setShowLookupModal] = useState(false);
@@ -391,16 +392,16 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   return (
     <div className="h-full bg-slate-200 flex">
       {/* Modals */}
-      {linkingSubform && mainFormTable && (
+      {linkingSubform && (
         <LinkSubformModal 
-          mainFormTable={mainFormTable}
-          subFormTable={allTables.find(t => t.id === linkingSubform.sourceId)!}
+          mainForm={form}
+          subForm={linkingSubform}
           onLink={handleLinkSubform}
           onClose={() => setLinkingSubform(null)}
         />
       )}
       {showLookupModal && selectedEl && selectedEl.lookup && (
-          <LookupConfigModal allTables={allTables} initialConfig={selectedEl.lookup} onSave={handleLookupSave} onClose={() => setShowLookupModal(false)} />
+          <LookupConfigModal allTables={allTables} queries={queries} initialConfig={selectedEl.lookup} onSave={handleLookupSave} onClose={() => setShowLookupModal(false)} />
       )}
 
       {/* Main Canvas */}
@@ -456,8 +457,8 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                          onFormChange({...form, crossFieldValidations: updated});
                                                      }}
                                                  >
-                                                    {mainFormTable?.fields.map(f => (
-                                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                                    {form.fields.map(f => (
+                                                        <option key={f.fieldId} value={f.fieldId}>{f.label}</option>
                                                     ))}
                                                  </select>
                                                 <select 
@@ -506,8 +507,8 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                          onFormChange({...form, crossFieldValidations: updated});
                                                      }}
                                                  >
-                                                    {mainFormTable?.fields.map(f => (
-                                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                                    {form.fields.map(f => (
+                                                        <option key={f.fieldId} value={f.fieldId}>{f.label}</option>
                                                     ))}
                                                  </select>
                                                 <select 
@@ -542,10 +543,10 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                         onClick={() => {
                                             const newRule = {
                                                 id: crypto.randomUUID(),
-                                                triggerFieldId: mainFormTable?.fields[0]?.id || '',
+                                                triggerFieldId: form.fields[0]?.fieldId || '',
                                                 condition: 'equals' as const,
                                                 triggerValue: '',
-                                                targetFieldId: mainFormTable?.fields[1]?.id || '',
+                                                targetFieldId: form.fields[1]?.fieldId || '',
                                                 action: 'require' as const
                                             };
                                             onFormChange({...form, crossFieldValidations: [...(form.crossFieldValidations || []), newRule]});
@@ -587,14 +588,14 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
              <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">Verfügbare Felder</h4>
              <p className="text-[10px] text-slate-400 mb-2">Drag & Drop auf das Formular.</p>
              <div className="space-y-1">
-                 {mainFormTable?.fields.map(f => (
+                 {form.fields.map(f => (
                      <div 
-                        key={f.id} 
+                        key={f.fieldId} 
                         draggable 
-                        onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'field', fieldId: f.id, label: f.name })); }} 
+                        onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'field', fieldId: f.fieldId, label: f.label })); }} 
                         className="bg-white border p-1.5 rounded cursor-grab text-sm hover:shadow-sm flex gap-2 hover:border-blue-400 active:cursor-grabbing"
                      >
-                         <GripVertical size={14} className="text-slate-400"/> {f.name}
+                         <GripVertical size={14} className="text-slate-400"/> {f.label}
                      </div>
                  ))}
              </div>

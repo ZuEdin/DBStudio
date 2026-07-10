@@ -1,12 +1,11 @@
-
 import { Table, FormElement, Form } from '../../../types/index';
 import { toCamelCase } from '../common';
 
-export const generateHtmlForLayout = (element: FormElement, tables: Table[], forms: Form[]): string => {
+export const generateHtmlForLayout = (element: FormElement, tables: Table[], forms: Form[], dataObjName: string = "data", queries: any[] = []): string => {
     if (!element) return '';
 
     if (element.type === 'container') {
-        const children = element.children?.map(c => generateHtmlForLayout(c, tables, forms)).join('\n') || '';
+        const children = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries)).join('\n') || '';
         return `<div class="${element.className || 'space-y-4'}">\n${children}\n</div>`;
     }
     if (element.type === 'label') {
@@ -19,7 +18,7 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
         for (const t of tables) {
             const f = t.fields.find(field => field.id === element.fieldId);
             if (f) {
-                fieldName = f.name;
+                fieldName = ((f as any).name || (f as any).alias || (f as any).fieldName);
                 if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') inputType = 'number';
                 if (f.type === 'DATE') inputType = 'date';
                 else if (f.type === 'TIME') inputType = 'time';
@@ -60,11 +59,19 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
         }
 
         if (element.widgetType === 'select' && element.lookup) {
-             const lookupTable = tables.find(t => t.id === element.lookup!.tableId);
+             let lookupTable: any = tables.find(t => t.id === element.lookup!.tableId);
+             let isQuery = false;
+             if (!lookupTable) {
+                 lookupTable = queries.find((q: any) => q.id === element.lookup!.tableId);
+                 if (lookupTable) {
+                     isQuery = true;
+                     lookupTable = { ...lookupTable, fields: lookupTable.columns || [] };
+                 }
+             }
              if (lookupTable) {
                  const listVar = `${toCamelCase(lookupTable.name)}List`;
                  const valField = lookupTable.fields.find(f => f.id === element.lookup!.valueFieldId);
-                 const valProp = valField ? toCamelCase(valField.name) : 'id';
+                 const valProp = valField ? toCamelCase((valField as any).name || (valField as any).alias || (valField as any).fieldName) : "id";
                  
                  // --- DISPLAY LOGIC START ---
                  let displayExpression = `{{item.${valProp}}}`; // Default fallback
@@ -74,13 +81,13 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                      displayExpression = element.lookup.displayFormat.map(fmt => {
                          const f = lookupTable.fields.find(field => field.id === fmt.fieldId);
                          if (!f) return '';
-                         return `${fmt.prefix || ''}{{item.${toCamelCase(f.name)}}}${fmt.suffix || ''}`;
+                         return `${fmt.prefix || ''}{{item.${toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName)}}}${fmt.suffix || ''}`;
                      }).join('');
                  } else if (element.lookup.labelFields && element.lookup.labelFields.length > 0) {
                      // Simple list of fields
                      displayExpression = element.lookup.labelFields.map(fid => {
                          const f = lookupTable.fields.find(field => field.id === fid);
-                         return f ? `{{item.${toCamelCase(f.name)}}}` : '';
+                         return f ? `{{item.${toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName)}}}` : '';
                      }).join(' ');
                  }
                  // --- DISPLAY LOGIC END ---
@@ -96,18 +103,18 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                         <h3 class="font-bold mb-4 text-lg border-b pb-2 text-slate-800">Neu: ${lookupTable.name}</h3>
                         <div class="space-y-3">
                             ${lookupTable.fields.filter(f=>!f.isPrimaryKey && !f.isAutoIncrement).map(f => {
-                                const fName = toCamelCase(f.name);
+                                const fName = toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName);
                                 if (f.type === 'BOOLEAN') {
                                     return `
                                     <div class="flex items-center gap-2">
                                         <input type="checkbox" [(ngModel)]="tempData.${fName}" class="w-4 h-4 text-blue-600 rounded"/>
-                                        <label class="text-sm font-medium text-slate-700">${f.name}</label>
+                                        <label class="text-sm font-medium text-slate-700">${((f as any).name || (f as any).alias || (f as any).fieldName)}</label>
                                     </div>`;
                                 }
                                 const fType = f.type === 'INTEGER' || f.type === 'DECIMAL' ? 'number' : f.type === 'DATE' ? 'date' : 'text';
                                 return `
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">${f.name}</label>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">${((f as any).name || (f as any).alias || (f as any).fieldName)}</label>
                                     <input type="${fType}" [(ngModel)]="tempData.${fName}" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/>
                                 </div>`;
                             }).join('')}
@@ -122,7 +129,7 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                  return `<div class="${wrapperClass}">
                     <label class="${labelClass}">${element.label}</label>
                     <div class="flex gap-2">
-                        <select class="${inputClass} bg-white flex-1" [(ngModel)]="data.${bindProp}" name="${bindProp}">
+                        <select class="${inputClass} bg-white flex-1" [(ngModel)]="data.${bindProp}" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event)">
                             <option [ngValue]="null">Bitte wählen...</option>
                             <option *ngFor="let item of ${listVar}" [value]="item.${valProp}">${displayExpression}</option>
                         </select>
@@ -153,7 +160,7 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
         
         if (subTable) {
             const modalId = `sub_${element.id}`;
-            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms) : '<p>Leer</p>';
+            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms, "subData", queries) : '<p>Leer</p>';
             const subTableCamel = toCamelCase(subTable.name);
             const listVariable = `${subTableCamel}SubList_${element.id.substring(0,8)}`;
 
