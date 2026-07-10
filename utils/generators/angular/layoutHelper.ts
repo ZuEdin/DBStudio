@@ -156,8 +156,8 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                     <label class="${labelClass}">${element.label}</label>
                     <div class="flex gap-2">
                         <select class="${inputClass} bg-white flex-1" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)">
-                            <option [ngValue]="null">Bitte wählen...</option>
-                            <option *ngFor="let item of ${listVar}" [ngValue]="${valExpression}">${displayExpression}</option>
+                            <option value="">Bitte wählen...</option>
+                            <option *ngFor="let item of ${listVar}" [value]="${valExpression}">${displayExpression}</option>
                         </select>
                         ${quickCreateBtn}
                     </div>
