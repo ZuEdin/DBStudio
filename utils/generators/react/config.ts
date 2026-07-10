@@ -48,11 +48,10 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
       dependencies["react-bootstrap"] = "^2.10.2";
   }
 
-  if (isTailwind) {
-      devDependencies["autoprefixer"] = "^10.4.19";
-      devDependencies["postcss"] = "^8.4.38";
-      devDependencies["tailwindcss"] = "^3.4.4";
-  }
+  // Always include Tailwind CSS devDependencies for utility classes used in templates
+  devDependencies["autoprefixer"] = "^10.4.19";
+  devDependencies["postcss"] = "^8.4.38";
+  devDependencies["tailwindcss"] = "^3.4.4";
 
   if (config.whitelabel?.customNpmPackages) {
       const pkgs = config.whitelabel.customNpmPackages.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -93,7 +92,7 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   if (isTailwind) {
       files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  @apply bg-gray-50 text-slate-900 dark:bg-gray-900 dark:text-slate-100;\n}`, language: 'css' });
   } else if (isBootstrap) {
-      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
   } else {
       files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n}`, language: 'css' });
   }
@@ -102,7 +101,7 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   
   const wl: any = config.whitelabel || { primaryColor: '#3b82f6', secondaryColor: '#1e293b' };
   
-  if (isTailwind) {
+  if (isTailwind || isBootstrap) {
       files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `export default { 
   darkMode: 'class',
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"], 

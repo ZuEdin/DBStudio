@@ -46,11 +46,10 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
       dependencies["bootstrap"] = "^5.3.3";
   }
 
-  if (isTailwind) {
-      devDependencies["tailwindcss"] = "^3.4.4";
-      devDependencies["postcss"] = "^8.4.38";
-      devDependencies["autoprefixer"] = "^10.4.19";
-  }
+  // Always include Tailwind CSS dependencies for layout utility classes
+  devDependencies["tailwindcss"] = "^3.4.4";
+  devDependencies["postcss"] = "^8.4.38";
+  devDependencies["autoprefixer"] = "^10.4.19";
 
   if (config.whitelabel?.customNpmPackages) {
       const pkgs = config.whitelabel.customNpmPackages.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -74,6 +73,14 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
 
   files.push({ name: 'package.json', path: `${root}/package.json`, content: JSON.stringify(packageJsonContent, null, 2), language: 'json' });
   
+  const styles = ["src/styles.css"];
+  const scripts: string[] = [];
+
+  if (isBootstrap) {
+    styles.unshift("node_modules/bootstrap/dist/css/bootstrap.min.css");
+    scripts.push("node_modules/bootstrap/dist/js/bootstrap.bundle.min.js");
+  }
+
   const angularJson = {
     "version": 1,
     "projects": {
@@ -92,8 +99,8 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
               "polyfills": ["src/polyfills.ts"],
               "tsConfig": "tsconfig.app.json",
               "assets": ["src/favicon.ico", "src/assets"],
-              "styles": ["src/styles.css"],
-              "scripts": []
+              "styles": styles,
+              "scripts": scripts
             },
             "configurations": {
               "production": {
@@ -172,12 +179,14 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   files.push({ name: 'tsconfig.json', path: `${root}/tsconfig.json`, content: JSON.stringify({ "compileOnSave": false, "compilerOptions": { "baseUrl": "./", "outDir": "./dist/out-tsc", "forceConsistentCasingInFileNames": true, "strict": true, "noImplicitOverride": true, "noPropertyAccessFromIndexSignature": true, "noImplicitReturns": true, "noFallthroughCasesInSwitch": true, "sourceMap": true, "declaration": false, "downlevelIteration": true, "experimentalDecorators": true, "moduleResolution": "node", "importHelpers": true, "target": "ES2022", "module": "ES2022", "useDefineForClassFields": false, "lib": ["ES2022", "dom"] }, "angularCompilerOptions": { "enableI18nLegacyMessageIdFormat": false, "strictInjectionParameters": true, "strictInputAccessModifiers": true, "strictTemplates": true } }, null, 2), language: 'json' });
   files.push({ name: 'tsconfig.app.json', path: `${root}/tsconfig.app.json`, content: JSON.stringify({ "extends": "./tsconfig.json", "compilerOptions": { "outDir": "./dist/out-tsc/app", "types": [] }, "files": ["src/main.ts", "src/polyfills.ts"], "include": ["src/**/*.d.ts"] }, null, 2), language: 'json' });
   
+  // Always generate Tailwind config and postcss config to compile the layout classes
+  files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nmodule.exports = {\n  content: ["./src/**/*.{html,ts}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
+  files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
+
   if (isTailwind) {
-      files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nmodule.exports = {\n  content: ["./src/**/*.{html,ts}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
-      files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
       files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8fafc;\n  color: #0f172a;\n}`, language: 'css' });
   } else if (isBootstrap) {
-      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
   } else {
       files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n  background-color: #f8fafc;\n  color: #0f172a;\n}`, language: 'css' });
   }

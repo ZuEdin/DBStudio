@@ -375,18 +375,20 @@ export const SchemaImportWizard: React.FC<SchemaImportWizardProps> = ({ onSave, 
       const row: any = {};
       headers.forEach((header, idx) => {
         const val = values[idx] !== undefined ? values[idx] : '';
+        const key = header.toLowerCase();
         // Try to parse number/boolean
-        if (val.toLowerCase() === 'true') row[header] = true;
-        else if (val.toLowerCase() === 'false') row[header] = false;
-        else if (val && !isNaN(Number(val))) row[header] = Number(val);
-        else row[header] = val;
+        if (val.toLowerCase() === 'true') row[key] = true;
+        else if (val.toLowerCase() === 'false') row[key] = false;
+        else if (val && !isNaN(Number(val))) row[key] = Number(val);
+        else row[key] = val;
       });
       rows.push(row);
     }
 
     const fields: Field[] = headers.map(header => {
+      const key = header.toLowerCase();
       // Infer type from first data row
-      const sampleVal = rows.length > 0 ? rows[0][header] : undefined;
+      const sampleVal = rows.length > 0 ? rows[0][key] : undefined;
       let type: FieldType = 'VARCHAR';
       if (typeof sampleVal === 'number') {
         type = Number.isInteger(sampleVal) ? 'INTEGER' : 'DECIMAL';
@@ -395,9 +397,9 @@ export const SchemaImportWizard: React.FC<SchemaImportWizardProps> = ({ onSave, 
       }
       return {
         id: crypto.randomUUID(),
-        name: header,
+        name: key,
         type,
-        isPrimaryKey: header.toLowerCase() === 'id',
+        isPrimaryKey: key === 'id',
         allowNull: true
       };
     });
@@ -405,14 +407,14 @@ export const SchemaImportWizard: React.FC<SchemaImportWizardProps> = ({ onSave, 
     if (!fields.some(f => f.isPrimaryKey)) {
       fields.unshift({
         id: crypto.randomUUID(),
-        name: 'Id',
+        name: 'id',
         type: 'INTEGER',
         isPrimaryKey: true,
         isAutoIncrement: true,
         allowNull: false
       });
       rows.forEach((row, idx) => {
-        row['Id'] = idx + 1;
+        row['id'] = idx + 1;
       });
     }
 

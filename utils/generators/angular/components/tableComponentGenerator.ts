@@ -109,7 +109,8 @@ export const generateTableComponents = (
   forms: Form[],
   appRoot: string,
   queries: Query[],
-  useAuth: boolean
+  useAuth: boolean,
+  isBootstrap: boolean = false
 ): { files: VirtualFile[]; routes: RouteInfo[] } => {
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
@@ -128,7 +129,79 @@ export const generateTableComponents = (
   }`;
 
       // --- LIST COMPONENT ---
-      const listHtml = `
+      let listHtml = '';
+      if (isBootstrap) {
+          listHtml = `
+      <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2 text-dark">${table.name}</h1>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" [(ngModel)]="search" (input)="page=1;load()" placeholder="Suche..." class="form-control form-control-sm" style="max-width: 250px;" />
+                <a routerLink="/${camelName}/new" class="btn btn-primary">Neu</a>
+            </div>
+        </div>
+        <div class="card shadow-sm border">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light border-bottom">
+                        <tr>
+                            ${table.fields.map(f => `<th class="px-4 py-3 text-muted fw-bold small text-uppercase">${f.name}</th>`).join('')}
+                            <th class="px-4 py-3 text-muted fw-bold small text-uppercase">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let item of items" class="align-middle" (dblclick)="viewDetails(item)" style="cursor: pointer;">
+                            ${table.fields.map(f => `<td class="px-4 py-3">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
+                            <td class="px-4 py-3">
+                                <button (click)="viewDetails(item)" class="btn btn-sm btn-link text-decoration-none me-2 p-0 fw-bold">Details</button>
+                                <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="btn btn-sm btn-link text-decoration-none me-2 p-0 fw-bold">Edit</a>
+                                <button (click)="delete(getFieldValue(item, '${pkField}'))" class="btn btn-sm btn-link text-danger text-decoration-none p-0 fw-bold">Delete</button>
+                            </td>
+                        </tr>
+                        <tr *ngIf="items.length === 0">
+                            <td class="p-4 text-center text-muted" colspan="${table.fields.length + 1}">Keine Einträge.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="card-footer d-flex justify-content-between align-items-center bg-light border-top">
+                <span class="text-muted small">Seite {{page}} von {{totalPages}} ({{total}} Einträge)</span>
+                <div class="btn-group">
+                    <button (click)="changePage(page - 1)" [disabled]="page <= 1" class="btn btn-sm btn-outline-secondary">Zurück</button>
+                    <button (click)="changePage(page + 1)" [disabled]="page >= totalPages" class="btn btn-sm btn-outline-secondary">Weiter</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div *ngIf="selectedItem" class="modal show d-block" style="background: rgba(0, 0, 0, 0.5);" (click)="closeDetails()">
+            <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title">${table.name} Details</h5>
+                        <button type="button" class="btn-close" (click)="closeDetails()"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                        <div class="container-fluid">
+                            ${table.fields.map(f => `
+                            <div class="row py-2 border-bottom">
+                                <div class="col-4 text-uppercase text-muted small fw-bold">${f.name}</div>
+                                <div class="col-8 text-dark fw-medium text-break">{{ getFieldValue(selectedItem, '${f.name}') }}</div>
+                            </div>`).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button (click)="closeDetails()" class="btn btn-secondary">Schließen</button>
+                        <a [routerLink]="['/${camelName}', getFieldValue(selectedItem, '${pkField}')]" (click)="closeDetails()" class="btn btn-primary">Bearbeiten</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>`;
+      } else {
+          listHtml = `
       <div class="p-8">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-slate-800">${table.name}</h1>
@@ -193,6 +266,7 @@ export const generateTableComponents = (
             </div>
         </div>
       </div>`;
+      }
 
       // Import the Interface
       const interfaceName = pascalName;
@@ -277,26 +351,50 @@ export class ${pascalName}ListComponent implements OnInit {
       }).filter(s => s).join('\n      ');
 
       if (linkedForm && linkedForm.layout) {
-          const layoutHtml = generateHtmlForLayout(linkedForm.layout, tables, forms, "data", queries);
-          formHtml = `<div class="p-6 max-w-4xl mx-auto">
-            <div class="bg-white shadow-xl rounded-xl border border-slate-200 overflow-hidden">
-                <div class="p-4 bg-slate-800 text-white font-bold">${linkedForm.name}</div>
-                <form (ngSubmit)="save()" class="p-6">
-                    ${layoutHtml}
-                    <div class="mt-8 flex justify-end gap-2 border-t pt-6">
-                        <a routerLink="/${camelName}" class="bg-slate-100 px-6 py-2 rounded-lg border text-slate-600 hover:bg-slate-200 transition-colors">Abbrechen</a>
-                        <button type="submit" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold shadow hover:bg-blue-700 transition-colors">Speichern</button>
+          const layoutHtml = generateHtmlForLayout(linkedForm.layout, tables, forms, "data", queries, isBootstrap);
+          if (isBootstrap) {
+              formHtml = `<div class="container py-4" style="max-width: 800px;">
+                <div class="card shadow-sm border">
+                    <div class="card-header bg-dark text-white fw-bold py-3">${linkedForm.name}</div>
+                    <div class="card-body p-4">
+                        <form (ngSubmit)="save()">
+                            ${layoutHtml}
+                            <div class="mt-4 pt-4 border-top d-flex justify-content-end gap-2">
+                                <a routerLink="/${camelName}" class="btn btn-outline-secondary px-4">Abbrechen</a>
+                                <button type="submit" class="btn btn-primary px-4">Speichern</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
-            </div>
-            
-            <app-user-picker 
-                [isOpen]="userPickerOpen" 
-                [initialTab]="userPickerMode"
-                (userSelected)="handleUserPicked($event)"
-                (closed)="userPickerOpen = false"
-            ></app-user-picker>
-          </div>`;
+                </div>
+                
+                <app-user-picker 
+                    [isOpen]="userPickerOpen" 
+                    [initialTab]="userPickerMode"
+                    (userSelected)="handleUserPicked($event)"
+                    (closed)="userPickerOpen = false"
+                ></app-user-picker>
+              </div>`;
+          } else {
+              formHtml = `<div class="p-6 max-w-4xl mx-auto">
+                <div class="bg-white shadow-xl rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="p-4 bg-slate-800 text-white font-bold">${linkedForm.name}</div>
+                    <form (ngSubmit)="save()" class="p-6">
+                        ${layoutHtml}
+                        <div class="mt-8 flex justify-end gap-2 border-t pt-6">
+                            <a routerLink="/${camelName}" class="bg-slate-100 px-6 py-2 rounded-lg border text-slate-600 hover:bg-slate-200 transition-colors">Abbrechen</a>
+                            <button type="submit" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold shadow hover:bg-blue-700 transition-colors">Speichern</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <app-user-picker 
+                    [isOpen]="userPickerOpen" 
+                    [initialTab]="userPickerMode"
+                    (userSelected)="handleUserPicked($event)"
+                    (closed)="userPickerOpen = false"
+                ></app-user-picker>
+              </div>`;
+          }
 
           lookups = collectAngularLookups(linkedForm.layout, tables, queries);
           listDeclarations = lookups.map((l: any) => `  public ${toCamelCase(l.name)}List: any[] = [];`).join('\n');
@@ -382,36 +480,77 @@ ${checkCondition}    const params: Record<string, any> = {};
 
       } else {
           // Default Layout logic
-          const formFields = table.fields.map(f => {
-              if (f.isPrimaryKey && f.isAutoIncrement) return ''; 
-              let input = '';
-              const fieldProp = toCamelCase(f.name);
-              if (f.type === 'BOOLEAN') {
-                  input = `<div class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="w-4 h-4 rounded" /> <label>${f.name}</label></div>`;
-              } else {
-                  let type = 'text';
-                  if (f.type === 'INTEGER' || f.type === 'DECIMAL') type = 'number';
-                  if (f.type === 'DATE') type = 'date';
-                  else if (f.type === 'TIME') type = 'time';
-                  else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') type = 'datetime-local';
-                  input = `<label class="block text-sm font-bold mb-1">${f.name}</label><input type="${type}" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="w-full border rounded p-2" />`;
-              }
-              return `<div class="mb-4">${input}</div>`;
-          }).join('\n');
+          if (isBootstrap) {
+              const formFields = table.fields.map(f => {
+                  if (f.isPrimaryKey && f.isAutoIncrement) return ''; 
+                  let input = '';
+                  const fieldProp = toCamelCase(f.name);
+                  if (f.type === 'BOOLEAN') {
+                      input = `
+                      <div class="form-check">
+                          <input type="checkbox" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="form-check-input" id="check_${fieldProp}"/>
+                          <label class="form-check-label fw-bold text-secondary small" for="check_${fieldProp}">${f.name}</label>
+                      </div>`;
+                  } else {
+                      let type = 'text';
+                      if (f.type === 'INTEGER' || f.type === 'DECIMAL') type = 'number';
+                      if (f.type === 'DATE') type = 'date';
+                      else if (f.type === 'TIME') type = 'time';
+                      else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') type = 'datetime-local';
+                      input = `
+                      <label class="form-label fw-bold text-secondary small mb-1">${f.name}</label>
+                      <input type="${type}" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="form-control" />`;
+                  }
+                  return `<div class="mb-3">${input}</div>`;
+              }).join('\n');
 
-          formHtml = `
-          <div class="p-8 max-w-2xl mx-auto">
-            <div class="bg-white rounded shadow p-6">
-                <h2 class="text-2xl font-bold mb-6">{{ isNew ? 'Neu' : 'Bearbeiten' }} ${table.name}</h2>
-                <form (ngSubmit)="save()">
-                    ${formFields}
-                    <div class="flex justify-end gap-2 mt-6">
-                        <a routerLink="/${camelName}" class="px-4 py-2 border rounded">Abbrechen</a>
-                        <button class="px-4 py-2 bg-blue-600 text-white rounded">Speichern</button>
+              formHtml = `
+              <div class="container py-4" style="max-width: 600px;">
+                <div class="card shadow-sm border">
+                    <div class="card-header bg-dark text-white fw-bold py-3">{{ isNew ? 'Neu' : 'Bearbeiten' }} ${table.name}</div>
+                    <div class="card-body p-4">
+                        <form (ngSubmit)="save()">
+                            ${formFields}
+                            <div class="mt-4 pt-4 border-top d-flex justify-content-end gap-2">
+                                <a routerLink="/${camelName}" class="btn btn-outline-secondary px-4">Abbrechen</a>
+                                <button class="btn btn-primary px-4">Speichern</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
-            </div>
-          </div>`;
+                </div>
+              </div>`;
+          } else {
+              const formFields = table.fields.map(f => {
+                  if (f.isPrimaryKey && f.isAutoIncrement) return ''; 
+                  let input = '';
+                  const fieldProp = toCamelCase(f.name);
+                  if (f.type === 'BOOLEAN') {
+                      input = `<div class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="w-4 h-4 rounded" /> <label>${f.name}</label></div>`;
+                  } else {
+                      let type = 'text';
+                      if (f.type === 'INTEGER' || f.type === 'DECIMAL') type = 'number';
+                      if (f.type === 'DATE') type = 'date';
+                      else if (f.type === 'TIME') type = 'time';
+                      else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') type = 'datetime-local';
+                      input = `<label class="block text-sm font-bold mb-1">${f.name}</label><input type="${type}" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="w-full border rounded p-2" />`;
+                  }
+                  return `<div class="mb-4">${input}</div>`;
+              }).join('\n');
+
+              formHtml = `
+              <div class="p-8 max-w-2xl mx-auto">
+                <div class="bg-white rounded shadow p-6">
+                    <h2 class="text-2xl font-bold mb-6">{{ isNew ? 'Neu' : 'Bearbeiten' }} ${table.name}</h2>
+                    <form (ngSubmit)="save()">
+                        ${formFields}
+                        <div class="flex justify-end gap-2 mt-6">
+                            <a routerLink="/${camelName}" class="px-4 py-2 border rounded">Abbrechen</a>
+                            <button class="px-4 py-2 bg-blue-600 text-white rounded">Speichern</button>
+                        </div>
+                    </form>
+                </div>
+              </div>`;
+          }
       }
 
       const initObject = `{ ` + table.fields.flatMap(f => {

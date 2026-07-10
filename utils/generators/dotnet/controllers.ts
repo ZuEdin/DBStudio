@@ -298,19 +298,66 @@ ${auditFields.createdBy ? `            item.${toPascalCase(auditFields.createdBy
                           const op = opMatch ? opMatch[0].toUpperCase().trim() : '=';
                           const colName = toPascalCase(c.alias || c.fieldName);
                           
+                          const colTable = tables.find(t => t.id === c.tableId);
+                          const colField = colTable?.fields.find(f => f.id === c.fieldId);
+                          let fieldType = 'string';
+                          if (colField) {
+                              fieldType = resolveType(colField, 'csharp');
+                          }
+
                           let whereClause = '';
-                          if (op === 'LIKE') {
-                              whereClause = `q = q.Where(x => EF.Functions.Like(x.${colName}, $"%{val}%"));`;
-                          } else if (op === '>') {
-                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) > 0);`;
-                          } else if (op === '<') {
-                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) < 0);`;
-                          } else if (op === '>=') {
-                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) >= 0);`;
-                          } else if (op === '<=') {
-                              whereClause = `q = q.Where(x => x.${colName}.ToString().CompareTo(val) <= 0);`;
+                          if (fieldType === 'string') {
+                              if (op === 'LIKE') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}, $"%{val}%"));`;
+                              } else if (op === '>') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.CompareTo(val) > 0);`;
+                              } else if (op === '<') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.CompareTo(val) < 0);`;
+                              } else if (op === '>=') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.CompareTo(val) >= 0);`;
+                              } else if (op === '<=') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.CompareTo(val) <= 0);`;
+                              } else {
+                                  whereClause = `q = q.Where(x => x.${colName} == val);`;
+                              }
+                          } else if (fieldType === 'int' || fieldType === 'long') {
+                              let parseCode = `if (${fieldType}.TryParse(val, out var parsedVal)) { `;
+                              if (op === 'LIKE') {
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}.ToString(), $"%{val}%")); }`;
+                                } else {
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${op} parsedVal); }`;
+                              }
+                          } else if (fieldType === 'decimal' || fieldType === 'double') {
+                              let parseCode = `if (${fieldType}.TryParse(val, out var parsedVal)) { `;
+                              if (op === 'LIKE') {
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}.ToString(), $"%{val}%")); }`;
+                              } else {
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${op} parsedVal); }`;
+                              }
+                          } else if (fieldType === 'bool') {
+                              let parseCode = `if (bool.TryParse(val, out var parsedVal)) { `;
+                              whereClause = `${parseCode}q = q.Where(x => x.${colName} == parsedVal); }`;
+                          } else if (fieldType === 'DateTime') {
+                              let parseCode = `if (DateTime.TryParse(val, out var parsedVal)) { `;
+                              if (op === 'LIKE') {
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}.ToString(), $"%{val}%")); }`;
+                              } else {
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${op} parsedVal); }`;
+                              }
                           } else {
-                              whereClause = `q = q.Where(x => x.${colName}.ToString() == val);`;
+                              if (op === 'LIKE') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}.ToString(), $"%{val}%"));`;
+                              } else if (op === '>') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.ToString().CompareTo(val) > 0);`;
+                                } else if (op === '<') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.ToString().CompareTo(val) < 0);`;
+                              } else if (op === '>=') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.ToString().CompareTo(val) >= 0);`;
+                              } else if (op === '<=') {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.ToString().CompareTo(val) <= 0);`;
+                              } else {
+                                  whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.ToString() == val);`;
+                              }
                           }
 
                           filterLogics.push(`            if (Request.Query.ContainsKey("${paramName}"))

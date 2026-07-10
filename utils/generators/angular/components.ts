@@ -23,19 +23,20 @@ export const generateAngularComponents = (
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
   const useAuth = config.authConfig?.useUserLogin;
+  const isBootstrap = config.stylingFramework === 'bootstrap';
 
   // 1. Table Lists and Forms
-  const tablesRes = generateTableComponents(tables, relationships, forms, appRoot, queries, !!useAuth);
+  const tablesRes = generateTableComponents(tables, relationships, forms, appRoot, queries, !!useAuth, isBootstrap);
   files.push(...tablesRes.files);
   routes.push(...tablesRes.routes);
 
   // 2. Report Pages
-  const reportsRes = generateReportComponents(reports, tables, queries, appRoot);
+  const reportsRes = generateReportComponents(reports, tables, queries, appRoot, isBootstrap);
   files.push(...reportsRes.files);
   routes.push(...reportsRes.routes);
 
   // 3. Custom Pages
-  const pagesRes = generateCustomPageComponents(pages, tables, queries, forms, appRoot);
+  const pagesRes = generateCustomPageComponents(pages, tables, queries, forms, appRoot, isBootstrap);
   files.push(...pagesRes.files);
   routes.push(...pagesRes.routes);
 

@@ -57,7 +57,25 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
 
   const updateField = (id: string, updates: Partial<Field>) => {
     if(isReadOnly) return;
-    setFields(fields.map(f => {
+    
+    let updatedData = table.data;
+    if (updates.name !== undefined) {
+        const oldField = fields.find(f => f.id === id);
+        const oldName = oldField?.name;
+        const newName = updates.name;
+        if (oldName && newName && oldName !== newName && Array.isArray(updatedData)) {
+            updatedData = updatedData.map(row => {
+                const newRow = { ...row };
+                if (oldName in newRow) {
+                    newRow[newName] = newRow[oldName];
+                    delete newRow[oldName];
+                }
+                return newRow;
+            });
+        }
+    }
+
+    const nextFields = fields.map(f => {
         if (f.id !== id) return f;
         if (updates.type && updates.type !== f.type) {
             const config = DATA_TYPES[updates.type];
@@ -71,7 +89,9 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
             };
         }
         return { ...f, ...updates };
-    }));
+    });
+
+    onTableChange({ ...table, fields: nextFields, data: updatedData });
   };
 
   const removeField = (id: string) => {

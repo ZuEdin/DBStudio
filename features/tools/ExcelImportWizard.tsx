@@ -126,8 +126,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ tables, on
     // Generate Initial Mappings and smart Enum detection
     const newMappings: ColumnMapping[] = headers.map((h, idx) => {
         const val = samples[idx];
-        const originalName = String(h || `Spalte ${idx + 1}`);
-        const targetName = String(h || `Spalte${idx + 1}`).replace(/[^a-zA-Z0-9_]/g, '');
+        const originalName = String(h || `spalte ${idx + 1}`);
+        const targetName = String(h || `spalte${idx + 1}`).replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
         
         // Smart ENUM detection: extract non-empty values from all rows for this column
         const colValues = data.slice(1).map(row => row[idx]).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
@@ -498,7 +498,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ tables, on
                                                     type="text" 
                                                     value={map.targetName} 
                                                     disabled={!map.selected}
-                                                    onChange={e => updateMapping(map.index, { targetName: e.target.value })}
+                                                    onChange={e => updateMapping(map.index, { targetName: e.target.value.toLowerCase() })}
                                                     className="w-full border border-slate-300 rounded px-2 py-1 text-sm font-bold text-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
                                                     placeholder="Spaltenname"
                                                 />

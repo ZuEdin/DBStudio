@@ -53,11 +53,10 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
       dependencies["bootstrap"] = "^5.3.3";
   }
 
-  if (isTailwind) {
-      devDependencies["tailwindcss"] = "^3.3.0";
-      devDependencies["postcss"] = "^8.4.0";
-      devDependencies["autoprefixer"] = "^10.4.0";
-  }
+  // Always include Tailwind CSS dependencies for layout classes
+  devDependencies["tailwindcss"] = "^3.3.0";
+  devDependencies["postcss"] = "^8.4.0";
+  devDependencies["autoprefixer"] = "^10.4.0";
 
   if (config.whitelabel?.customNpmPackages) {
       const pkgs = config.whitelabel.customNpmPackages.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -82,13 +81,14 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
 
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite';\nimport vue from '@vitejs/plugin-vue';\nimport path from 'path';\n\nexport default defineConfig({\n  plugins: [vue()],\n  resolve: { alias: { '@': path.resolve(__dirname, './src') } },\n  server: { port: 3000 }\n});`, language: 'typescript' });
   
-  // Tailwind & PostCSS Configs
+  // Always generate Tailwind config and PostCSS config to compile layout classes
+  files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
+  files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
+
   if (isTailwind) {
-      files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
-      files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
       files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;`, language: 'css' });
   } else if (isBootstrap) {
-      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
   } else {
       files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n}`, language: 'css' });
   }

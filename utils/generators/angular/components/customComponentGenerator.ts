@@ -13,7 +13,8 @@ export const generateCustomPageComponents = (
   tables: Table[],
   queries: Query[],
   forms: Form[],
-  appRoot: string
+  appRoot: string,
+  isBootstrap: boolean = false
 ): { files: VirtualFile[]; routes: RouteInfo[] } => {
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
@@ -37,16 +38,20 @@ export const generateCustomPageComponents = (
           switch(node.type) {
               case 'container': {
                   const childrenStr = (node.children || []).map((c: any) => generateNode(c)).join('\n');
-                  return `<div class="${classNameStr || 'p-4 border rounded'}" ${styleAttr}>${childrenStr}</div>`;
+                  const defaultClass = isBootstrap ? 'p-3 border rounded bg-white' : 'p-4 border rounded';
+                  return `<div class="${classNameStr || defaultClass}" ${styleAttr}>${childrenStr}</div>`;
               }
               case 'text': {
-                  return `<div class="break-words ${classNameStr}" ${styleAttr}>${node.props?.text || ''}</div>`;
+                  const defaultClass = isBootstrap ? 'text-break' : 'break-words';
+                  return `<div class="${defaultClass} ${classNameStr}" ${styleAttr}>${node.props?.text || ''}</div>`;
               }
               case 'button': {
-                  return `<button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition ${classNameStr}" ${styleAttr}>${node.props?.label || 'Button'}</button>`;
+                  const defaultClass = isBootstrap ? 'btn btn-primary' : 'px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition';
+                  return `<button class="${defaultClass} ${classNameStr}" ${styleAttr}>${node.props?.label || 'Button'}</button>`;
               }
               case 'divider': {
-                  return `<hr class="border-slate-200 my-4 ${classNameStr}" ${styleAttr} />`;
+                  const defaultClass = isBootstrap ? 'my-4' : 'border-slate-200 my-4';
+                  return `<hr class="${defaultClass} ${classNameStr}" ${styleAttr} />`;
               }
               case 'image': {
                   return `<img referrerPolicy="no-referrer" src="${node.props?.src || ''}" class="max-w-full h-auto rounded ${classNameStr}" ${styleAttr} alt="${node.props?.alt || ''}" />`;
@@ -91,18 +96,33 @@ export const generateCustomPageComponents = (
                   const valueField = node.props?.valueField || 'id';
                   const labelField = node.props?.labelField || 'name';
                   
-                  return `
-                  <div class="p-2 ${classNameStr}" ${styleAttr}>
-                      <select class="border border-slate-300 rounded px-3 py-2 bg-white w-full max-w-xs">
-                          <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
-                          <option *ngIf="${loadingState}" disabled>Lade Daten...</option>
-                          <ng-container *ngIf="!${loadingState}">
-                              <option *ngFor="let row of ${stateName}; let idx = index" [value]="row['${toCamelCase(valueField)}'] || row['${valueField}'] || row.id || idx">
-                                  {{ row['${toCamelCase(labelField)}'] || row['${labelField}'] || row.id || idx }}
-                              </option>
-                          </ng-container>
-                      </select>
-                  </div>`;
+                  if (isBootstrap) {
+                      return `
+                      <div class="p-2 ${classNameStr}" ${styleAttr}>
+                          <select class="form-select max-w-xs" style="max-width: 280px;">
+                              <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
+                              <option *ngIf="${loadingState}" disabled>Lade Daten...</option>
+                              <ng-container *ngIf="!${loadingState}">
+                                  <option *ngFor="let row of ${stateName}; let idx = index" [value]="row['${toCamelCase(valueField)}'] || row['${valueField}'] || row.id || idx">
+                                      {{ row['${toCamelCase(labelField)}'] || row['${labelField}'] || row.id || idx }}
+                                  </option>
+                              </ng-container>
+                          </select>
+                      </div>`;
+                  } else {
+                      return `
+                      <div class="p-2 ${classNameStr}" ${styleAttr}>
+                          <select class="border border-slate-300 rounded px-3 py-2 bg-white w-full max-w-xs">
+                              <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
+                              <option *ngIf="${loadingState}" disabled>Lade Daten...</option>
+                              <ng-container *ngIf="!${loadingState}">
+                                  <option *ngFor="let row of ${stateName}; let idx = index" [value]="row['${toCamelCase(valueField)}'] || row['${valueField}'] || row.id || idx">
+                                      {{ row['${toCamelCase(labelField)}'] || row['${labelField}'] || row.id || idx }}
+                                  </option>
+                              </ng-container>
+                          </select>
+                      </div>`;
+                  }
               }
               case 'table_view': {
                   const suffix = node.id.replace(/-/g, '_');
@@ -307,168 +327,330 @@ export const generateCustomPageComponents = (
                   const columnsStr = node.props?.columns || '';
                   const columns = columnsStr ? columnsStr.split(',').map((c: string) => c.trim()) : [];
                   
-                  return `
-                  <div class="p-4 w-full flex flex-col gap-4 ${classNameStr}" style="${styleAttr}">
-                      <div class="flex justify-between items-center gap-4">
-                          <button 
-                              (click)="${showFiltersState} = !${showFiltersState}" 
-                              class="p-1.5 border rounded-lg flex items-center gap-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                              [class.bg-blue-50]="${showFiltersState}"
-                              [class.border-blue-300]="${showFiltersState}"
-                              [class.text-blue-600]="${showFiltersState}"
-                              title="Spaltenfilter anzeigen/ausblenden"
-                          >
-                              <span>Filter</span>
-                          </button>
-                          
-                          <div class="relative flex-1 max-w-xs">
-                              <input 
-                                  type="text" 
-                                  placeholder="Suchen..." 
-                                  class="pl-3 pr-3 py-1.5 border rounded-lg text-xs w-full bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                  [(ngModel)]="${searchState}"
-                                  (ngModelChange)="${pageState} = 1"
-                              />
+                  if (isBootstrap) {
+                      return `
+                      <div class="p-3 w-100 d-flex flex-column gap-3 ${classNameStr}" style="${styleAttr}">
+                          <div class="d-flex justify-content-between align-items-center gap-3">
+                              <button 
+                                  (click)="${showFiltersState} = !${showFiltersState}" 
+                                  class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2"
+                                  [class.active]="${showFiltersState}"
+                                  title="Spaltenfilter anzeigen/ausblenden"
+                              >
+                                  <span>Filter</span>
+                              </button>
+                              
+                              <div class="position-relative flex-grow-1" style="max-width: 250px;">
+                                  <input 
+                                      type="text" 
+                                      placeholder="Suchen..." 
+                                      class="form-control form-control-sm bg-white"
+                                      [(ngModel)]="${searchState}"
+                                      (ngModelChange)="${pageState} = 1"
+                                  />
+                              </div>
                           </div>
-                      </div>
 
-                      <div *ngIf="${loadingState}" class="flex items-center justify-center p-8">
-                          <div class="animate-spin text-slate-400">Lade Daten...</div>
-                      </div>
+                          <div *ngIf="${loadingState}" class="d-flex items-center justify-content-center p-4">
+                              <div class="spinner-border spinner-border-sm text-secondary me-2"></div>
+                              <span class="text-secondary small">Lade Daten...</span>
+                          </div>
 
-                      <div *ngIf="!${loadingState}" class="flex flex-col gap-3">
-                          <div class="overflow-x-auto border rounded-lg dark:border-slate-700">
-                              <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-                                  <thead class="bg-slate-50 dark:bg-slate-900">
-                                      <tr>
-                                          ${columns.length > 0 ? columns.map((col: string) => `
-                                          <th 
-                                              class="px-3 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 select-none"
-                                              (click)="toggleSort_${suffix}('${toCamelCase(col)}')"
-                                          >
-                                              <div class="flex items-center gap-1.5">
-                                                  <span>${col}</span>
-                                                  <span *ngIf="${sortFieldState} === '${toCamelCase(col)}'">
-                                                      <span *ngIf="${sortDirState} === 'asc'">▲</span>
-                                                      <span *ngIf="${sortDirState} === 'desc'">▼</span>
-                                                  </span>
-                                              </div>
-                                          </th>`).join('\n') : `
-                                          <ng-container *ngIf="${stateName}.length > 0">
+                          <div *ngIf="!${loadingState}" class="d-flex flex-column gap-2">
+                              <div class="table-responsive border rounded bg-white">
+                                  <table class="table table-hover align-middle mb-0 text-nowrap">
+                                      <thead class="table-light">
+                                          <tr>
+                                              ${columns.length > 0 ? columns.map((col: string) => `
                                               <th 
-                                                  *ngFor="let k of getObjKeys(${stateName}[0])" 
-                                                  class="px-3 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 select-none"
-                                                  (click)="toggleSort_${suffix}(k)"
+                                                  class="px-3 py-2 text-start text-xs font-semibold text-secondary text-uppercase cursor-pointer hover:bg-light select-none"
+                                                  (click)="toggleSort_${suffix}('${toCamelCase(col)}')"
                                               >
-                                                  <div class="flex items-center gap-1.5">
-                                                      <span>{{k}}</span>
-                                                      <span *ngIf="${sortFieldState} === k">
+                                                  <div class="d-flex align-items-center gap-1">
+                                                      <span>${col}</span>
+                                                      <span *ngIf="${sortFieldState} === '${toCamelCase(col)}'">
                                                           <span *ngIf="${sortDirState} === 'asc'">▲</span>
                                                           <span *ngIf="${sortDirState} === 'desc'">▼</span>
                                                       </span>
                                                   </div>
-                                              </th>
-                                          </ng-container>
-                                          <th *ngIf="${stateName}.length === 0" class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Daten</th>`}
-                                      </tr>
-                                      
-                                      <tr *ngIf="${showFiltersState}" class="bg-slate-100/50">
-                                          ${columns.length > 0 ? columns.map((col: string) => `
-                                          <th class="p-2">
-                                              <input 
-                                                  type="text"
-                                                  placeholder="Filtern..."
-                                                  class="w-full px-2 py-1 text-xs font-normal border rounded bg-white text-slate-800"
-                                                  [(ngModel)]="${columnFiltersState}['${toCamelCase(col)}']"
-                                                  (ngModelChange)="${pageState} = 1"
-                                              />
-                                          </th>`).join('\n') : `
-                                          <ng-container *ngIf="${stateName}.length > 0">
-                                              <th *ngFor="let k of getObjKeys(${stateName}[0])" class="p-2">
+                                              </th>`).join('\n') : `
+                                              <ng-container *ngIf="${stateName}.length > 0">
+                                                  <th 
+                                                      *ngFor="let k of getObjKeys(${stateName}[0])" 
+                                                      class="px-3 py-2 text-start text-xs font-semibold text-secondary text-uppercase cursor-pointer hover:bg-light select-none"
+                                                      (click)="toggleSort_${suffix}(k)"
+                                                  >
+                                                      <div class="d-flex align-items-center gap-1">
+                                                          <span>{{k}}</span>
+                                                          <span *ngIf="${sortFieldState} === k">
+                                                              <span *ngIf="${sortDirState} === 'asc'">▲</span>
+                                                              <span *ngIf="${sortDirState} === 'desc'">▼</span>
+                                                          </span>
+                                                      </div>
+                                                  </th>
+                                              </ng-container>
+                                              <th *ngIf="${stateName}.length === 0" class="px-3 py-2 text-start text-xs font-semibold text-secondary">Daten</th>`}
+                                          </tr>
+                                          
+                                          <tr *ngIf="${showFiltersState}" class="bg-light">
+                                              ${columns.length > 0 ? columns.map((col: string) => `
+                                              <th class="p-1">
+                                                  <input 
+                                                      type="text"
+                                                      placeholder="Filtern..."
+                                                      class="form-control form-control-sm bg-white"
+                                                      [(ngModel)]="${columnFiltersState}['${toCamelCase(col)}']"
+                                                      (ngModelChange)="${pageState} = 1"
+                                                  />
+                                              </th>`).join('\n') : `
+                                              <ng-container *ngIf="${stateName}.length > 0">
+                                                  <th *ngFor="let k of getObjKeys(${stateName}[0])" class="p-1">
+                                                      <input 
+                                                          type="text"
+                                                          placeholder="Filtern..."
+                                                          class="form-control form-control-sm bg-white"
+                                                          [(ngModel)]="${columnFiltersState}[k]"
+                                                          (ngModelChange)="${pageState} = 1"
+                                                      />
+                                                  </th>
+                                              </ng-container>`}
+                                          </tr>
+                                      </thead>
+                                      <tbody>
+                                          <tr 
+                                              *ngFor="let row of ${paginatedName}; let idx = index" 
+                                              class="cursor-pointer"
+                                              [class.table-primary]="row['${pkFieldName}'] === ${selectedRowState} || row.id === ${selectedRowState} || row.ID === ${selectedRowState}"
+                                              (click)="onRowClick_${suffix}(row, idx)"
+                                              ${dblclickActionCode ? `(dblclick)="onRowDoubleClick_${suffix}(row, idx)"` : ''}
+                                          >
+                                              ${columns.length > 0 ? columns.map((col: string) => `<td class="px-3 py-2 text-secondary">${ '{{ row[\'' + toCamelCase(col) + '\'] || row[\'' + col + '\'] || \'\' }}' }</td>`).join('\n') : `
+                                              <td *ngFor="let val of getObjValues(row)" class="px-3 py-2 text-secondary">{{ val }}</td>`}
+                                          </tr>
+                                          <tr *ngIf="${stateName}.length === 0">
+                                              <td class="p-3 text-center text-secondary fst-italic" colspan="100">Keine Einträge.</td>
+                                          </tr>
+                                      </tbody>
+                                  </table>
+                              </div>
+
+                              <div *ngIf="totalItems_${suffix} > 0" class="d-flex flex-column flex-sm-row items-center justify-content-between pt-2 px-1 text-secondary small select-none">
+                                  <div class="mb-2 mb-sm-0">
+                                      Zeige <strong>{{startIndex_${suffix} + 1}}</strong> bis <strong>{{endIndex_${suffix}}}</strong> von <strong>{{totalItems_${suffix}}}</strong> Einträgen
+                                  </div>
+                                  <div class="btn-group">
+                                      <button 
+                                          (click)="${pageState} = 1" 
+                                          [disabled]="${pageState} <= 1"
+                                          class="btn btn-sm btn-outline-secondary"
+                                      >
+                                          Erste
+                                      </button>
+                                      <button 
+                                          (click)="${pageState} = ${pageState} - 1" 
+                                          [disabled]="${pageState} <= 1"
+                                          class="btn btn-sm btn-outline-secondary"
+                                      >
+                                          Zurück
+                                      </button>
+                                      <span class="btn btn-sm btn-light border disabled">
+                                          Seite {{${pageState}}} von {{totalPages_${suffix}}}
+                                      </span>
+                                      <button 
+                                          (click)="${pageState} = ${pageState} + 1" 
+                                          [disabled]="${pageState} >= totalPages_${suffix}"
+                                          class="btn btn-sm btn-outline-secondary"
+                                      >
+                                          Weiter
+                                      </button>
+                                      <button 
+                                          (click)="${pageState} = totalPages_${suffix}" 
+                                          [disabled]="${pageState} >= totalPages_${suffix}"
+                                          class="btn btn-sm btn-outline-secondary"
+                                      >
+                                          Letzte
+                                      </button>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>`;
+                  } else {
+                      return `
+                      <div class="p-4 w-full flex flex-col gap-4 ${classNameStr}" style="${styleAttr}">
+                          <div class="flex justify-between items-center gap-4">
+                              <button 
+                                  (click)="${showFiltersState} = !${showFiltersState}" 
+                                  class="p-1.5 border rounded-lg flex items-center gap-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                                  [class.bg-blue-50]="${showFiltersState}"
+                                  [class.border-blue-300]="${showFiltersState}"
+                                  [class.text-blue-600]="${showFiltersState}"
+                                  title="Spaltenfilter anzeigen/ausblenden"
+                              >
+                                  <span>Filter</span>
+                              </button>
+                              
+                              <div class="relative flex-1 max-w-xs">
+                                  <input 
+                                      type="text" 
+                                      placeholder="Suchen..." 
+                                      class="pl-3 pr-3 py-1.5 border rounded-lg text-xs w-full bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                      [(ngModel)]="${searchState}"
+                                      (ngModelChange)="${pageState} = 1"
+                                  />
+                              </div>
+                          </div>
+
+                          <div *ngIf="${loadingState}" class="flex items-center justify-center p-8">
+                              <div class="animate-spin text-slate-400">Lade Daten...</div>
+                          </div>
+
+                          <div *ngIf="!${loadingState}" class="flex flex-col gap-3">
+                              <div class="overflow-x-auto border rounded-lg dark:border-slate-700">
+                                  <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+                                      <thead class="bg-slate-50 dark:bg-slate-900">
+                                          <tr>
+                                              ${columns.length > 0 ? columns.map((col: string) => `
+                                              <th 
+                                                  class="px-3 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 select-none"
+                                                  (click)="toggleSort_${suffix}('${toCamelCase(col)}')"
+                                              >
+                                                  <div class="flex items-center gap-1.5">
+                                                      <span>${col}</span>
+                                                      <span *ngIf="${sortFieldState} === '${toCamelCase(col)}'">
+                                                          <span *ngIf="${sortDirState} === 'asc'">▲</span>
+                                                          <span *ngIf="${sortDirState} === 'desc'">▼</span>
+                                                      </span>
+                                                  </div>
+                                              </th>`).join('\n') : `
+                                              <ng-container *ngIf="${stateName}.length > 0">
+                                                  <th 
+                                                      *ngFor="let k of getObjKeys(${stateName}[0])" 
+                                                      class="px-3 py-2 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-slate-100 select-none"
+                                                      (click)="toggleSort_${suffix}(k)"
+                                                  >
+                                                      <div class="flex items-center gap-1.5">
+                                                          <span>{{k}}</span>
+                                                          <span *ngIf="${sortFieldState} === k">
+                                                              <span *ngIf="${sortDirState} === 'asc'">▲</span>
+                                                              <span *ngIf="${sortDirState} === 'desc'">▼</span>
+                                                          </span>
+                                                      </div>
+                                                  </th>
+                                              </ng-container>
+                                              <th *ngIf="${stateName}.length === 0" class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Daten</th>`}
+                                          </tr>
+                                          
+                                          <tr *ngIf="${showFiltersState}" class="bg-slate-100/50">
+                                              ${columns.length > 0 ? columns.map((col: string) => `
+                                              <th class="p-2">
                                                   <input 
                                                       type="text"
                                                       placeholder="Filtern..."
                                                       class="w-full px-2 py-1 text-xs font-normal border rounded bg-white text-slate-800"
-                                                      [(ngModel)]="${columnFiltersState}[k]"
+                                                      [(ngModel)]="${columnFiltersState}['${toCamelCase(col)}']"
                                                       (ngModelChange)="${pageState} = 1"
                                                   />
-                                              </th>
-                                          </ng-container>`}
-                                      </tr>
-                                  </thead>
-                                  <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-                                      <tr 
-                                          *ngFor="let row of ${paginatedName}; let idx = index" 
-                                          class="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition select-none"
-                                          [class.bg-blue-50]="row['${pkFieldName}'] === ${selectedRowState} || row.id === ${selectedRowState} || row.ID === ${selectedRowState}"
-                                          (click)="onRowClick_${suffix}(row, idx)"
-                                          ${dblclickActionCode ? `(dblclick)="onRowDoubleClick_${suffix}(row, idx)"` : ''}
-                                      >
-                                          ${columns.length > 0 ? columns.map((col: string) => `<td class="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{{ row['${toCamelCase(col)}'] || row['${col}'] || '' }}</td>`).join('\n') : `
-                                          <td *ngFor="let val of getObjValues(row)" class="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{{ val }}</td>`}
-                                      </tr>
-                                      <tr *ngIf="${stateName}.length === 0">
-                                          <td class="p-4 text-center text-slate-400 italic" colspan="100">Keine Einträge.</td>
-                                      </tr>
-                                  </tbody>
-                              </table>
-                          </div>
+                                              </th>`).join('\n') : `
+                                              <ng-container *ngIf="${stateName}.length > 0">
+                                                  <th *ngFor="let k of getObjKeys(${stateName}[0])" class="p-2">
+                                                      <input 
+                                                          type="text"
+                                                          placeholder="Filtern..."
+                                                          class="w-full px-2 py-1 text-xs font-normal border rounded bg-white text-slate-800"
+                                                          [(ngModel)]="${columnFiltersState}[k]"
+                                                          (ngModelChange)="${pageState} = 1"
+                                                      />
+                                                  </th>
+                                              </ng-container>`}
+                                          </tr>
+                                      </thead>
+                                      <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+                                          <tr 
+                                              *ngFor="let row of ${paginatedName}; let idx = index" 
+                                              class="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition select-none"
+                                              [class.bg-blue-50]="row['${pkFieldName}'] === ${selectedRowState} || row.id === ${selectedRowState} || row.ID === ${selectedRowState}"
+                                              (click)="onRowClick_${suffix}(row, idx)"
+                                              ${dblclickActionCode ? `(dblclick)="onRowDoubleClick_${suffix}(row, idx)"` : ''}
+                                          >
+                                              ${columns.length > 0 ? columns.map((col: string) => `<td class="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{{ row['${toCamelCase(col)}'] || row['${col}'] || '' }}</td>`).join('\n') : `
+                                              <td *ngFor="let val of getObjValues(row)" class="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{{ val }}</td>`}
+                                          </tr>
+                                          <tr *ngIf="${stateName}.length === 0">
+                                              <td class="p-4 text-center text-slate-400 italic" colspan="100">Keine Einträge.</td>
+                                          </tr>
+                                      </tbody>
+                                  </table>
+                              </div>
 
-                          <div *ngIf="totalItems_${suffix} > 0" class="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3 px-1 gap-2 text-xs text-slate-500 select-none">
-                              <div>
-                                  Zeige <span class="font-semibold text-slate-700 dark:text-white">{{startIndex_${suffix} + 1}}</span> bis <span class="font-semibold text-slate-700 dark:text-white">{{endIndex_${suffix}}}</span> von <span class="font-semibold text-slate-700 dark:text-white">{{totalItems_${suffix}}}</span> Einträgen
-                              </div>
-                              <div class="flex items-center gap-1.5">
-                                  <button 
-                                      (click)="${pageState} = 1" 
-                                      [disabled]="${pageState} <= 1"
-                                      class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
-                                  >
-                                      Erste
-                                  </button>
-                                  <button 
-                                      (click)="${pageState} = ${pageState} - 1" 
-                                      [disabled]="${pageState} <= 1"
-                                      class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
-                                  >
-                                      Zurück
-                                  </button>
-                                  <span class="px-3 py-1 font-medium text-slate-700 dark:text-white bg-slate-50 dark:bg-slate-900 border rounded">
-                                      Seite {{${pageState}}} von {{totalPages_${suffix}}}
-                                  </span>
-                                  <button 
-                                      (click)="${pageState} = ${pageState} + 1" 
-                                      [disabled]="${pageState} >= totalPages_${suffix}"
-                                      class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
-                                  >
-                                      Weiter
-                                  </button>
-                                  <button 
-                                      (click)="${pageState} = totalPages_${suffix}" 
-                                      [disabled]="${pageState} >= totalPages_${suffix}"
-                                      class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
-                                  >
-                                      Letzte
-                                  </button>
+                              <div *ngIf="totalItems_${suffix} > 0" class="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3 px-1 gap-2 text-xs text-slate-500 select-none">
+                                  <div>
+                                      Zeige <span class="font-semibold text-slate-700 dark:text-white">{{startIndex_${suffix} + 1}}</span> bis <span class="font-semibold text-slate-700 dark:text-white">{{endIndex_${suffix}}}</span> von <span class="font-semibold text-slate-700 dark:text-white">{{totalItems_${suffix}}}</span> Einträgen
+                                  </div>
+                                  <div class="flex items-center gap-1.5">
+                                      <button 
+                                          (click)="${pageState} = 1" 
+                                          [disabled]="${pageState} <= 1"
+                                          class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
+                                      >
+                                          Erste
+                                      </button>
+                                      <button 
+                                          (click)="${pageState} = ${pageState} - 1" 
+                                          [disabled]="${pageState} <= 1"
+                                          class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
+                                      >
+                                          Zurück
+                                      </button>
+                                      <span class="px-3 py-1 font-medium text-slate-700 dark:text-white bg-slate-50 dark:bg-slate-900 border rounded">
+                                          Seite {{${pageState}}} von {{totalPages_${suffix}}}
+                                      </span>
+                                      <button 
+                                          (click)="${pageState} = ${pageState} + 1" 
+                                          [disabled]="${pageState} >= totalPages_${suffix}"
+                                          class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
+                                      >
+                                          Weiter
+                                      </button>
+                                      <button 
+                                          (click)="${pageState} = totalPages_${suffix}" 
+                                          [disabled]="${pageState} >= totalPages_${suffix}"
+                                          class="px-2 py-1 border rounded bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition"
+                                      >
+                                          Letzte
+                                      </button>
+                                  </div>
                               </div>
                           </div>
-                      </div>
-                  </div>`;
+                      </div>`;
+                  }
               }
               default:
-                  return `<div class="p-4 bg-slate-50 rounded border text-sm text-slate-400">${node.type} Component</div>`;
+                  return `<div class="p-3 bg-light border rounded text-secondary small">${node.type} Component</div>`;
           }
       };
 
-      const customHtml = `
-      <div class="p-8">
-          <div class="mb-6 flex justify-between items-center">
-              <h1 class="text-3xl font-bold text-slate-800">${page.name}</h1>
-          </div>
-          <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              ${generateNode(page.layout)}
-          </div>
-      </div>`;
+      let customHtml = '';
+      if (isBootstrap) {
+          customHtml = `
+          <div class="container py-4">
+              <div class="mb-4">
+                  <h1 class="h2 text-dark">${page.name}</h1>
+              </div>
+              <div class="card shadow-sm border p-4">
+                  ${generateNode(page.layout)}
+              </div>
+          </div>`;
+      } else {
+          customHtml = `
+          <div class="p-8">
+              <div class="mb-6 flex justify-between items-center">
+                  <h1 class="text-3xl font-bold text-slate-800">${page.name}</h1>
+              </div>
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                  ${generateNode(page.layout)}
+              </div>
+          </div>`;
+      }
 
       const customTs = `import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
