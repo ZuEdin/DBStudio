@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Download, Globe, FileJson, FileSpreadsheet, FileText, Printer, Save, Table as TableIcon, RefreshCw, Plus, Trash2, List, Type, CheckSquare, Settings2, Sliders, Server, GitFork, Copy, Check, Database, ChevronDown, ChevronUp } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import * as XLSX from 'xlsx';
@@ -10,6 +10,50 @@ import { InputModal } from '../../components/InputModal';
 import { fetchApiData, inferFieldType } from '../../utils/apiImportHelper';
 import { ArrayExtractionModal } from './ArrayExtractionModal';
 import { generateSqlServerMigration, generateDotNetCode, generateNodeCode, generatePhpCode } from '../../utils/apiCodeGenerator';
+
+interface CommaSeparatedInputProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+const CommaSeparatedInput: React.FC<CommaSeparatedInputProps> = ({ value, onChange, placeholder, className }) => {
+  const [localValue, setLocalValue] = useState(value.join(', '));
+
+  useEffect(() => {
+    const normalizedProp = value.join(', ');
+    const normalizedLocal = localValue.split(',').map(v => v.trim()).filter(Boolean).join(', ');
+    if (normalizedProp !== normalizedLocal) {
+      setLocalValue(normalizedProp);
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalValue(raw);
+    const parsed = raw.split(',').map(v => v.trim());
+    const filtered = parsed.filter(v => v !== '');
+    onChange(filtered);
+  };
+
+  const handleBlur = () => {
+    const parsed = localValue.split(',').map(v => v.trim()).filter(Boolean);
+    setLocalValue(parsed.join(', '));
+    onChange(parsed);
+  };
+
+  return (
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+};
 
 interface ApiImportViewProps {
     onSaveTable?: (table: Table) => void;
@@ -856,11 +900,10 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
 
                                 {param.type === 'select' ? (
                                     <div className="flex gap-2 flex-1">
-                                        <input 
-                                            type="text" 
+                                        <CommaSeparatedInput 
                                             placeholder="Optionen kommasepariert (z.B. available, pending, sold)"
-                                            value={param.options ? param.options.join(',') : ''}
-                                            onChange={e => updateParam(param.id, { options: e.target.value.split(',') })}
+                                            value={param.options || []}
+                                            onChange={options => updateParam(param.id, { options: options })}
                                             className="flex-1 border border-orange-200 rounded px-2 py-1 text-sm bg-orange-50 focus:bg-white transition-colors"
                                         />
                                         <select 

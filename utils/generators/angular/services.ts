@@ -9,7 +9,18 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
   // Table Models
   tables.forEach(table => {
     const safeName = toPascalCase(table.name);
-    const props = table.fields.map(f => `  ${toCamelCase(f.name)}${isNullable(f) ? '?' : ''}: ${resolveType(f, 'typescript')};`);
+    const props = table.fields.flatMap(f => {
+      const camel = toCamelCase(f.name);
+      const tType = resolveType(f, 'typescript');
+      const suffix = isNullable(f) ? '?' : '';
+      if (camel !== f.name) {
+          return [
+              `  ${camel}${suffix}: ${tType};`,
+              `  '${f.name}'${suffix}: ${tType};`
+          ];
+      }
+      return [`  ${camel}${suffix}: ${tType};`];
+    });
     
     files.push({ 
         name: `${safeName.toLowerCase()}.interface.ts`, 

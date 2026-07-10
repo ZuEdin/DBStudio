@@ -114,10 +114,9 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         const conditions = validCriteria.map(crit => {
             let criteria = crit.trim();
 
-            if (/\[Forms\]!/i.test(criteria)) {
+            if (/(?:\[?Forms\]?!)/i.test(criteria)) {
                 if (context) {
-                    let matchStr = criteria.replace(/^=|like |>|<|>=|<=/i, '').trim();
-                    const formMatch = matchStr.match(/\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/i) || matchStr.match(/\[Forms\]!([^!]+)!([^!]+)/i);
+                    const formMatch = criteria.match(/(?:\[?Forms\]?!\s*\[?([^!\]]+)\]?!\s*\[?([^!\]\s]+)\]?)/i);
                     if (formMatch && formMatch.length >= 3) {
                         const formName = formMatch[1].toLowerCase();
                         const fieldName = formMatch[2].toLowerCase();

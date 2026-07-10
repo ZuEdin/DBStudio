@@ -6,6 +6,50 @@ import { ReportFormattingPanel } from './designer/ReportFormattingPanel';
 import { ReportView } from './ReportView';
 import { executeSelectQuery } from '../queries/utils/queryExecution';
 
+interface CommaSeparatedInputProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+const CommaSeparatedInput: React.FC<CommaSeparatedInputProps> = ({ value, onChange, placeholder, className }) => {
+  const [localValue, setLocalValue] = useState(value.join(', '));
+
+  useEffect(() => {
+    const normalizedProp = value.join(', ');
+    const normalizedLocal = localValue.split(',').map(v => v.trim()).filter(Boolean).join(', ');
+    if (normalizedProp !== normalizedLocal) {
+      setLocalValue(normalizedProp);
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalValue(raw);
+    const parsed = raw.split(',').map(v => v.trim());
+    const filtered = parsed.filter(v => v !== '');
+    onChange(filtered);
+  };
+
+  const handleBlur = () => {
+    const parsed = localValue.split(',').map(v => v.trim()).filter(Boolean);
+    setLocalValue(parsed.join(', '));
+    onChange(parsed);
+  };
+
+  return (
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+};
+
 interface ReportDesignerViewProps {
   report: Report;
   tables: Table[];
@@ -206,11 +250,10 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1"><Shield size={14}/> Sicherheit</h4>
                   <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Erlaubte Rollen (kommasepariert)</label>
-                      <input 
-                         type="text" 
+                      <CommaSeparatedInput
                          placeholder="z.B. Admin, User" 
-                         value={report.allowedRoles?.join(', ') || ''} 
-                         onChange={e => onReportChange({ ...report, allowedRoles: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                         value={report.allowedRoles || []} 
+                         onChange={roles => onReportChange({ ...report, allowedRoles: roles })}
                          className="w-full border border-slate-300 rounded p-2 text-sm bg-white" 
                       />
                       <p className="text-[10px] text-slate-400 mt-1">Leer lassen, wenn für alle zugänglich.</p>

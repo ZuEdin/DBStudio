@@ -5,14 +5,20 @@ import { Plus, Layout, User, Search } from 'lucide-react';
 export const collectLookups = (element: FormElement, tables: Table[], queries: any[] = [], accumulated: any[] = []) => {
     if (element.widgetType === 'select' && element.lookup && element.lookup.tableId) {
         let table: any = tables.find(t => t.id === element.lookup!.tableId);
-        if (!table) table = queries.find((q: any) => q.id === element.lookup!.tableId);
+        let isQuery = false;
+        if (!table) {
+            table = queries.find((q: any) => q.id === element.lookup!.tableId);
+            if (table) isQuery = true;
+        }
         if (table) {
             const variableName = `${toCamelCase(table.name)}List`;
             if (!accumulated.find(l => l.variableName === variableName)) {
-                accumulated.push({ sort: element.lookup!.sort,
+                accumulated.push({ 
+                    sort: element.lookup!.sort,
                     table,
                     variableName,
-                    endpoint: toCamelCase(table.name)
+                    endpoint: isQuery ? `queries/${toCamelCase(table.name)}` : toCamelCase(table.name),
+                    isQuery
                 });
             }
         }
@@ -165,6 +171,27 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                  const valProp = valField ? toCamelCase((valField as any).name || (valField as any).alias || (valField as any).fieldName) : "id";
                  const modalId = `lookup_${element.id}`;
 
+                 // --- DISPLAY LOGIC START ---
+                 let displayExpression = `i.${valProp}`; // Default fallback
+                 
+                 if (element.lookup.displayFormat && element.lookup.displayFormat.length > 0) {
+                     // Complex format with prefix/suffix
+                     displayExpression = element.lookup.displayFormat.map(fmt => {
+                         const f = lookupTable.fields.find((field: any) => field.id === fmt.fieldId);
+                         if (!f) return '""';
+                         const prop = toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName);
+                         return `"${fmt.prefix || ''}" + (i.${prop} !== undefined && i.${prop} !== null ? i.${prop} : "") + "${fmt.suffix || ''}"`;
+                     }).join(' + ');
+                 } else if (element.lookup.labelFields && element.lookup.labelFields.length > 0) {
+                     // Simple list of fields
+                     displayExpression = element.lookup.labelFields.map(fid => {
+                         const f = lookupTable.fields.find((field: any) => field.id === fid);
+                         const prop = f ? toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName) : '';
+                         return prop ? `(i.${prop} !== undefined && i.${prop} !== null ? i.${prop} : "")` : '""';
+                      }).filter(Boolean).join(' + " " + ');
+                 }
+                 // --- DISPLAY LOGIC END ---
+
                  if (element.lookup.allowQuickCreate) {
                      // Check if not already added to avoid dups
                      if (!modals.find(m => m.id === modalId)) {
@@ -188,7 +215,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                                 onChange={e => setData({...${dataVar}, ${bindProp}: e.target.value})}
                             >
                                 <option value="">Bitte wählen...</option>
-                                {${listVar}.map(i => <option key={i.${valProp}} value={i.${valProp}}>{i.${valProp}}</option>)}
+                                {${listVar}.map(i => <option key={i.${valProp}} value={i.${valProp}}>{${displayExpression}}</option>)}
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>

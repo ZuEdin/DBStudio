@@ -8,7 +8,6 @@ import {
   Panel,
   MarkerType,
   Position,
-  Handle,
   Connection,
   Edge,
   Node,
@@ -16,10 +15,8 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Table, TableNode, Relationship, TableGroup } from '../../types/index';
+import { Table, TableNode, Relationship } from '../../types/index';
 import { 
-  Database, 
-  Globe, 
   Grid, 
   Zap, 
   ZoomIn, 
@@ -29,370 +26,12 @@ import {
   AlignLeft, 
   Magnet, 
   Grid3X3,
-  GripVertical,
-  Info
 } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 
-// Local input and textarea to prevent focus loss during store-induced re-renders
-const LocalInput = ({ value, onChange, onBlur, className, placeholder, onMouseDown, ...props }: any) => {
-  const [val, setVal] = useState(value);
-  useEffect(() => {
-    setVal(value);
-  }, [value]);
-  
-  return (
-    <input
-      {...props}
-      className={className}
-      placeholder={placeholder}
-      value={val}
-      onMouseDown={onMouseDown}
-      onChange={(e) => setVal(e.target.value)}
-      onBlur={(e) => {
-        if (val !== value) {
-          onChange(e);
-        }
-        if (onBlur) onBlur(e);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.currentTarget.blur();
-        }
-      }}
-    />
-  );
-};
-
-const LocalTextarea = ({ value, onChange, onBlur, className, placeholder, onMouseDown, ...props }: any) => {
-  const [val, setVal] = useState(value);
-  useEffect(() => {
-    setVal(value);
-  }, [value]);
-
-  return (
-    <textarea
-      {...props}
-      className={className}
-      placeholder={placeholder}
-      value={val}
-      onMouseDown={onMouseDown}
-      onChange={(e) => setVal(e.target.value)}
-      onBlur={(e) => {
-        if (val !== value) {
-          onChange(e);
-        }
-        if (onBlur) onBlur(e);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.currentTarget.blur();
-        }
-      }}
-    />
-  );
-};
-
-// Custom Group Node Component
-const ERGroupNodeComponent = ({ data }: any) => {
-  const { group, width, height, onNameChange, onCommentChange, onSelectMembers, onToggleCollapse, tablesInGroup, onColorChange } = data;
-  const isCollapsed = group.isCollapsed;
-
-  const colorStyles = {
-    purple: 'border-purple-500 bg-purple-50/95 dark:bg-slate-900/95 ring-purple-500/10',
-    blue: 'border-blue-500 bg-blue-50/95 dark:bg-slate-900/95 ring-blue-500/10',
-    emerald: 'border-emerald-500 bg-emerald-50/95 dark:bg-slate-900/95 ring-emerald-500/10',
-    rose: 'border-rose-500 bg-rose-50/95 dark:bg-slate-900/95 ring-rose-500/10',
-    amber: 'border-amber-500 bg-amber-50/95 dark:bg-slate-900/95 ring-amber-500/10',
-    slate: 'border-slate-500 bg-slate-50/95 dark:bg-slate-900/95 ring-slate-500/10'
-  };
-
-  const selectedColorClass = colorStyles[(group.color as keyof typeof colorStyles) || 'purple'];
-
-  const uncollapsedColorStyles = {
-    purple: 'border-purple-300 dark:border-purple-800 bg-purple-50/70 dark:bg-purple-900/20',
-    blue: 'border-blue-300 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-900/20',
-    emerald: 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/20',
-    rose: 'border-rose-300 dark:border-rose-800 bg-rose-50/70 dark:bg-rose-900/20',
-    amber: 'border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-900/20',
-    slate: 'border-slate-300 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40'
-  };
-
-  const selectedUncollapsedColorClass = uncollapsedColorStyles[(group.color as keyof typeof uncollapsedColorStyles) || 'slate'];
-
-  const headerColors: any = {
-    purple: 'bg-purple-600 text-white',
-    blue: 'bg-blue-600 text-white',
-    emerald: 'bg-emerald-600 text-white',
-    rose: 'bg-rose-600 text-white',
-    amber: 'bg-amber-600 text-white',
-    slate: 'bg-slate-700 text-white'
-  };
-
-  const selectedHeaderClass = headerColors[(group.color as keyof typeof headerColors) || 'slate'];
-
-  if (isCollapsed) {
-    return (
-      <div 
-        className={`border-2 shadow-xl rounded-xl flex flex-col pointer-events-auto select-none hover:shadow-2xl transition-all relative border-solid ring-2 overflow-hidden ${selectedColorClass}`}
-        style={{ width, height }}
-      >
-        {/* Handles for collapsed state - act as proxy for internal tables */}
-        <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="top" />
-        <Handle type="source" position={Position.Top} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="top-s" />
-        
-        <Handle type="target" position={Position.Bottom} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="bottom" />
-        <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="bottom-s" />
-        
-        <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="left" />
-        <Handle type="source" position={Position.Left} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="left-s" />
-        
-        <Handle type="target" position={Position.Right} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="right" />
-        <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-white border-2 border-slate-400 dark:border-slate-600 dark:!bg-slate-800" id="right-s" />
-
-        <div className={`flex items-center justify-between gap-2 p-3 ${selectedHeaderClass}`}>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-bold text-xs truncate font-sans tracking-tight" title={group.name}>{group.name}</span>
-          </div>
-          <button
-            onClick={() => onToggleCollapse(group.id)}
-            className="shrink-0 text-[10px] bg-white/20 hover:bg-white/30 text-white px-2.5 py-0.5 rounded-md transition-all font-semibold shadow-sm hover:shadow"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            Maximieren
-          </button>
-        </div>
-        <div className="px-3 py-2 text-[10px] opacity-70 font-sans truncate" title={tablesInGroup?.join(', ') || 'Keine Tabellen'}>
-          {tablesInGroup && tablesInGroup.length > 0 ? `${tablesInGroup.length} Tabellen: ${tablesInGroup.join(', ')}` : 'Keine Tabellen'}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative pointer-events-auto select-none" style={{ width, height }}>
-      {/* Header and Comment floating above the box */}
-      <div className="absolute top-0 left-0 w-full -translate-y-[calc(100%+8px)] flex flex-col gap-1.5 z-10">
-        <div className="flex items-center justify-between gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <span className="text-slate-400 shrink-0 cursor-grab active:cursor-grabbing">📁</span>
-            <LocalInput
-              className="bg-transparent font-bold text-xs outline-none w-full text-slate-800 dark:text-slate-200 border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-purple-500 font-sans tracking-tight truncate"
-              value={group.name}
-              onChange={(e: any) => onNameChange(group.id, e.target.value)}
-              placeholder="Gruppenname"
-              onMouseDown={(e: any) => e.stopPropagation()} // Prevent node drag when typing
-            />
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="flex gap-1 mr-2" onMouseDown={(e) => e.stopPropagation()}>
-              {Object.keys(colorStyles).map((color) => (
-                <button
-                  key={color}
-                  onClick={() => onColorChange(group.id, color)}
-                  className={`w-3 h-3 rounded-full border border-black/20 ${group.color === color || (!group.color && color === 'slate') ? 'ring-2 ring-offset-1 ring-purple-500' : ''}`}
-                  style={{
-                    backgroundColor: color === 'purple' ? '#a855f7' : color === 'blue' ? '#3b82f6' : color === 'emerald' ? '#10b981' : color === 'rose' ? '#f43f5e' : color === 'amber' ? '#f59e0b' : '#64748b'
-                  }}
-                  title={color}
-                />
-              ))}
-            </div>
-            <button
-              onClick={onSelectMembers}
-              className="shrink-0 text-[10px] bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded transition-all font-medium border border-slate-300/50 dark:border-slate-750"
-              title="Alle Tabellen in dieser Gruppe markieren"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              Alle wählen
-            </button>
-            <button
-              onClick={() => onToggleCollapse(group.id)}
-              className="shrink-0 text-[10px] bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded transition-all font-semibold border border-purple-200/40"
-              title="Gruppe minimieren"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              Minimieren
-            </button>
-          </div>
-        </div>
-        <LocalTextarea
-          className="text-[11px] outline-none w-full resize-none leading-relaxed border rounded p-1.5 bg-white/90 dark:bg-slate-900/90 shadow-sm text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-purple-500 placeholder-slate-400 font-sans h-12 shrink-0"
-          value={group.comment || ''}
-          placeholder="Kommentar hinzufügen..."
-          onChange={(e: any) => onCommentChange(group.id, e.target.value)}
-          onMouseDown={(e: any) => e.stopPropagation()} // Prevent node drag when typing
-        />
-      </div>
-
-      <div className={`w-full h-full border-2 border-dashed rounded-xl transition-all ${selectedUncollapsedColorClass}`} />
-    </div>
-  );
-};
-
-// Custom Table Node with Multiple Handles (source on right, target on left for every field)
-const ERTableNodeComponent = ({ id, data, selected }: any) => {
-  const { table, relationships, nodes, tableGroups, onDoubleClick } = data;
-  const [activeCommentFieldId, setActiveCommentFieldId] = useState<string | null>(null);
-  const { setNodes } = useReactFlow();
-
-  // Ensure node is on top when a comment is active
-  useEffect(() => {
-    if (activeCommentFieldId) {
-      setNodes((nds) => 
-        nds.map((node) => {
-          if (node.id === id) {
-            return { ...node, zIndex: 1000 };
-          }
-          return node;
-        })
-      );
-    } else {
-      setNodes((nds) => 
-        nds.map((node) => {
-          if (node.id === id) {
-            return { ...node, zIndex: undefined };
-          }
-          return node;
-        })
-      );
-    }
-  }, [activeCommentFieldId, id, setNodes]);
-
-  // Find if this table belongs to any group
-  const layoutNode = nodes?.find((n: any) => n.tableId === table.id);
-  const group = tableGroups?.find((g: any) => g.id === layoutNode?.groupId);
-
-  return (
-    <div className={`bg-white dark:bg-slate-900 rounded-lg shadow-xl border-2 transition-all duration-150 ${selected || activeCommentFieldId ? 'z-50' : 'z-0'} ${selected ? 'border-purple-500 ring-4 ring-purple-500/25 scale-[1.02] shadow-2xl' : 'border-slate-300 dark:border-slate-800 hover:border-slate-400'} min-w-[240px] text-xs`}>
-      {/* Node Header */}
-      <div 
-        className="bg-gradient-to-r from-slate-800 to-slate-950 text-white p-3 font-bold flex items-center justify-between cursor-pointer select-none rounded-t-lg"
-        onDoubleClick={onDoubleClick}
-        title="Doppelklick zum Bearbeiten"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          {table.isApiImport ? (
-            <Globe size={14} className="text-blue-400 shrink-0" />
-          ) : (
-            <Database size={14} className="text-emerald-400 shrink-0" />
-          )}
-          <span className="font-sans text-sm tracking-tight truncate">{table.name}</span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {group && (
-            <span className="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1 py-0.5 rounded font-medium max-w-[80px] truncate" title={`Gruppe: ${group.name}`}>
-              📁 {group.name}
-            </span>
-          )}
-          <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700/50 uppercase font-mono">
-            {table.isApiImport ? 'api' : 'sql'}
-          </span>
-        </div>
-      </div>
-
-      {/* Fields List */}
-      <div className="p-1.5 space-y-1 bg-slate-50 dark:bg-slate-950 rounded-b-lg nodrag">
-        {table.fields.map((field: any) => {
-          const isPrimaryKey = field.isPrimaryKey;
-          const isForeignKey = relationships?.some(
-            (r: any) => r.toTableId === table.id && r.toFieldId === field.id
-          );
-
-          return (
-            <div
-              key={field.id}
-              className={`relative h-8 px-2 flex items-center justify-between hover:bg-white dark:hover:bg-slate-800 rounded border transition-all select-none group cursor-pointer nodrag ${activeCommentFieldId === field.id ? 'bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-900 ring-1 ring-purple-100 dark:ring-purple-900/30' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
-              onClick={() => {
-                if (field.comment) {
-                  setActiveCommentFieldId(activeCommentFieldId === field.id ? null : field.id);
-                }
-              }}
-            >
-              {/* Target Handle (Incoming Foreign Key connection) */}
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={`${table.id}__${field.id}__target`}
-                style={{
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: '#3b82f6',
-                  width: 8,
-                  height: 8,
-                  border: '2px solid white',
-                }}
-                className="opacity-40 group-hover:opacity-100 transition-opacity"
-              />
-
-              {/* Field Label and Key Icons */}
-              <div className="flex items-center gap-1.5 truncate max-w-[70%]">
-                {isPrimaryKey && <span className="text-yellow-500 font-bold" title="Primary Key">🔑</span>}
-                {isForeignKey && <span className="text-cyan-500 text-[10px] font-extrabold tracking-wider" title="Foreign Key">FK</span>}
-                <span className={`truncate font-medium ${isPrimaryKey ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-600 dark:text-slate-300'}`}>
-                  {field.name}
-                </span>
-              </div>
-
-              {/* Field Type Indicator */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {field.comment && (
-                  <Info 
-                    size={10} 
-                    className={`${activeCommentFieldId === field.id ? 'text-purple-500' : 'text-slate-400 opacity-0 group-hover:opacity-100'} transition-all`} 
-                  />
-                )}
-                <div className="text-[9px] text-slate-400 font-mono uppercase bg-slate-200/50 dark:bg-slate-800/50 px-1.5 py-0.5 rounded">
-                  {field.type.substring(0, 5)}
-                </div>
-              </div>
-
-              {/* Comment Popover */}
-              {activeCommentFieldId === field.id && field.comment && (
-                <div 
-                  className="absolute left-full ml-4 top-0 z-[100] w-64 bg-slate-900 text-white p-3 rounded-lg shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 slide-in-from-left-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center gap-2 mb-1.5 text-purple-400 font-bold uppercase tracking-wider text-[10px]">
-                    <Info size={12} />
-                    <span>Feld-Information</span>
-                  </div>
-                  <div className="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap">
-                    {field.comment}
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-slate-800 flex justify-end">
-                    <button 
-                      onClick={() => setActiveCommentFieldId(null)}
-                      className="text-[9px] text-slate-500 hover:text-white transition-colors"
-                    >
-                      Schließen
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Source Handle (Outgoing connection) */}
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={`${table.id}__${field.id}__source`}
-                style={{
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: '#10b981',
-                  width: 8,
-                  height: 8,
-                  border: '2px solid white',
-                }}
-                className="opacity-40 group-hover:opacity-100 transition-opacity"
-              />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+// Imported modular components
+import { ERGroupNodeComponent } from './components/ERGroupNodeComponent';
+import { ERTableNodeComponent } from './components/ERTableNodeComponent';
 
 const nodeTypes = {
   erTableNode: ERTableNodeComponent,
@@ -411,7 +50,6 @@ interface ERDiagramCanvasProps {
   showConfirmation?: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
 }
 
-// Inner Component with access to useReactFlow
 const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
   nodes,
   tables,
@@ -810,9 +448,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
               'Hinzufügen',
               'bg-emerald-600 hover:bg-emerald-700 text-white'
             );
-            // We still want to update positions even if they cancel or before they confirm?
-            // Actually, if we wait for confirmation, the position might jump back if we don't update it now.
-            // But if we update position now, and then they confirm, we update groupId later.
             performUpdate(baseUpdated);
           } else {
             applyGroupChange();
@@ -862,11 +497,14 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     [onRelationshipContextMenu]
   );
 
+  // Selection actions
+  const selectedRFNodes = nodesState.filter((n) => n.selected && !n.id.startsWith('group__'));
+  const selectedTableIds = selectedRFNodes.map((n) => n.id);
+
   // Force-directed Physics Layout
   const triggerPhysicsLayout = () => {
     if (!onUpdateNodes) return;
 
-    // Determine target tables
     const selectedGroupNodes = nodesState.filter(n => n.selected && n.id.startsWith('group__'));
     const selectedGroupIds = selectedGroupNodes.map(n => n.id.replace('group__', ''));
     
@@ -885,7 +523,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
 
     if (tablesToLayout.length === 0) return;
 
-    // Use current bounding box as reference
     const startX = Math.min(...tablesToLayout.map(n => n.x));
     const startY = Math.min(...tablesToLayout.map(n => n.y));
 
@@ -960,7 +597,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
   const triggerGridLayout = () => {
     if (!onUpdateNodes) return;
 
-    // Determine target tables
     const selectedGroupNodes = nodesState.filter(n => n.selected && n.id.startsWith('group__'));
     const selectedGroupIds = selectedGroupNodes.map(n => n.id.replace('group__', ''));
     
@@ -979,11 +615,9 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
 
     if (tablesToLayout.length === 0) return;
 
-    // Use current bounding box as reference
     const startX = Math.min(...tablesToLayout.map(n => n.x));
     const startY = Math.min(...tablesToLayout.map(n => n.y));
 
-    // Group tables by groupId
     const groupedTables: { [groupId: string]: any[] } = {};
     const unGroupedTables: any[] = [];
 
@@ -1004,11 +638,10 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     let currentGroupStartX = startX;
     let currentGroupStartY = startY;
     let maxGroupHeightInRow = 0;
-    const maxWidth = 1400; // threshold to wrap to next row of groups
+    const maxWidth = 1400;
 
     const updatedNodes = [...nodes];
 
-    // Helper to layout a set of tables
     const layoutTableSet = (tableSet: any[], groupId: string | null) => {
       if (tableSet.length === 0) return;
       const cols = Math.ceil(Math.sqrt(tableSet.length));
@@ -1021,7 +654,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
         const row = Math.floor(idx / cols);
 
         const newX = currentGroupStartX + col * spacingX;
-        const newY = currentGroupStartY + row * spacingY + (groupId ? 80 : 0); // 80px space for group header
+        const newY = currentGroupStartY + row * spacingY + (groupId ? 80 : 0);
 
         const originalNodeIdx = updatedNodes.findIndex(un => un.tableId === n.tableId);
         if (originalNodeIdx !== -1) {
@@ -1032,14 +665,13 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
           };
         }
 
-        maxW = Math.max(maxW, col * spacingX + 240); // 240 approx table width
-        maxH = Math.max(maxH, row * spacingY + 300 + (groupId ? 80 : 0)); // 300 approx max table height
+        maxW = Math.max(maxW, col * spacingX + 240);
+        maxH = Math.max(maxH, row * spacingY + 300 + (groupId ? 80 : 0));
       });
 
       currentGroupStartX += maxW + groupPaddingX;
       maxGroupHeightInRow = Math.max(maxGroupHeightInRow, maxH);
 
-      // Wrap logic for groups
       if (currentGroupStartX - startX > maxWidth) {
         currentGroupStartX = startX;
         currentGroupStartY += maxGroupHeightInRow + groupPaddingY;
@@ -1047,12 +679,10 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       }
     };
 
-    // 1. Layout each group
     Object.entries(groupedTables).forEach(([groupId, tableSet]) => {
       layoutTableSet(tableSet, groupId);
     });
 
-    // 2. Layout ungrouped tables below everything
     if (unGroupedTables.length > 0) {
       if (currentGroupStartX !== startX && maxGroupHeightInRow > 0) {
         currentGroupStartX = startX;
@@ -1074,10 +704,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     }));
     onUpdateNodes(updatedNodes);
   };
-
-  // Selection actions
-  const selectedRFNodes = nodesState.filter((n) => n.selected && !n.id.startsWith('group__'));
-  const selectedTableIds = selectedRFNodes.map((n) => n.id);
 
   // Group Selected Nodes
   const handleGroupSelected = () => {
@@ -1107,7 +733,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     });
     onUpdateNodes(updatedNodes);
 
-    // Clean up empty groups
     setTimeout(() => {
       const remainingGroupIds = new Set(updatedNodes.map((n) => n.groupId).filter(Boolean));
       const newGroups = (tableGroups || []).filter((g) => remainingGroupIds.has(g.id));
@@ -1204,7 +829,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       >
         <Background gap={20} size={1.2} color="#cbd5e1" />
         
-        {/* Render the MiniMap raised cleanly above the status bar */}
         <MiniMap 
           zoomable 
           pannable 
@@ -1273,7 +897,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
           maskColor="rgba(241, 245, 249, 0.7)"
         />
 
-        {/* Multi-Selection Contextual Toolbar */}
         {selectedTableIds.length > 1 && (
           <Panel 
             position="top-center" 
@@ -1341,12 +964,10 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
           </Panel>
         )}
 
-        {/* Bottom Floating Control Panel - Restoring zoom, panning & layout tools */}
         <Panel 
           position="bottom-left" 
           className="bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-40 select-none shadow-xl rounded-lg transition-all"
         >
-          {/* Zoom Tools */}
           <button 
             onClick={() => zoomIn()}
             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors"
@@ -1372,7 +993,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
 
           <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
 
-          {/* Layout & Grid Tools */}
           <button 
             onClick={triggerPhysicsLayout}
             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1 text-[11px] font-semibold"
@@ -1392,7 +1012,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
 
           <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
 
-          {/* Snapping toggles */}
           <button 
             onClick={() => setSnapToGrid(!snapToGrid)}
             className={`p-1.5 rounded transition-colors flex items-center gap-1 text-[11px] font-semibold ${

@@ -1,5 +1,5 @@
 import { Table, FormElement, Form } from '../../../types/index';
-import { toCamelCase } from '../common';
+import { toCamelCase, toPascalCase } from '../common';
 
 export const generateHtmlForLayout = (element: FormElement, tables: Table[], forms: Form[], dataObjName: string = "data", queries: any[] = []): string => {
     if (!element) return '';
@@ -67,30 +67,57 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                      isQuery = true;
                      lookupTable = { ...lookupTable, fields: lookupTable.columns || [] };
                  }
-             }
-             if (lookupTable) {
+             }             if (lookupTable) {
                  const listVar = `${toCamelCase(lookupTable.name)}List`;
-                 const valField = lookupTable.fields.find(f => f.id === element.lookup!.valueFieldId);
-                 const valProp = valField ? toCamelCase((valField as any).name || (valField as any).alias || (valField as any).fieldName) : "id";
+                 const valField = lookupTable.fields.find((f: any) => f.id === element.lookup!.valueFieldId || f.fieldId === element.lookup!.valueFieldId);
+                 const valPropCamel = valField ? toCamelCase((valField as any).name || (valField as any).alias || (valField as any).fieldName) : "id";
+                 const valPropOrig = valField ? ((valField as any).name || (valField as any).alias || (valField as any).fieldName) : "id";
+                 const valPropPascal = toPascalCase(valPropOrig);
+                 
+                 const valKeys = new Set<string>();
+                 valKeys.add(valPropCamel);
+                 valKeys.add(valPropOrig);
+                 valKeys.add(valPropPascal);
+                 valKeys.add('id');
+                 valKeys.add('ID');
+                 valKeys.add('Id');
+                 const valExpression = Array.from(valKeys).map(k => `item['${k}']`).join(' ?? ');
                  
                  // --- DISPLAY LOGIC START ---
-                 let displayExpression = `{{item.${valProp}}}`; // Default fallback
+                 let displayExpression = `{{${valExpression}}}`; // Default fallback
                  
                  if (element.lookup.displayFormat && element.lookup.displayFormat.length > 0) {
                      // Complex format with prefix/suffix
                      displayExpression = element.lookup.displayFormat.map(fmt => {
-                         const f = lookupTable.fields.find(field => field.id === fmt.fieldId);
+                         const f = lookupTable.fields.find((field: any) => field.id === fmt.fieldId);
                          if (!f) return '';
-                         return `${fmt.prefix || ''}{{item.${toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName)}}}${fmt.suffix || ''}`;
+                         const propOrig = ((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName;
+                         const propCamel = toCamelCase(propOrig);
+                         const propPascal = toPascalCase(propOrig);
+                         const keys = new Set<string>();
+                         keys.add(propCamel);
+                         keys.add(propOrig);
+                         keys.add(propPascal);
+                         const expr = Array.from(keys).map(k => `item['${k}']`).join(' ?? ');
+                         return `${fmt.prefix || ''}{{(${expr} ?? '')}}${fmt.suffix || ''}`;
                      }).join('');
                  } else if (element.lookup.labelFields && element.lookup.labelFields.length > 0) {
                      // Simple list of fields
                      displayExpression = element.lookup.labelFields.map(fid => {
-                         const f = lookupTable.fields.find(field => field.id === fid);
-                         return f ? `{{item.${toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName)}}}` : '';
+                         const f = lookupTable.fields.find((field: any) => field.id === fid);
+                         if (!f) return '';
+                         const propOrig = ((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName;
+                         const propCamel = toCamelCase(propOrig);
+                         const propPascal = toPascalCase(propOrig);
+                         const keys = new Set<string>();
+                         keys.add(propCamel);
+                         keys.add(propOrig);
+                         keys.add(propPascal);
+                         const expr = Array.from(keys).map(k => `item['${k}']`).join(' ?? ');
+                         return `{{(${expr} ?? '')}}`;
                      }).join(' ');
                  }
-                 // --- DISPLAY LOGIC END ---
+                 // --- DISPLAY LOGIC END ----
 
                  const quickCreateBtn = element.lookup.allowQuickCreate 
                     ? `<button type="button" *ngIf="!isNew" (click)="openModal('lookup_${element.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 border border-emerald-300 rounded ml-2 font-bold flex items-center justify-center transition-colors" title="Neu">+</button>` 
@@ -125,13 +152,12 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
                         </div>
                     </div>
                  </div>` : '';
-
-                 return `<div class="${wrapperClass}">
+                  return `<div class="${wrapperClass}">
                     <label class="${labelClass}">${element.label}</label>
                     <div class="flex gap-2">
-                        <select class="${inputClass} bg-white flex-1" [(ngModel)]="data.${bindProp}" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event)">
+                        <select class="${inputClass} bg-white flex-1" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)">
                             <option [ngValue]="null">Bitte wählen...</option>
-                            <option *ngFor="let item of ${listVar}" [value]="item.${valProp}">${displayExpression}</option>
+                            <option *ngFor="let item of ${listVar}" [ngValue]="${valExpression}">${displayExpression}</option>
                         </select>
                         ${quickCreateBtn}
                     </div>
@@ -142,14 +168,14 @@ export const generateHtmlForLayout = (element: FormElement, tables: Table[], for
 
         if (inputType === 'checkbox') {
             return `<div class="${wrapperClass} flex items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200">
-                <input type="checkbox" [(ngModel)]="data.${bindProp}" name="${bindProp}" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+                <input type="checkbox" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
                 <label class="text-sm font-semibold text-slate-700 cursor-pointer select-none">${element.label}</label>
             </div>`;
         }
 
         return `<div class="${wrapperClass}">
             <label class="${labelClass}">${element.label}</label>
-            <input type="${inputType}" [(ngModel)]="data.${bindProp}" name="${bindProp}" class="${inputClass}" />
+            <input type="${inputType}" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)" class="${inputClass}" />
         </div>`;
     }
     

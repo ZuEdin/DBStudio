@@ -1,7 +1,51 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormElement, Form, Table, Relationship } from '../../../types/index';
 import { Edit3, Trash2, Settings2, Shield, Users } from 'lucide-react';
+
+interface CommaSeparatedInputProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+const CommaSeparatedInput: React.FC<CommaSeparatedInputProps> = ({ value, onChange, placeholder, className }) => {
+  const [localValue, setLocalValue] = useState(value.join(', '));
+
+  useEffect(() => {
+    const normalizedProp = value.join(', ');
+    const normalizedLocal = localValue.split(',').map(v => v.trim()).filter(Boolean).join(', ');
+    if (normalizedProp !== normalizedLocal) {
+      setLocalValue(normalizedProp);
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalValue(raw);
+    const parsed = raw.split(',').map(v => v.trim());
+    const filtered = parsed.filter(v => v !== '');
+    onChange(filtered);
+  };
+
+  const handleBlur = () => {
+    const parsed = localValue.split(',').map(v => v.trim()).filter(Boolean);
+    setLocalValue(parsed.join(', '));
+    onChange(parsed);
+  };
+
+  return (
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+};
 
 interface PropertiesPanelProps {
   form: Form;
@@ -272,15 +316,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             
             <div className="border border-indigo-200 bg-indigo-50 rounded p-2 text-xs space-y-2">
                 <div className="font-bold text-indigo-800 flex items-center gap-1"><Shield size={12}/> Sichtbarkeit (Rollen)</div>
-                <input 
-                    type="text" 
+                <CommaSeparatedInput 
                     placeholder="admin, user (kommagetrennt)"
-                    value={selectedElement.allowedRoles?.join(', ') || ''} 
-                    onChange={e => {
-                        const roles = e.target.value.split(',').map(r => r.trim()).filter(Boolean);
+                    value={selectedElement.allowedRoles || []} 
+                    onChange={roles => {
                         onPropertyChange('allowedRoles', roles.length > 0 ? roles : undefined);
                     }}
-                    className="w-full border p-1 rounded" 
+                    className="w-full border p-1 rounded bg-white text-xs" 
                 />
             </div>
 
@@ -338,15 +380,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 
                 <div className="border border-indigo-200 bg-indigo-50 rounded p-2 text-xs space-y-2">
                     <div className="font-bold text-indigo-800 flex items-center gap-1"><Shield size={12}/> Formular-Sichtbarkeit (Rollen)</div>
-                    <input 
-                        type="text" 
+                    <CommaSeparatedInput 
                         placeholder="admin, user (kommagetrennt)"
-                        value={form.allowedRoles?.join(', ') || ''} 
-                        onChange={e => {
-                            const roles = e.target.value.split(',').map(r => r.trim()).filter(Boolean);
+                        value={form.allowedRoles || []} 
+                        onChange={roles => {
                             onFormPropertyChange('allowedRoles', roles.length > 0 ? roles : undefined);
                         }}
-                        className="w-full border p-1 rounded" 
+                        className="w-full border p-1 rounded bg-white text-xs" 
                     />
                 </div>
             </div>

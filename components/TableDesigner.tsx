@@ -4,6 +4,52 @@ import { Plus, Trash2, Key, Wand2, Zap, Info } from 'lucide-react';
 import { generateTableSchema } from '../services/geminiService';
 import { useTranslation, Trans } from 'react-i18next';
 
+interface EnumInputProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  title?: string;
+  className?: string;
+}
+
+const EnumInput: React.FC<EnumInputProps> = ({ value, onChange, placeholder, title, className }) => {
+  const [localValue, setLocalValue] = useState(value.join(', '));
+
+  React.useEffect(() => {
+    const normalizedProp = value.join(', ');
+    const normalizedLocal = localValue.split(',').map(v => v.trim()).filter(Boolean).join(', ');
+    if (normalizedProp !== normalizedLocal) {
+      setLocalValue(normalizedProp);
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalValue(raw);
+    const parsed = raw.split(',').map(v => v.trim());
+    const filtered = parsed.filter(v => v !== '');
+    onChange(filtered);
+  };
+
+  const handleBlur = () => {
+    const parsed = localValue.split(',').map(v => v.trim()).filter(Boolean);
+    setLocalValue(parsed.join(', '));
+    onChange(parsed);
+  };
+
+  return (
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      title={title}
+      className={className}
+    />
+  );
+};
+
 interface TableDesignerProps {
   table: Table;
   onTableChange: (table: Table) => void;
@@ -175,11 +221,10 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         <option value="ENUM">{t('table_designer.type_enum')}</option>
                       </select>
                       {field.type === 'ENUM' && (
-                        <input
-                          type="text"
+                        <EnumInput
                           placeholder={t('table_designer.enum_placeholder')}
-                          value={field.enumValues?.join(', ') || ''}
-                          onChange={(e) => updateField(field.id, { enumValues: e.target.value.split(',').map(v => v.trim()).filter(v => v) })}
+                          value={field.enumValues || []}
+                          onChange={(vals) => updateField(field.id, { enumValues: vals })}
                           title={t('table_designer.enum_title')}
                           className="w-full border border-slate-300 focus:border-blue-500 rounded px-2 py-1 text-xs"
                         />

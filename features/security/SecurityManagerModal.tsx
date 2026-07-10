@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Table, Form, Report, BackendConfig, Field, Query } from '../../types/index';
 import { X, Shield, Lock, Unlock, Eye, Edit2, Trash2, Check, AlertTriangle, ChevronRight, ChevronDown, Table as TableIcon, Hash, Type, Users, Key, Plus, UserCog, Wand2, RefreshCw, Database, Folder } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { RolesTab } from './components/RolesTab';
+import { AuthTab } from './components/AuthTab';
+import { ScriptGeneratorTab } from './components/ScriptGeneratorTab';
 
 interface SecurityManagerModalProps {
   tables: Table[];
@@ -23,8 +26,6 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
 
   const [activeTab, setActiveTab] = useState<'matrix' | 'roles' | 'auth' | 'script_generator'>('matrix');
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
-  const [rlsFormat, setRlsFormat] = useState<'postgresql' | 'express'>('postgresql');
-  const [copiedScript, setCopiedScript] = useState(false);
 
   // Local state for Auth settings
   const [authConfig, setAuthConfig] = useState(backendConfig?.authConfig || { 
@@ -36,14 +37,6 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       isMobileReady: false, 
       devBypass: true 
   });
-
-  // New mapping state
-  const [newMapGroup, setNewMapGroup] = useState('');
-  const [newMapRole, setNewMapRole] = useState('');
-
-  // Role Management State
-  const [newRoleName, setNewRoleName] = useState('');
-  const [newRoleDesc, setNewRoleDesc] = useState('');
 
   const { layout, tableGroups } = useProjectStore();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -279,41 +272,19 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       setExpandedTables(prev => ({ ...prev, [tableId]: !prev[tableId] }));
   };
 
-  // --- Auth Mapping Handlers ---
-  const addMapping = () => {
-      if(newMapGroup && newMapRole) {
-          const currentMap = authConfig.adMapping || [];
-          setAuthConfig({
-              ...authConfig,
-              adMapping: [...currentMap, { groupName: newMapGroup, roleName: newMapRole }]
-          });
-          setNewMapGroup('');
-      }
-  };
-
-  const removeMapping = (idx: number) => {
-      const currentMap = authConfig.adMapping || [];
-      setAuthConfig({
-          ...authConfig,
-          adMapping: currentMap.filter((_, i) => i !== idx)
-      });
-  };
-
   // --- Role Management Handlers ---
-  const handleAddRole = () => {
-      if (!rolesTable || !newRoleName) return;
+  const handleAddRoleWithNameAndDesc = (name: string, desc: string) => {
+      if (!rolesTable || !name) return;
       const currentRoles = rolesTable.data || [];
       const nextId = currentRoles.length > 0 ? Math.max(...currentRoles.map((r: any) => parseInt(r.Id || 0))) + 1 : 1;
 
       const newRole = {
           Id: nextId,
-          Name: newRoleName,
-          Description: newRoleDesc
+          Name: name,
+          Description: desc
       };
 
       onUpdateTable({ ...rolesTable, data: [...currentRoles, newRole] });
-      setNewRoleName('');
-      setNewRoleDesc('');
   };
 
   const handleDeleteRole = (roleId: any) => {
@@ -665,386 +636,24 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                     </div>
                 </div>
             ) : activeTab === 'roles' ? (
-                <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto max-w-3xl mx-auto flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-lg flex items-center gap-2"><UserCog size={20} className="text-slate-600"/> Rollenverwaltung</h3>
-                        <button onClick={handleResetDefaults} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
-                            <RefreshCw size={12}/> Defaults wiederherstellen
-                        </button>
-                    </div>
-                    
-                    <div className="flex-1 overflow-auto border border-slate-200 rounded-lg mb-6">
-                        <table className="w-full text-left border-collapse text-sm">
-                            <thead className="bg-slate-100 sticky top-0">
-                                <tr>
-                                    <th className="p-3 border-b font-semibold text-slate-600 w-16">ID</th>
-                                    <th className="p-3 border-b font-semibold text-slate-600">Rollenname</th>
-                                    <th className="p-3 border-b font-semibold text-slate-600">Beschreibung</th>
-                                    <th className="p-3 border-b w-20"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {roles.map((r: any) => (
-                                    <tr key={r.Id} className="hover:bg-slate-50">
-                                        <td className="p-3 font-mono text-slate-500">{r.Id}</td>
-                                        <td className="p-3 font-bold text-slate-800">
-                                            {r.Name}
-                                            {String(r.Id) === '1' && <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded border border-yellow-200">System</span>}
-                                        </td>
-                                        <td className="p-3 text-slate-600">{r.Description || '-'}</td>
-                                        <td className="p-3 text-right">
-                                            {String(r.Id) !== '1' && (
-                                                <button onClick={() => handleDeleteRole(r.Id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50">
-                                                    <Trash2 size={16}/>
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Neue Rolle erstellen</h4>
-                        <div className="flex gap-3 items-end">
-                            <div className="flex-1">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Bezeichnung</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full border border-slate-300 rounded p-2 text-sm"
-                                    placeholder="z.B. Lektor"
-                                    value={newRoleName}
-                                    onChange={e => setNewRoleName(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Beschreibung</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full border border-slate-300 rounded p-2 text-sm"
-                                    placeholder="z.B. Darf Berichte lesen"
-                                    value={newRoleDesc}
-                                    onChange={e => setNewRoleDesc(e.target.value)}
-                                />
-                            </div>
-                            <button 
-                                onClick={handleAddRole} 
-                                disabled={!newRoleName}
-                                className="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 h-[38px]"
-                            >
-                                <Plus size={16}/> Hinzufügen
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <RolesTab
+                    roles={roles}
+                    onResetDefaults={handleResetDefaults}
+                    onDeleteRole={handleDeleteRole}
+                    onAddRole={handleAddRoleWithNameAndDesc}
+                />
+            ) : activeTab === 'auth' ? (
+                <AuthTab
+                    authConfig={authConfig}
+                    setAuthConfig={setAuthConfig}
+                    roles={roles}
+                />
             ) : (
-                <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 m-6 h-[90%] overflow-y-auto max-w-3xl mx-auto">
-                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><Key size={20}/> Authentifizierungs-Methoden</h3>
-                    
-                    <div className="space-y-6">
-                        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                            <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                <input 
-                                    type="checkbox" 
-                                    checked={!!authConfig.useWindowsAuth}
-                                    onChange={e => setAuthConfig({...authConfig, useWindowsAuth: e.target.checked})}
-                                    className="rounded w-5 h-5 text-emerald-600"
-                                />
-                                <span className="font-bold text-slate-800">Windows Authentifizierung (Active Directory)</span>
-                            </label>
-                            <p className="text-sm text-slate-600 ml-7 mb-4">
-                                Nutzt die Windows-Identität des Benutzers (Intranet/Firmennetzwerk). Erfordert IIS oder entsprechenden Proxy.
-                            </p>
-
-                            {authConfig.useWindowsAuth && (
-                                <div className="ml-7 pl-4 border-l-2 border-slate-300 space-y-4 animate-in slide-in-from-top-2">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={!!authConfig.useAdGroups}
-                                            onChange={e => setAuthConfig({...authConfig, useAdGroups: e.target.checked})}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm font-semibold">Zugriff auf AD-Gruppen beschränken (Role Mapping)</span>
-                                    </label>
-                                    
-                                    {authConfig.useAdGroups && (
-                                        <div className="space-y-3">
-                                            <div className="bg-white border border-slate-200 rounded-lg p-3">
-                                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Gruppen-zu-Rollen Zuweisung</h4>
-                                                <table className="w-full text-sm mb-3">
-                                                    <thead>
-                                                        <tr className="text-left text-slate-500 border-b">
-                                                            <th className="pb-1 font-normal">AD Gruppe</th>
-                                                            <th className="pb-1 font-normal">Interne Rolle</th>
-                                                            <th className="pb-1 w-10"></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {authConfig.adMapping?.map((map, i) => (
-                                                            <tr key={i} className="border-b last:border-0">
-                                                                <td className="py-2 font-mono text-xs">{map.groupName}</td>
-                                                                <td className="py-2"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">{map.roleName}</span></td>
-                                                                <td className="py-2 text-right">
-                                                                    <button onClick={() => removeMapping(i)} className="text-slate-400 hover:text-red-500"><X size={14}/></button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                        {(!authConfig.adMapping || authConfig.adMapping.length === 0) && (
-                                                            <tr><td colSpan={3} className="py-4 text-center text-slate-400 italic text-xs">Keine Zuweisungen.</td></tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                                
-                                                <div className="flex gap-2 items-center bg-slate-50 p-2 rounded">
-                                                    <input 
-                                                        type="text" 
-                                                        className="flex-1 border rounded px-2 py-1 text-xs" 
-                                                        placeholder="DOMAIN\GroupName"
-                                                        value={newMapGroup}
-                                                        onChange={e => setNewMapGroup(e.target.value)}
-                                                    />
-                                                    <span className="text-slate-400 text-xs">→</span>
-                                                    <select 
-                                                        className="border rounded px-2 py-1 text-xs w-32"
-                                                        value={newMapRole}
-                                                        onChange={e => setNewMapRole(e.target.value)}
-                                                    >
-                                                        <option value="">(Rolle)</option>
-                                                        {roles.map((r: any) => <option key={r.Name} value={r.Name}>{r.Name}</option>)}
-                                                    </select>
-                                                    <button 
-                                                        onClick={addMapping}
-                                                        disabled={!newMapGroup || !newMapRole}
-                                                        className="bg-blue-600 text-white p-1 rounded hover:bg-blue-700 disabled:opacity-50"
-                                                    >
-                                                        <Plus size={14}/>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <label className="flex items-center gap-2 cursor-pointer mt-4">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={!!authConfig.useActiveDirectoryMgmt}
-                                            onChange={e => setAuthConfig({...authConfig, useActiveDirectoryMgmt: e.target.checked})}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm font-semibold text-slate-800">Domain Controller API verwenden</span>
-                                    </label>
-                                    {authConfig.useActiveDirectoryMgmt && (
-                                         <p className="text-xs text-slate-500 mt-1 pl-6">
-                                            Aktiviert .NET System.DirectoryServices. Erlaubt dem Backend, Active-Directory User, SIDs und Berechtigungen programmgesteuert zu überwachen und zu steuern, anstatt sich nur auf Passiv-Authentication zu verlassen.
-                                         </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                            <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                <input 
-                                    type="checkbox" 
-                                    checked={!!authConfig.useUserLogin}
-                                    onChange={e => setAuthConfig({...authConfig, useUserLogin: e.target.checked})}
-                                    className="rounded w-5 h-5 text-emerald-600"
-                                />
-                                <span className="font-bold text-slate-800">Benutzer-Login (Formular)</span>
-                            </label>
-                            <p className="text-sm text-slate-600 ml-7 mb-2">
-                                Klassisches Login mit Username/Passwort (JWT Tokens). Speichert Benutzer in der Tabelle <code>sys_users</code>.
-                            </p>
-                            {authConfig.useUserLogin && (
-                                <div className="ml-7 mt-2">
-                                    <label className="flex items-center gap-2 cursor-pointer text-sm">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={!!authConfig.isMobileReady}
-                                            onChange={e => setAuthConfig({...authConfig, isMobileReady: e.target.checked})}
-                                            className="rounded"
-                                        />
-                                        Mobile App kompatibel (Lange Token-Laufzeit)
-                                    </label>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="border border-slate-200 rounded-lg p-4 bg-yellow-50">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input 
-                                    type="checkbox" 
-                                    checked={!!authConfig.devBypass}
-                                    onChange={e => setAuthConfig({...authConfig, devBypass: e.target.checked})}
-                                    className="rounded"
-                                />
-                                <span className="font-bold text-slate-800">Developer Bypass (Dev Mode)</span>
-                            </label>
-                            <p className="text-sm text-slate-600 ml-6 mt-1">
-                                Wenn aktiv, wird im Entwicklungsmodus (Localhost) automatisch ein Admin-Benutzer simuliert.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'script_generator' && (
-                <div className="h-full flex flex-col md:flex-row bg-slate-50 overflow-hidden">
-                    {/* Controls */}
-                    <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                                <Key size={16} className="text-emerald-500" /> Skript-Typ auswählen
-                            </h3>
-                            <p className="text-xs text-slate-500">
-                                Generieren Sie SQL RLS Skripte für Ihre relationale Datenbank oder Code-Schnittstellen für Ihr Express/NestJS Backend.
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div 
-                                    onClick={() => setRlsFormat('postgresql')}
-                                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${rlsFormat === 'postgresql' ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-100 hover:bg-slate-50'}`}
-                                >
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Database size={16} className="text-emerald-600" />
-                                        <span className="text-xs font-bold text-slate-800">PostgreSQL RLS (Row-Level Security)</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 leading-normal">
-                                        Erzeugt native DDL-Skripte für PostgreSQL. Aktiviert RLS auf den Tabellen und schützt Zeilen basierend auf den JWT-Rollen.
-                                    </p>
-                                </div>
-
-                                <div 
-                                    onClick={() => setRlsFormat('express')}
-                                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${rlsFormat === 'express' ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-100 hover:bg-slate-50'}`}
-                                >
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Users size={16} className="text-emerald-600" />
-                                        <span className="text-xs font-bold text-slate-800">Express/NestJS Middleware Guard</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 leading-normal">
-                                        Erzeugt Node.js Route-Middlewares, die eingehende HTTP-Requests anhand der aktuellen Rollen-Konfiguration filtern.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                            <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                                <AlertTriangle size={14} className="text-amber-500" /> Best Practices für Produktiv-Systeme
-                            </h4>
-                            <ul className="text-[11px] text-slate-600 space-y-2 list-disc pl-4 leading-relaxed">
-                                <li><strong>Prinzip des geringsten Privilegs:</strong> Geben Sie Rollen standardmäßig nur Lesezugriff und schalten Sie Schreibrechte explizit frei.</li>
-                                <li><strong>Sichere Fallbacks:</strong> Wenn ein Benutzer keine zugewiesene Rolle besitzt, sollte der Zugriff verweigert werden (Fail Closed).</li>
-                                <li><strong>Audit Logs:</strong> Protokollieren Sie sicherheitsrelevante Aktionen und unautorisierte Zugriffsversuche in einer separaten Tabelle.</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* Script Output Panel */}
-                    <div className="w-full md:w-[500px] bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 flex flex-col overflow-hidden text-slate-300">
-                        <div className="p-3 bg-slate-950 border-b border-slate-800 flex justify-between items-center shrink-0">
-                            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 font-mono">
-                                <Check size={14} className="text-emerald-500" /> Generierter Code
-                            </span>
-                            <button 
-                                onClick={() => {
-                                    const script = rlsFormat === 'postgresql' ? (() => {
-                                        let sql = `-- PostgreSQL Row-Level Security (RLS) Policy Script\n`;
-                                        sql += `-- Generiert basierend auf der aktuellen Rechte-Matrix\n\n`;
-                                        
-                                        businessTables.forEach(t => {
-                                            sql += `-- -----------------------------------------------------\n`;
-                                            sql += `-- Table: ${t.name}\n`;
-                                            sql += `-- -----------------------------------------------------\n`;
-                                            sql += `ALTER TABLE "${t.name}" ENABLE ROW LEVEL SECURITY;\n\n`;
-                                            
-                                            const readRoles = roles.filter((r: any) => getPerm(r.Id, 'Table', t.id).CanRead).map((r: any) => `'${r.Name}'`);
-                                            const writeRoles = roles.filter((r: any) => getPerm(r.Id, 'Table', t.id).CanWrite).map((r: any) => `'${r.Name}'`);
-                                            const deleteRoles = roles.filter((r: any) => getPerm(r.Id, 'Table', t.id).CanDelete).map((r: any) => `'${r.Name}'`);
-
-                                            if (readRoles.length > 0) {
-                                                sql += `CREATE POLICY "${t.name}_select_policy" ON "${t.name}"\n`;
-                                                sql += `    FOR SELECT USING (current_setting('app.current_user_role', true) IN (${readRoles.join(', ')}));\n\n`;
-                                            }
-                                            if (writeRoles.length > 0) {
-                                                sql += `CREATE POLICY "${t.name}_insert_update_policy" ON "${t.name}"\n`;
-                                                sql += `    FOR ALL USING (current_setting('app.current_user_role', true) IN (${writeRoles.join(', ')}));\n\n`;
-                                            }
-                                            if (deleteRoles.length > 0) {
-                                                sql += `CREATE POLICY "${t.name}_delete_policy" ON "${t.name}"\n`;
-                                                sql += `    FOR DELETE USING (current_setting('app.current_user_role', true) IN (${deleteRoles.join(', ')}));\n\n`;
-                                            }
-                                        });
-                                        return sql;
-                                    })() : (() => {
-                                        const matrixBody = businessTables.map(t => {
-                                            const roleRules = roles.map((r: any) => {
-                                                const perm = getPerm(r.Id, 'Table', t.id);
-                                                return `        '${r.Name}': { read: ${!!perm.CanRead}, write: ${!!perm.CanWrite}, delete: ${!!perm.CanDelete} }`;
-                                            }).join(',\n');
-                                            return `    '${t.name}': {\n${roleRules}\n    }`;
-                                        }).join(',\n');
-
-                                        return `/**\n * Express.js RBAC Middleware & Guard\n * Generiert basierend auf der aktuellen Rechte-Matrix\n */\n\nimport { Request, Response, NextFunction } from 'express';\n\nexport interface AuthenticatedRequest extends Request {\n    user?: {\n        id: string;\n        role: string;\n    };\n}\n\nconst permissionsMatrix: Record<string, Record<string, { read: boolean; write: boolean; delete: boolean }>> = {\n${matrixBody}\n};\n\nexport function authorize(resource: string, action: 'read' | 'write' | 'delete') {\n    return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {\n        const userRole = req.user?.role || 'Guest';\n        const resourceRules = permissionsMatrix[resource];\n        if (!resourceRules) return next();\n        \n        const roleRule = resourceRules[userRole];\n        if (!roleRule) {\n            return res.status(403).json({ error: 'Forbidden', message: 'Zugriff verweigert für Rolle: ' + userRole });\n        }\n        \n        const isAllowed = roleRule[action];\n        if (!isAllowed) {\n            return res.status(403).json({ error: 'Forbidden', message: \`Unzureichende Rechte für die Aktion: \${action} auf \${resource}\` });\n        }\n        next();\n    };\n}`;
-                                    })();
-
-                                    navigator.clipboard.writeText(script);
-                                    setCopiedScript(true);
-                                    setTimeout(() => setCopiedScript(false), 2000);
-                                }}
-                                className="text-xs flex items-center gap-1 hover:text-white text-slate-400 font-semibold"
-                            >
-                                {copiedScript ? <Check size={14} className="text-emerald-400" /> : <Eye size={14} />} <span>{copiedScript ? 'Kopiert!' : 'Kopieren'}</span>
-                            </button>
-                        </div>
-                        <div className="flex-grow p-4 overflow-y-auto font-mono text-[11px] leading-relaxed select-all bg-slate-950">
-                            <pre className="whitespace-pre">
-                                {rlsFormat === 'postgresql' ? (() => {
-                                    let sql = `-- PostgreSQL Row-Level Security (RLS) Policy Script\n`;
-                                    sql += `-- Generiert basierend auf der aktuellen Rechte-Matrix\n\n`;
-                                    
-                                    businessTables.forEach(t => {
-                                        sql += `-- -----------------------------------------------------\n`;
-                                        sql += `-- Table: ${t.name}\n`;
-                                        sql += `-- -----------------------------------------------------\n`;
-                                        sql += `ALTER TABLE "${t.name}" ENABLE ROW LEVEL SECURITY;\n\n`;
-                                        
-                                        const readRoles = roles.filter((r: any) => getPerm(r.Id, 'Table', t.id).CanRead).map((r: any) => `'${r.Name}'`);
-                                        const writeRoles = roles.filter((r: any) => getPerm(r.Id, 'Table', t.id).CanWrite).map((r: any) => `'${r.Name}'`);
-                                        const deleteRoles = roles.filter((r: any) => getPerm(r.Id, 'Table', t.id).CanDelete).map((r: any) => `'${r.Name}'`);
-
-                                        if (readRoles.length > 0) {
-                                            sql += `CREATE POLICY "${t.name}_select_policy" ON "${t.name}"\n`;
-                                            sql += `    FOR SELECT USING (current_setting('app.current_user_role', true) IN (${readRoles.join(', ')}));\n\n`;
-                                        }
-                                        if (writeRoles.length > 0) {
-                                            sql += `CREATE POLICY "${t.name}_insert_update_policy" ON "${t.name}"\n`;
-                                            sql += `    FOR ALL USING (current_setting('app.current_user_role', true) IN (${writeRoles.join(', ')}));\n\n`;
-                                        }
-                                        if (deleteRoles.length > 0) {
-                                            sql += `CREATE POLICY "${t.name}_delete_policy" ON "${t.name}"\n`;
-                                            sql += `    FOR DELETE USING (current_setting('app.current_user_role', true) IN (${deleteRoles.join(', ')}));\n\n`;
-                                        }
-                                    });
-                                    return sql;
-                                })() : (() => {
-                                    const matrixBody = businessTables.map(t => {
-                                        const roleRules = roles.map((r: any) => {
-                                            const perm = getPerm(r.Id, 'Table', t.id);
-                                            return `        '${r.Name}': { read: ${!!perm.CanRead}, write: ${!!perm.CanWrite}, delete: ${!!perm.CanDelete} }`;
-                                        }).join(',\n');
-                                        return `    '${t.name}': {\n${roleRules}\n    }`;
-                                    }).join(',\n');
-
-                                    return `/**\n * Express.js RBAC Middleware & Guard\n * Generiert basierend auf der aktuellen Rechte-Matrix\n */\n\nimport { Request, Response, NextFunction } from 'express';\n\nexport interface AuthenticatedRequest extends Request {\n    user?: {\n        id: string;\n        role: string;\n    };\n}\n\nconst permissionsMatrix: Record<string, Record<string, { read: boolean; write: boolean; delete: boolean }>> = {\n${matrixBody}\n};\n\nexport function authorize(resource: string, action: 'read' | 'write' | 'delete') {\n    return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {\n        const userRole = req.user?.role || 'Guest';\n        const resourceRules = permissionsMatrix[resource];\n        if (!resourceRules) return next();\n        \n        const roleRule = resourceRules[userRole];\n        if (!roleRule) {\n            return res.status(403).json({ error: 'Forbidden', message: 'Zugriff verweigert für Rolle: ' + userRole });\n        }\n        \n        const isAllowed = roleRule[action];\n        if (!isAllowed) {\n            return res.status(403).json({ error: 'Forbidden', message: \`Unzureichende Rechte für die Aktion: \${action} auf \${resource}\` });\n        }\n        next();\n    };\n}`;
-                                })()}
-                            </pre>
-                        </div>
-                    </div>
-                </div>
+                <ScriptGeneratorTab
+                    businessTables={businessTables}
+                    roles={roles}
+                    getPerm={getPerm}
+                />
             )}
         </div>
 

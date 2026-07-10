@@ -288,9 +288,8 @@ ${auditFields.createdBy ? `            item.${toPascalCase(auditFields.createdBy
           const filterLogics: string[] = [];
           (q as SelectQuery).columns?.forEach(c => {
               c.criteria?.forEach(cr => {
-                  if (cr && /\[Forms\]!/i.test(cr)) {
-                      const matchStr = cr.replace(/^=|like |>|<|>=|<=/i, '').trim();
-                      const formMatch = matchStr.match(/\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/i) || matchStr.match(/\[Forms\]!([^!]+)!([^!]+)/i);
+                  if (cr && /(?:\[?Forms\]?!)/i.test(cr)) {
+                      const formMatch = cr.match(/(?:\[?Forms\]?!\s*\[?([^!\]]+)\]?!\s*\[?([^!\]\s]+)\]?)/i);
                       if (formMatch && formMatch.length >= 3) {
                           const formName = formMatch[1].toLowerCase();
                           const fieldName = formMatch[2].toLowerCase();
