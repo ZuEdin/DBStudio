@@ -262,8 +262,15 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({ onSaveTable, showM
           });
 
           if (!response.ok) {
-              const errData = await response.json();
-              throw new Error(errData.error || 'Fehler beim Registrieren im Backend.');
+              const resText = await response.text();
+              let errMsg = 'Fehler beim Registrieren im Backend.';
+              try {
+                  const errData = JSON.parse(resText);
+                  errMsg = errData.error || errMsg;
+              } catch (e) {
+                  errMsg = `Server-Fehler (${response.status}): ${resText.slice(0, 100)}`;
+              }
+              throw new Error(errMsg);
           }
 
           // 2. If Option B is chosen, let's trigger a refresh so the backend fetches live data and populates files right away

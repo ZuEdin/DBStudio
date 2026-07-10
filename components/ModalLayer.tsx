@@ -16,6 +16,7 @@ import { IntegrationsModal } from '../features/backend/IntegrationsModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
 import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
 import { DeleteQueryWizard } from '../features/queries/wizards/DeleteQueryWizard'; 
+import { UpdateQueryWizard } from '../features/queries/wizards/UpdateQueryWizard';
 import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
 import { AccessImportWizard } from '../features/tools/AccessImportWizard';
 import { DummyDataWizard } from '../features/tools/DummyDataWizard';
@@ -240,6 +241,29 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {activeWizard === 'inconsistency' && <InconsistencyWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
       {activeWizard === 'append' && <AppendQueryWizard tables={tables} onExecute={onExecuteAppend} onClose={() => setActiveWizard(null)} />}
       {activeWizard === 'delete' && <DeleteQueryWizard tables={tables} onExecute={onExecuteDelete} onClose={() => setActiveWizard(null)} />}
+      {activeWizard === 'update' && (
+        <UpdateQueryWizard 
+          tables={tables} 
+          onExecute={(table, updatedData) => {
+            updateTable({ ...table, data: updatedData });
+            setActiveWizard(null);
+          }}
+          onSaveQuery={(name, tableId, mapping, matchField) => {
+            const newQuery = {
+              id: crypto.randomUUID(),
+              type: 'UPDATE',
+              name,
+              targetTableId: tableId,
+              mapping,
+              matchField,
+              columns: [],
+              nodes: []
+            };
+            setQueries([...queries, newQuery as any]);
+          }}
+          onClose={() => setActiveWizard(null)} 
+        />
+      )}
 
       {confirmationModal && (
         <ConfirmationModal 

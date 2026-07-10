@@ -687,6 +687,7 @@ export const useAppController = () => {
         case 'wizard_inconsistency': ui.setActiveWizard('inconsistency'); break;
         case 'wizard_append': ui.setActiveWizard('append'); break;
         case 'wizard_delete': ui.setActiveWizard('delete'); break;
+        case 'wizard_update': ui.setActiveWizard('update'); break;
         case 'create_report': ui.setShowReportWizard(true); break;
         case 'create_form': ui.setShowFormWizard(true); break;
         

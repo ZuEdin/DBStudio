@@ -323,14 +323,17 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
             </div>
             
             {/* Queries */}
-            {${queries.filter(q => q.type === 'SELECT').length} > 0 && (
+            {${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').length} > 0 && (
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Abfragen</div>
                 <div className="space-y-1">
-                ${queries.filter(q => q.type === 'SELECT').map(q => `
+                ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').map(q => {
+                    const iconName = q.type === 'UPDATE' ? 'RefreshCw' : 'Search';
+                    return `
                     <Link to="/queries/${toCamelCase(q.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
-                        <Search size={16}/> \${q.name}
-                    </Link>`).join('\n')}
+                        <${iconName} size={16}/> \${q.name}
+                    </Link>`;
+                }).join('\n')}
                 </div>
             </div>
             )}
@@ -781,7 +784,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   });
 
   // Query Routes
-  queries.filter(q => q.type === 'SELECT').forEach(q => {
+  queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').forEach(q => {
       const compName = `${toPascalCase(q.name)}QueryPage`;
       imports.push(`import { ${compName} } from './pages/queries/${compName}';`);
       routes.push(`<Route path="/queries/${toCamelCase(q.name)}" element={<${compName} />} />`);
