@@ -306,8 +306,8 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
               </button>
             )}
             {!isReadOnly && (
-              <button onClick={() => setShowAi(!showAi)} className={`flex items-center gap-1 px-3 py-1 rounded text-sm text-white ${isLockedByMe ? 'bg-emerald-800 hover:bg-emerald-600' : 'bg-purple-600 hover:bg-purple-500'}`}>
-                  <Wand2 size={14} /> AI-Entwurf
+              <button disabled={true} className="flex items-center gap-1 px-3 py-1 rounded text-sm bg-slate-300 text-slate-500 cursor-not-allowed">
+                  <Wand2 size={14} /> AI-Entwurf (Deaktiviert)
               </button>
             )}
           </div>
@@ -331,23 +331,22 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
 
         {/* AI Assistant */}
         {showAi && !isReadOnly && (
-          <div className="p-4 bg-purple-50 border-b border-purple-100 animate-in slide-in-from-top-2 shrink-0">
-            <label className="block text-sm font-medium text-purple-900 mb-1">Beschreibe deine Tabelle:</label>
+          <div className="p-4 bg-red-50 border-b border-red-100 animate-in slide-in-from-top-2 shrink-0">
+            <label className="block text-sm font-medium text-red-900 mb-1">Beschreibe deine Tabelle (Deaktiviert):</label>
             <div className="flex gap-2">
               <input 
                 type="text" 
-                className="flex-1 border border-purple-200 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="z.B. Kunden Tabelle mit Name, Adresse, Email und Geburtsdatum"
+                disabled={true}
+                className="flex-1 border border-red-250 bg-slate-100 rounded p-2 text-sm text-slate-500 cursor-not-allowed outline-none"
+                placeholder="AI-Entwurf ist deaktiviert"
                 value={aiPrompt}
                 onChange={e => setAiPrompt(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAiGenerate()}
               />
               <button 
-                onClick={handleAiGenerate}
-                disabled={isAiLoading}
-                className="bg-purple-600 text-white px-4 rounded hover:bg-purple-700 disabled:opacity-50"
+                disabled={true}
+                className="bg-slate-300 text-slate-500 px-4 rounded cursor-not-allowed"
               >
-                {isAiLoading ? 'Denkt nach...' : 'Generieren'}
+                Generieren
               </button>
             </div>
           </div>

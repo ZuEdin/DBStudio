@@ -206,24 +206,32 @@ export const AiSwarmDashboard: React.FC = () => {
               <p className="text-[11px] text-slate-500 mt-0.5">Definieren Sie, was der Schwarm konzipieren und designen soll.</p>
             </div>
             <textarea
-              className="w-full h-24 bg-slate-900 border border-slate-800 focus:border-purple-500 rounded-lg p-3 text-xs outline-none text-slate-200 font-medium resize-none transition-colors"
+              className="w-full h-24 bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs outline-none text-slate-500 font-medium resize-none transition-colors cursor-not-allowed"
               value={targetSchema}
               onChange={(e) => setTargetSchema(e.target.value)}
-              disabled={isSimulating}
+              disabled={true}
               placeholder="z.B. Erstelle ein Ticket-Management-System..."
             />
+            
+            {/* Warning banner */}
+            <div className="p-2.5 bg-red-950/20 border border-red-900/50 rounded-lg text-xs text-red-400 font-medium flex items-start gap-2">
+              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Systemhinweis:</span> AI / KI-Funktionen und Simulationen wurden auf Wunsch des Administrators deaktiviert.
+              </div>
+            </div>
+
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-slate-500 text-xs">
-                <Activity size={14} className={isSimulating ? 'text-purple-500 animate-spin' : ''} />
-                <span>Status: {isSimulating ? 'Multi-Agenten Simulation läuft...' : 'Bereit'}</span>
+                <Activity size={14} className="" />
+                <span>Status: Deaktiviert</span>
               </div>
               <button
-                onClick={handleStartSimulation}
-                disabled={isSimulating || !targetSchema}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-purple-900/30 disabled:opacity-50"
+                disabled={true}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold transition-all cursor-not-allowed opacity-50"
               >
                 <Play size={14} fill="currentColor" />
-                <span>Schwarm ausführen (Simulations-Modus)</span>
+                <span>Schwarm ausführen (Deaktiviert)</span>
               </button>
             </div>
           </div>

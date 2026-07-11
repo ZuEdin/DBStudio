@@ -94,7 +94,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Note: "AllowedHosts" is configured in appsettings.json. 
 // By default it is set to "*" (all).
 // We explicitly bind to all interfaces here to ensure accessibility (e.g. from LAN).
-builder.WebHost.UseUrls("http://*:${config.port}");
+if (builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseUrls("http://*:${config.port};https://*:${config.port + 1}");
+}
+else
+{
+    builder.WebHost.UseUrls("http://*:${config.port}");
+}
 
 builder.Services.AddControllers().AddJsonOptions(options => { 
     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; 

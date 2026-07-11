@@ -1,6 +1,6 @@
-import React from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio } from 'lucide-react';
-import { BackendConfig, DbType, FrontendFramework } from '../../../types/index';
+import React, { useState } from 'react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check } from 'lucide-react';
+import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -23,156 +23,87 @@ const getDefaultPort = (framework: FrontendFramework): number => {
 
 export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, setBackendConfig, onOpenSettings }) => {
   const { t } = useTranslation();
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const getDbLabel = (type: DbType) => {
+    switch(type) {
+      case 'SQL': return 'SQL Server';
+      case 'MySQL': return 'MySQL';
+      case 'SQLite': return 'SQLite';
+      case 'NoSQL': return 'NoSQL (Mongo)';
+      default: return type;
+    }
+  };
+
+  const getBackendLabel = (lang: string) => {
+    switch(lang) {
+      case 'dotnet': return '.NET API';
+      case 'nodejs': return 'Node.js';
+      case 'python': return 'Python';
+      case 'php': return 'PHP';
+      case 'laravel': return 'Laravel';
+      case 'electron': return 'Electron';
+      default: return lang;
+    }
+  };
+
+  const getProtocolLabel = (mode?: 'http' | 'https' | 'both') => {
+    if (mode === 'http') return 'Nur HTTP';
+    if (mode === 'https') return 'Nur HTTPS';
+    return 'HTTP & HTTPS';
+  };
+
   return (
-    <div className="flex gap-4 items-start h-full">
-        {/* Settings Group */}
-        <div className="flex flex-col px-2 border-r border-slate-300 pr-4 h-full justify-between py-1">
-           <div className="flex gap-2">
-             <div className="w-24">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Datenbank</label>
-                <select 
-                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                    value={backendConfig.dbType}
-                    onChange={e => setBackendConfig({ ...backendConfig, dbType: e.target.value as DbType })}
-                >
-                    <option value="SQL">SQL Server</option>
-                    <option value="MySQL">MySQL</option>
-                    <option value="SQLite">SQLite</option>
-                    <option value="NoSQL">NoSQL (Mongo)</option>
-                </select>
-             </div>
-
-             <div className="w-24">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Backend</label>
-                <select 
-                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                    value={backendConfig.language}
-                    onChange={e => {
-                        const lang = e.target.value as any;
-                        const updatedConfig = { ...backendConfig, language: lang };
-                        if (lang === 'electron') {
-                            updatedConfig.deploymentConfig = {
-                                ...(backendConfig.deploymentConfig || { target: 'electron' }),
-                                target: 'electron'
-                            };
-                        } else if (backendConfig.language === 'electron') {
-                            if (backendConfig.deploymentConfig?.target === 'electron') {
-                                updatedConfig.deploymentConfig = {
-                                    ...backendConfig.deploymentConfig,
-                                    target: 'docker'
-                                };
-                            }
-                        }
-                        setBackendConfig(updatedConfig);
-                    }}
-                >
-                    <option value="dotnet">.NET API</option>
-                    <option value="nodejs">Node.js</option>
-                    <option value="python">Python</option>
-                    <option value="php">PHP</option>
-                    <option value="laravel">Laravel</option>
-                    <option value="electron">Electron</option>
-                </select>
-             </div>
-
-             {backendConfig.language === 'dotnet' && (
-                 <div className="w-16 animate-in fade-in slide-in-from-left-1">
-                    <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Version</label>
-                    <select 
-                        className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white font-mono text-blue-700"
-                        value={backendConfig.backendVersion || '9.0'}
-                        onChange={e => setBackendConfig({ ...backendConfig, backendVersion: e.target.value })}
-                        title="Wähle die installierte .NET SDK Version"
-                    >
-                        <option value="10.0">10.0</option>
-                        <option value="9.0">9.0</option>
-                        <option value="8.0">8.0 (LTS)</option>
-                        <option value="7.0">7.0</option>
-                        <option value="6.0">6.0 (LTS)</option>
-                    </select>
-                 </div>
-             )}
-
-             <div className="w-24">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Frontend</label>
-                <select 
-                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                    value={backendConfig.frontendFramework}
-                    onChange={e => {
-                        const fw = e.target.value as FrontendFramework;
-                        const updatedConfig = { 
-                            ...backendConfig, 
-                            frontendFramework: fw,
-                            frontendPort: getDefaultPort(fw)
-                        };
-                        setBackendConfig(updatedConfig);
-                    }}
-                >
-                    <option value="react">React</option>
-                    <option value="vue">Vue.js</option>
-                    <option value="angular">Angular</option>
-                    <option value="blazor">Blazor (WASM)</option>
-                    <option value="none">Keins (Nur API)</option>
-                </select>
-             </div>
-
-             <div className="w-24">
-                <label className="block text-[10px] text-slate-500 font-bold mb-0.5">Styling</label>
-                <select 
-                    className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                    value={backendConfig.stylingFramework || 'tailwind'}
-                    onChange={e => {
-                        const fw = e.target.value as any;
-                        setBackendConfig({ ...backendConfig, stylingFramework: fw });
-                    }}
-                >
-                    <option value="tailwind">Tailwind CSS</option>
-                    <option value="bootstrap">Bootstrap</option>
-                    <option value="none">Keins / Custom</option>
-                </select>
-             </div>
-
-             <div className="w-20 flex flex-col gap-1">
-                <div className="flex gap-1 items-center">
-                    <label className="text-[9px] text-slate-500 font-bold w-6">API:</label>
-                    <input 
-                        type="number" 
-                        className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                        value={backendConfig.port}
-                        onChange={e => setBackendConfig({ ...backendConfig, port: parseInt(e.target.value) || 5000 })}
-                        title="Backend Port (Localhost)"
-                    />
+    <div className="flex gap-4 items-start h-full relative">
+        {/* Settings Overview Group */}
+        <div className="flex flex-col px-3 border-r border-slate-300 pr-5 h-full justify-between py-1 bg-slate-50/50 rounded-l min-w-[280px]">
+           <div className="flex flex-col gap-1">
+             <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Aktive Konfiguration</span>
+             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-0.5 text-slate-700 text-xs">
+                <div>
+                  <span className="text-slate-400 font-semibold">DB:</span>{' '}
+                  <span className="font-bold text-slate-800">{getDbLabel(backendConfig.dbType)}</span>
                 </div>
-                <div className="flex gap-1 items-center">
-                    <label className="text-[9px] text-slate-500 font-bold w-6">Web:</label>
-                    <input 
-                        type="number" 
-                        className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs bg-white"
-                        value={backendConfig.frontendPort || 3000}
-                        onChange={e => setBackendConfig({ ...backendConfig, frontendPort: parseInt(e.target.value) || 3000 })}
-                        title="Frontend Port (Localhost)"
-                    />
+                <div>
+                  <span className="text-slate-400 font-semibold">API:</span>{' '}
+                  <span className="font-bold text-blue-700">{getBackendLabel(backendConfig.language)} {backendConfig.language === 'dotnet' ? (backendConfig.backendVersion || '10.0') : ''}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Web:</span>{' '}
+                  <span className="font-medium text-slate-700">{backendConfig.frontendFramework === 'none' ? 'Nur API' : backendConfig.frontendFramework} ({backendConfig.stylingFramework || 'tailwind'})</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Port:</span>{' '}
+                  <span className="font-mono text-slate-600">{backendConfig.port} {backendConfig.language === 'dotnet' && ` / ${backendConfig.port + 1}`}</span>
+                </div>
+                <div className="col-span-2 flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded font-bold">
+                    {getProtocolLabel(backendConfig.protocolMode)}
+                  </span>
+                  {backendConfig.useSwagger && (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
+                      Swagger (Aktiv)
+                    </span>
+                  )}
                 </div>
              </div>
            </div>
            
-           <div className="flex gap-2 mt-1">
+           <div className="flex gap-2 mt-1.5">
+               <button 
+                    onClick={() => setShowSettingsModal(true)}
+                    className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded px-2.5 py-1 text-xs flex items-center justify-center gap-1.5 font-bold transition-all"
+                >
+                    <Settings size={12} className="text-slate-500" /> Einstellungen
+                </button>
                <button 
                     onClick={onOpenSettings}
-                    className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded px-2 py-0.5 text-xs flex items-center justify-center gap-1"
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 rounded px-2 py-1 text-xs flex items-center justify-center gap-1 font-medium transition-all"
+                    title="Verbindungszeichenfolge anpassen"
                 >
-                    <Settings size={12} /> Connection String
+                    <Database size={11} /> ConnStr
                 </button>
-               {backendConfig.language === 'electron' && (
-                    <button 
-                        onClick={() => onAction('electron_settings')}
-                        className="flex-1 bg-teal-100 hover:bg-teal-200 text-teal-800 border border-teal-300 rounded px-2 py-0.5 text-xs flex items-center justify-center gap-1"
-                    >
-                        <AppWindow size={12} /> Config
-                    </button>
-               )}
            </div>
-           <span className="text-[10px] text-slate-500 mt-auto uppercase tracking-wider self-center">Generator Settings</span>
         </div>
 
         {/* Extensions Group */}
@@ -205,6 +136,217 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
             <RibbonButton icon={<Play className="text-green-600"/>} label="Live-Preview" onClick={() => onAction('backend_generate')} />
             <RibbonButton icon={<Download className="text-slate-600"/>} label="App als ZIP" onClick={() => onAction('backend_export')} />
         </RibbonGroup>
+
+        {/* Generator settings Modal */}
+        {showSettingsModal && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-150">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-[520px] max-w-full overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+              
+              {/* Modal Header */}
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-100 text-blue-600 rounded">
+                    <Settings size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">Generator & Backend-Konfiguration</h3>
+                    <p className="text-[11px] text-slate-500">Passen Sie die Ziel-Technologien und Netzwerk-Ports an</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowSettingsModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 overflow-y-auto space-y-4 text-xs">
+                
+                {/* Row 1: DB & Backend language */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Datenbanktyp</label>
+                    <select 
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        value={backendConfig.dbType}
+                        onChange={e => setBackendConfig({ ...backendConfig, dbType: e.target.value as DbType })}
+                    >
+                        <option value="SQL">SQL Server</option>
+                        <option value="MySQL">MySQL</option>
+                        <option value="SQLite">SQLite</option>
+                        <option value="NoSQL">NoSQL (Mongo)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Backend-Technologie</label>
+                    <select 
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        value={backendConfig.language}
+                        onChange={e => {
+                            const lang = e.target.value as any;
+                            const updatedConfig = { ...backendConfig, language: lang };
+                            if (lang === 'electron') {
+                                updatedConfig.deploymentConfig = {
+                                    ...(backendConfig.deploymentConfig || { target: 'electron' }),
+                                    target: 'electron'
+                                };
+                            } else if (backendConfig.language === 'electron') {
+                                if (backendConfig.deploymentConfig?.target === 'electron') {
+                                    updatedConfig.deploymentConfig = {
+                                        ...backendConfig.deploymentConfig,
+                                        target: 'docker'
+                                    };
+                                }
+                            }
+                            setBackendConfig(updatedConfig);
+                        }}
+                    >
+                        <option value="dotnet">.NET API</option>
+                        <option value="nodejs">Node.js</option>
+                        <option value="python">Python</option>
+                        <option value="php">PHP</option>
+                        <option value="laravel">Laravel</option>
+                        <option value="electron">Electron</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Conditional .NET Version option */}
+                {backendConfig.language === 'dotnet' && (
+                  <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg animate-in fade-in slide-in-from-top-1">
+                    <label className="block font-bold text-slate-700 mb-1">.NET SDK Version (Standard ist 10.0)</label>
+                    <select 
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-mono text-blue-700 focus:outline-none focus:border-blue-500"
+                        value={backendConfig.backendVersion || '10.0'}
+                        onChange={e => setBackendConfig({ ...backendConfig, backendVersion: e.target.value })}
+                    >
+                        <option value="10.0">10.0 (Standard)</option>
+                        <option value="9.0">9.0</option>
+                        <option value="8.0">8.0 (LTS)</option>
+                        <option value="7.0">7.0</option>
+                        <option value="6.0">6.0 (LTS)</option>
+                    </select>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Wichtig: In der Projektdatei wird standardmäßig Swagger vorkonfiguriert und beim Starten geöffnet.
+                    </p>
+                  </div>
+                )}
+
+                {/* Row 2: Frontend & Styling */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Frontend-Framework</label>
+                    <select 
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        value={backendConfig.frontendFramework}
+                        onChange={e => {
+                            const fw = e.target.value as FrontendFramework;
+                            const updatedConfig = { 
+                                ...backendConfig, 
+                                frontendFramework: fw,
+                                frontendPort: getDefaultPort(fw)
+                            };
+                            setBackendConfig(updatedConfig);
+                        }}
+                    >
+                        <option value="react">React</option>
+                        <option value="vue">Vue.js</option>
+                        <option value="angular">Angular</option>
+                        <option value="blazor">Blazor (WASM)</option>
+                        <option value="none">Keins (Nur API)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Styling Framework</label>
+                    <select 
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        value={backendConfig.stylingFramework || 'tailwind'}
+                        onChange={e => {
+                            const fw = e.target.value as any;
+                            setBackendConfig({ ...backendConfig, stylingFramework: fw });
+                        }}
+                    >
+                        <option value="tailwind">Tailwind CSS</option>
+                        <option value="bootstrap">Bootstrap</option>
+                        <option value="none">Keins / Custom</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Protocol Selector for Swagger (HTTP / HTTPS / Both) */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                  <label className="block font-bold text-slate-700">Entwicklungs-Protokolle & Swagger</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <select 
+                      className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                      value={backendConfig.protocolMode || 'both'}
+                      onChange={e => setBackendConfig({ ...backendConfig, protocolMode: e.target.value as any })}
+                    >
+                      <option value="both">HTTP & HTTPS gleichzeitig zur Auswahl anbieten (Standard)</option>
+                      <option value="http">Nur HTTP einsetzen (z.B. http://localhost:5000)</option>
+                      <option value="https">Nur HTTPS einsetzen (z.B. https://localhost:5001)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <input 
+                      type="checkbox"
+                      id="useSwaggerCheckbox"
+                      className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+                      checked={backendConfig.useSwagger}
+                      onChange={e => setBackendConfig({ ...backendConfig, useSwagger: e.target.checked })}
+                    />
+                    <label htmlFor="useSwaggerCheckbox" className="font-semibold text-slate-700 cursor-pointer select-none">
+                      Swagger / OpenAPI Dokumentation aktivieren und beim Starten anzeigen
+                    </label>
+                  </div>
+                </div>
+
+                {/* Ports Section */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">API Port (Localhost)</label>
+                    <input 
+                        type="number" 
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        value={backendConfig.port}
+                        onChange={e => setBackendConfig({ ...backendConfig, port: parseInt(e.target.value) || 5000 })}
+                    />
+                    {backendConfig.language === 'dotnet' && (
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">HTTPS Port: {backendConfig.port + 1}</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Frontend Port (Localhost)</label>
+                    <input 
+                        type="number" 
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        value={backendConfig.frontendPort || 3000}
+                        onChange={e => setBackendConfig({ ...backendConfig, frontendPort: parseInt(e.target.value) || 3000 })}
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                <button 
+                  onClick={() => setShowSettingsModal(false)}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <Check size={14} /> Speichern & Schließen
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
     </div>
   );
 };

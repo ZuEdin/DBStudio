@@ -7,15 +7,23 @@ import { cloudService } from '../services/cloudService';
 import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download, Edit2 } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
+import { Chat } from '../types/index';
+import { useTicketState } from '../hooks/useTicketState';
 
 interface AppHeaderProps {
   onAction?: (action: string, payload?: any) => void;
+  chats?: Chat[];
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ onAction }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
   const { t } = useTranslation();
   const store = useProjectStore();
   const ui = useUIStore();
+  const ticketState = useTicketState();
+  
+  const totalUnreadChatCount = chats ? chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0) : 0;
+  const todoTicketsCount = ticketState.allTicketsRaw ? ticketState.allTicketsRaw.filter(t => t.status === 'todo').length : 0;
+  const totalUnread = totalUnreadChatCount + todoTicketsCount;
   
   const { projectName, backendConfig } = store;
   const { darkMode, toggleDarkMode, isChatOpen, setIsChatOpen, setFormActionTrigger } = ui;
@@ -89,13 +97,20 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction }) => {
             <CollaborationBar collaborators={collaborators} />
             
             {/* Chat & Tickets Toggle */}
-            <div className="ml-2 mr-1">
+            <div className="ml-2 mr-1 relative">
                 <button 
                     onClick={() => setIsChatOpen(!isChatOpen)}
-                    className={`p-1.5 rounded transition-colors flex items-center gap-1.5 ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                    className={`p-1.5 rounded transition-colors flex items-center gap-1.5 relative ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
                     title="Team Chat & Tickets / Aufgaben"
                 >
-                    <MessageSquare size={16} />
+                    <div className="relative">
+                        <MessageSquare size={16} />
+                        {totalUnread > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-slate-800">
+                                {totalUnread}
+                            </span>
+                        )}
+                    </div>
                     <span className="text-[10px] font-bold">Chat & Tickets</span>
                 </button>
             </div>

@@ -78,6 +78,15 @@ export const SubPagePreviewNode: React.FC<SubPagePreviewNodeProps> = ({ node, qu
             );
             break;
         }
+        
+        case 'custom_component': {
+            content = (
+                <div className="p-1 border border-emerald-200/50 rounded bg-emerald-50/10 text-[9px] text-emerald-800 italic">
+                    [Custom Component: {node.props.customComponentId ? 'Konfiguriert' : 'Unkonfiguriert'}]
+                </div>
+            );
+            break;
+        }
 
         default:
             content = (
@@ -243,8 +252,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ node, selectedNodeId, on
                   </div>
              );
              isDropTarget = false;
-             break;
-        case 'subpage_container': {
+             break;        case 'subpage_container': {
              const subPage = pages?.find(p => p.id === node.props.subPageId);
              content = (
                   <div className={`p-4 rounded-lg bg-emerald-50/50 border-2 border-emerald-200 w-full min-h-[100px] ${node.props.className || ''}`} style={node.props.style}>
@@ -260,7 +268,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ node, selectedNodeId, on
                                   <div className="text-emerald-800 font-semibold flex items-center gap-1">
                                       <Layers size={12} className="text-emerald-600"/> Eingebundene Seite: <span className="underline">{subPage.name}</span>
                                   </div>
- 
+  
                                   {/* Visual Subpage Preview */}
                                   <div className="mt-2 border border-emerald-200/50 bg-white/80 p-2.5 rounded shadow-inner mb-2 pointer-events-none">
                                       <div className="text-[9px] text-emerald-600 font-mono font-bold mb-1.5 uppercase select-none tracking-wider border-b border-emerald-100/50 pb-1 flex items-center gap-1">
@@ -295,15 +303,44 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ node, selectedNodeId, on
              isDropTarget = false;
              break;
         }
-        case 'table_view':
-        case 'form_view':
-        case 'chart_view':
-        case 'image':
-        case 'html':
-        case 'divider':
-             content = <div className={`p-4 m-2 bg-slate-100 rounded border flex items-center justify-center border-slate-200 text-center text-sm font-medium text-slate-500 ${node.props.className || ''}`}>{node.type} placeholder</div>;
-             isDropTarget = false;
-             break;
+        case 'custom_component': {
+             const { customComponents = [] } = useProjectStore();
+             const comp = customComponents.find(c => c.id === node.props.customComponentId);
+             content = (
+                  <div className={`p-4 rounded-lg bg-emerald-50/40 border-2 border-emerald-200 w-full ${node.props.className || ''}`} style={node.props.style}>
+                      <div className="flex items-center justify-between text-emerald-700 text-xs font-bold mb-2 pb-1 border-b border-emerald-100 pointer-events-none">
+                          <span className="flex items-center gap-1">
+                              <LayoutTemplate size={12}/> Custom SDUI Component: {comp ? comp.name : 'Nicht verknüpft'}
+                          </span>
+                          <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">{comp ? comp.type.replace('_view', '') : 'SDUI'}</span>
+                      </div>
+                      <div className="text-xs text-slate-700">
+                          {comp ? (
+                              <div className="space-y-1">
+                                  {comp.description && <p className="text-[11px] text-slate-500 italic">{comp.description}</p>}
+                                  <div className="bg-white/80 p-2 rounded border border-emerald-100 font-mono text-[9px] max-h-24 overflow-y-auto">
+                                      <span className="font-bold text-indigo-900 block mb-1">Configuration (JSON):</span>
+                                      {JSON.stringify(comp.configuration, null, 2)}
+                                  </div>
+                                </div>
+                            ) : (
+                                <span className="text-slate-400 italic">Bitte wählen Sie rechts in den Eigenschaften eine Custom Component aus.</span>
+                            )}
+                        </div>
+                    </div>
+               );
+               isDropTarget = false;
+               break;
+         }
+         case 'table_view':
+         case 'form_view':
+         case 'chart_view':
+         case 'image':
+         case 'html':
+         case 'divider':
+              content = <div className={`p-4 m-2 bg-slate-100 rounded border flex items-center justify-center border-slate-200 text-center text-sm font-medium text-slate-500 ${node.props.className || ''}`}>{node.type} placeholder</div>;
+              isDropTarget = false;
+              break;
     }
 
     return (

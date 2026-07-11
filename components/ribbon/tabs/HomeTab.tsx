@@ -19,7 +19,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
       <RibbonGroup label="Zusammenarbeit" isLast>
         <RibbonButton icon={<ClipboardList className="text-sky-600" />} label="Kanban-Board" onClick={() => onAction('tickets_board')} size="large" />
         <RibbonButton icon={<History className="text-amber-600" />} label="Git-Schema" onClick={() => onAction('version_control')} size="large" />
-        <RibbonButton icon={<Sparkles className="text-purple-600 animate-pulse" />} label="AI-Schwarm" onClick={() => onAction('ai_swarm')} size="large" />
+        <RibbonButton icon={<Sparkles className="text-purple-600 animate-pulse" />} label="AI-Schwarm (Inaktiv)" onClick={() => {}} size="large" disabled={true} />
       </RibbonGroup>
     </div>
   );

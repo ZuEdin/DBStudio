@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { ConnectionSettingsModal } from './ConnectionSettingsModal';
+import { ConnectionSettingsModal } from './modals/ConnectionSettingsModal';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
@@ -17,6 +17,7 @@ import { FormDesignTab } from './ribbon/tabs/FormDesignTab';
 import { ReportDesignTab } from './ribbon/tabs/ReportDesignTab';
 import { WorkflowDesignTab } from './ribbon/tabs/WorkflowDesignTab';
 import { ERDiagramTab } from './ribbon/tabs/ERDiagramTab';
+import { ProjectsTab } from './ribbon/tabs/ProjectsTab';
 
 interface RibbonProps {
   onAction: (action: string, payload?: any) => void;
@@ -78,6 +79,8 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
         return <WorkflowDesignTab onAction={onAction} />;
       case 'er_diagram':
         return <ERDiagramTab onAction={onAction} />;
+      case 'projekte':
+        return <ProjectsTab onAction={onAction} />;
       default:
         return null;
     }
@@ -107,16 +110,22 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
             {t('ribbon.create')}
             </button>
             <button 
+            onClick={() => setActiveTab('external')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'external' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            >
+            Externe Daten
+            </button>
+            <button 
             onClick={() => setActiveTab('pages')}
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'pages' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
             Pages & SDUI
             </button>
             <button 
-            onClick={() => setActiveTab('external')}
-            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'external' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            onClick={() => setActiveTab('projekte')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-emerald-500 ${activeTab === 'projekte' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
-            Externe Daten
+            Projekte
             </button>
             <button 
             onClick={() => setActiveTab('deploy')}

@@ -1,4 +1,4 @@
-import { BackendConfig } from './types/index';
+import { BackendConfig } from '../types/index';
 
 function injectCustomNpmPackages(config: any, dependencies: any) {
     if (config.whitelabel?.customNpmPackages) {

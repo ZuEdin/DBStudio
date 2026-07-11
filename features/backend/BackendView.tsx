@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report, IntegrationsConfig, EnvironmentConfig, DbType, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, CustomPage } from '../../types/index';
 import Editor from '@monaco-editor/react';
-import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw, UploadCloud, GitBranch, CloudLightning, Globe, GitCommit, Briefcase } from 'lucide-react';
+import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw, UploadCloud, GitBranch, CloudLightning, Globe, GitCommit, Briefcase, AlertCircle } from 'lucide-react';
 import { generateBackendCode } from '../../utils/backendGenerators';
 import { generateDeploymentScripts } from '../../utils/generators/deploymentGenerator';
 import JSZip from 'jszip';
@@ -359,23 +359,22 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
         {/* AI Assistant Bar */}
         <div className="h-auto border-t border-slate-200 bg-slate-50 p-3">
             <div className="flex gap-2 items-center max-w-4xl mx-auto">
-                <div className="p-1.5 bg-purple-100 rounded text-purple-600 shrink-0">
-                    <Wand2 size={16} />
+                <div className="p-1.5 bg-red-100 rounded text-red-600 shrink-0" title="AI Refactoring Deaktiviert">
+                    <AlertCircle size={16} />
                 </div>
                 <input 
                     type="text" 
                     value={aiPrompt}
+                    disabled={true}
                     onChange={e => setAiPrompt(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleAiRefactor()}
-                    placeholder="AI-Refactoring: 'Füge Try-Catch hinzu', 'Ändere Namespace', 'Erstelle Unit Tests'..."
-                    className="flex-1 border border-slate-300 rounded p-1.5 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                    placeholder="AI-Refactoring ist auf diesem System deaktiviert..."
+                    className="flex-1 border border-slate-300 rounded p-1.5 text-sm bg-slate-100 text-slate-400 cursor-not-allowed outline-none"
                 />
                 <button 
-                    onClick={handleAiRefactor}
-                    disabled={isAiProcessing || !selectedFile}
-                    className="bg-purple-600 text-white px-4 py-1.5 rounded text-sm hover:bg-purple-700 disabled:opacity-50 font-medium"
+                    disabled={true}
+                    className="bg-slate-300 text-slate-400 px-4 py-1.5 rounded text-sm cursor-not-allowed font-medium"
                 >
-                    {isAiProcessing ? 'Generiere...' : 'Ausführen'}
+                    Ausführen
                 </button>
             </div>
         </div>

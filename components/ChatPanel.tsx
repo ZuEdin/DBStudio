@@ -75,34 +75,48 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col bg-slate-50">
-            {!activeChatId && (
-                <div className="flex bg-slate-100 border-b border-slate-200 shrink-0 p-1">
-                    <button 
-                        type="button"
-                        onClick={() => setActiveTab('chat')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'chat' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-                    >
-                        <MessageSquare size={13} />
-                        Team Chat
-                    </button>
-                    <button 
-                        type="button"
-                        onClick={() => setActiveTab('ai_assistant')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'ai_assistant' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
-                    >
-                        <Sparkles size={13} className="text-indigo-500" />
-                        AI Assistant
-                    </button>
-                    <button 
-                        type="button"
-                        onClick={() => setActiveTab('tickets')}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'tickets' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-                    >
-                        <ClipboardList size={13} />
-                        Tickets
-                    </button>
-                </div>
-            )}
+            {!activeChatId && (() => {
+                const totalUnreadChatCount = chats ? chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0) : 0;
+                const todoTicketsCount = ticketState.allTicketsRaw ? ticketState.allTicketsRaw.filter(t => t.status === 'todo').length : 0;
+                return (
+                    <div className="flex bg-slate-100 border-b border-slate-200 shrink-0 p-1">
+                        <button 
+                            type="button"
+                            onClick={() => setActiveTab('chat')}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'chat' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            <MessageSquare size={13} />
+                            <span>Team Chat</span>
+                            {totalUnreadChatCount > 0 && (
+                                <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-extrabold scale-90">
+                                    {totalUnreadChatCount}
+                                </span>
+                            )}
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setActiveTab('ai_assistant')}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'ai_assistant' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            <Sparkles size={13} className="text-indigo-500" />
+                            <span>AI Assistant</span>
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setActiveTab('tickets')}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'tickets' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            <ClipboardList size={13} />
+                            <span>Tickets</span>
+                            {todoTicketsCount > 0 && (
+                                <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded-full font-extrabold scale-90">
+                                    {todoTicketsCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                );
+            })()}
 
             {activeTab === 'tickets' ? (
                 <TicketBoard

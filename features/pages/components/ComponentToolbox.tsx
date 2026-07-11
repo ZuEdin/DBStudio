@@ -7,7 +7,7 @@ import {
 import { useProjectStore } from '../../../stores/useProjectStore';
 
 export const ComponentToolbox: React.FC = () => {
-  const { queries, tables } = useProjectStore();
+  const { queries, tables, customComponents = [] } = useProjectStore();
 
   const handleDragStart = (e: React.DragEvent, type: PageComponentType) => {
       e.dataTransfer.setData('componentType', type);
@@ -57,6 +57,34 @@ export const ComponentToolbox: React.FC = () => {
              <ImageIcon size={16} className="text-purple-500"/> Bild / Medien
          </div>
       </div>
+
+      {/* Custom Components Registry items */}
+      {customComponents.length > 0 && (
+         <div className="mt-6 pt-4 border-t border-slate-200 shrink-0">
+             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                 <Layout size={12} className="text-emerald-600" /> Custom (SDUI)
+             </h3>
+             <div className="space-y-1.5">
+                 {customComponents.map(comp => (
+                     <div 
+                         key={comp.id}
+                         draggable 
+                         onDragStart={(e) => {
+                             e.dataTransfer.setData('componentType', 'custom_component');
+                             e.dataTransfer.setData('customComponentId', comp.id);
+                             e.dataTransfer.setData('text/plain', 'custom_component');
+                             e.dataTransfer.effectAllowed = 'copy';
+                         }}
+                         className="p-1.5 border border-slate-200 rounded flex items-center justify-between cursor-grab hover:bg-emerald-50 text-[11px] text-slate-700 font-semibold active:cursor-grabbing border-emerald-100 bg-emerald-50/10 transition"
+                         title={`${comp.name}: ${comp.description || ''}`}
+                     >
+                         <span className="truncate max-w-[120px]">{comp.name}</span>
+                         <span className="text-[8px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1 rounded uppercase scale-90">{comp.type.replace('_view', '')}</span>
+                     </div>
+                 ))}
+             </div>
+         </div>
+      )}
 
       <div className="mt-8 pt-6 border-t border-slate-200">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Datenfelder</h3>

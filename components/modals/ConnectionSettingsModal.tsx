@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { DbType } from '../types/index';
+import { DbType } from '../../types/index';
 import { X, Save, Server, Database, User, Key, FileCode, CheckCircle, Globe } from 'lucide-react';
 
 interface ConnectionSettingsModalProps {

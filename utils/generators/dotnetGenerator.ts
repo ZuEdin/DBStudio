@@ -27,6 +27,55 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
   // 2. CSPROJ
   files.push(generateCsproj(config, root));
 
+  // 2.5 launchSettings.json (Swagger and HTTP/HTTPS profile configuration)
+  const profiles: any = {};
+  const mode = config.protocolMode || 'both';
+
+  if (mode === 'http' || mode === 'both') {
+    profiles["http"] = {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": config.useSwagger ? "swagger" : "",
+      "applicationUrl": `http://localhost:${config.port}`,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    };
+  }
+
+  if (mode === 'https' || mode === 'both') {
+    profiles["https"] = {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": config.useSwagger ? "swagger" : "",
+      "applicationUrl": `https://localhost:${config.port + 1};http://localhost:${config.port}`,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    };
+  }
+
+  const launchSettings = {
+    "$schema": "http://json.schemastore.org/launchsettings.json",
+    "iisSettings": {
+      "windowsAuthentication": false,
+      "anonymousAuthentication": true,
+      "iisExpress": {
+        "applicationUrl": `http://localhost:${config.port};https://localhost:${config.port + 1}`,
+        "sslPort": 44300
+      }
+    },
+    "profiles": profiles
+  };
+  files.push({ 
+    name: 'launchSettings.json', 
+    path: `${root}/Properties/launchSettings.json`, 
+    content: JSON.stringify(launchSettings, null, 2), 
+    language: 'json' 
+  });
+
   // 3. Program.cs
   files.push(generateProgram(config, tables, relationships, queries, root));
   

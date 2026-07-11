@@ -61,7 +61,6 @@ export const useAppController = () => {
           ];
           const reply = replies[Math.floor(Math.random() * replies.length)];
           chat.sendSystemMessage('c1', reply, senderId, selectedName);
-          ui.addToast(`Neue Nachricht von ${selectedName} im Team Chat`, 'info');
         }, 3000);
       });
     }
@@ -84,7 +83,6 @@ export const useAppController = () => {
           ];
           const reply = replies[Math.floor(Math.random() * replies.length)];
           chat.sendSystemMessage('c1', reply, senderId, selectedName);
-          ui.addToast(`Neue Nachricht von ${selectedName} im Team Chat`, 'info');
         }, 3000);
       });
     }
@@ -101,7 +99,6 @@ export const useAppController = () => {
             
             setTimeout(() => {
               chat.sendSystemMessage('c1', `Verstanden. Ich benenne das Modell in unserem Backend ebenfalls um.`, 'u3', 'Tom H.');
-              ui.addToast(`Neue Nachricht von Tom H. im Team Chat`, 'info');
             }, 3000);
           }
           // Check for field added
@@ -113,7 +110,6 @@ export const useAppController = () => {
               
               setTimeout(() => {
                 chat.sendSystemMessage('c1', `Perfekt, '${f.name}' ist genau das, was wir für die Suche benötigt haben!`, 'u2', 'Sarah Lee');
-                ui.addToast(`Neue Nachricht von Sarah Lee im Team Chat`, 'info');
               }, 3000);
             });
           }
@@ -150,7 +146,6 @@ export const useAppController = () => {
           
           setTimeout(() => {
             chat.sendSystemMessage('c1', `Hervorragend, das sichert die referenzielle Integrität zwischen '${fromTab.name}' und '${toTab.name}'!`, 'u2', 'Sarah Lee');
-            ui.addToast(`Neue Nachricht von Sarah Lee im Team Chat`, 'info');
           }, 3500);
         }
       });
@@ -1012,6 +1007,12 @@ export const useAppController = () => {
         case 'relationships': handleSetView({ type: 'relationships' }); break;
         case 'dbstudio_backend': handleSetView({ type: 'dbstudio_backend' }); break;
         case 'roadmap_view': handleSetView({ type: 'roadmap_view' }); break;
+        case 'project_dashboard': handleSetView({ type: 'project_management', panel: 'dashboard' }); break;
+        case 'project_requirements': handleSetView({ type: 'project_management', panel: 'requirements' }); break;
+        case 'project_vmodel': handleSetView({ type: 'project_management', panel: 'vmodel' }); break;
+        case 'project_dotnet': handleSetView({ type: 'project_management', panel: 'dotnet' }); break;
+        case 'project_sqlite': handleSetView({ type: 'project_management', panel: 'sqlite' }); break;
+        case 'project_rebuild': handleSetView({ type: 'project_management', panel: 'rebuild' }); break;
         case 'version_control': handleSetView({ type: 'version_control' }); break;
         case 'create_custom_component': handleSetView({ type: 'custom_component_designer' }); break;
         case 'manage_custom_components': handleSetView({ type: 'custom_components_manager' }); break;

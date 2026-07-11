@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, Report } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate, Server, Cloud, CheckSquare, History } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, Briefcase, GitFork, CalendarClock, LayoutTemplate, Server, Cloud, CheckSquare, History } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
@@ -454,6 +454,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
           </button>
           {(openGroups as any).infrastructure && (
              <div className="ml-2 mt-1 space-y-1">
+                {/* Projects & Requirements */}
+                <div 
+                  id="sidebar_btn_project_management"
+                  className="flex items-center justify-between px-2 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 hover:text-emerald-900 dark:hover:text-emerald-200 rounded text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                  onClick={() => onSetView({ type: 'project_management' })}
+                >
+                    <div className="flex items-center gap-2">
+                        <Briefcase size={14} className="text-emerald-600 dark:text-emerald-400" />
+                        <span className="font-medium text-slate-800 dark:text-slate-200">Projekte & Requirements</span>
+                    </div>
+                </div>
+
                 {/* DB Studio self-hosting backend */}
                 <div 
                   id="sidebar_btn_dbstudio_backend"

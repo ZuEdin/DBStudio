@@ -32,6 +32,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
       const dataSourceType = e.dataTransfer.getData('dataSourceType');
       const dataSourceId = e.dataTransfer.getData('dataSourceId');
       const columns = e.dataTransfer.getData('columns');
+      const customComponentId = e.dataTransfer.getData('customComponentId');
 
       const newNode: PageComponent = {
           id: 'node_' + crypto.randomUUID(),
@@ -42,6 +43,9 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
 
       if (type === 'text') newNode.props.text = templateText || 'New Text Block';
       if (type === 'button') newNode.props.label = 'Button';
+      if (type === 'custom_component' && customComponentId) {
+          newNode.props.customComponentId = customComponentId;
+      }
       
       if (dataSourceType && dataSourceId) {
           newNode.props.dataSourceType = dataSourceType;

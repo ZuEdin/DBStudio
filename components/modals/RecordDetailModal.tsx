@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Table, Field } from '../types/index';
+import { Table, Field } from '../../types/index';
 import { X, Database } from 'lucide-react';
 
 interface RecordDetailModalProps {

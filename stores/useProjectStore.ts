@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { produce, produceWithPatches, applyPatches, Patch, enablePatches } from 'immer';
-import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, WorkflowNode, WorkflowEdge, TableNode, FormElement, FormField, TableGroup, CustomPage } from '../types/index';
+import { Project, Table, Query, Report, Form, Relationship, BackendConfig, DbType, ProjectData, Chart, Field, Workflow, WorkflowNode, WorkflowEdge, TableNode, FormElement, FormField, TableGroup, CustomPage, CustomComponent } from '../types/index';
 import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEngine';
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
@@ -43,6 +43,7 @@ interface ProjectStore extends ProjectData {
     setForms: (forms: Form[]) => void;
     setCharts: (charts: Chart[]) => void;
     setPages: (pages: CustomPage[]) => void;
+    setCustomComponents: (customComponents: CustomComponent[]) => void;
     setWorkflows: (workflows: Workflow[]) => void;
     updateWorkflowNodes: (workflowId: string, nodes: WorkflowNode[]) => void;
     updateWorkflowEdges: (workflowId: string, edges: WorkflowEdge[]) => void;
@@ -59,9 +60,9 @@ interface ProjectStore extends ProjectData {
 }
 
 const initialData: ProjectData = {
-    tables: [], queries: [], reports: [], forms: [], charts: [], pages: [], workflows: [], relationships: [], layout: [], tableGroups: [], tickets: [], chats: [],
+    tables: [], queries: [], reports: [], forms: [], charts: [], pages: [], customComponents: [], workflows: [], relationships: [], layout: [], tableGroups: [], tickets: [], chats: [],
     backendConfig: { 
-        language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, 
+        language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, backendVersion: '10.0',
         dbConnection: '', useSwagger: true, frontendFramework: 'react', stylingFramework: 'tailwind'
     },
     lastSnapshot: []
@@ -94,6 +95,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             forms: project.data.forms || [],
             charts: project.data.charts || [],
             pages: project.data.pages || [],
+            customComponents: project.data.customComponents || [],
             workflows: project.data.workflows || [],
             relationships: project.data.relationships || [],
             layout: project.data.layout || [],
@@ -236,6 +238,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setForms: (forms) => get().executeAction(s => { s.forms = forms; }),
     setCharts: (charts) => get().executeAction(s => { s.charts = charts; }),
     setPages: (pages) => get().executeAction(s => { s.pages = pages; }),
+    setCustomComponents: (customComponents) => get().executeAction(s => { s.customComponents = customComponents; }),
     setWorkflows: (workflows) => get().executeAction(s => { s.workflows = workflows; }),
     updateWorkflowNodes: (workflowId, nodes) => {
         get().executeAction(s => {
@@ -292,6 +295,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 forms: state.forms,
                 charts: state.charts,
                 pages: state.pages,
+                customComponents: state.customComponents,
                 workflows: state.workflows,
                 relationships: state.relationships,
                 layout: state.layout, 

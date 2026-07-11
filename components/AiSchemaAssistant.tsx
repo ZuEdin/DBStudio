@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Send, Database, HelpCircle, Check, Loader2, Play, Table, Plus, ChevronDown, RefreshCw } from 'lucide-react';
+import { Sparkles, Send, Database, HelpCircle, Check, Loader2, Play, Table, Plus, ChevronDown, RefreshCw, AlertCircle } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { Table as ProjectTable, Field as ProjectField } from '../types/index';
 
@@ -350,19 +350,27 @@ export const AiSchemaAssistant: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Warning banner indicating AI is disabled */}
+      <div className="mx-3 my-2 p-2.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg text-xs text-red-700 dark:text-red-400 font-medium flex items-start gap-2">
+        <AlertCircle size={15} className="shrink-0 mt-0.5" />
+        <div>
+          <span className="font-bold">Systemhinweis:</span> AI / KI-Funktionen wurden auf Wunsch des Administrators vollständig deaktiviert.
+        </div>
+      </div>
+
       {/* Preset prompt buttons */}
       {messages.length === 1 && !isThinking && (
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-          <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Vorschläge:</div>
+        <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 opacity-40 cursor-not-allowed">
+          <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Vorschläge (Deaktiviert):</div>
           <div className="flex flex-col gap-1.5">
             {presetPrompts.map((p, idx) => (
               <button
                 key={idx}
-                onClick={() => handleSend(p.prompt)}
-                className="w-full text-left bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 transition flex items-center justify-between group"
+                disabled={true}
+                className="w-full text-left bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-400 dark:text-slate-500 flex items-center justify-between cursor-not-allowed"
               >
                 <span>{p.label}</span>
-                <Sparkles size={11} className="text-indigo-400 group-hover:text-indigo-500 transition" />
+                <Sparkles size={11} className="text-slate-300 dark:text-slate-600" />
               </button>
             ))}
           </div>
@@ -371,20 +379,21 @@ export const AiSchemaAssistant: React.FC = () => {
 
       {/* Form Input */}
       <form 
-        onSubmit={(e) => { e.preventDefault(); handleSend(inputText); }} 
+        onSubmit={(e) => { e.preventDefault(); }} 
         className="p-2.5 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex gap-2 shrink-0"
       >
         <input 
           type="text" 
           value={inputText}
+          disabled={true}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder="Eigene Idee beschreiben..."
-          className="flex-1 border border-slate-300 dark:border-slate-700 rounded-full px-3.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+          placeholder="Eigene Idee beschreiben (KI Deaktiviert)..."
+          className="flex-1 border border-slate-300 dark:border-slate-700 rounded-full px-3.5 py-1.5 text-xs bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-500 cursor-not-allowed outline-none"
         />
         <button 
-          type="submit" 
-          disabled={!inputText.trim() || isThinking}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40 transition shadow-sm shrink-0"
+          type="button" 
+          disabled={true}
+          className="bg-slate-300 dark:bg-slate-800 text-slate-400 dark:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center cursor-not-allowed transition shadow-sm shrink-0"
         >
           <Send size={13} className="ml-0.5" />
         </button>

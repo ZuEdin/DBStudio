@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { SaveChangesModal } from './SaveChangesModal';
+import { SaveChangesModal } from './modals/SaveChangesModal';
 import { ItemContextMenu } from './ItemContextMenu';
-import { InputModal } from './InputModal';
+import { InputModal } from './modals/InputModal';
 import { ReportWizardModal } from '../features/reports/ReportWizardModal';
 import { FormWizardModal } from '../features/forms/FormWizardModal';
-import { ConfirmationModal } from './ConfirmationModal';
+import { ConfirmationModal } from './modals/ConfirmationModal';
 import { ElectronSettingsModal } from '../features/backend/ElectronSettingsModal';
 import { SecurityManagerModal } from '../features/security/SecurityManagerModal';
 import { DeploymentModal } from '../features/backend/components/DeploymentModal';
@@ -22,7 +22,7 @@ import { AccessImportWizard } from '../features/tools/AccessImportWizard';
 import { DummyDataWizard } from '../features/tools/DummyDataWizard';
 import { SharePointImportWizard } from '../features/tools/SharePointImportWizard'; 
 import { SchemaImportWizard } from '../features/tools/SchemaImportWizard'; 
-import { MessageModal } from './MessageModal';
+import { MessageModal } from './modals/MessageModal';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 import { DbType } from '../types/index';

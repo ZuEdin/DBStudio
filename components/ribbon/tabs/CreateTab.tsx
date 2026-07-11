@@ -20,7 +20,7 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
       {/* Tables Group */}
       <RibbonGroup label={t('ribbon.groups.tables')}>
         <RibbonButton icon={<TableIcon />} label={t('ribbon.actions.table')} onClick={() => onAction('create_table')} />
-        <RibbonButton icon={<Wand2 className="text-purple-600" />} label={t('ribbon.actions.ai_assist')} onClick={() => onAction('create_table_ai')} />
+        <RibbonButton icon={<Wand2 className="text-purple-600" />} label={`${t('ribbon.actions.ai_assist')} (Deaktiviert)`} onClick={() => {}} disabled={true} />
         <RibbonButton icon={<FileCode className="text-teal-600" />} label="Projekt/SQL Import" onClick={() => onAction('import_schema')} />
       </RibbonGroup>
 

@@ -17,6 +17,7 @@ import { BackendView } from '../features/backend/BackendView';
 import { DbstudioBackendView } from '../features/backend/DbstudioBackendView';
 import { RoadmapView } from '../features/tools/RoadmapView';
 import { VersionControlView } from '../features/tools/VersionControlView';
+import { ProjectManagementView } from '../features/projects/ProjectManagementView';
 import { ApiImportView } from '../features/tools/ApiImportView';
 import { LiveDatabaseSyncView } from '../features/tools/LiveDatabaseSyncView';
 import { CustomComponentDesigner } from '../features/pages/CustomComponentDesigner';
@@ -428,10 +429,16 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
             onSetView={onSetView}
           />
         );
+      case 'project_management':
+        return (
+          <ProjectManagementView 
+            initialPanel={(currentView as any).panel} 
+          />
+        );
       case 'version_control':
         return <VersionControlView />;
       case 'custom_component_designer':
-        return <CustomComponentDesigner />;
+        return <CustomComponentDesigner componentId={(currentView as any).componentId} />;
       case 'custom_components_manager':
         return <CustomComponentsManager />;
       default:

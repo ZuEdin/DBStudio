@@ -5,7 +5,7 @@ import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalL
 import { VirtualTable } from '../../components/VirtualTable';
 import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
-import { RecordDetailModal } from '../../components/RecordDetailModal';
+import { RecordDetailModal } from '../../components/modals/RecordDetailModal';
 import { KanbanBoard } from './components/KanbanBoard';
 
 interface TableViewProps {

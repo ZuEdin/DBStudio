@@ -26,7 +26,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300">
       <ThemeInjector />
-      <AppHeader onAction={app.handleRibbonAction} />
+      <AppHeader onAction={app.handleRibbonAction} chats={app.chats} />
       
       <Ribbon onAction={app.handleRibbonAction} />
       
@@ -34,7 +34,7 @@ export default function App() {
         <Sidebar onSetView={app.handleSetView} />
         
         <div className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
-          <Workspace onSetView={app.handleSetView} onActiveObjectChange={app.setActiveObject} />
+          <Workspace onSetView={app.handleSetView} onActiveObjectChange={app.handleActiveObjectChange} />
         </div>
 
         <ChatPanel 

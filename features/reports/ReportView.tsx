@@ -5,7 +5,7 @@ import { FileText, FileSpreadsheet, ChevronDown, ExternalLink } from 'lucide-rea
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { RecordDetailModal } from '../../components/RecordDetailModal';
+import { RecordDetailModal } from '../../components/modals/RecordDetailModal';
 
 interface ReportViewProps {
   report: Report;

@@ -2,7 +2,7 @@
 import { BackendConfig, DbType, VirtualFile } from '../../../types/index';
 
 export const generateCsproj = (config: BackendConfig, root: string): VirtualFile => {
-  const version = config.backendVersion || '9.0';
+  const version = config.backendVersion || '10.0';
   const targetFramework = `net${version}`;
   const packageVersion = `${version}.0`; 
   

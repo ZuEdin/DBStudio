@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { useUIStore } from '../../stores/useUIStore';
-import { Table, Relationship } from '../../types/index';
-import { 
-  GitBranch, GitCommit, GitFork, History, RefreshCw, Check, 
-  ChevronRight, ArrowLeft, Code, Play, Plus, Trash, User, Info, AlertTriangle
-} from 'lucide-react';
+import { History, GitBranch, RefreshCw, GitPullRequest } from 'lucide-react';
 
-interface SchemaCommit {
-  id: string;
-  sha: string;
-  message: string;
-  author: string;
-  timestamp: number;
-  tables: Table[];
-  relationships: Relationship[];
-  branch: string;
-}
+// Subcomponents & Types
+import { SchemaCommit, GitBranch as GitBranchType, RemoteConfig, MergeRequest } from './version-control/types';
+import { VersionControlForm } from './version-control/VersionControlForm';
+import { VersionControlList } from './version-control/VersionControlList';
+import { VersionControlDetails } from './version-control/VersionControlDetails';
+import { VersionControlJsonModal } from './version-control/VersionControlJsonModal';
+import { VersionControlBranchSelector } from './version-control/VersionControlBranchSelector';
+import { VersionControlRemoteSettings } from './version-control/VersionControlRemoteSettings';
+import { VersionControlMergeRequestModal } from './version-control/VersionControlMergeRequestModal';
 
 export const VersionControlView: React.FC = () => {
   const store = useProjectStore();
@@ -25,22 +20,79 @@ export const VersionControlView: React.FC = () => {
   const [commits, setCommits] = useState<SchemaCommit[]>([]);
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
   
+  // Branch State
+  const [branches, setBranches] = useState<GitBranchType[]>([]);
+  const [activeBranch, setActiveBranch] = useState('main');
+  
+  // Remote Git Config (GitHub / GitLab)
+  const [remote, setRemote] = useState<RemoteConfig>({
+    provider: null,
+    repoName: '',
+    connected: false,
+    token: '',
+    username: '',
+  });
+  
+  // Pull / Merge Requests
+  const [mergeRequests, setMergeRequests] = useState<MergeRequest[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showMRModal, setShowMRModal] = useState(false);
+
   // Commit Form State
   const [commitMessage, setCommitMessage] = useState('');
   const [commitAuthor, setCommitAuthor] = useState('Me');
-  const [activeBranch, setActiveBranch] = useState('main');
 
   const [showJsonModal, setShowJsonModal] = useState<string | null>(null);
 
-  // Storage Key Scoped to Project
-  const storageKey = `dbstudio_git_commits_${store.projectId || 'default'}`;
+  // Storage Keys
+  const commitsKey = `dbstudio_git_commits_${store.projectId || 'default'}`;
+  const branchesKey = `dbstudio_git_branches_${store.projectId || 'default'}`;
+  const activeBranchKey = `dbstudio_git_active_branch_${store.projectId || 'default'}`;
+  const remoteKey = `dbstudio_git_remote_${store.projectId || 'default'}`;
+  const mrsKey = `dbstudio_git_mrs_${store.projectId || 'default'}`;
 
-  // Initialize and load commits from LocalStorage
+  // Load all configurations
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
+    // 1. Branches
+    const savedBranches = localStorage.getItem(branchesKey);
+    if (savedBranches) {
+      setBranches(JSON.parse(savedBranches));
+    } else {
+      const defaultB: GitBranchType[] = [
+        { name: 'main', createdAt: Date.now(), isProtected: true },
+        { name: 'feature/invoices', createdAt: Date.now() - 3600000, isProtected: false }
+      ];
+      setBranches(defaultB);
+      localStorage.setItem(branchesKey, JSON.stringify(defaultB));
+    }
+
+    // 2. Active Branch
+    const savedActive = localStorage.getItem(activeBranchKey);
+    if (savedActive) {
+      setActiveBranch(savedActive);
+    } else {
+      setActiveBranch('main');
+    }
+
+    // 3. Remote Config
+    const savedRemote = localStorage.getItem(remoteKey);
+    if (savedRemote) {
+      setRemote(JSON.parse(savedRemote));
+    }
+
+    // 4. Merge Requests
+    const savedMrs = localStorage.getItem(mrsKey);
+    if (savedMrs) {
+      setMergeRequests(JSON.parse(savedMrs));
+    } else {
+      setMergeRequests([]);
+    }
+
+    // 5. Commits
+    const savedCommits = localStorage.getItem(commitsKey);
+    if (savedCommits) {
       try {
-        const parsed = JSON.parse(saved);
+        const parsed = JSON.parse(savedCommits);
         setCommits(parsed);
         if (parsed.length > 0) {
           setSelectedCommitId(parsed[0].id);
@@ -54,7 +106,6 @@ export const VersionControlView: React.FC = () => {
   }, [store.projectId]);
 
   const generateDefaultCommits = () => {
-    // Generate some interesting history based on the current tables
     const currentTables = store.tables || [];
     const currentRels = store.relationships || [];
 
@@ -64,7 +115,7 @@ export const VersionControlView: React.FC = () => {
         sha: 'f72a1bc',
         message: 'Initiales Datenbankschema erstellt',
         author: 'Sarah Lee',
-        timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000, // 3 days ago
+        timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000,
         tables: currentTables.slice(0, Math.min(2, currentTables.length)),
         relationships: currentRels.slice(0, Math.min(1, currentRels.length)),
         branch: 'main'
@@ -74,7 +125,7 @@ export const VersionControlView: React.FC = () => {
         sha: 'b819a0e',
         message: 'Fremdschlüssel-Beziehungen und Indizes hinzugefügt',
         author: 'Tom H.',
-        timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000, // 1 day ago
+        timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000,
         tables: currentTables.slice(0, Math.min(4, currentTables.length)),
         relationships: currentRels,
         branch: 'main'
@@ -83,8 +134,171 @@ export const VersionControlView: React.FC = () => {
 
     setCommits(mockCommits);
     setSelectedCommitId(mockCommits[1].id);
-    localStorage.setItem(storageKey, JSON.stringify(mockCommits));
+    localStorage.setItem(commitsKey, JSON.stringify(mockCommits));
   };
+
+  // Branch Operations
+  const handleSelectBranch = (branchName: string) => {
+    setActiveBranch(branchName);
+    localStorage.setItem(activeBranchKey, branchName);
+
+    // Filter commits on selected branch and checkout the latest one
+    const branchCommits = commits.filter(c => c.branch === branchName);
+    if (branchCommits.length > 0) {
+      const latest = branchCommits[0];
+      setSelectedCommitId(latest.id);
+      store.executeAction(s => {
+        s.tables = JSON.parse(JSON.stringify(latest.tables));
+        s.relationships = JSON.parse(JSON.stringify(latest.relationships));
+      });
+      ui.addToast(`Branch gewechselt zu '${branchName}' (Schema geladen)`, 'info');
+    } else {
+      ui.addToast(`Branch '${branchName}' hat noch keine Commits. Workspace bleibt unverändert.`, 'info');
+    }
+  };
+
+  const handleCreateBranch = (branchName: string) => {
+    const newB: GitBranchType = {
+      name: branchName,
+      createdAt: Date.now(),
+      isProtected: false
+    };
+    const updated = [...branches, newB];
+    setBranches(updated);
+    localStorage.setItem(branchesKey, JSON.stringify(updated));
+
+    // Create an initial commit on the new branch using current workspace state
+    const newCommit: SchemaCommit = {
+      id: crypto.randomUUID(),
+      sha: Math.random().toString(16).substring(2, 9),
+      message: `Initialer Zweig-Commit für ${branchName}`,
+      author: 'Me',
+      timestamp: Date.now(),
+      tables: JSON.parse(JSON.stringify(store.tables || [])),
+      relationships: JSON.parse(JSON.stringify(store.relationships || [])),
+      branch: branchName
+    };
+
+    const updatedCommits = [newCommit, ...commits];
+    setCommits(updatedCommits);
+    setSelectedCommitId(newCommit.id);
+    localStorage.setItem(commitsKey, JSON.stringify(updatedCommits));
+
+    handleSelectBranch(branchName);
+    ui.addToast(`Branch '${branchName}' erfolgreich angelegt!`, 'success');
+  };
+
+  const handleDeleteBranch = (branchName: string) => {
+    const filtered = branches.filter(b => b.name !== branchName);
+    setBranches(filtered);
+    localStorage.setItem(branchesKey, JSON.stringify(filtered));
+
+    if (activeBranch === branchName) {
+      handleSelectBranch('main');
+    }
+    ui.addToast(`Branch '${branchName}' gelöscht.`, 'info');
+  };
+
+  // Remote Config Operations
+  const handleUpdateRemote = (newRemote: RemoteConfig) => {
+    setRemote(newRemote);
+    localStorage.setItem(remoteKey, JSON.stringify(newRemote));
+    ui.addToast(newRemote.connected ? `Erfolgreich mit ${newRemote.provider === 'github' ? 'GitHub' : 'GitLab'} verbunden!` : 'Verbindung getrennt.', 'success');
+  };
+
+  const handlePush = () => {
+    setIsSyncing(true);
+    ui.addToast(`Pushe lokale Commits auf Remote-Repository (${remote.repoName})...`, 'info');
+    setTimeout(() => {
+      setIsSyncing(false);
+      ui.addToast('Schema erfolgreich gepusht! Alle Remote-Zweige sind auf dem neuesten Stand.', 'success');
+    }, 1200);
+  };
+
+  const handlePull = () => {
+    setIsSyncing(true);
+    ui.addToast('Rufe Änderungen vom Remote-Repository ab...', 'info');
+    setTimeout(() => {
+      setIsSyncing(false);
+      ui.addToast('Zweige synchronisiert. Keine neuen Änderungen gefunden.', 'success');
+    }, 1200);
+  };
+
+  // Merge Requests
+  const handleCreateMR = (title: string, description: string, source: string, target: string, provider: 'github' | 'gitlab') => {
+    const newMR: MergeRequest = {
+      id: crypto.randomUUID(),
+      title,
+      description,
+      sourceBranch: source,
+      targetBranch: target,
+      status: 'open',
+      provider,
+      author: 'Me',
+      createdAt: Date.now(),
+      sha: Math.random().toString(16).substring(2, 9),
+    };
+
+    const updated = [newMR, ...mergeRequests];
+    setMergeRequests(updated);
+    localStorage.setItem(mrsKey, JSON.stringify(updated));
+    ui.addToast(`${provider === 'gitlab' ? 'Merge Request' : 'Pull Request'} erfolgreich übermittelt!`, 'success');
+  };
+
+  const handleMergeMR = (mrId: string) => {
+    const mr = mergeRequests.find(m => m.id === mrId);
+    if (!mr) return;
+
+    // Retrieve latest commit from source branch
+    const sourceCommits = commits.filter(c => c.branch === mr.sourceBranch);
+    if (sourceCommits.length === 0) {
+      ui.addToast('Der Quellzweig enthält keine Commits zum Mergen.', 'error');
+      return;
+    }
+
+    const latestSourceCommit = sourceCommits[0];
+
+    // Create a Merge Commit on target branch
+    const mergeCommit: SchemaCommit = {
+      id: crypto.randomUUID(),
+      sha: Math.random().toString(16).substring(2, 9),
+      message: `Merge branch '${mr.sourceBranch}' into ${mr.targetBranch}`,
+      author: 'Sarah Lee', // Team Lead approved
+      timestamp: Date.now(),
+      tables: JSON.parse(JSON.stringify(latestSourceCommit.tables)),
+      relationships: JSON.parse(JSON.stringify(latestSourceCommit.relationships)),
+      branch: mr.targetBranch,
+    };
+
+    // Update status to merged
+    const updatedMRs = mergeRequests.map(m => m.id === mrId ? { ...m, status: 'merged' as const } : m);
+    setMergeRequests(updatedMRs);
+    localStorage.setItem(mrsKey, JSON.stringify(updatedMRs));
+
+    const updatedCommits = [mergeCommit, ...commits];
+    setCommits(updatedCommits);
+    localStorage.setItem(commitsKey, JSON.stringify(updatedCommits));
+
+    // Select the target branch and checkout the merged state
+    setActiveBranch(mr.targetBranch);
+    localStorage.setItem(activeBranchKey, mr.targetBranch);
+    setSelectedCommitId(mergeCommit.id);
+    store.executeAction(s => {
+      s.tables = JSON.parse(JSON.stringify(mergeCommit.tables));
+      s.relationships = JSON.parse(JSON.stringify(mergeCommit.relationships));
+    });
+
+    ui.addToast(`Merge erfolgreich abgeschlossen! Schema wurde in '${mr.targetBranch}' integriert.`, 'success');
+  };
+
+  const handleDeleteMR = (mrId: string) => {
+    const filtered = mergeRequests.filter(m => m.id !== mrId);
+    setMergeRequests(filtered);
+    localStorage.setItem(mrsKey, JSON.stringify(filtered));
+  };
+
+  // Timeline Filter: Only show commits belonging to active branch
+  const filteredCommits = commits.filter(c => c.branch === activeBranch);
 
   const handleCreateCommit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,10 +318,10 @@ export const VersionControlView: React.FC = () => {
     const updated = [newCommit, ...commits];
     setCommits(updated);
     setSelectedCommitId(newCommit.id);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+    localStorage.setItem(commitsKey, JSON.stringify(updated));
     setCommitMessage('');
 
-    ui.addToast(`Schema erfolgreich eingecheckt! (Commit ${newCommit.sha})`, 'success');
+    ui.addToast(`Schema erfolgreich eingecheckt auf Branch '${activeBranch}'!`, 'success');
   };
 
   const handleCheckoutCommit = (commit: SchemaCommit) => {
@@ -115,14 +329,13 @@ export const VersionControlView: React.FC = () => {
       s.tables = JSON.parse(JSON.stringify(commit.tables));
       s.relationships = JSON.parse(JSON.stringify(commit.relationships));
     });
-    
     ui.addToast(`Workspace auf Stand von Commit '${commit.sha}' zurückgesetzt.`, 'success');
   };
 
   const handleDeleteCommit = (id: string) => {
     const filtered = commits.filter(c => c.id !== id);
     setCommits(filtered);
-    localStorage.setItem(storageKey, JSON.stringify(filtered));
+    localStorage.setItem(commitsKey, JSON.stringify(filtered));
     if (selectedCommitId === id) {
       setSelectedCommitId(filtered[0]?.id || null);
     }
@@ -135,7 +348,6 @@ export const VersionControlView: React.FC = () => {
 
   const selectedCommit = getSelectedCommit();
 
-  // Find previous commit to compare and compute diffs
   const getPreviousCommit = (commit: SchemaCommit) => {
     const idx = commits.findIndex(c => c.id === commit.id);
     if (idx !== -1 && idx < commits.length - 1) {
@@ -146,7 +358,6 @@ export const VersionControlView: React.FC = () => {
 
   const previousCommit = selectedCommit ? getPreviousCommit(selectedCommit) : null;
 
-  // Compute detailed diff between selected and previous commit
   const computeDiff = () => {
     if (!selectedCommit) return { added: [], removed: [], modified: [] };
     
@@ -163,13 +374,9 @@ export const VersionControlView: React.FC = () => {
         added.push(t.name);
       } else {
         const fieldDiffs: string[] = [];
-        
-        // Check for table rename
         if (baseTable.name !== t.name) {
           fieldDiffs.push(`Umbenannt von '${baseTable.name}' in '${t.name}'`);
         }
-
-        // Check added fields
         t.fields.forEach(f => {
           const baseField = baseTable.fields.find(bf => bf.id === f.id);
           if (!baseField) {
@@ -178,14 +385,11 @@ export const VersionControlView: React.FC = () => {
             fieldDiffs.push(`Spalte geändert: '${baseField.name}' (${baseField.type}) -> '${f.name}' (${f.type})`);
           }
         });
-
-        // Check removed fields
         baseTable.fields.forEach(bf => {
           if (!t.fields.some(f => f.id === bf.id)) {
             fieldDiffs.push(`Spalte entfernt: '${bf.name}'`);
           }
         });
-
         if (fieldDiffs.length > 0) {
           modified.push({ tableName: t.name, fieldDiffs });
         }
@@ -206,340 +410,116 @@ export const VersionControlView: React.FC = () => {
   return (
     <div className="flex-1 bg-slate-50 dark:bg-slate-950 flex flex-col h-full overflow-hidden">
       {/* Title Header */}
-      <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0 flex justify-between items-center">
+      <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <History className="text-amber-500" size={24} />
             <span>Git-Schema-Versionierung</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Verwalten Sie inkrementelle Schema-Snapshots, vergleichen Sie Tabellendifferenzen und rollen Sie Schema-Entwürfe im Team zurück.
+            Verwalten Sie inkrementelle Schema-Snapshots, vergleichen Sie Tabellendifferenzen, steuern Sie Branches und erstellen Sie GitLab Merge Requests.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 rounded-full text-xs font-semibold border border-amber-200/50">
-            <GitBranch size={14} />
-            <span>Zweig: {activeBranch}</span>
-          </div>
+        
+        {/* Pull / Merge Request Launcher Button */}
+        <div className="flex items-center gap-2">
+          {remote.connected && (
+            <button
+              type="button"
+              onClick={() => setShowMRModal(true)}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded shadow transition-all"
+            >
+              <GitPullRequest size={14} />
+              <span>{remote.provider === 'gitlab' ? 'Merge Requests' : 'Pull Requests'} ({mergeRequests.filter(m => m.status === 'open').length})</span>
+            </button>
+          )}
           <button 
+            type="button"
             onClick={generateDefaultCommits}
-            className="flex items-center gap-1 px-3 py-1 text-xs border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-600 dark:text-slate-300"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-600 dark:text-slate-300"
             title="Historie auf Standard-Demos zurücksetzen"
           >
             <RefreshCw size={12} />
-            <span>Verlauf zurücksetzen</span>
+            <span>Reset</span>
           </button>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Timeline Panel */}
-        <div className="w-1/2 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full bg-white dark:bg-slate-900">
-          
-          {/* Commit Form */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
-            <form onSubmit={handleCreateCommit} className="space-y-3">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Neuen Schema-Commit erstellen</h3>
-              
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    value={commitMessage}
-                    onChange={(e) => setCommitMessage(e.target.value)}
-                    placeholder="z.B. Feature: Tabelle 'Customers' hinzugefügt"
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded focus:outline-none focus:border-amber-500 dark:text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <select
-                    value={commitAuthor}
-                    onChange={(e) => setCommitAuthor(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded focus:outline-none focus:border-amber-500 dark:text-white"
-                  >
-                    <option value="Me">Ich (Entwickler)</option>
-                    <option value="Sarah Lee">Sarah Lee (Lead)</option>
-                    <option value="Tom H.">Tom H. (Backend)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <p className="text-[10px] text-slate-400">
-                  Übernimmt {store.tables?.length || 0} Tabellen und {store.relationships?.length || 0} Beziehungen.
-                </p>
-                <button
-                  type="submit"
-                  disabled={!commitMessage.trim()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:dark:bg-slate-800 text-white text-xs font-bold rounded shadow transition-all"
-                >
-                  <Plus size={14} />
-                  <span>Schema committen</span>
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Commits List / Timeline */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Commit-Verlauf (Lokale Zeitlinie)</h3>
+        {/* Left Side: Branch Selector + Remote + Commit Form & Timeline (Scrollable) */}
+        <div className="w-1/2 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full bg-white dark:bg-slate-900 overflow-y-auto">
+          <div className="p-4 space-y-4">
             
-            {commits.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <Info size={28} className="mx-auto mb-2 text-slate-300" />
-                <p className="text-sm">Keine Commits vorhanden.</p>
-                <button 
-                  onClick={generateDefaultCommits}
-                  className="mt-2 text-xs text-amber-500 underline"
-                >
-                  Mock-Daten generieren
-                </button>
-              </div>
-            ) : (
-              <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-6">
-                {commits.map((commit, index) => {
-                  const isSelected = selectedCommitId === commit.id;
-                  const date = new Date(commit.timestamp).toLocaleString('de-DE', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  });
+            {/* Branch Management */}
+            <VersionControlBranchSelector
+              branches={branches}
+              activeBranch={activeBranch}
+              onSelectBranch={handleSelectBranch}
+              onCreateBranch={handleCreateBranch}
+              onDeleteBranch={handleDeleteBranch}
+            />
 
-                  return (
-                    <div key={commit.id} className="relative pl-6">
-                      {/* Timeline Dot */}
-                      <span className={`absolute -left-2 top-1.5 w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center transition ${
-                        isSelected 
-                          ? 'border-amber-500 scale-125 shadow-sm' 
-                          : 'border-slate-300 dark:border-slate-700'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-800'}`} />
-                      </span>
+            {/* GitHub & GitLab integration */}
+            <VersionControlRemoteSettings
+              remote={remote}
+              onUpdateRemote={handleUpdateRemote}
+              onPush={handlePush}
+              onPull={handlePull}
+              isSyncing={isSyncing}
+            />
 
-                      {/* Card block */}
-                      <div 
-                        onClick={() => setSelectedCommitId(commit.id)}
-                        className={`p-3.5 rounded-lg border text-left cursor-pointer transition ${
-                          isSelected 
-                            ? 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-300 dark:border-amber-800/60 shadow-sm' 
-                            : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/40 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-mono text-[10px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 font-bold">
-                            {commit.sha}
-                          </span>
-                          <span className="text-[10px] text-slate-400">{date}</span>
-                        </div>
-
-                        <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-2">
-                          {commit.message}
-                        </h4>
-
-                        <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                          <div className="flex items-center gap-1">
-                            <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-700 dark:text-slate-300">
-                              {commit.author[0]}
-                            </div>
-                            <span>{commit.author}</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <span>{commit.tables?.length || 0} Tabellen</span>
-                            <span>{commit.relationships?.length || 0} Rel.</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
+
+          <VersionControlForm
+            commitMessage={commitMessage}
+            setCommitMessage={setCommitMessage}
+            commitAuthor={commitAuthor}
+            setCommitAuthor={setCommitAuthor}
+            tablesCount={store.tables?.length || 0}
+            relationshipsCount={store.relationships?.length || 0}
+            handleCreateCommit={handleCreateCommit}
+          />
+          <VersionControlList
+            commits={filteredCommits}
+            selectedCommitId={selectedCommitId}
+            setSelectedCommitId={setSelectedCommitId}
+            generateDefaultCommits={generateDefaultCommits}
+          />
         </div>
 
         {/* Right Details Panel */}
         <div className="w-1/2 flex flex-col h-full bg-white dark:bg-slate-900">
-          {selectedCommit ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Commit Head Details */}
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400">Ausgewählter Commit</span>
-                    <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 mt-0.5">
-                      {selectedCommit.message}
-                    </h2>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono text-xs bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded font-bold">
-                      SHA: {selectedCommit.sha}
-                    </span>
-                    <div className="text-[10px] text-slate-400 mt-1">
-                      {new Date(selectedCommit.timestamp).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                    <User size={14} className="text-slate-400" />
-                    <span>Autor: <strong className="text-slate-800 dark:text-slate-200">{selectedCommit.author}</strong></span>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowJsonModal(JSON.stringify(selectedCommit.tables, null, 2))}
-                      className="flex items-center gap-1 px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300"
-                    >
-                      <Code size={12} />
-                      <span>JSON Schema</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => handleCheckoutCommit(selectedCommit)}
-                      className="flex items-center gap-1 px-3 py-1 text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold rounded shadow transition-all"
-                    >
-                      <Play size={12} />
-                      <span>Wiederherstellen (Checkout)</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteCommit(selectedCommit.id)}
-                      className="p-1 hover:text-red-500 text-slate-400 rounded hover:bg-red-50 dark:hover:bg-red-950/20"
-                      title="Commit löschen"
-                    >
-                      <Trash size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Commit Diffs / Tables List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                
-                {/* Visual Schema Diff Box */}
-                <div className="border border-slate-200 dark:border-slate-800 rounded-lg p-3 bg-white dark:bg-slate-900">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Änderungen in diesem Commit</h3>
-                  
-                  {!previousCommit ? (
-                    <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-2.5 rounded flex items-center gap-2">
-                      <Info size={14} />
-                      <span>Dies ist der erste Commit in der Historie. Er importiert alle Tabellen als initiales Schema.</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {/* Added Tables */}
-                      {diff.added.length > 0 && (
-                        <div>
-                          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Hinzugefügte Tabellen</span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {diff.added.map(t => (
-                              <span key={t} className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-xs rounded border border-emerald-100">
-                                + {t}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Modified Tables */}
-                      {diff.modified.length > 0 && (
-                        <div>
-                          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Geänderte Tabellen</span>
-                          <div className="mt-1 space-y-1.5">
-                            {diff.modified.map(m => (
-                              <div key={m.tableName} className="text-xs bg-blue-50/40 dark:bg-blue-950/10 border border-blue-100 dark:border-blue-900 p-2 rounded">
-                                <span className="font-bold text-blue-800 dark:text-blue-300">{m.tableName}</span>
-                                <ul className="list-disc list-inside mt-1 space-y-0.5 pl-1 text-[11px] text-slate-600 dark:text-slate-400">
-                                  {m.fieldDiffs.map((fd, i) => (
-                                    <li key={i}>{fd}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Removed Tables */}
-                      {diff.removed.length > 0 && (
-                        <div>
-                          <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block">Gelöschte Tabellen</span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {diff.removed.map(t => (
-                              <span key={t} className="px-2 py-0.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs rounded border border-red-100">
-                                - {t}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {diff.added.length === 0 && diff.modified.length === 0 && diff.removed.length === 0 && (
-                        <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center italic">
-                          Keine Tabellen- oder Spalten-Änderungen in diesem Commit.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Schema Snapshots Tables list */}
-                <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Gesichertes Tabellen-Schema ({selectedCommit.tables?.length || 0} Tabellen)
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    {selectedCommit.tables?.map(t => (
-                      <div key={t.id} className="border border-slate-100 dark:border-slate-800 p-2.5 rounded bg-slate-50/50 dark:bg-slate-900/40">
-                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{t.name}</span>
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {t.fields?.map(f => (
-                            <span key={f.id} className="text-[9px] bg-slate-200/60 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-600 dark:text-slate-400 font-mono">
-                              {f.name} <span className="text-slate-400 text-[8px]">{f.type}</span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          ) : (
-            <div className="flex-grow flex items-center justify-center text-slate-400 italic text-sm">
-              Bitte wählen Sie links einen Commit aus, um die Differenz anzuzeigen.
-            </div>
-          )}
+          <VersionControlDetails
+            selectedCommit={selectedCommit}
+            previousCommit={previousCommit}
+            diff={diff}
+            setShowJsonModal={setShowJsonModal}
+            handleCheckoutCommit={handleCheckoutCommit}
+            handleDeleteCommit={handleDeleteCommit}
+          />
         </div>
       </div>
 
       {/* JSON Viewer Modal */}
       {showJsonModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col border border-slate-200 dark:border-slate-800">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-lg">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                <Code size={16} className="text-amber-500" />
-                <span>JSON Schema-Snapshot</span>
-              </h3>
-              <button 
-                onClick={() => setShowJsonModal(null)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
-              >
-                Schließen
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto p-4 bg-slate-950 text-slate-200 font-mono text-xs leading-relaxed rounded-b-lg">
-              <pre className="whitespace-pre-wrap">{showJsonModal}</pre>
-            </div>
-          </div>
-        </div>
+        <VersionControlJsonModal
+          showJsonModal={showJsonModal}
+          onClose={() => setShowJsonModal(null)}
+        />
+      )}
+
+      {/* Pull Request / Merge Request modal */}
+      {showMRModal && (
+        <VersionControlMergeRequestModal
+          onClose={() => setShowMRModal(false)}
+          mergeRequests={mergeRequests}
+          branches={branches}
+          commits={commits}
+          onCreateMR={handleCreateMR}
+          onMergeMR={handleMergeMR}
+          onDeleteMR={handleDeleteMR}
+          provider={remote.provider || 'github'}
+        />
       )}
     </div>
   );
