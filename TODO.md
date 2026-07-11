@@ -1,40 +1,136 @@
-# 🚀 DB Studio Pro - ToDo List
+# 🚀 DB Studio Pro - ToDo & Architektur-Roadmap
 
-Hier sind Vorschläge für zukünftige Features und Verbesserungen. Markiere die Dinge, die als Nächstes umgesetzt werden sollen!
+Dieses Dokument beschreibt die Architektur und den Entwicklungsplan, um **DB Studio Pro** als eigenes, selbst-hostendes Backend ("Eating our own dog food") zu betreiben. Es teilt sich auf in lokale Offline-First-Ausführung und die kollaborative Team-Cloud.
 
-## 📐 ER-Diagramm & Canvas
-- [x] **Smarte Auto-Layouting Engine**: Einbettung eines Force-Directed-Algorithmus (z. B. d3-force oder dagre), um Tabellen automatisch übersichtlich anzuordnen. (Physik-basiert & Grid-Anordnung)
-- [x] **Smarte Beziehungs-Overlays**: Erweiterte Tooltips und Highlighting für Primary/Foreign-Keys, wenn man über Beziehungs-Pfade hovert. (PK/FK-Hervorhebung & Midpoint-Overlay)
-- [x] **Minimap / Radar-View**: Eine kleine Übersichtskarte in der Ecke für sehr große, komplexe Schemata. (Interaktive Drag-Steuerung, Viewport-Rechteck, Gruppen- & Tabellen-Visualisierungen)
+---
 
-## 🔄 Schema Migration & Versionierung
-- [x] **Visual Migration Diff-Tool**: Eine detaillierte Side-by-Side UI, um die Unterschiede zwischen Snapshots anzuzeigen und die generierten `ALTER TABLE` Skripte anzupassen. (Mit interaktivem SQL Live-Editor und Code-Highlights)
-- [x] **Migration Rollback-Support**: UI zum Verwalten und Ausführen von Down-Skripten.
-- [x] **Datenbank-Synchronisation (Live)**: Direkte Verbindung zu einer Live-Datenbank herstellen, um Schemata abzugleichen (Introspection). (Vorbereitet mit intuitivem Wizard für PostgreSQL, MySQL, SQL Server & SQLite inklusive simulierter Schema-Introspection, Diff-Tabelle & Express Backend API-Schnittstelle)
+## 🏗️ 1. Die Zwei-System-Architektur: Lokal vs. Team-Cloud
 
-## 💻 Code Generierung & ORM
-- [x] **Export-Vorschau (Live Preview)**: Eine Echtzeit-Vorschau des generierten Codes für ORMs (Sequelize, Prisma, TypeORM, Drizzle) direkt im Editor. (Vollständig integriert im Projekt Explorer)
-- [x] **CRUD API-Generierung**: Automatische Erstellung von REST- oder GraphQL-Endpoints (z. B. Express/NestJS Routen) für das entworfene Schema. (Mit vollem Node.js/Express, PHP/Laravel, C#/.NET Core und Python API-Support inklusive Sequelize, Prisma & Drizzle Integration)
-- [x] **Frontend-Generierung (React/Vue)**: Automatisches Generieren von CRUD-Ansichten (Listen, Formulare) basierend auf dem Tabellen-Schema. (Vollwertiger UI-Client-Generator für React, Vue, Angular und Blazor mit dynamischen Listen, Custom Formular-Layouts und conditional formatting)
+Für maximale Privatsphäre und reibungslose Teamarbeit trennen wir das System in zwei sauber getrennte Modi:
 
-## 🧠 AI & Automatisierung
-- [x] **AI Schema Assistant**: Ein Chat-Interface, um per natürlicher Sprache (Prompt) komplexe Datenbank-Schemata entwerfen zu lassen. (Vollständig integrierter AI Schema Copilot Tab im Chat-Panel mit interaktiven Schema-Entwürfen und direktem Canvas-Import auf Knopfdruck)
-- [x] **AI Mock-Data Generator**: Automatische Generierung von realistischen Testdaten basierend auf den Datentypen und Spaltennamen. (Integrierter KI-Synthese-Generator mit Temperaturregelung, Lokalisierungen wie DE/US/FR/ES und simuliertem Synthese-Log)
-- [x] **Natural Language to SQL**: KI-Unterstützung im Query-Builder, um Fragen in SQL-Abfragen zu übersetzen. (Eingebauter AI SQL-Assistent im Abfrage-Designer mit natürlicher Deutsch-zu-SQL-Übersetzung, Simulation und direkter Übernahme in den Code-Editor)
+```
+┌────────────────────────────────────────┐
+│             DB Studio Pro              │
+│       (Local Desktop / Developer)      │
+│   - SQLite / IndexedDB für Metadaten   │
+│   - Lokale Datenbank-Verbindungen      │
+└───────────────────┬────────────────────┘
+                    │
+                    │  🔒 Sicherer Upload (Sync Wizard)
+                    │  - Schema-Auswahl (Tabellen, Queries)
+                    │  - Anforderungs-Abfrage (Was soll wohin?)
+                    │  - Schema Migrationserstellung
+                    ▼
+┌────────────────────────────────────────┐
+│             Team-Cloud Hub             │
+│      (Kollaborativ / Hosted Server)     │
+│   - PostgreSQL / Spanner (Multi-Tenant)│
+│   - Live Echtzeit-Kollaboration        │
+│   - Team-Chat, Kanban & Tickets        │
+└────────────────────────────────────────┘
+```
 
-## 🏗️ Developer Experience & Architecture (Non-AI)
-- [ ] **Role-Based Access Control (RBAC) & Security Policies**: Visueller Editor zum Definieren von Rollen (Admin, User, Guest) und Rechten. Generiert Row-Level Security (RLS) Skripte für PostgreSQL oder Auth-Middlewares/Guards für das Backend.
-- [ ] **API Endpoint & Routing Designer**: Eigene Ansicht, um Tabellen oder komplexe Queries direkt auf spezifische REST/GraphQL Endpoints zu mappen. Inklusive Konfiguration von Validierungs-Schemas (z.B. Zod/Joi) und Middleware-Ketten.
-- [ ] **Visual State Machine (Lifecycle Designer)**: Visueller Editor für den Lebenszyklus bestimmter Entitäten (z.B. Ticket: Open -> In Progress -> Resolved). Generiert automatisch Enums, Transition-Validierungen und Event-Hooks im Backend-Code.
-- [ ] **Multi-Tenant Architecture Setup**: SaaS-Wizard zur Konfiguration von Mandantenfähigkeit. Auswahl zwischen "Shared Schema" (mit tenant_id), "Schema-per-Tenant" oder "DB-per-Tenant". Automatisches Scoping aller generierten Queries.
-- [ ] **Advanced Data Seeding & Master Data**: Tool zum Verwalten von festen Stammdaten (Kategorien, Länderlisten, Configs) im Editor, welches automatisch reproduzierbare Seeder-Skripte (z.B. für Prisma oder Laravel) generiert.
+### 💻 A. Lokal (Rechner des Entwicklers)
+*   **Datenspeicherung:** Alle Metadaten, Entwürfe und Schema-Designs werden lokal in einer **SQLite-Datei** (via Electron/Tauri) oder in der **IndexedDB** des Browsers gespeichert.
+*   **Netzwerk:** Läuft komplett offline. Keine Daten verlassen die lokale Maschine ohne explizite Aktion.
+*   **Sicherheit:** Lokale Passwörter und Connection-Strings werden verschlüsselt gespeichert (z.B. OS Keychain).
 
-## 👥 Tools & Collaboration
-- [x] **Echtzeit-Kollaboration (Multiplayer)**: Gemeinsames Arbeiten am gleichen Schema im Team (ähnlich wie in Figma oder Miro). (Volle Live-Kollaborationssimulation mit dynamischen Maus-Zeigern von Sarah und Tom direkt auf dem Schema-Canvas)
-- [x] **Projekt-Export zu GitHub**: Direkter Push der generierten App, ORM-Modelle und Migrationsskripte in ein verknüpftes GitHub-Repository. (Integrierte Push-Skripte und UI für Git Integration)
-- [x] **Erweiterte Ticket-Integration**: Verknüpfung der Tickets im Kanban-Board mit spezifischen Tabellen oder Feldern im Schema. (Volle Verknüpfungs-Unterstützung im Kanban-System mit Instant Deep-Link-Navigation zurück zum Schema-Canvas)
+### ☁️ B. Team-Cloud (Kollaboration & Hosting)
+*   **Datenspeicherung:** Ein hochverfügbares, mandantenfähiges (**Multi-Tenant**) Relationales Datenbanksystem (PostgreSQL/Spanner).
+*   **Echtzeit:** WebSocket-gestützte Synchronisation für simultanes Bearbeiten des ER-Diagramms ("Figma-Style").
+*   **Kollaborations-Features:** Integriertes Kanban-Board, Team-Chat, Änderungsverlauf und Rollen-Management (RBAC).
 
-## 🎨 UI & UX
-- [x] **Dark Mode / Light Mode Toggle**: Ein nahtloser Wechsel zwischen verschiedenen Themes für die gesamte Applikation. (Durchgängige Dark-Mode-Integration)
-- [x] **Tastatur-Shortcuts (Hotkeys)**: Schnelleres Arbeiten durch Shortcuts (z. B. Tabellen duplizieren, Suchen & Ersetzen). (Volles Hotkey-System mit interaktivem Cheat-Sheet in der Statusleiste für alle Power-User)
-- [x] **Custom Types & Domains**: Unterstützung für benutzerdefinierte Datentypen (z.B. Enums, UUIDs) quer durch die Datenbank-Dialekte. (Native UUIDs, Email-, Phone- und URL-Domains voll integriert in SQL, TypeScript, C# und Sequelize-Generatoren)
+---
+
+## 🗄️ 2. DB Studio Metadaten-Schema (Self-Hosting)
+
+Um DB Studio mit sich selbst zu verwalten, nutzen wir dieses standardisierte relationale Schema für die Metadaten. Jedes Projekt baut genau auf dieser Struktur auf:
+
+### `sys_projects` (Projekte)
+*   `id` (UUID, PK) - Eindeutige ID des Projekts
+*   `name` (VARCHAR) - Name des Projekts (z. B. "Kundenportal")
+*   `db_type` (VARCHAR) - Verwendeter Dialekt (PostgreSQL, MySQL, SQLite etc.)
+*   `is_cloud` (BOOLEAN) - Ob das Projekt in der Team-Cloud liegt
+*   `created_at` (TIMESTAMP)
+
+### `sys_tables` (Tabellen-Metadaten)
+*   `id` (UUID, PK)
+*   `project_id` (UUID, FK -> `sys_projects.id` ON DELETE CASCADE)
+*   `name` (VARCHAR) - Tabellenname
+*   `description` (TEXT) - Zweck der Tabelle
+
+### `sys_fields` (Tabellenspalten-Metadaten)
+*   `id` (UUID, PK)
+*   `table_id` (UUID, FK -> `sys_tables.id` ON DELETE CASCADE)
+*   `name` (VARCHAR) - Spaltenname
+*   `type` (VARCHAR) - Datentyp (INTEGER, VARCHAR, UUID etc.)
+*   `is_primary_key` (BOOLEAN)
+*   `is_nullable` (BOOLEAN)
+*   `default_value` (VARCHAR)
+
+### `sys_relationships` (Beziehungen)
+*   `id` (UUID, PK)
+*   `project_id` (UUID, FK)
+*   `from_table_id` (UUID, FK -> `sys_tables.id`)
+*   `from_field_id` (UUID, FK -> `sys_fields.id`)
+*   `to_table_id` (UUID, FK -> `sys_tables.id`)
+*   `to_field_id` (UUID, FK -> `sys_fields.id`)
+*   `type` (VARCHAR) - "1:n", "1:1", "n:m"
+
+### `sys_queries` (Gespeicherte Abfragen)
+*   `id` (UUID, PK)
+*   `project_id` (UUID, FK)
+*   `name` (VARCHAR) - Name der Abfrage
+*   `raw_sql` (TEXT) - Generiertes oder geschriebenes SQL
+
+### `sys_sync_history` (Uploader- & Synchronisierungslog)
+*   `id` (UUID, PK)
+*   `project_id` (UUID, FK)
+*   `user_id` (VARCHAR) - Wer hat synchronisiert
+*   `sync_type` (VARCHAR) - "LOCAL_TO_CLOUD" / "CLOUD_TO_LOCAL"
+*   `metadata_payload` (JSON) - Detaillierte Liste der übertragenen Tabellen/Queries
+*   `implementation_prompt` (TEXT) - "Was soll implementiert werden?" Prompt für KI-Zwecke
+
+---
+
+## 🔄 3. Der Lokale-zu-Cloud Synchronisations-Workflow
+
+Wenn ein Benutzer Daten aus seiner lokalen Entwicklungsumgebung in die Team-Cloud hochlädt, wird er durch einen interaktiven **Sync-Assistenten** geführt:
+
+1.  **Verbindungstest:** Prüfung der Verbindung zur Team-Cloud.
+2.  **Objekt-Auswahl:** Der Benutzer wählt detailliert aus:
+    *   Welche **Tabellen** sollen hochgeladen werden?
+    *   Welche **Abfragen** und Geschäftslogiken sollen hochgeladen werden?
+3.  **Implementierungs-Fragebogen (AI-gestützt):**
+    *   *Frage:* "Welches primäre Ziel hat dieser Upload?"
+    *   *Frage:* "Sollen für die ausgewählten Tabellen direkt CRUD-Endpoints im Team-Server registriert werden?"
+    *   *Frage:* "Welche Rollen (z.B. Admin, User) haben Lese-/Schreibzugriff auf die hochgeladenen Daten?"
+4.  **Diff-Analyse:** Side-by-Side-Gegenüberstellung (Lokaler Stand vs. Cloud-Stand).
+5.  **Schema-Migration:** Automatische Generierung von SQL-Migrations-Skripten, um das Cloud-Schema anzupassen, ohne Daten zu löschen.
+6.  **Push:** Übertragung und Freigabe für das Team.
+
+---
+
+## 📋 4. Implementierungs-Checkliste (Fahrplan)
+
+### Phase 1: Lokaler State & IndexedDB Sync (Local Mode)
+- [x] SQLite-Verbindungstreiber für Electron/Tauri konfigurieren.
+- [x] IndexedDB Wrapper für Browser-Fallback schreiben (Projekt-Auto-Save).
+- [x] Styling-Frameworks (Bootstrap/Tailwind) sauber trennen und im Code-Generator unterstützen.
+
+### Phase 2: Team-Cloud Backend & API-Infrastruktur
+- [x] Express/NestJS Server-Vorlage für den Cloud Hub erstellen.
+- [x] Multi-Tenant Isolation auf Datenbankebene (RLS - Row Level Security) implementieren.
+- [x] JWT und OAuth2 (z. B. GitHub, Google) für Team-Logins bereitstellen.
+
+### Phase 3: Der Interaktive Sync-Assistent (Local -> Cloud)
+- [x] Eine UI-Komponente erstellen, die lokale Schema-Änderungen anzeigt.
+- [x] Fragebogen-Schnittstelle implementieren ("Was soll implementiert werden?").
+- [x] Validierung von FK-Beziehungen vor dem Upload, um referenzielle Integrität zu sichern.
+- [x] Mock-Verbindung für Demonstrationszwecke einbauen.
+
+### Phase 4: Team-Kollaborations-Werkzeuge (Multiplayer)
+- [x] Multiplayer Cursor-Simulation für Live-Sitzungen.
+- [x] Integriertes Kanban-Ticketsystem zur Aufgabensteuerung direkt an Datenfeldern.
+- [x] Echtzeit-Team-Chat-Panel mit Benachrichtigungsdienst für Schema-Änderungen.
+- [x] Versionsverwaltung (Git-ähnlicher Commit-Verlauf für Schemata).

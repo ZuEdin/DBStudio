@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
-import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig } from '../types/index';
+import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig, Relationship } from '../types/index';
 import { saveProjectToStorage, getProjectById } from '../services/storageService';
 import { cloudService } from '../services/cloudService'; 
 import * as XLSX from 'xlsx';
@@ -26,6 +26,138 @@ export const useAppController = () => {
   // Locking State
   const [activeLock, setActiveLock] = useState<LockInfo | null>(null);
   const [readOnlyMode, setReadOnlyMode] = useState(false);
+
+  // --- Schema change notification system ---
+  const [prevTables, setPrevTables] = useState<Table[]>([]);
+  const [prevRelationships, setPrevRelationships] = useState<Relationship[]>([]);
+  const [isSchemaTrackingReady, setIsSchemaTrackingReady] = useState(false);
+
+  useEffect(() => {
+    if (store.projectId && !isSchemaTrackingReady) {
+      setPrevTables(store.tables || []);
+      setPrevRelationships(store.relationships || []);
+      setIsSchemaTrackingReady(true);
+    }
+  }, [store.projectId, store.tables, store.relationships, isSchemaTrackingReady]);
+
+  useEffect(() => {
+    if (!isSchemaTrackingReady || !store.projectId) return;
+
+    // 1. Check for added tables
+    if (store.tables.length > prevTables.length) {
+      const added = store.tables.filter(t => !prevTables.some(pt => pt.id === t.id));
+      added.forEach(t => {
+        const msg = `📢 [System] Tabelle '${t.name}' wurde von 'Me' erstellt.`;
+        chat.sendSystemMessage('c1', msg, 'system', 'System');
+        
+        setTimeout(() => {
+          const names = ['Sarah Lee', 'Tom H.'];
+          const selectedName = names[Math.floor(Math.random() * names.length)];
+          const senderId = selectedName === 'Sarah Lee' ? 'u2' : 'u3';
+          const replies = [
+            `Sieht hervorragend aus! Ich passe mein Frontend direkt an die Tabelle '${t.name}' an.`,
+            `Klasse, danke für das Schema von '${t.name}'. Ich werde direkt die API-Endpunkte dafür prüfen.`,
+            `Gute Arbeit! Sind für '${t.name}' auch schon Fremdschlüssel definiert?`
+          ];
+          const reply = replies[Math.floor(Math.random() * replies.length)];
+          chat.sendSystemMessage('c1', reply, senderId, selectedName);
+          ui.addToast(`Neue Nachricht von ${selectedName} im Team Chat`, 'info');
+        }, 3000);
+      });
+    }
+
+    // 2. Check for deleted tables
+    else if (store.tables.length < prevTables.length) {
+      const deleted = prevTables.filter(pt => !store.tables.some(t => t.id === pt.id));
+      deleted.forEach(t => {
+        const msg = `⚠️ [System] Tabelle '${t.name}' wurde von 'Me' gelöscht.`;
+        chat.sendSystemMessage('c1', msg, 'system', 'System');
+        
+        setTimeout(() => {
+          const names = ['Sarah Lee', 'Tom H.'];
+          const selectedName = names[Math.floor(Math.random() * names.length)];
+          const senderId = selectedName === 'Sarah Lee' ? 'u2' : 'u3';
+          const replies = [
+            `Oh, wir haben '${t.name}' gelöscht? Stimmt, das alte Schema war obsolet.`,
+            `Ok, ich entferne die entsprechenden Code-Referenzen für '${t.name}'.`,
+            `Gut zu wissen, dann brauche ich dafür keine Testdaten mehr generieren.`
+          ];
+          const reply = replies[Math.floor(Math.random() * replies.length)];
+          chat.sendSystemMessage('c1', reply, senderId, selectedName);
+          ui.addToast(`Neue Nachricht von ${selectedName} im Team Chat`, 'info');
+        }, 3000);
+      });
+    }
+
+    // 3. Check for modified tables (field additions or renames)
+    else if (store.tables.length === prevTables.length) {
+      store.tables.forEach(t => {
+        const prevT = prevTables.find(pt => pt.id === t.id);
+        if (prevT) {
+          // Check for rename
+          if (prevT.name !== t.name) {
+            const msg = `🔄 [System] Tabelle '${prevT.name}' wurde in '${t.name}' umbenannt.`;
+            chat.sendSystemMessage('c1', msg, 'system', 'System');
+            
+            setTimeout(() => {
+              chat.sendSystemMessage('c1', `Verstanden. Ich benenne das Modell in unserem Backend ebenfalls um.`, 'u3', 'Tom H.');
+              ui.addToast(`Neue Nachricht von Tom H. im Team Chat`, 'info');
+            }, 3000);
+          }
+          // Check for field added
+          else if (t.fields.length > prevT.fields.length) {
+            const addedFields = t.fields.filter(f => !prevT.fields.some(pf => pf.id === f.id));
+            addedFields.forEach(f => {
+              const msg = `➕ [System] Spalte '${f.name}' (${f.type}) wurde zur Tabelle '${t.name}' hinzugefügt.`;
+              chat.sendSystemMessage('c1', msg, 'system', 'System');
+              
+              setTimeout(() => {
+                chat.sendSystemMessage('c1', `Perfekt, '${f.name}' ist genau das, was wir für die Suche benötigt haben!`, 'u2', 'Sarah Lee');
+                ui.addToast(`Neue Nachricht von Sarah Lee im Team Chat`, 'info');
+              }, 3000);
+            });
+          }
+          // Check for field deleted
+          else if (t.fields.length < prevT.fields.length) {
+            const deletedFields = prevT.fields.filter(pf => !t.fields.some(f => f.id === pf.id));
+            deletedFields.forEach(pf => {
+              const msg = `➖ [System] Spalte '${pf.name}' wurde aus Tabelle '${t.name}' entfernt.`;
+              chat.sendSystemMessage('c1', msg, 'system', 'System');
+            });
+          }
+        }
+      });
+    }
+
+    setPrevTables(store.tables);
+  }, [store.tables, isSchemaTrackingReady, store.projectId]);
+
+  useEffect(() => {
+    if (!isSchemaTrackingReady || !store.projectId) return;
+
+    // Check for added relationship
+    if (store.relationships.length > prevRelationships.length) {
+      const added = store.relationships.filter(r => !prevRelationships.some(pr => pr.id === r.id));
+      added.forEach(r => {
+        const fromTab = store.tables.find(t => t.id === r.fromTableId);
+        const toTab = store.tables.find(t => t.id === r.toTableId);
+        if (fromTab && toTab) {
+          const fromFld = fromTab.fields.find(f => f.id === r.fromFieldId);
+          const toFld = toTab.fields.find(f => f.id === r.toFieldId);
+          
+          const msg = `🔗 [System] Neue Fremdschlüsselbeziehung definiert: '${fromTab.name}.${fromFld?.name || '?'}' verweist auf '${toTab.name}.${toFld?.name || '?'}'`;
+          chat.sendSystemMessage('c1', msg, 'system', 'System');
+          
+          setTimeout(() => {
+            chat.sendSystemMessage('c1', `Hervorragend, das sichert die referenzielle Integrität zwischen '${fromTab.name}' und '${toTab.name}'!`, 'u2', 'Sarah Lee');
+            ui.addToast(`Neue Nachricht von Sarah Lee im Team Chat`, 'info');
+          }, 3500);
+        }
+      });
+    }
+
+    setPrevRelationships(store.relationships || []);
+  }, [store.relationships, isSchemaTrackingReady, store.projectId]);
 
   useEffect(() => {
     const autoLoad = async () => {
@@ -78,6 +210,26 @@ export const useAppController = () => {
     };
     autoLoad();
   }, []);
+
+  // --- Projekt-Auto-Save (IndexedDB Wrapper Fallback) ---
+  useEffect(() => {
+    if (!store.projectId) return;
+
+    const interval = setInterval(async () => {
+      if (ui.isDirty) {
+        try {
+          await store.saveProject();
+          ui.setIsDirty(false);
+          console.log("Projekt-Auto-Save: Daten erfolgreich in IndexedDB gesichert.");
+          ui.addToast("Projekt automatisch gesichert.", 'info');
+        } catch (err) {
+          console.error("Auto-Save in IndexedDB fehlgeschlagen", err);
+        }
+      }
+    }, 15000); // Check and auto-save every 15 seconds if there are changes
+
+    return () => clearInterval(interval);
+  }, [store.projectId, ui.isDirty]);
 
   // --- Auto-Sync Tables to Layout Nodes ---
   useEffect(() => {
@@ -858,6 +1010,11 @@ export const useAppController = () => {
         // -------------------------------
 
         case 'relationships': handleSetView({ type: 'relationships' }); break;
+        case 'dbstudio_backend': handleSetView({ type: 'dbstudio_backend' }); break;
+        case 'roadmap_view': handleSetView({ type: 'roadmap_view' }); break;
+        case 'version_control': handleSetView({ type: 'version_control' }); break;
+        case 'create_custom_component': handleSetView({ type: 'custom_component_designer' }); break;
+        case 'manage_custom_components': handleSetView({ type: 'custom_components_manager' }); break;
         case 'api_import': handleSetView({ type: 'api_import' }); break;
         case 'live_sync': handleSetView({ type: 'live_sync' }); break;
         case 'sharepoint_import': ui.setShowSharePointWizard(true); break;

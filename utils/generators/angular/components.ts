@@ -31,7 +31,7 @@ export const generateAngularComponents = (
   routes.push(...tablesRes.routes);
 
   // 2. Report Pages
-  const reportsRes = generateReportComponents(reports, tables, queries, appRoot, isBootstrap);
+  const reportsRes = generateReportComponents(reports, tables, queries, appRoot);
   files.push(...reportsRes.files);
   routes.push(...reportsRes.routes);
 

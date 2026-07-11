@@ -10,6 +10,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { FileTab } from './ribbon/tabs/FileTab';
 import { HomeTab } from './ribbon/tabs/HomeTab';
 import { CreateTab } from './ribbon/tabs/CreateTab';
+import { PagesTab } from './ribbon/tabs/PagesTab';
 import { ExternalDataTab } from './ribbon/tabs/ExternalDataTab';
 import { DeployTab } from './ribbon/tabs/DeployTab';
 import { FormDesignTab } from './ribbon/tabs/FormDesignTab';
@@ -55,6 +56,8 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
         return <HomeTab onAction={onAction} />;
       case 'create':
         return <CreateTab onAction={onAction} />;
+      case 'pages':
+        return <PagesTab onAction={onAction} />;
       case 'external':
         return <ExternalDataTab onAction={onAction} />;
       case 'deploy':
@@ -102,6 +105,12 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'create' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
             {t('ribbon.create')}
+            </button>
+            <button 
+            onClick={() => setActiveTab('pages')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'pages' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+            >
+            Pages & SDUI
             </button>
             <button 
             onClick={() => setActiveTab('external')}

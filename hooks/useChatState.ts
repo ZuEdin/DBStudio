@@ -54,12 +54,35 @@ export const useChatState = () => {
     await saveLocalChat(updatedChat);
   };
 
+  const sendSystemMessage = async (chatId: string, text: string, senderId = 'system', senderName = 'System') => {
+    setChats(prev => {
+      const chatToUpdate = prev.find(c => c.id === chatId);
+      if (!chatToUpdate) return prev;
+
+      const isCurrentlyActive = isChatOpen && activeChatId === chatId;
+      const updatedChat: Chat = {
+        ...chatToUpdate,
+        unreadCount: isCurrentlyActive ? 0 : (chatToUpdate.unreadCount || 0) + 1,
+        messages: [...chatToUpdate.messages, {
+          id: crypto.randomUUID(),
+          senderId,
+          senderName,
+          text,
+          timestamp: Date.now()
+        }]
+      };
+      saveLocalChat(updatedChat);
+      return prev.map(c => c.id === chatId ? updatedChat : c);
+    });
+  };
+
   return {
     isChatOpen,
     setIsChatOpen,
     activeChatId,
     chats,
     handleSelectChat,
-    handleSendMessage
+    handleSendMessage,
+    sendSystemMessage
   };
 };

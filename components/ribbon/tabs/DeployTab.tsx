@@ -195,6 +195,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
         {/* Cloud Group */}
         <RibbonGroup label="Cloud & DevOps">
+            <RibbonButton icon={<Server className="text-indigo-600" />} label="DB Studio Self-Host" onClick={() => onAction('dbstudio_backend')} />
             <RibbonButton icon={<Server className="text-teal-600" />} label="Umgebungen" onClick={() => onAction('open_envs')} />
             <RibbonButton icon={<UploadCloud className="text-indigo-600" />} label="Deployment" onClick={() => onAction('open_deployment_modal')} />
         </RibbonGroup>

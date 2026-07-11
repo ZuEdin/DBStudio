@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, Report } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, GitFork, CalendarClock, LayoutTemplate, Server, Cloud, CheckSquare, History } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
@@ -134,6 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
   const onSelectWorkflow = (id: string) => onSetView({ type: 'workflow_designer', workflowId: id });
   const onSelectPage = (id: string) => onSetView({ type: 'page_designer', pageId: id });
   const onSelectScheduler = () => onSetView({ type: 'scheduler' });
+  const onSelectDbstudioBackend = () => onSetView({ type: 'dbstudio_backend' });
   
   const onItemContextMenu = (e: React.MouseEvent, type: any, id: string) => {
       e.preventDefault();
@@ -145,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
       const saved = localStorage.getItem('sidebar_openGroups');
       if (saved) return JSON.parse(saved);
     } catch(e) {}
-    return { tables: true, queries: true, reports: true, forms: true, charts: true, workflows: true, pages: true };
+    return { tables: true, queries: true, reports: true, forms: true, charts: true, workflows: true, pages: true, infrastructure: true };
   });
   
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>(() => {
@@ -442,6 +443,52 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
           {openGroups.pages && (
              <div className="ml-2 mt-1 space-y-1">
                 {groupedPages.map((g, i) => <RenderNode key={'p_'+g.id+'_'+i} node={g} icon={LayoutTemplate} colorClass="text-amber-600 dark:text-amber-400" bgClass="hover:bg-amber-100 dark:hover:bg-amber-950/30 hover:text-amber-900 dark:hover:text-amber-200" onSelect={onSelectPage!} type="page" openFolders={openFolders} toggleFolder={toggleFolder} onItemContextMenu={onItemContextMenu} handleDragStart={handleDragStart} />)}
+             </div>
+          )}
+        </div>
+
+        {/* Infrastruktur & Cloud (NEW) */}
+        <div>
+          <button onClick={() => toggleGroup('infrastructure' as any)} className="w-full flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 px-1 py-1 rounded">
+            {(openGroups as any).infrastructure ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Infrastruktur & Cloud
+          </button>
+          {(openGroups as any).infrastructure && (
+             <div className="ml-2 mt-1 space-y-1">
+                {/* DB Studio self-hosting backend */}
+                <div 
+                  id="sidebar_btn_dbstudio_backend"
+                  className="flex items-center justify-between px-2 py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950/30 hover:text-indigo-900 dark:hover:text-indigo-200 rounded text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                  onClick={onSelectDbstudioBackend}
+                >
+                    <div className="flex items-center gap-2">
+                        <Server size={14} className="text-indigo-600 dark:text-indigo-400" />
+                        <span className="font-medium text-slate-800 dark:text-slate-200">DB Studio Backend (Self-Host)</span>
+                    </div>
+                </div>
+
+                {/* Interactive Roadmap / TODO.md */}
+                <div 
+                  id="sidebar_btn_roadmap_view"
+                  className="flex items-center justify-between px-2 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 hover:text-emerald-900 dark:hover:text-emerald-200 rounded text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                  onClick={() => onSetView({ type: 'roadmap_view' })}
+                >
+                    <div className="flex items-center gap-2">
+                        <CheckSquare size={14} className="text-emerald-600 dark:text-emerald-400" />
+                        <span className="font-medium text-slate-800 dark:text-slate-200">Roadmap &amp; Architektur Plan</span>
+                    </div>
+                </div>
+
+                {/* Tickets Board */}
+                <div 
+                  id="sidebar_btn_tickets_board"
+                  className="flex items-center justify-between px-2 py-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                  onClick={() => onSetView({ type: 'tickets_board' })}
+                >
+                    <div className="flex items-center gap-2">
+                        <Database size={14} className="text-blue-600 dark:text-blue-400" />
+                        <span className="text-slate-700 dark:text-slate-300">Team-Aufgaben & Tickets</span>
+                    </div>
+                </div>
              </div>
           )}
         </div>

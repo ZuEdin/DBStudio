@@ -740,7 +740,12 @@ export type ViewType =
   | { type: 'multi_tenancy_wizard' }
   | { type: 'data_seeder_view' }
   | { type: 'tickets_board' }
-  | { type: 'ai_swarm' }; 
+  | { type: 'ai_swarm' }
+  | { type: 'dbstudio_backend' }
+  | { type: 'roadmap_view' }
+  | { type: 'version_control' }
+  | { type: 'custom_component_designer' }
+  | { type: 'custom_components_manager' }; 
 
 export interface Ticket {
   id: string;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Network, ShieldCheck, Layers, Settings, Wand2, Briefcase, ClipboardList, Route, Zap, Users, Database, Sparkles } from 'lucide-react';
+import { Network, ShieldCheck, Layers, Settings, Wand2, Briefcase, ClipboardList, Route, Zap, Users, Database, Sparkles, History } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -16,30 +16,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
         <RibbonButton icon={<Network className="text-blue-600" />} label="Beziehungen" onClick={() => onAction('relationships')} size="large" />
       </RibbonGroup>
 
-      <RibbonGroup label="Zusammenarbeit">
+      <RibbonGroup label="Zusammenarbeit" isLast>
         <RibbonButton icon={<ClipboardList className="text-sky-600" />} label="Kanban-Board" onClick={() => onAction('tickets_board')} size="large" />
+        <RibbonButton icon={<History className="text-amber-600" />} label="Git-Schema" onClick={() => onAction('version_control')} size="large" />
         <RibbonButton icon={<Sparkles className="text-purple-600 animate-pulse" />} label="AI-Schwarm" onClick={() => onAction('ai_swarm')} size="large" />
-      </RibbonGroup>
-
-      <RibbonGroup label="App-Struktur">
-        <RibbonButton icon={<Layers className="text-indigo-600" />} label="Navigation" onClick={() => onAction('navigation_designer')} />
-        <RibbonButton icon={<Settings className="text-slate-600" />} label="Globale Logik" onClick={() => onAction('logic_designer')} />
-        <RibbonButton icon={<ShieldCheck className="text-emerald-600" />} label="Sicherheit" onClick={() => onAction('security_manager')} />
-      </RibbonGroup>
-
-      <RibbonGroup label="Architektur (Engine)">
-        <RibbonButton icon={<Route className="text-cyan-600" />} label="API Router" onClick={() => onAction('api_routing_designer')} />
-        <RibbonButton icon={<Zap className="text-purple-600" />} label="Lifecycle (States)" onClick={() => onAction('lifecycle_designer')} />
-        <RibbonButton icon={<Users className="text-amber-600" />} label="Multi-Tenant" onClick={() => onAction('multi_tenancy_wizard')} />
-        <RibbonButton icon={<Database className="text-emerald-600" />} label="Daten-Seeder" onClick={() => onAction('data_seeder_view')} />
-      </RibbonGroup>
-
-      <RibbonGroup label="Personalisierung">
-        <RibbonButton icon={<Briefcase className="text-pink-600" />} label="Branding & Theme" onClick={() => onAction('theme_designer')} />
-      </RibbonGroup>
-
-      <RibbonGroup label="Testdaten" isLast>
-        <RibbonButton icon={<Wand2 className="text-purple-600" />} label="Testdaten Gen" onClick={() => onAction('generate_dummy')} />
       </RibbonGroup>
     </div>
   );

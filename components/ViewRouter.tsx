@@ -14,8 +14,13 @@ import { DashboardDesigner } from '../features/reports/DashboardDesigner';
 import { FormView } from '../features/forms/FormView';
 import { FormDesignerView } from '../features/forms/FormDesignerView';
 import { BackendView } from '../features/backend/BackendView';
+import { DbstudioBackendView } from '../features/backend/DbstudioBackendView';
+import { RoadmapView } from '../features/tools/RoadmapView';
+import { VersionControlView } from '../features/tools/VersionControlView';
 import { ApiImportView } from '../features/tools/ApiImportView';
 import { LiveDatabaseSyncView } from '../features/tools/LiveDatabaseSyncView';
+import { CustomComponentDesigner } from '../features/pages/CustomComponentDesigner';
+import { CustomComponentsManager } from '../features/pages/CustomComponentsManager';
 import { ChartView } from '../features/charts/ChartView';
 import { WorkflowDesigner } from '../features/workflows/WorkflowDesigner';
 import { SchedulerView } from '../features/scheduler/SchedulerView'; 
@@ -405,6 +410,30 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
       }
       case 'ai_swarm':
         return <AiSwarmDashboard />;
+      case 'dbstudio_backend':
+        return (
+          <DbstudioBackendView 
+            tables={tables}
+            relationships={relationships}
+            queries={queries}
+            showMessage={showMessage}
+            onSetView={onSetView}
+          />
+        );
+      case 'roadmap_view':
+        return (
+          <RoadmapView 
+            onAddTicket={ticketState.addTicket}
+            showMessage={showMessage}
+            onSetView={onSetView}
+          />
+        );
+      case 'version_control':
+        return <VersionControlView />;
+      case 'custom_component_designer':
+        return <CustomComponentDesigner />;
+      case 'custom_components_manager':
+        return <CustomComponentsManager />;
       default:
         return null;
     }
