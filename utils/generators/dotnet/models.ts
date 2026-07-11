@@ -3,6 +3,40 @@ import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery, Va
 import { DATA_TYPES } from '../../../config/dataTypes';
 import { resolveType, toPascalCase, isNullable } from '../common';
 
+export const getRelationshipNames = (relationships: Relationship[], tables: Table[], currentRel: Relationship) => {
+    const parentTable = tables.find(t => t.id === currentRel.fromTableId);
+    const childTable = tables.find(t => t.id === currentRel.toTableId);
+    const fkField = childTable?.fields.find(f => f.id === currentRel.toFieldId);
+
+    if (!parentTable || !childTable || !fkField) return { navName: '', collectionName: '' };
+
+    const childToParentRels = relationships.filter(r => r.toTableId === childTable.id && r.fromTableId === parentTable.id);
+    let navName = toPascalCase(parentTable.name);
+    if (childToParentRels.length > 1) {
+        const idx = childToParentRels.findIndex(r => r.id === currentRel.id);
+        const sameFkRels = childToParentRels.filter(r => r.toFieldId === currentRel.toFieldId);
+        if (sameFkRels.length > 1) {
+            navName = `${navName}_${toPascalCase(fkField.name)}_${idx + 1}`;
+        } else {
+            navName = `${navName}_${toPascalCase(fkField.name)}`;
+        }
+    }
+
+    const parentToChildRels = relationships.filter(r => r.fromTableId === parentTable.id && r.toTableId === childTable.id);
+    let collectionName = `${toPascalCase(childTable.name)}s`;
+    if (parentToChildRels.length > 1) {
+        const idx = parentToChildRels.findIndex(r => r.id === currentRel.id);
+        const sameFkRels = parentToChildRels.filter(r => r.toFieldId === currentRel.toFieldId);
+        if (sameFkRels.length > 1) {
+            collectionName = `${collectionName}_${toPascalCase(fkField.name)}_${idx + 1}`;
+        } else {
+            collectionName = `${collectionName}_${toPascalCase(fkField.name)}`;
+        }
+    }
+
+    return { navName, collectionName };
+};
+
 export const generateDbContext = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile => {
   const dbSets = tables.map(t => `        public DbSet<${toPascalCase(t.name)}> ${toPascalCase(t.name)}s { get; set; }`).join('\n');
   const queryDbSets = queries
@@ -33,6 +67,8 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
       const parentName = toPascalCase(parentTable.name);
       const childName = toPascalCase(childTable.name);
       const fkName = toPascalCase(childField.name);
+      
+      const { navName, collectionName } = getRelationshipNames(relationships, tables, rel);
 
       let deleteBehavior = 'DeleteBehavior.ClientSetNull'; // Default safe
       if (rel.onDelete === 'CASCADE') deleteBehavior = 'DeleteBehavior.Cascade';
@@ -49,8 +85,8 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
       }
 
       return `            modelBuilder.Entity<${childName}>()
-                .HasOne(d => d.${parentName})
-                .WithMany(p => p.${childName}s)
+                .HasOne(d => d.${navName})
+                .WithMany(p => p.${collectionName})
                 .HasForeignKey(d => d.${fkName})
                 .OnDelete(${deleteBehavior});${onUpdateComment}`;
   }).join('\n\n');
@@ -213,11 +249,22 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       
       const nullable = isNullable(f);
 
-      attributes.push(`[Column("${f.name}")]`);
+      let columnAttrContent = `"${f.name}"`;
       if (f.isPrimaryKey) attributes.push('[Key]');
+
       if (typeConfig && typeConfig.mappings.csharp.attributes) {
-          attributes.push(...typeConfig.mappings.csharp.attributes({ length: f.length, precision: f.precision, scale: f.scale }));
+          const typeAttrs = typeConfig.mappings.csharp.attributes({ length: f.length, precision: f.precision, scale: f.scale });
+          typeAttrs.forEach(attr => {
+              if (attr.startsWith('[Column(')) {
+                  const inner = attr.substring(8, attr.length - 2);
+                  columnAttrContent += `, ${inner}`;
+              } else {
+                  attributes.push(attr);
+              }
+          });
       }
+      
+      attributes.unshift(`[Column(${columnAttrContent})]`);
       
       const isValueType = ['int', 'decimal', 'double', 'DateTime', 'bool'].includes(type);
       let initializer = '';
@@ -246,10 +293,10 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
     let tenantProp = '';
     const isDiscriminator = config.multiTenancy?.enabled && config.multiTenancy?.strategy === 'discriminator';
     const tenantField = config.multiTenancy?.tenantField || 'TenantId';
-    const hasTenantField = table.fields.some(f => f.name === tenantField);
+    const hasTenantField = table.fields.some(f => f.name.toLowerCase() === tenantField.toLowerCase() || toPascalCase(f.name) === toPascalCase(tenantField));
 
     if (isDiscriminator && !hasTenantField && !table.name.startsWith('sys_')) {
-        tenantProp = `        public string? ${tenantField} { get; set; }`;
+        tenantProp = `        public string? ${toPascalCase(tenantField)} { get; set; }`;
     }
 
     // Nav Properties
@@ -264,7 +311,9 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
             return `        // [SKIPPED] Collection of ${toPascalCase(childTable.name)} skipped due to Type Mismatch: FK ${childField.name} (${childField.type}) vs PK ${parentPk.name} (${parentPk.type})`;
         }
 
-        return `        public virtual ICollection<${toPascalCase(childTable.name)}> ${toPascalCase(childTable.name)}s { get; set; } = new List<${toPascalCase(childTable.name)}>();`;
+        const { collectionName } = getRelationshipNames(relationships, tables, r);
+
+        return `        public virtual ICollection<${toPascalCase(childTable.name)}> ${collectionName} { get; set; } = new List<${toPascalCase(childTable.name)}>();`;
     }).join('\n\n');
 
     const parentRels = relationships.filter(r => r.toTableId === table.id);
@@ -279,7 +328,9 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
             return `        // [SKIPPED] Navigation to ${toPascalCase(parentTable.name)} skipped due to Type Mismatch: ${fkField.name} (${fkField.type}) vs PK ${parentPk.name} (${parentPk.type})`;
         }
 
-        return `        [ForeignKey("${toPascalCase(fkField.name)}")]\n        public virtual ${toPascalCase(parentTable.name)}? ${toPascalCase(parentTable.name)} { get; set; }`;
+        const { navName } = getRelationshipNames(relationships, tables, r);
+
+        return `        [ForeignKey("${toPascalCase(fkField.name)}")]\n        public virtual ${toPascalCase(parentTable.name)}? ${navName} { get; set; }`;
     }).join('\n\n');
 
     const combinedProps = [props, tenantProp, childProps, parentProps].filter(p => p).join('\n\n');

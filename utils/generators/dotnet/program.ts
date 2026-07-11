@@ -81,13 +81,17 @@ public class WindowsDevBypassMiddleware
 #endregion`;
   }
 
-  const content = `#pragma warning disable CA1416
-using Microsoft.EntityFrameworkCore;
+  const contentRawNamespaces = `using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ${config.projectName}.Data;
 ${namespaces}
-${config.multiTenancy?.enabled ? `using ${config.projectName}.Services;` : ''}
+${config.multiTenancy?.enabled ? `using ${config.projectName}.Services;` : ''}`;
+
+  const uniqueNamespaces = Array.from(new Set(contentRawNamespaces.split('\n').map(l => l.trim()).filter(l => l.startsWith('using')))).join('\n');
+
+  const content = `#pragma warning disable CA1416
+${uniqueNamespaces}
 
 var builder = WebApplication.CreateBuilder(args);
 

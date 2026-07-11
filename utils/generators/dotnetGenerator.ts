@@ -140,14 +140,26 @@ namespace ${config.projectName}
       });
   }
 
+  // Deduplicate relationships to avoid duplicate foreign keys
+  const uniqueRels: Relationship[] = [];
+  const seenRels = new Set<string>();
+  for (const r of relationships) {
+      const key = `${r.fromTableId}-${r.toTableId}-${r.toFieldId}`;
+      if (!seenRels.has(key)) {
+          seenRels.add(key);
+          uniqueRels.push(r);
+      }
+  }
+  const cleanRelationships = uniqueRels;
+
   // Data Layer
   // FIX: Passed relationships to generateDbContext
-  files.push(generateDbContext(tables, relationships, queries, config, root));
-  files.push(generateDbInitializer(tables, relationships, config, root, queries)); 
-  files.push(...generateModels(tables, relationships, queries, config, root));
+  files.push(generateDbContext(tables, cleanRelationships, queries, config, root));
+  files.push(generateDbInitializer(tables, cleanRelationships, config, root, queries)); 
+  files.push(...generateModels(tables, cleanRelationships, queries, config, root));
   
   // API Layer
-  files.push(...generateControllers(tables, relationships, queries, config, root));
+  files.push(...generateControllers(tables, cleanRelationships, queries, config, root));
 
   // Docs
   files.push({ name: 'README.md', path: `${root}/README.md`, content: `# ${config.projectName}\n\nGenerated .NET API`, language: 'markdown' });
