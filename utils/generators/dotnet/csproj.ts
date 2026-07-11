@@ -47,6 +47,7 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
     <TargetFramework>${targetFramework}</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);NU1901;NU1902;NU1903;NU1904</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

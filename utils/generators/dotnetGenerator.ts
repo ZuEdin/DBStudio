@@ -122,7 +122,7 @@ namespace ${config.projectName}.Services
           name: 'TenantMiddleware.cs',
           path: `${root}/Middleware/TenantMiddleware.cs`,
           content: `using ${config.projectName}.Services;
-namespace ${config.projectName}
+namespace ${config.projectName}.Middleware
 {
     public class TenantMiddleware
     {

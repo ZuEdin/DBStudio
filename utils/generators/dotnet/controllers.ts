@@ -138,11 +138,23 @@ namespace ${config.projectName}.Controllers
       };
       
       let onCreateAudit = '';
-      if (auditFields.createdBy) onCreateAudit += `                item.${toPascalCase(auditFields.createdBy.name)} = _currentUser.Username ?? "System";\n`;
+      if (auditFields.createdBy) {
+          if (auditFields.createdBy.type === 'VARCHAR' || auditFields.createdBy.type === 'TEXT') {
+              onCreateAudit += `                item.${toPascalCase(auditFields.createdBy.name)} = _currentUser.Username ?? "System";\n`;
+          } else if (auditFields.createdBy.type === 'INTEGER' || auditFields.createdBy.type === 'TINYINT') {
+              onCreateAudit += `                if (int.TryParse(_currentUser.UserId, out var parsedCreatedBy)) item.${toPascalCase(auditFields.createdBy.name)} = parsedCreatedBy;\n`;
+          }
+      }
       if (auditFields.createdDate) onCreateAudit += `                item.${toPascalCase(auditFields.createdDate.name)} = DateTime.Now;\n`;
       
       let onUpdateAudit = '';
-      if (auditFields.modifiedBy) onUpdateAudit += `            existing.${toPascalCase(auditFields.modifiedBy.name)} = _currentUser.Username ?? "System";\n`;
+      if (auditFields.modifiedBy) {
+          if (auditFields.modifiedBy.type === 'VARCHAR' || auditFields.modifiedBy.type === 'TEXT') {
+              onUpdateAudit += `            existing.${toPascalCase(auditFields.modifiedBy.name)} = _currentUser.Username ?? "System";\n`;
+          } else if (auditFields.modifiedBy.type === 'INTEGER' || auditFields.modifiedBy.type === 'TINYINT') {
+              onUpdateAudit += `            if (int.TryParse(_currentUser.UserId, out var parsedModifiedBy)) existing.${toPascalCase(auditFields.modifiedBy.name)} = parsedModifiedBy;\n`;
+          }
+      }
       if (auditFields.modifiedDate) onUpdateAudit += `            existing.${toPascalCase(auditFields.modifiedDate.name)} = DateTime.Now;\n`;
 
       // Fallback logic for status fields to default to 1 if 0 (e.g. SQLite Status field)
@@ -184,10 +196,18 @@ namespace ${config.projectName}.Controllers
               } else if (f.type === 'BOOLEAN') {
                   const boolVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
                   if (boolVal) {
-                      defaultValuesLogic += `            if (!item.${fieldPascal})
+                      const nullable = f.allowNull === true;
+                      if (nullable) {
+                          defaultValuesLogic += `            if (item.${fieldPascal} == null || item.${fieldPascal} == false)
             {
                 item.${fieldPascal} = true;
             }\n`;
+                      } else {
+                          defaultValuesLogic += `            if (!item.${fieldPascal})
+            {
+                item.${fieldPascal} = true;
+            }\n`;
+                      }
                   }
               } else if (['VARCHAR', 'TEXT', 'EMAIL', 'PHONE', 'URL'].includes(f.type)) {
                   defaultValuesLogic += `            if (string.IsNullOrEmpty(item.${fieldPascal}))

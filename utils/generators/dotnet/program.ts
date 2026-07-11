@@ -86,7 +86,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ${config.projectName}.Data;
 ${namespaces}
-${config.multiTenancy?.enabled ? `using ${config.projectName}.Services;` : ''}`;
+${config.multiTenancy?.enabled ? `using ${config.projectName}.Services;\nusing ${config.projectName}.Middleware;` : ''}`;
 
   const uniqueNamespaces = Array.from(new Set(contentRawNamespaces.split('\n').map(l => l.trim()).filter(l => l.startsWith('using')))).join('\n');
 
