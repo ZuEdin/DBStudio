@@ -1,6 +1,6 @@
 
 import { Table, VirtualFile, BackendConfig, Query, SelectQuery, Relationship, Form } from '../../types/index';
-import { toCamelCase, toPascalCase, isNullable, resolveType } from './common';
+import { toCamelCase, toPascalCase, isNullable, resolveType, toKebabCase } from './common';
 
 const generateVueTemplateForLayout = (element: any, tables: Table[]): string => {
     if (!element) return '';
@@ -36,7 +36,16 @@ const generateVueTemplateForLayout = (element: any, tables: Table[]): string => 
     return '';
 };
 
-export const generateVue = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, forms: Form[] = []): VirtualFile[] => {
+export const generateVue = (
+  tables: Table[], 
+  relationships: Relationship[], 
+  queries: Query[], 
+  config: BackendConfig, 
+  forms: Form[] = [],
+  reports: any[] = [],
+  pages: any[] = [],
+  customComponents: any[] = []
+): VirtualFile[] => {
   const files: VirtualFile[] = [];
   const root = `Frontend`;
   const useAuth = config.authConfig?.useUserLogin;
@@ -106,6 +115,11 @@ export const generateVue = (tables: Table[], relationships: Relationship[], quer
       ...forms.map(f => {
           const p = toPascalCase(f.name);
           return `{ path: '/forms/${p.toLowerCase()}/:id', component: () => import('@/views/forms/${p}.vue') }`;
+      }),
+      ...pages.map(p => {
+          const kebab = toKebabCase(p.name);
+          const pascal = toPascalCase(p.name);
+          return `{ path: '/custom/${kebab}', component: () => import('@/views/custom/${pascal}.vue') }`;
       })
   ];
 
@@ -283,6 +297,458 @@ const save = async () => { if(isNew) await post('${c}', data.value); else await 
           });
       }
   });
+
+  const generateVueNode = (node: any, states: string[], methods: string[], onMountedCalls: string[]): string => {
+      if (!node) return '';
+      
+      const suffix = node.id?.replace(/-/g, '_') || Math.random().toString(36).substring(7);
+      let classNameStr = node.props?.className || '';
+      let styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
+      
+      switch (node.type) {
+          case 'container': {
+              const childrenStr = (node.children || []).map((c: any) => generateVueNode(c, states, methods, onMountedCalls)).join('\n');
+              const defaultClass = isBootstrap ? 'p-3 border rounded bg-white' : 'p-4 border border-slate-200 rounded-xl bg-white shadow-sm';
+              return `<div class="${classNameStr || defaultClass}" ${styleAttr}>\n${childrenStr}\n</div>`;
+          }
+          case 'text': {
+              const defaultClass = isBootstrap ? 'text-break' : 'break-words text-slate-700';
+              return `<div class="${defaultClass} ${classNameStr}" ${styleAttr}>${node.props?.text || ''}</div>`;
+          }
+          case 'button': {
+              const defaultClass = isBootstrap ? 'btn btn-primary' : 'px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-xs';
+              return `<button class="${defaultClass} ${classNameStr}" ${styleAttr}>${node.props?.label || 'Button'}</button>`;
+          }
+          case 'divider': {
+              const defaultClass = isBootstrap ? 'my-4' : 'border-slate-200 my-4';
+              return `<hr class="${defaultClass} ${classNameStr}" ${styleAttr} />`;
+          }
+          case 'image': {
+              return `<img referrerPolicy="no-referrer" src="${node.props?.src || ''}" class="max-w-full h-auto rounded ${classNameStr}" ${styleAttr} alt="${node.props?.alt || ''}" />`;
+          }
+          case 'html': {
+              return `<div v-html="'${(node.props?.html || '').replace(/'/g, "\\'")}'" class="${classNameStr}" ${styleAttr}></div>`;
+          }
+          case 'dropdown': {
+              const stateName = `dropdownData_${suffix}`;
+              const loadingState = `dropdownLoading_${suffix}`;
+              states.push(`const ${stateName} = ref<any[]>([]);`);
+              states.push(`const ${loadingState} = ref(false);`);
+              
+              let fetchUrl = '';
+              if (node.props?.queryId) {
+                  const qObj = queries.find(q => q.id === node.props.queryId);
+                  if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+              } else if (node.props?.dataSourceId) {
+                  const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                  if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+              }
+              
+              if (fetchUrl) {
+                  onMountedCalls.push(`loadDropdown_${suffix}();`);
+                  methods.push(`
+const loadDropdown_${suffix} = async () => {
+  ${loadingState}.value = true;
+  try {
+    const res = await get('${fetchUrl}');
+    ${stateName}.value = res.data || res || [];
+  } catch (err) {
+    console.error(err);
+  } finally {
+    ${loadingState}.value = false;
+  }
+};`);
+              }
+              
+              const valueField = toCamelCase(node.props?.valueField || 'id');
+              const labelField = toCamelCase(node.props?.labelField || 'name');
+              
+              return `
+              <div class="mb-4 text-left">
+                  <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">${node.props?.label || 'Auswahl'}</label>
+                  <select class="w-full max-w-xs border border-slate-200 rounded-lg p-2.5 bg-white text-sm shadow-xs">
+                      <option value="">${node.props?.placeholder || '-- Bitte wählen --'}</option>
+                      <option v-if="${loadingState}" disabled>Lade Daten...</option>
+                      <option v-else v-for="row in ${stateName}" :key="row.${valueField} || row.id" :value="row.${valueField} || row.id">
+                          {{ row.${labelField} || row.name || row }}
+                      </option>
+                  </select>
+              </div>`;
+          }
+          case 'custom_component': {
+              const comp = (customComponents || []).find(c => c.id === node.props?.customComponentId);
+              if (!comp) {
+                  return `<div class="p-3 bg-yellow-50 text-yellow-800 text-center border border-yellow-200 rounded-xl text-sm font-medium">Custom Component nicht verknüpft oder nicht gefunden</div>`;
+              }
+              
+              const conf = comp.configuration || {};
+              const stateName = `compData_${suffix}`;
+              const loadingState = `compLoading_${suffix}`;
+              
+              const dsType = conf.dataSourceType || (conf.tableId ? 'table' : '');
+              const dsId = conf.dataSourceId || conf.tableId;
+              let fetchUrl = '';
+              if (dsType === 'table' && dsId) {
+                  const tObj = tables.find(t => t.id === dsId);
+                  if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+              } else if (dsType === 'query' && dsId) {
+                  const qObj = queries.find(q => q.id === dsId);
+                  if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+              }
+              
+              if (fetchUrl) {
+                  states.push(`const ${stateName} = ref<any[]>([]);`);
+                  states.push(`const ${loadingState} = ref(false);`);
+                  onMountedCalls.push(`loadComp_${suffix}();`);
+                  methods.push(`
+const loadComp_${suffix} = async () => {
+  ${loadingState}.value = true;
+  try {
+    const res = await get('${fetchUrl}');
+    ${stateName}.value = res.data || res || [];
+  } catch (err) {
+    console.error(err);
+  } finally {
+    ${loadingState}.value = false;
+  }
+};`);
+              }
+              
+              if (comp.type === 'table_view') {
+                  const searchState = `search_${suffix}`;
+                  states.push(`const ${searchState} = ref('');`);
+                  
+                  const cols = conf.columns || [];
+                  let tableHeaderHtml = '';
+                  let tableBodyHtml = '';
+                  if (cols.length > 0) {
+                      tableHeaderHtml = cols.map((col: any) => `<th class="p-4 font-bold text-sm text-slate-600">${col.title || col.field}</th>`).join('');
+                      tableBodyHtml = cols.map((col: any) => `<td class="p-4 text-sm text-slate-700">{{row['${col.field}']}}</td>`).join('');
+                  } else {
+                      tableHeaderHtml = `<th class="p-4 font-bold text-sm text-slate-600">Daten</th>`;
+                      tableBodyHtml = `<td class="p-4 text-sm text-slate-700">{{row}}</td>`;
+                  }
+                  
+                  return `
+                  <div class="mb-6 text-left">
+                      <div class="flex justify-between items-center mb-4">
+                          <h4 class="text-lg font-bold text-slate-800">${conf.title || comp.name}</h4>
+                          <input v-if="${conf.enableSearch ? 'true' : 'false'}" type="text" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm max-w-xs focus:ring-2 focus:ring-blue-500 outline-hidden shadow-xs" placeholder="Suchen..." v-model="${searchState}" />
+                      </div>
+                      <div v-if="${loadingState}" class="text-center py-6 text-sm text-slate-500">Lade Daten...</div>
+                      <div v-else-if="${stateName}.length === 0" class="text-slate-400 text-center py-6 text-sm border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">Keine Daten vorhanden.</div>
+                      <div v-else class="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
+                          <table class="w-full text-left border-collapse bg-white">
+                              <thead class="bg-slate-50 border-b border-slate-200">
+                                  <tr>
+                                      ${tableHeaderHtml}
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  <tr v-for="row in ${stateName}" :key="row.id || Math.random()" class="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                      ${tableBodyHtml}
+                                  </tr>
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>`;
+              }
+              
+              if (comp.type === 'form_view') {
+                  const formObj = forms.find(f => f.id === conf.formId);
+                  const tbl = formObj ? tables.find(t => t.id === formObj.sourceId) : null;
+                  if (tbl) {
+                      const tblCamel = toCamelCase(tbl.name);
+                      const fieldsToRender = tbl.fields.filter(f => !f.isPrimaryKey);
+                      const formDataState = `formData_${suffix}`;
+                      states.push(`const ${formDataState} = ref<Record<string, any>>({});`);
+                      
+                      methods.push(`
+const submitForm_${suffix} = async () => {
+  try {
+    await post('${tblCamel}', ${formDataState}.value);
+    alert('Erfolgreich gespeichert!');
+    ${formDataState}.value = {};
+  } catch (err) {
+    console.error(err);
+    alert('Fehler beim Speichern.');
+  }
+};`);
+                      
+                      return `
+                      <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6 text-left">
+                          <h4 v-if="!${conf.hideHeader ? 'true' : 'false'}" class="text-lg font-bold text-slate-800 mb-4">${formObj?.name || comp.name}</h4>
+                          <form @submit.prevent="submitForm_${suffix}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              ${fieldsToRender.map(f => {
+                                  const fCamel = toCamelCase(f.name);
+                                  return `
+                                  <div class="flex flex-col gap-1">
+                                      <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">${f.name}</label>
+                                      <input type="text" class="border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-hidden bg-white shadow-xs" v-model="${formDataState}['${fCamel}']" />
+                                  </div>`;
+                              }).join('\n')}
+                              <div v-if="!${conf.hideActions ? 'true' : 'false'}" class="col-span-1 md:col-span-2 flex justify-end mt-4">
+                                  <button class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors shadow-xs">Speichern</button>
+                              </div>
+                          </form>
+                      </div>`;
+                  } else {
+                      return `<div class="p-4 text-slate-400 text-center text-sm border border-slate-200 rounded-xl">Formular-Datenquelle nicht gefunden</div>`;
+                  }
+              }
+              
+              if (comp.type === 'text') {
+                  const escapedText = (conf.text || '').replace(/'/g, "\\'");
+                  return `<div class="text-slate-700 text-sm py-2 text-left">${escapedText}</div>`;
+              }
+              
+              if (comp.type === 'button') {
+                  return `<button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-xs m-1">${conf.label || 'Aktions-Button'}</button>`;
+              }
+              
+              if (comp.type === 'dropdown') {
+                  const valF = toCamelCase(conf.valueField || 'id');
+                  const dspF = toCamelCase(conf.displayField || 'name');
+                  return `
+                  <div class="mb-4 text-left">
+                      <label v-if="'${conf.label || ''}'" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">${conf.label}</label>
+                      <select class="border border-slate-200 rounded-lg p-2.5 bg-white text-sm max-w-xs w-full shadow-xs">
+                          <option value="">${conf.placeholder || '-- Bitte wählen --'}</option>
+                          <option v-if="${loadingState}" disabled>Lade Daten...</option>
+                          <option v-else v-for="row in ${stateName}" :key="row.${valF} || row.id" :value="row.${valF} || row.id">
+                              {{ row.${dspF} || row.name || row }}
+                          </option>
+                      </select>
+                  </div>`;
+              }
+              
+              if (comp.type === 'metric_card') {
+                  return `
+                  <div class="bg-slate-50 border border-slate-200 p-6 rounded-xl text-left max-w-xs shadow-xs mb-4">
+                      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">${conf.title || 'Kennzahl'}</div>
+                      <div class="text-3xl font-extrabold text-slate-800 mb-1">${conf.prefix || ''}12.345${conf.suffix || ''}</div>
+                      <div class="text-xs text-slate-400 font-medium">${conf.subtext || 'Auswertung geladen'}</div>
+                  </div>`;
+              }
+              
+              if (comp.type === 'kanban_board') {
+                  return `
+                  <div class="mb-6 text-left">
+                      <h4 class="text-base font-bold text-slate-800 mb-3">${conf.title || 'Kanban-Board'}</h4>
+                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                              <div class="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-3">Neu</div>
+                              <div class="bg-white p-3 border border-slate-100 rounded-lg shadow-xs mb-2 text-sm font-medium text-slate-700">Beispiel Task 1</div>
+                              <div class="bg-white p-3 border border-slate-100 rounded-lg shadow-xs text-sm font-medium text-slate-700">Beispiel Task 2</div>
+                          </div>
+                      </div>
+                  </div>`;
+              }
+              
+              return `<div class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 text-center text-sm">[Custom Component \${comp.name} geladen]</div>`;
+          }
+          default:
+              return `<div class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 text-xs">\${node.type} Component</div>`;
+      }
+  };
+
+  // Custom Pages
+  pages.forEach(p => {
+      const pascal = toPascalCase(p.name);
+      const kebab = toKebabCase(p.name);
+      
+      const states: string[] = [];
+      const methods: string[] = [];
+      const onMountedCalls: string[] = [];
+      
+      const layoutHtml = generateVueNode(p.layout, states, methods, onMountedCalls);
+      
+      const content = `<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { get, post, put, remove } from '@/services/api';
+
+${states.join('\n')}
+
+onMounted(() => {
+  ${onMountedCalls.join('\n  ')}
+});
+
+${methods.join('\n')}
+</script>
+
+<template>
+  <div class="p-8">
+      <div class="mb-6 flex justify-between items-center text-left">
+          <h1 class="text-3xl font-bold text-slate-800">${p.name}</h1>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          ${layoutHtml}
+      </div>
+  </div>
+</template>`;
+
+      files.push({ name: `${pascal}.vue`, path: `${root}/src/views/custom/${pascal}.vue`, content, language: 'html' });
+  });
+
+  // HomeView
+  files.push({
+      name: 'HomeView.vue', path: `${root}/src/views/HomeView.vue`,
+      content: `<script setup lang="ts">
+import { Home } from 'lucide-vue-next';
+</script>
+<template>
+  <div class="p-8 text-left max-w-4xl">
+      <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg mb-8">
+          <h1 class="text-3xl font-bold mb-2">Willkommen bei \${wl.appName}</h1>
+          <p class="text-blue-100 font-medium">Verwalten Sie Ihre Tabellen, benutzerdefinierten Formulare und Seiten direkt über das linke Navigationsmenü.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+              <h2 class="text-lg font-bold text-slate-800 mb-2">Schnellstart</h2>
+              <p class="text-slate-600 text-sm mb-4">Navigieren Sie durch die verschiedenen Daten-Entitäten und erstellen Sie mühelos neue Einträge.</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+              <h2 class="text-lg font-bold text-slate-800 mb-2">Whitelabeling</h2>
+              <p class="text-slate-600 text-sm mb-4">Dieses Frontend wurde vollständig unter dem Namen <strong>\${wl.appName}</strong> und im Design Ihrer Corporate Identity erstellt.</p>
+          </div>
+      </div>
+  </div>
+</template>`,
+      language: 'html'
+  });
+
+  // App.vue (unified Layout & elegant Sidebar)
+  const appVueContent = `<script setup lang="ts">
+import { ref } from 'vue';
+import { 
+  Database, 
+  ChevronRight, 
+  Menu, 
+  User, 
+  Settings, 
+  Layers, 
+  FileText, 
+  BarChart, 
+  Home 
+} from 'lucide-vue-next';
+
+const isCollapsed = ref(false);
+const wl = ref({ appName: '${wl.appName}' });
+</script>
+
+<template>
+  <div class="min-h-screen flex bg-slate-50 font-sans text-slate-800">
+      <!-- Sidebar -->
+      <aside 
+          :class="[
+              'bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col transition-all duration-300',
+              isCollapsed ? 'w-16' : 'w-64'
+          ]"
+      >
+          <!-- Sidebar Header -->
+          <div class="h-16 flex items-center justify-between px-4 border-b border-slate-800 bg-slate-950/40">
+              <span v-if="!isCollapsed" class="font-bold text-lg text-white tracking-tight truncate">${wl.appName}</span>
+              <span v-else class="font-bold text-lg text-white tracking-tight mx-auto">${wl.appName.charAt(0)}</span>
+              <button @click="isCollapsed = !isCollapsed" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white hidden md:block">
+                  <Menu size="18" />
+              </button>
+          </div>
+
+          <!-- Sidebar Navigation -->
+          <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+              <router-link to="/" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all font-medium text-sm" active-class="bg-blue-600 text-white hover:bg-blue-600!">
+                  <Home size="18" />
+                  <span v-if="!isCollapsed">Übersicht</span>
+              </router-link>
+
+              <!-- Tables Section -->
+              <div v-if="!isCollapsed" class="px-3 pt-4 pb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tabellen</div>
+              ${tables.map(t => {
+                  const c = toCamelCase(t.name);
+                  return `
+              <router-link to="/${c}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all font-medium text-sm" active-class="bg-blue-600 text-white hover:bg-blue-600!">
+                  <Database size="18" />
+                  <span v-if="!isCollapsed">${t.name}</span>
+              </router-link>`;
+              }).join('\n')}
+
+              <!-- Custom Forms Section -->
+              <div v-if="${forms.length > 0 ? 'true' : 'false'} && !isCollapsed" class="px-3 pt-4 pb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Formulare</div>
+              ${forms.map(f => {
+                  return `
+              <router-link to="/forms/${f.name.toLowerCase()}/new" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all font-medium text-sm" active-class="bg-blue-600 text-white hover:bg-blue-600!">
+                  <Layers size="18" />
+                  <span v-if="!isCollapsed">${f.name}</span>
+              </router-link>`;
+              }).join('\n')}
+
+              <!-- Custom Pages Section -->
+              <div v-if="${pages.length > 0 ? 'true' : 'false'} && !isCollapsed" class="px-3 pt-4 pb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider font-bold">Seiten</div>
+              ${pages.map(p => {
+                  const kebab = toKebabCase(p.name);
+                  return `
+              <router-link to="/custom/${kebab}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all font-medium text-sm" active-class="bg-blue-600 text-white hover:bg-blue-600!">
+                  <FileText size="18" />
+                  <span v-if="!isCollapsed">${p.name}</span>
+              </router-link>`;
+              }).join('\n')}
+          </nav>
+
+          <!-- Sidebar Footer -->
+          <div class="p-4 border-t border-slate-800 flex items-center gap-3 bg-slate-950/20" v-if="!isCollapsed">
+              <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-sm">
+                  U
+              </div>
+              <div class="truncate text-left flex-1">
+                  <p class="text-sm font-bold text-white truncate">Administrator</p>
+                  <p class="text-xs text-slate-500 truncate font-mono">admin@system.local</p>
+              </div>
+          </div>
+      </aside>
+
+      <!-- Main Layout -->
+      <div class="flex-1 flex flex-col min-h-screen overflow-hidden">
+          <!-- Main Header -->
+          <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-xs">
+              <div class="flex items-center gap-2">
+                  <h2 class="text-sm font-semibold text-slate-500">System Dashboard</h2>
+                  <ChevronRight size="14" class="text-slate-400" />
+                  <span class="text-sm font-bold text-slate-800">{{ $route.path === '/' ? 'Übersicht' : $route.path.split('/').pop() }}</span>
+              </div>
+              <div class="flex items-center gap-4">
+                  <button class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors">
+                      <Settings size="18" />
+                  </button>
+              </div>
+          </header>
+
+          <!-- Content Canvas -->
+          <main class="flex-1 overflow-y-auto bg-slate-50">
+              <router-view />
+          </main>
+      </div>
+  </div>
+</template>
+
+<style>
+/* Reset scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+</style>`;
+
+  files.push({ name: 'App.vue', path: `${root}/src/App.vue`, content: appVueContent, language: 'html' });
 
   // Base files (Sidebar, App, style)
   files.push({ name: 'main.ts', path: `${root}/src/main.ts`, content: `import { createApp } from 'vue';\nimport './style.css';\nimport App from './App.vue';\nimport router from './router';\n\ncreateApp(App).use(router).mount('#app');`, language: 'typescript' });

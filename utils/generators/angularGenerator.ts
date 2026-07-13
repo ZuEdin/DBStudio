@@ -6,14 +6,23 @@ import { generateAngularComponents } from './angular/components';
 import { generateAngularStructure } from './angular/structure';
 import { toPascalCase, toKebabCase, toCamelCase } from './common';
 
-export const generateAngular = (tables: Table[], relationships: Relationship[], queries: Query[], forms: Form[], config: BackendConfig, reports: Report[] = [], pages: CustomPage[] = []): VirtualFile[] => {
+export const generateAngular = (
+  tables: Table[], 
+  relationships: Relationship[], 
+  queries: Query[], 
+  forms: Form[], 
+  config: BackendConfig, 
+  reports: Report[] = [], 
+  pages: CustomPage[] = [],
+  customComponents: any[] = []
+): VirtualFile[] => {
   const root = `Frontend`;
   const appRoot = `${root}/src/app`;
   const useAuth = config.authConfig?.useUserLogin;
   
   // Generate component files and get route definitions
   // Refactored to unified generation logic in components.ts
-  const { files: componentFiles, routes: routeObjects } = generateAngularComponents(tables, relationships, forms, reports, config, appRoot, queries, pages);
+  const { files: componentFiles, routes: routeObjects } = generateAngularComponents(tables, relationships, forms, reports, config, appRoot, queries, pages, customComponents);
 
   // Generate app.routes.ts
   let routeImports = [...new Set(routeObjects.map(r => `import { ${r.component} } from './pages/${r.folder}/${r.file}';`))].join('\n');

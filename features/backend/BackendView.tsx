@@ -7,6 +7,7 @@ import { generateBackendCode } from '../../utils/backendGenerators';
 import { generateDeploymentScripts } from '../../utils/generators/deploymentGenerator';
 import JSZip from 'jszip';
 import { GitPushModal } from '../versioning/GitPushModal';
+import { useProjectStore } from '../../stores/useProjectStore';
 
 interface BackendViewProps {
   tables: Table[];
@@ -148,6 +149,8 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
   
+  const { customComponents = [] } = useProjectStore();
+  
   // Modals (Local only for Git Push, others are global via Ribbon)
   const [showGitModal, setShowGitModal] = useState(false);
   
@@ -159,7 +162,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
 
   useEffect(() => {
     handleGenerate();
-  }, [generateTrigger, tables, relationships, queries, localConfig]); 
+  }, [generateTrigger, tables, relationships, queries, localConfig, customComponents]); 
 
   useEffect(() => {
       if(exportTrigger > 0) {
@@ -173,7 +176,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
 
   const handleGenerate = () => {
     try {
-        let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages);
+        let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents);
         
         if (localConfig.deploymentConfig) {
             const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);

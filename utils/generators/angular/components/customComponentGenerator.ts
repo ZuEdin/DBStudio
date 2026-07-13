@@ -14,7 +14,8 @@ export const generateCustomPageComponents = (
   queries: Query[],
   forms: Form[],
   appRoot: string,
-  isBootstrap: boolean = false
+  isBootstrap: boolean = false,
+  customComponents: any[] = []
 ): { files: VirtualFile[]; routes: RouteInfo[] } => {
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
@@ -623,6 +624,186 @@ export const generateCustomPageComponents = (
                           </div>
                       </div>`;
                   }
+              }
+              case 'custom_component': {
+                  const comp = (customComponents || []).find(c => c.id === node.props?.customComponentId);
+                  if (!comp) {
+                      return `<div class="p-3 bg-warning text-dark text-center border rounded">Custom Component nicht verknüpft oder nicht gefunden</div>`;
+                  }
+                  
+                  const conf = comp.configuration || {};
+                  const suffix = node.id.replace(/-/g, '_');
+                  const stateName = `compData_${suffix}`;
+                  const loadingState = `compLoading_${suffix}`;
+                  
+                  const dsType = conf.dataSourceType || (conf.tableId ? 'table' : '');
+                  const dsId = conf.dataSourceId || conf.tableId;
+                  let fetchUrl = '';
+                  if (dsType === 'table' && dsId) {
+                      const tObj = tables.find(t => t.id === dsId);
+                      if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+                  } else if (dsType === 'query' && dsId) {
+                      const qObj = queries.find(q => q.id === dsId);
+                      if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                  }
+                  
+                  if (fetchUrl) {
+                      states.push(`${stateName}: any[] = [];`);
+                      states.push(`${loadingState} = false;`);
+                      initCalls.push(`this.loadComp_${suffix}();`);
+                      methods.push(`
+  loadComp_${suffix}() {
+    this.${loadingState} = true;
+    this.api.getAll('${fetchUrl}', 1, ${conf.pageSize || 10000}).subscribe({
+      next: (res: any) => {
+        this.${stateName} = res.data || res || [];
+        this.${loadingState} = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.${loadingState} = false;
+      }
+    });
+  }`);
+                  }
+                  
+                  if (comp.type === 'table_view') {
+                      const searchState = `search_${suffix}`;
+                      states.push(`${searchState} = '';`);
+                      
+                      const cols = conf.columns || [];
+                      let tableHeaderHtml = '';
+                      let tableBodyHtml = '';
+                      if (cols.length > 0) {
+                          tableHeaderHtml = cols.map((col: any) => `<th class="p-3">${col.title || col.field}</th>`).join('');
+                          tableBodyHtml = cols.map((col: any) => `<td class="p-3">{{row['${col.field}']}}</td>`).join('');
+                      } else {
+                          tableHeaderHtml = `<th class="p-3">Daten</th>`;
+                          tableBodyHtml = `<td class="p-3">{{row | json}}</td>`;
+                      }
+                      
+                      return `
+                      <div class="mb-4">
+                          <div class="d-flex justify-content-between align-items-center mb-3">
+                              <h4 class="h5 mb-0">${conf.title || comp.name}</h4>
+                              ${conf.enableSearch ? `
+                              <input type="text" class="form-control form-control-sm max-w-xs" style="max-width:200px;" placeholder="Suchen..." [(ngModel)]="${searchState}">` : ''}
+                          </div>
+                          <div *ngIf="${loadingState}" class="text-center py-4">Lade Daten...</div>
+                          <div *ngIf="!${loadingState} && ${stateName}.length === 0" class="text-muted text-center py-4">Keine Daten vorhanden.</div>
+                          <div *ngIf="!${loadingState} && ${stateName}.length > 0" class="table-responsive border rounded bg-white">
+                              <table class="table table-hover mb-0 align-middle">
+                                  <thead class="table-light">
+                                      <tr>
+                                          ${tableHeaderHtml}
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <tr *ngFor="let row of ${stateName}">
+                                          ${tableBodyHtml}
+                                      </tr>
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>`;
+                  }
+                  
+                  if (comp.type === 'form_view') {
+                      const formObj = forms.find(f => f.id === conf.formId);
+                      const tbl = formObj ? tables.find(t => t.id === formObj.sourceId) : null;
+                      if (tbl) {
+                          const tblCamel = toCamelCase(tbl.name);
+                          const fieldsToRender = tbl.fields.filter(f => !f.isPrimaryKey);
+                          const formDataState = `formData_${suffix}`;
+                          states.push(`${formDataState}: Record<string, any> = {};`);
+                          
+                          methods.push(`
+  submitForm_${suffix}() {
+    this.api.create('${tblCamel}', this.${formDataState}).subscribe({
+      next: () => {
+        alert('Erfolgreich gespeichert!');
+        this.${formDataState} = {};
+      },
+      error: (err) => {
+        console.error(err);
+        alert('Fehler beim Speichern.');
+      }
+    });
+  }`);
+                          
+                          return `
+                          <div class="card p-4 mb-4 bg-white shadow-xs border">
+                              <h4 *ngIf="!${conf.hideHeader ? 'true' : 'false'}" class="h5 mb-3">${formObj?.name || comp.name}</h4>
+                              <form (ngSubmit)="submitForm_${suffix}()" class="row g-3">
+                                  ${fieldsToRender.map(f => {
+                                      const fCamel = toCamelCase(f.name);
+                                      return `
+                                      <div class="col-md-6 text-start">
+                                          <label class="form-label text-muted small uppercase fw-bold">${f.name}</label>
+                                          <input type="text" class="form-control" [(ngModel)]="${formDataState}['${fCamel}']" name="${fCamel}_${suffix}">
+                                      </div>`;
+                                  }).join('\n')}
+                                  <div *ngIf="!${conf.hideActions ? 'true' : 'false'}" class="col-12 d-flex justify-content-end mt-3">
+                                      <button type="submit" class="btn btn-primary">Speichern</button>
+                                  </div>
+                              </form>
+                          </div>`;
+                      } else {
+                          return `<div class="p-3 text-muted text-center border rounded">Formular-Datenquelle nicht gefunden</div>`;
+                      }
+                  }
+                  
+                  if (comp.type === 'text') {
+                      const escapedText = (conf.text || '').replace(/'/g, "\\'");
+                      return `<div class="w-full text-start p-2 text-dark">${escapedText}</div>`;
+                  }
+                  
+                  if (comp.type === 'button') {
+                      return `<button class="btn btn-primary m-2">${conf.label || 'Aktions-Button'}</button>`;
+                  }
+                  
+                  if (comp.type === 'dropdown') {
+                      const valF = toCamelCase(conf.valueField || 'id');
+                      const dspF = toCamelCase(conf.displayField || 'name');
+                      return `
+                      <div class="mb-3 text-start">
+                          <label *ngIf="'${conf.label || ''}'" class="form-label text-muted small uppercase fw-bold">${conf.label}</label>
+                          <select class="form-select max-w-xs" style="max-width: 250px;">
+                              <option value="">${conf.placeholder || '-- Bitte wählen --'}</option>
+                              <option *ngIf="${loadingState}" disabled>Lade Daten...</option>
+                              <ng-container *ngIf="!${loadingState}">
+                                  <option *ngFor="let row of ${stateName}" [value]="row['${valF}'] || row.id">{{row['${dspF}'] || row.name}}</option>
+                              </ng-container>
+                          </select>
+                      </div>`;
+                  }
+                  
+                  if (comp.type === 'metric_card') {
+                      return `
+                      <div class="card p-4 border text-start bg-light mb-4" style="max-width: 320px;">
+                          <div class="text-muted text-uppercase small fw-bold">${conf.title || 'Kennzahl'}</div>
+                          <div class="h2 mb-1 text-dark">${conf.prefix || ''}12.345${conf.suffix || ''}</div>
+                          <div class="text-muted small">${conf.subtext || 'Auswertung geladen'}</div>
+                      </div>`;
+                  }
+                  
+                  if (comp.type === 'kanban_board') {
+                      return `
+                      <div class="mb-4">
+                          <h4 class="h6 mb-3">${conf.title || 'Kanban-Board'}</h4>
+                          <div class="row g-3">
+                              <div class="col-md-4">
+                                  <div class="card p-3 bg-light border">
+                                      <div class="fw-bold text-secondary mb-2">Neu</div>
+                                      <div class="bg-white p-2 border rounded shadow-sm mb-2">Beispiel Task 1</div>
+                                      <div class="bg-white p-2 border rounded shadow-sm">Beispiel Task 2</div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>`;
+                  }
+                  
+                  return `<div class="p-3 bg-light border rounded text-secondary text-center small">[Custom Component \${comp.name} geladen]</div>`;
               }
               default:
                   return `<div class="p-3 bg-light border rounded text-secondary small">${node.type} Component</div>`;

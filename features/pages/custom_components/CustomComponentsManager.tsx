@@ -8,14 +8,20 @@ export const CustomComponentsManager: React.FC = () => {
   const ui = useUIStore();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const [deleteComponentId, setDeleteComponentId] = useState<string | null>(null);
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('Möchten Sie diese Custom Component wirklich löschen?')) {
-      const nextComps = customComponents.filter(c => c.id !== id);
-      setCustomComponents(nextComps);
-      ui.addToast('Komponente erfolgreich gelöscht.', 'success');
-      await saveProject();
-    }
+    setDeleteComponentId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteComponentId) return;
+    const nextComps = customComponents.filter(c => c.id !== deleteComponentId);
+    setCustomComponents(nextComps);
+    ui.addToast('Komponente erfolgreich gelöscht.', 'success');
+    await saveProject();
+    setDeleteComponentId(null);
   };
 
   const handleEdit = (id: string) => {
@@ -136,6 +142,43 @@ export const CustomComponentsManager: React.FC = () => {
           )}
         </div>
       </div>
+
+      {deleteComponentId && (
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm animate-in fade-in-30">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+                <div className="p-2 bg-red-100 dark:bg-red-950/50 rounded-xl">
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Komponente löschen</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                Sind Sie sicher, dass Sie die Custom Component <span className="font-semibold text-slate-800 dark:text-slate-100">"{customComponents.find(c => c.id === deleteComponentId)?.name}"</span> unwiderruflich löschen möchten?
+              </p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-950/50 px-6 py-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button 
+                type="button" 
+                onClick={() => setDeleteComponentId(null)} 
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl transition"
+              >
+                Abbrechen
+              </button>
+              <button 
+                type="button" 
+                onClick={confirmDelete} 
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
+              >
+                Unwiderruflich löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

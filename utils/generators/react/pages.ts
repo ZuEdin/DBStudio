@@ -12,7 +12,8 @@ export const generateReactPages = (
   reports: Report[],
   root: string,
   queries: Query[] = [],
-  pages: CustomPage[] = []
+  pages: CustomPage[] = [],
+  customComponents: any[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -48,7 +49,7 @@ export const generateReactPages = (
 
   // 5. Custom Pages
   pages.forEach(page => {
-    files.push(generateCustomPage(page, tables, queries, forms, root, pages));
+    files.push(generateCustomPage(page, tables, queries, forms, root, pages, customComponents));
   });
 
   return files;

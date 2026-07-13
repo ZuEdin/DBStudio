@@ -2,12 +2,14 @@ import React from 'react';
 import { PageComponentType, SelectQuery } from '../../../types/index';
 import { 
   Square, Columns, Rows, CreditCard, LayoutTemplate, Layers, 
-  Type, MousePointerClick, List, Table2, Layout, Image as ImageIcon 
+  Type, MousePointerClick, List, Table2, Layout, Image as ImageIcon, Plus
 } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
+import { useUIStore } from '../../../stores/useUIStore';
 
 export const ComponentToolbox: React.FC = () => {
   const { queries, tables, customComponents = [] } = useProjectStore();
+  const ui = useUIStore();
 
   const handleDragStart = (e: React.DragEvent, type: PageComponentType) => {
       e.dataTransfer.setData('componentType', type);
@@ -56,35 +58,62 @@ export const ComponentToolbox: React.FC = () => {
          <div draggable onDragStart={(e) => handleDragStart(e, 'image')} className="p-2 border border-slate-200 rounded flex items-center gap-2 cursor-grab hover:bg-slate-50 text-sm text-slate-700 font-medium active:cursor-grabbing">
              <ImageIcon size={16} className="text-purple-500"/> Bild / Medien
          </div>
+         <div draggable onDragStart={(e) => handleDragStart(e, 'custom_component')} className="p-2 border border-emerald-200 rounded flex items-center gap-2 cursor-grab hover:bg-emerald-50 text-sm text-emerald-700 font-semibold active:cursor-grabbing border-emerald-100 bg-emerald-50/20">
+             <Layout size={16} className="text-emerald-600"/> Custom Component
+         </div>
       </div>
 
       {/* Custom Components Registry items */}
-      {customComponents.length > 0 && (
-         <div className="mt-6 pt-4 border-t border-slate-200 shrink-0">
-             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                 <Layout size={12} className="text-emerald-600" /> Custom (SDUI)
-             </h3>
-             <div className="space-y-1.5">
-                 {customComponents.map(comp => (
-                     <div 
-                         key={comp.id}
-                         draggable 
-                         onDragStart={(e) => {
-                             e.dataTransfer.setData('componentType', 'custom_component');
-                             e.dataTransfer.setData('customComponentId', comp.id);
-                             e.dataTransfer.setData('text/plain', 'custom_component');
-                             e.dataTransfer.effectAllowed = 'copy';
-                         }}
-                         className="p-1.5 border border-slate-200 rounded flex items-center justify-between cursor-grab hover:bg-emerald-50 text-[11px] text-slate-700 font-semibold active:cursor-grabbing border-emerald-100 bg-emerald-50/10 transition"
-                         title={`${comp.name}: ${comp.description || ''}`}
-                     >
-                         <span className="truncate max-w-[120px]">{comp.name}</span>
-                         <span className="text-[8px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1 rounded uppercase scale-90">{comp.type.replace('_view', '')}</span>
-                     </div>
-                 ))}
-             </div>
-         </div>
-      )}
+      <div className="mt-6 pt-4 border-t border-slate-200 shrink-0">
+          <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <Layout size={12} className="text-emerald-600" /> Custom (SDUI)
+              </h3>
+              <button 
+                  type="button"
+                  onClick={() => ui.setCurrentView({ type: 'custom_component_designer' })}
+                  className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold flex items-center gap-0.5"
+                  title="Neue Custom Component erstellen"
+              >
+                  <Plus size={10} /> Neu
+              </button>
+          </div>
+          
+          {customComponents.length > 0 ? (
+              <div className="space-y-1.5">
+                  {customComponents.map(comp => (
+                      <div 
+                          key={comp.id}
+                          draggable 
+                          onDragStart={(e) => {
+                              e.dataTransfer.setData('componentType', 'custom_component');
+                              e.dataTransfer.setData('customComponentId', comp.id);
+                              e.dataTransfer.setData('text/plain', 'custom_component');
+                              e.dataTransfer.effectAllowed = 'copy';
+                          }}
+                          className="p-1.5 border border-slate-200 rounded flex items-center justify-between cursor-grab hover:bg-emerald-50 text-[11px] text-slate-700 font-semibold active:cursor-grabbing border-emerald-100 bg-emerald-50/10 transition"
+                          title={`${comp.name}: ${comp.description || ''}`}
+                      >
+                          <span className="truncate max-w-[120px]">{comp.name}</span>
+                          <span className="text-[8px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1 rounded uppercase scale-90">{comp.type.replace('_view', '')}</span>
+                      </div>
+                  ))}
+              </div>
+          ) : (
+              <div className="p-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center space-y-1.5">
+                  <p className="text-[10px] text-slate-400 italic leading-snug">
+                      Noch keine Custom Components vorhanden. Erstellen Sie eine eigene, um sie hier zu nutzen.
+                  </p>
+                  <button
+                      type="button"
+                      onClick={() => ui.setCurrentView({ type: 'custom_component_designer' })}
+                      className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-semibold px-2 py-1 rounded transition"
+                  >
+                      <Plus size={10} /> Erste erstellen
+                  </button>
+              </div>
+          )}
+      </div>
 
       <div className="mt-8 pt-6 border-t border-slate-200">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Datenfelder</h3>

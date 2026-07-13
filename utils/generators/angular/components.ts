@@ -18,7 +18,8 @@ export const generateAngularComponents = (
   config: BackendConfig,
   appRoot: string,
   queries: Query[],
-  pages: any[] = []
+  pages: any[] = [],
+  customComponents: any[] = []
 ): { files: VirtualFile[]; routes: RouteInfo[] } => {
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
@@ -36,7 +37,7 @@ export const generateAngularComponents = (
   routes.push(...reportsRes.routes);
 
   // 3. Custom Pages
-  const pagesRes = generateCustomPageComponents(pages, tables, queries, forms, appRoot, isBootstrap);
+  const pagesRes = generateCustomPageComponents(pages, tables, queries, forms, appRoot, isBootstrap, customComponents);
   files.push(...pagesRes.files);
   routes.push(...pagesRes.routes);
 

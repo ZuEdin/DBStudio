@@ -22,7 +22,8 @@ export const generateBackendCode = (
     config: BackendConfig, 
     forms: Form[] = [], 
     reports: Report[] = [],
-    pages: CustomPage[] = []
+    pages: CustomPage[] = [],
+    customComponents: any[] = []
 ): VirtualFile[] => {
   let files: VirtualFile[] = [];
 
@@ -62,16 +63,16 @@ export const generateBackendCode = (
 
   // 3. Generate Frontend Code
   if (activeConfig.frontendFramework === 'angular') {
-    const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports, pages);
+    const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports, pages, customComponents);
     files = [...files, ...angularFiles];
   } else if (activeConfig.frontendFramework === 'react') {
-    const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages);
+    const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents);
     files = [...files, ...reactFiles];
   } else if (activeConfig.frontendFramework === 'blazor') {
     const blazorFiles = generateBlazor(tables, relationships, queries, activeConfig, forms, reports);
     files = [...files, ...blazorFiles];
   } else if (activeConfig.frontendFramework === 'vue') {
-    const vueFiles = generateVue(tables, relationships, queries, activeConfig);
+    const vueFiles = generateVue(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents);
     files = [...files, ...vueFiles];
   } else if (activeConfig.frontendFramework === 'electron' || activeConfig.language === 'electron') {
     const electronFiles = generateElectron(tables, relationships, queries, activeConfig, forms, reports);
