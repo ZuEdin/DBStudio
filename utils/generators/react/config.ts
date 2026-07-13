@@ -3,7 +3,7 @@ import { VirtualFile, BackendConfig } from '../../../types/index';
 
 export const generateReactConfigs = (config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
-  const fePort = config.frontendPort || 3000;
+  const fePort = config.frontendPort || 5173;
   
   // Build Scripts based on Environments
   const scripts: Record<string, string> = { 

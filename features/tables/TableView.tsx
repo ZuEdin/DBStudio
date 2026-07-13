@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Table, ApiQueryParam, Field, Relationship } from '../../types/index';
-import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink, Layout, List } from 'lucide-react';
+import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink, Layout, List, GripVertical, ArrowUpDown, Shuffle, Settings2, HelpCircle } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
@@ -70,6 +70,104 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   
   // View Mode: List or Kanban
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+
+  // Reordering Drag & Drop State
+  const [pendingReorder, setPendingReorder] = useState<{ srcIdx: number; targetIdx: number } | null>(null);
+  const [selectedSortField, setSelectedSortField] = useState<string>('');
+  const [reorderMethod, setReorderMethod] = useState<'cascade' | 'swap' | 'only_this'>('cascade');
+  const [rememberReorderRule, setRememberReorderRule] = useState(false);
+
+  const handleRowReorder = (srcIdx: number, targetIdx: number) => {
+    if (srcIdx === targetIdx) return;
+    
+    // Check if there is a saved rule in localStorage
+    const savedRuleStr = localStorage.getItem(`table_reorder_rule_${table.id}`);
+    if (savedRuleStr) {
+      try {
+        const rule = JSON.parse(savedRuleStr);
+        if (table.fields.some(f => f.name === rule.field)) {
+          executeReorder(srcIdx, targetIdx, rule.field, rule.method);
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    // Otherwise, open the prompt modal
+    const numericFields = table.fields.filter(f => f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'REAL');
+    const candidate = numericFields.find(f => {
+      const n = f.name.toLowerCase();
+      return n.includes('order') || n.includes('pos') || n.includes('seq') || n.includes('sort') || n.includes('reihenfolge') || n.includes('nr');
+    }) || numericFields[0];
+    
+    setSelectedSortField(candidate ? candidate.name : '');
+    setPendingReorder({ srcIdx, targetIdx });
+  };
+
+  const createNewSortOrderField = () => {
+    const newFieldId = 'f-' + Math.random().toString(36).substring(2, 9);
+    const newField: Field = {
+      id: newFieldId,
+      name: 'SortOrder',
+      type: 'INTEGER',
+      allowNull: true,
+      defaultValue: '1',
+      comment: 'Automatisch generierte Spalte für Zeilenreihenfolge'
+    };
+    
+    const updatedData = rawData.map((row, idx) => ({
+      ...row,
+      SortOrder: idx + 1
+    }));
+    
+    const updatedFields = [...table.fields, newField];
+    onTableChange({
+      ...table,
+      fields: updatedFields,
+      data: updatedData
+    });
+    
+    setSelectedSortField('SortOrder');
+  };
+
+  const executeReorder = (srcIdx: number, targetIdx: number, fieldName: string, method: 'cascade' | 'swap' | 'only_this') => {
+    let updatedData = [...rawData];
+    
+    if (method === 'cascade') {
+      const reordered = [...rawData];
+      const [removed] = reordered.splice(srcIdx, 1);
+      reordered.splice(targetIdx, 0, removed);
+      updatedData = reordered.map((row, idx) => ({
+        ...row,
+        [fieldName]: idx + 1
+      }));
+    } else if (method === 'swap') {
+      const val1 = rawData[srcIdx][fieldName];
+      const val2 = rawData[targetIdx][fieldName];
+      updatedData[srcIdx] = { ...updatedData[srcIdx], [fieldName]: val2 };
+      updatedData[targetIdx] = { ...updatedData[targetIdx], [fieldName]: val1 };
+      
+      const [removed] = updatedData.splice(srcIdx, 1);
+      updatedData.splice(targetIdx, 0, removed);
+    } else {
+      const targetVal = rawData[targetIdx][fieldName];
+      updatedData[srcIdx] = { ...updatedData[srcIdx], [fieldName]: targetVal };
+      
+      const [removed] = updatedData.splice(srcIdx, 1);
+      updatedData.splice(targetIdx, 0, removed);
+    }
+    
+    if (rememberReorderRule) {
+      localStorage.setItem(`table_reorder_rule_${table.id}`, JSON.stringify({
+        field: fieldName,
+        method
+      }));
+    }
+    
+    onTableChange({ ...table, data: updatedData });
+    setPendingReorder(null);
+  };
 
   const queryParams = table.apiConfig?.queryParams || [];
 
@@ -193,7 +291,35 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   };
 
   const renderRow = (row: any, rowIndex: number) => (
-      <div className="flex border-b border-slate-100 hover:bg-sky-50 group h-full items-center text-sm text-slate-700">
+      <div 
+          onDragOver={(e) => {
+              e.preventDefault();
+          }}
+          onDrop={(e) => {
+              e.preventDefault();
+              const srcIdxStr = e.dataTransfer.getData('text/row-index');
+              if (srcIdxStr) {
+                  const srcIdx = parseInt(srcIdxStr, 10);
+                  if (!isNaN(srcIdx)) {
+                      handleRowReorder(srcIdx, rowIndex);
+                  }
+              }
+          }}
+          className="flex border-b border-slate-100 hover:bg-sky-50 group h-full items-center text-sm text-slate-700"
+      >
+          {/* Drag Handle */}
+          <div 
+              draggable
+              onDragStart={(e) => {
+                  e.dataTransfer.setData('text/row-index', String(rowIndex));
+                  e.dataTransfer.effectAllowed = 'move';
+              }}
+              className="w-8 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 border-r border-slate-100 h-full bg-slate-50/50"
+              title="Zeile verschieben (Drag & Drop)"
+          >
+              <GripVertical size={14} />
+          </div>
+
           {headers.map(header => {
             const field = table.fields.find(f => f.name === header);
             const isAutoInc = field?.isAutoIncrement;
@@ -408,7 +534,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
               <KanbanBoard table={table} onUpdateRow={handleDataChange} />
           ) : (
               headers.length > 0 ? (
-                  <VirtualTable data={filteredData} headers={headers} headerTooltips={headerTooltips} renderRow={renderRow} rowHeight={35} />
+                  <VirtualTable data={filteredData} headers={headers} headerTooltips={headerTooltips} renderRow={renderRow} rowHeight={35} enableRowReorder={true} />
               ) : (
                  <div className="p-6 text-center text-slate-500"><p>Die Tabelle "{table.name}" enthält keine Daten.</p></div>
               )
@@ -422,6 +548,175 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
 
       {detailView && targetTable && (
           <RecordDetailModal table={targetTable} recordId={detailView.recordId} onClose={() => setDetailView(null)} />
+      )}
+
+      {pendingReorder && (
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm animate-in fade-in-30">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                  {/* Header */}
+                  <div className="bg-indigo-600 text-white p-5 flex items-center gap-3">
+                      <div className="p-2.5 bg-white/10 rounded-xl">
+                          <ArrowUpDown size={20} className="text-white" />
+                      </div>
+                      <div>
+                          <h3 className="text-base font-bold">Reihenfolge aktualisieren</h3>
+                          <p className="text-xs text-indigo-100 mt-0.5">Zeilen-Verschiebung im Datenblatt</p>
+                      </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-6 space-y-5">
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                          Du hast Zeile <span className="font-bold text-slate-800">#{pendingReorder.srcIdx + 1}</span> an die Position <span className="font-bold text-slate-800">#{pendingReorder.targetIdx + 1}</span> verschoben. Wie soll die Datenbank diesen Positionswechsel abspeichern?
+                      </p>
+
+                      {/* Step 1: Select or Create sorting column */}
+                      <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">1. Sortier-Spalte auswählen</label>
+                          
+                          {table.fields.filter(f => f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'REAL').length === 0 ? (
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 space-y-2">
+                                  <div className="font-semibold flex items-center gap-1.5">
+                                      <HelpCircle size={14} /> Keine numerische Spalte vorhanden
+                                  </div>
+                                  <p>Es gibt aktuell keine Zahlenspalte (z. B. SortOrder, Nr) für die Sortierung.</p>
+                                  <button 
+                                      type="button"
+                                      onClick={createNewSortOrderField}
+                                      className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-1.5 px-3 rounded-lg transition-colors shadow-xs"
+                                  >
+                                      + Neue Spalte 'SortOrder' automatisch anlegen
+                                  </button>
+                              </div>
+                          ) : (
+                              <div className="flex gap-2 items-center">
+                                  <select 
+                                      value={selectedSortField} 
+                                      onChange={e => setSelectedSortField(e.target.value)}
+                                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                  >
+                                      <option value="">-- Keine Spalte aktualisieren (nur im Array schieben) --</option>
+                                      {table.fields.filter(f => f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'REAL').map(f => (
+                                          <option key={f.id} value={f.name}>{f.name} ({f.type})</option>
+                                      ))}
+                                  </select>
+                                  <button 
+                                      type="button" 
+                                      onClick={createNewSortOrderField}
+                                      className="px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl transition-colors"
+                                      title="Eine neue Sortier-Spalte erstellen"
+                                  >
+                                      + Neu
+                                  </button>
+                              </div>
+                          )}
+                      </div>
+
+                      {/* Step 2: Select update method */}
+                      {selectedSortField && (
+                          <div className="space-y-2.5">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">2. Aktualisierungs-Verfahren</label>
+                              
+                              <div className="space-y-2">
+                                  {/* Cascade Option */}
+                                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${reorderMethod === 'cascade' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                      <input 
+                                          type="radio" 
+                                          name="reorder_method" 
+                                          value="cascade" 
+                                          checked={reorderMethod === 'cascade'}
+                                          onChange={() => setReorderMethod('cascade')}
+                                          className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                                      />
+                                      <div>
+                                          <span className="text-xs font-bold text-slate-800 block">Kaskadierende Neunummerierung (Empfohlen)</span>
+                                          <span className="text-[10px] text-slate-500">Alle Zeilen werden fortlaufend durchnummeriert (1, 2, 3...), um die neue Reihenfolge sauber zu speichern.</span>
+                                      </div>
+                                  </label>
+
+                                  {/* Swap Option */}
+                                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${reorderMethod === 'swap' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                      <input 
+                                          type="radio" 
+                                          name="reorder_method" 
+                                          value="swap" 
+                                          checked={reorderMethod === 'swap'}
+                                          onChange={() => setReorderMethod('swap')}
+                                          className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                                      />
+                                      <div>
+                                          <span className="text-xs font-bold text-slate-800 block">Werte tauschen (Swap)</span>
+                                          <span className="text-[10px] text-slate-500">Tauscht lediglich den Sortier-Wert der verschobenen Zeile mit dem der Zielzeile aus.</span>
+                                      </div>
+                                  </label>
+
+                                  {/* Only This Option */}
+                                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${reorderMethod === 'only_this' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                      <input 
+                                          type="radio" 
+                                          name="reorder_method" 
+                                          value="only_this" 
+                                          checked={reorderMethod === 'only_this'}
+                                          onChange={() => setReorderMethod('only_this')}
+                                          className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                                      />
+                                      <div>
+                                          <span className="text-xs font-bold text-slate-800 block">Nur verschobene Zeile updaten</span>
+                                          <span className="text-[10px] text-slate-500">Setzt nur den Sortier-Wert der verschobenen Zeile auf den Wert der Ziel-Zeile.</span>
+                                      </div>
+                                  </label>
+                              </div>
+                          </div>
+                      )}
+
+                      {/* Step 3: Keep option */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                          <input 
+                              type="checkbox" 
+                              id="remember_reorder" 
+                              checked={rememberReorderRule}
+                              onChange={e => setRememberReorderRule(e.target.checked)}
+                              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                          />
+                          <label htmlFor="remember_reorder" className="text-xs text-slate-600 font-medium select-none cursor-pointer">
+                              Diese Auswahl als Standard-Regel für diese Tabelle merken (Zukünftige Drags erfolgen automatisch)
+                          </label>
+                      </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t border-slate-100 shrink-0">
+                      {localStorage.getItem(`table_reorder_rule_${table.id}`) && (
+                          <button 
+                              type="button" 
+                              onClick={() => {
+                                  localStorage.removeItem(`table_reorder_rule_${table.id}`);
+                                  alert("Gespeicherte Regel gelöscht.");
+                              }}
+                              className="text-xs text-red-600 hover:text-red-800 underline font-medium"
+                          >
+                              Regel zurücksetzen
+                          </button>
+                      )}
+                      <div className="flex gap-2 ml-auto">
+                          <button 
+                              type="button" 
+                              onClick={() => setPendingReorder(null)} 
+                              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold rounded-xl transition-colors"
+                          >
+                              Abbrechen
+                          </button>
+                          <button 
+                              type="button" 
+                              onClick={() => executeReorder(pendingReorder.srcIdx, pendingReorder.targetIdx, selectedSortField, selectedSortField ? reorderMethod : 'cascade')} 
+                              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+                          >
+                              Speichern & Anwenden
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );

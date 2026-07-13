@@ -196,7 +196,7 @@ namespace ${config.projectName}.Controllers
               } else if (f.type === 'BOOLEAN') {
                   const boolVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
                   if (boolVal) {
-                      const nullable = f.allowNull === true;
+                      const nullable = f.allowNull !== false && !f.isPrimaryKey;
                       if (nullable) {
                           defaultValuesLogic += `            if (item.${fieldPascal} == null || item.${fieldPascal} == false)
             {

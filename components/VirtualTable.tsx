@@ -8,10 +8,12 @@ interface VirtualTableProps {
   rowHeight?: number;
   renderRow: (row: any, index: number) => React.ReactNode;
   className?: string;
+  enableRowReorder?: boolean;
 }
 
 export const VirtualTable: React.FC<VirtualTableProps> = ({ 
-  data, headers, headerTooltips, rowHeight = 35, renderRow, className = '' 
+  data, headers, headerTooltips, rowHeight = 35, renderRow, className = '',
+  enableRowReorder = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +69,9 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
         ref={headerRef}
         className="flex bg-slate-100 border-b border-slate-300 font-bold text-xs text-slate-600 uppercase tracking-wider shrink-0 shadow-sm z-10 overflow-hidden"
       >
+         {enableRowReorder && (
+             <div className="w-8 shrink-0 border-r border-slate-200 bg-slate-100/80"></div>
+         )}
          {headers.map(h => (
              <div key={h} title={headerTooltips?.[h]} className="p-3 w-40 shrink-0 border-r border-slate-200 last:border-0 truncate cursor-help">{h}</div>
          ))}

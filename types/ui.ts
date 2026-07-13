@@ -44,7 +44,7 @@ export interface CustomComponent {
   id: string;
   name: string;
   description?: string;
-  type: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown'; // Base type
+  type: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board'; // Base type
   configuration: Record<string, any>; // JSON configs for dynamic renderer
 }
 

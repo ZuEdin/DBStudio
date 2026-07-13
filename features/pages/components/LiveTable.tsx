@@ -6,7 +6,7 @@ import {
     PageViewContext, 
     getNestedValueCaseInsensitive 
 } from '../utils/pageViewUtils';
-import { Loader2, Plus, X, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, X, Search, Filter, ChevronLeft, ChevronRight, Eye, Pencil, Trash2 } from 'lucide-react';
 
 interface LiveTableProps {
     node: PageComponent;
@@ -232,7 +232,7 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                                             ))}
                                             
                                             {node.props.enableCrudActions && (
-                                                <td className="px-3 py-1.5 whitespace-nowrap text-sm text-right font-medium space-x-1" onClick={e => e.stopPropagation()}>
+                                                <td className="px-3 py-1.5 whitespace-nowrap text-xs text-right font-medium space-x-1.5" onClick={e => e.stopPropagation()}>
                                                     <button 
                                                         onClick={() => {
                                                             const rowId = row._raw[pkFieldName];
@@ -243,10 +243,11 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                                                                 setParam(selectionKey, rowId);
                                                             }
                                                         }}
-                                                        className="text-xs text-indigo-600 hover:text-indigo-800 p-1 rounded hover:bg-indigo-50 transition"
+                                                        className="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 px-2.5 py-1 rounded-md bg-indigo-50/50 hover:bg-indigo-100/60 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/40 border border-indigo-100/30 dark:border-indigo-900/30 transition shadow-xs"
                                                         title="Details anzeigen"
                                                     >
-                                                        Details
+                                                        <Eye size={13} />
+                                                        <span className="hidden sm:inline">Details</span>
                                                     </button>
                                                     {node.props.editFormId && (
                                                         <button 
@@ -254,10 +255,11 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                                                                 const rowId = row._raw[pkFieldName];
                                                                 openFormModal(node.props.editFormId, 'edit', rowId);
                                                             }}
-                                                            className="text-xs text-slate-500 hover:text-slate-800 p-1 rounded hover:bg-slate-100 transition"
+                                                            className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 px-2.5 py-1 rounded-md bg-amber-50/50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-900/40 border border-amber-100/30 dark:border-amber-900/30 transition shadow-xs"
                                                             title="Datensatz bearbeiten"
                                                         >
-                                                            Bearbeiten
+                                                            <Pencil size={13} />
+                                                            <span className="hidden sm:inline">Bearbeiten</span>
                                                         </button>
                                                     )}
                                                     <button 
@@ -274,10 +276,11 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                                                                 }
                                                             );
                                                         }}
-                                                        className="text-xs text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition"
+                                                        className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 px-2.5 py-1 rounded-md bg-red-50/50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-900/40 border border-red-100/30 dark:border-red-900/30 transition shadow-xs"
                                                         title="Löschen"
                                                     >
-                                                        Löschen
+                                                        <Trash2 size={13} />
+                                                        <span className="hidden sm:inline">Löschen</span>
                                                     </button>
                                                 </td>
                                             )}

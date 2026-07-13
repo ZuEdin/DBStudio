@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Plus, Search, Edit2, Trash2 } from 'lucide-react';
-import { useProjectStore } from '../../stores/useProjectStore';
-import { useUIStore } from '../../stores/useUIStore';
+import { useProjectStore } from '../../../stores/useProjectStore';
+import { useUIStore } from '../../../stores/useUIStore';
 
 export const CustomComponentsManager: React.FC = () => {
   const { customComponents = [], setCustomComponents, saveProject } = useProjectStore();

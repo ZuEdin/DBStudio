@@ -19,6 +19,230 @@ const debouncedSync = (tables: Table[]) => {
     }, 500);
 };
 
+const performFieldAndTableCleanup = (draft: any, oldTables: Table[], newTables: Table[]) => {
+    // 1. Find deleted tables
+    const deletedTableIds = oldTables
+        .filter(ot => !newTables.some(nt => nt.id === ot.id))
+        .map(ot => ot.id);
+
+    // 2. Find deleted fields within tables that still exist
+    const deletedFieldsByTable: Record<string, string[]> = {}; // tableId -> fieldIds[]
+    const deletedFieldNamesByTable: Record<string, string[]> = {}; // tableId -> fieldNames[]
+
+    newTables.forEach(nt => {
+        const ot = oldTables.find(t => t.id === nt.id);
+        if (ot) {
+            const deletedIds = ot.fields
+                .filter(of => !nt.fields.some(nf => nf.id === of.id))
+                .map(of => of.id);
+            const deletedNames = ot.fields
+                .filter(of => !nt.fields.some(nf => nf.id === of.id))
+                .map(of => of.name);
+
+            if (deletedIds.length > 0) {
+                deletedFieldsByTable[nt.id] = deletedIds;
+                deletedFieldNamesByTable[nt.id] = deletedNames;
+            }
+        }
+    });
+
+    const hasDeletedTables = deletedTableIds.length > 0;
+    const hasDeletedFields = Object.keys(deletedFieldsByTable).length > 0;
+
+    if (!hasDeletedTables && !hasDeletedFields) {
+        return; // nothing to clean up
+    }
+
+    // A. Clean up Relationships
+    if (draft.relationships) {
+        draft.relationships = draft.relationships.filter((rel: any) => {
+            // Remove if table was deleted
+            if (deletedTableIds.includes(rel.fromTableId) || deletedTableIds.includes(rel.toTableId)) {
+                return false;
+            }
+            // Remove if referenced field was deleted
+            const fromDelFields = deletedFieldsByTable[rel.fromTableId] || [];
+            const toDelFields = deletedFieldsByTable[rel.toTableId] || [];
+            if (fromDelFields.includes(rel.fromFieldId) || toDelFields.includes(rel.toFieldId)) {
+                return false;
+            }
+            return true;
+        });
+    }
+
+    // B. Clean up table-level validationRules and mock data for modified tables in the draft
+    if (hasDeletedFields && draft.tables) {
+        draft.tables = draft.tables.map((table: any) => {
+            const delFieldIds = deletedFieldsByTable[table.id];
+            const delFieldNames = deletedFieldNamesByTable[table.id];
+            
+            if (delFieldIds || delFieldNames) {
+                let nextTable = { ...table };
+                if (delFieldIds && nextTable.validationRules) {
+                    nextTable.validationRules = nextTable.validationRules.filter(
+                        (rule: any) => !delFieldIds.includes(rule.fieldId)
+                    );
+                }
+                if (delFieldNames && Array.isArray(nextTable.data)) {
+                    nextTable.data = nextTable.data.map((row: any) => {
+                        const newRow = { ...row };
+                        delFieldNames.forEach(name => {
+                            delete newRow[name];
+                        });
+                        return newRow;
+                    });
+                }
+                return nextTable;
+            }
+            return table;
+        });
+    }
+
+    // C. Clean up Queries
+    if (draft.queries) {
+        draft.queries = draft.queries.map((q: any) => {
+            if (q.type === 'SELECT' && Array.isArray(q.columns)) {
+                const filteredColumns = q.columns.filter((col: any) => {
+                    if (deletedTableIds.includes(col.tableId)) {
+                        return false;
+                    }
+                    const delFieldIds = deletedFieldsByTable[col.tableId] || [];
+                    if (delFieldIds.includes(col.fieldId)) {
+                        return false;
+                    }
+                    return true;
+                });
+                return { ...q, columns: filteredColumns };
+            }
+            return q;
+        });
+    }
+
+    // D. Clean up Forms
+    if (draft.forms) {
+        const cleanFormElement = (el: any, sourceId: string, delFieldIds: string[]): any | null => {
+            if (!el) return null;
+            if (el.type === 'field' && el.fieldId && delFieldIds.includes(el.fieldId)) {
+                return null;
+            }
+            
+            if (el.lookup) {
+                if (delFieldIds.includes(el.lookup.valueFieldId)) {
+                    el.lookup.valueFieldId = '';
+                }
+                if (Array.isArray(el.lookup.labelFields)) {
+                    el.lookup.labelFields = el.lookup.labelFields.filter((id: string) => !delFieldIds.includes(id));
+                }
+                if (Array.isArray(el.lookup.displayFormat)) {
+                    el.lookup.displayFormat = el.lookup.displayFormat.filter((df: any) => !delFieldIds.includes(df.fieldId));
+                }
+                if (el.lookup.sort && delFieldIds.includes(el.lookup.sort.fieldId)) {
+                    delete el.lookup.sort;
+                }
+            }
+
+            if (el.subform) {
+                if (delFieldIds.includes(el.subform.masterLinkFieldId)) el.subform.masterLinkFieldId = '';
+                if (delFieldIds.includes(el.subform.childLinkFieldId)) el.subform.childLinkFieldId = '';
+            }
+
+            if (el.visibilityCondition && delFieldIds.includes(el.visibilityCondition.fieldId)) {
+                delete el.visibilityCondition;
+            }
+
+            if (Array.isArray(el.children)) {
+                el.children = el.children
+                    .map((child: any) => cleanFormElement(child, sourceId, delFieldIds))
+                    .filter((child: any) => child !== null);
+            }
+
+            return el;
+        };
+
+        draft.forms = draft.forms.map((form: any) => {
+            let nextForm = { ...form };
+            
+            if (nextForm.sourceType === 'table' && deletedTableIds.includes(nextForm.sourceId)) {
+                nextForm.sourceId = '';
+                nextForm.fields = [];
+                if (nextForm.layout) nextForm.layout = undefined;
+            } else if (nextForm.sourceType === 'table') {
+                const delFieldIds = deletedFieldsByTable[nextForm.sourceId];
+                if (delFieldIds && delFieldIds.length > 0) {
+                    if (Array.isArray(nextForm.fields)) {
+                        nextForm.fields = nextForm.fields.filter((f: any) => !delFieldIds.includes(f.fieldId));
+                    }
+                    if (nextForm.layout) {
+                        nextForm.layout = cleanFormElement(JSON.parse(JSON.stringify(nextForm.layout)), nextForm.sourceId, delFieldIds);
+                    }
+                    if (Array.isArray(nextForm.crossFieldValidations)) {
+                        nextForm.crossFieldValidations = nextForm.crossFieldValidations.filter((v: any) => 
+                            !delFieldIds.includes(v.triggerFieldId) && !delFieldIds.includes(v.targetFieldId)
+                        );
+                    }
+                }
+            }
+            return nextForm;
+        });
+    }
+
+    // E. Clean up Reports
+    if (draft.reports) {
+        draft.reports = draft.reports.map((r: any) => {
+            if (r.sourceType === 'table' && deletedTableIds.includes(r.sourceId)) {
+                return { ...r, sourceId: '', columns: [], summaries: [], groupingFieldId: undefined };
+            } else if (r.sourceType === 'table') {
+                const delFieldIds = deletedFieldsByTable[r.sourceId];
+                if (delFieldIds && delFieldIds.length > 0) {
+                    let columns = r.columns;
+                    if (Array.isArray(columns)) {
+                        columns = columns.filter((col: any) => !delFieldIds.includes(col.fieldId));
+                    }
+                    const summaries = (r.summaries || []).filter((sum: any) => !delFieldIds.includes(sum.fieldId));
+                    const groupingFieldId = r.groupingFieldId && delFieldIds.includes(r.groupingFieldId) ? undefined : r.groupingFieldId;
+                    return { ...r, columns, summaries, groupingFieldId };
+                }
+            }
+            return r;
+        });
+    }
+
+    // F. Clean up Workflows
+    if (draft.workflows) {
+        draft.workflows = draft.workflows.map((wf: any) => {
+            if (!Array.isArray(wf.nodes)) return wf;
+            const nextNodes = wf.nodes.map((node: any) => {
+                let changed = false;
+                let nextNode = { ...node };
+                
+                if (nextNode.data?.triggerConfig?.tableId && deletedTableIds.includes(nextNode.data.triggerConfig.tableId)) {
+                    nextNode.data = {
+                        ...nextNode.data,
+                        triggerConfig: { ...nextNode.data.triggerConfig, tableId: undefined }
+                    };
+                    changed = true;
+                }
+                
+                if (nextNode.data?.conditionConfig?.fieldId) {
+                    const tableId = nextNode.data?.triggerConfig?.tableId;
+                    if (tableId) {
+                        const delFieldIds = deletedFieldsByTable[tableId] || [];
+                        if (deletedTableIds.includes(tableId) || delFieldIds.includes(nextNode.data.conditionConfig.fieldId)) {
+                            nextNode.data = {
+                                ...nextNode.data,
+                                conditionConfig: { ...nextNode.data.conditionConfig, fieldId: undefined }
+                            };
+                            changed = true;
+                        }
+                    }
+                }
+                return nextNode;
+            });
+            return { ...wf, nodes: nextNodes };
+        });
+    }
+};
+
 interface HistoryState {
     past: Patch[][];
     future: Patch[][];
@@ -218,7 +442,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
 
     setTables: (tables) => { 
-        get().executeAction(s => { s.tables = tables; });
+        get().executeAction(s => { 
+            const oldTables = s.tables;
+            s.tables = tables;
+            performFieldAndTableCleanup(s, oldTables, tables);
+        });
         debouncedSync(tables); 
     },
     addTable: (table) => { 
@@ -228,7 +456,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
     updateTable: (table) => { 
         get().executeAction(s => { 
-            s.tables = s.tables.map(t => t.id === table.id ? table : t); 
+            const oldTables = s.tables;
+            const newTables = s.tables.map(t => t.id === table.id ? table : t);
+            s.tables = newTables;
+            performFieldAndTableCleanup(s, oldTables, newTables);
         });
         debouncedSync(get().tables); 
     },

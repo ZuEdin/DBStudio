@@ -51,11 +51,10 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="${openApiVersion}" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="${packageVersion}" />
     ${dbPackage}
     ${authPackages}
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Quartz.Extensions.Hosting" Version="3.8.0" />
     ${blazorConfig}
   </ItemGroup>
