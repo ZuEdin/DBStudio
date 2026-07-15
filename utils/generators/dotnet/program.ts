@@ -4,6 +4,7 @@ import { generateSqlSelect } from '../../sqlHelper';
 import { toPascalCase } from '../common';
 
 export const generateProgram = (config: BackendConfig, tables: Table[], relationships: Relationship[], queries: Query[], root: string): VirtualFile => {
+  const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   const isBlazor = config.frontendFramework === 'blazor';
   let dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));`;
   if (config.dbType === DbType.SQLite) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));`;
@@ -21,17 +22,17 @@ export const generateProgram = (config: BackendConfig, tables: Table[], relation
   // Always register CurrentUserService and HttpContextAccessor for Audit
   authServices += `
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<${config.projectName}.Services.ICurrentUserService, ${config.projectName}.Services.CurrentUserService>();
+builder.Services.AddScoped<${safeNamespace}.Services.ICurrentUserService, ${safeNamespace}.Services.CurrentUserService>();
 `;
 
   if (authConfig?.useWindowsAuth) {
       namespaces += '\nusing Microsoft.AspNetCore.Authentication.Negotiate;';
       authServices += `
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
-builder.Services.AddScoped<${config.projectName}.Services.IAdService, ${config.projectName}.Services.AdService>();
+builder.Services.AddScoped<${safeNamespace}.Services.IAdService, ${safeNamespace}.Services.AdService>();
 `;
       if (authConfig.adMapping && authConfig.adMapping.length > 0) {
-          namespaces += `\nusing ${config.projectName}.Services;`;
+          namespaces += `\nusing ${safeNamespace}.Services;`;
           authServices += `\nbuilder.Services.AddTransient<IClaimsTransformation, AdRoleTransformer>();\n`;
       }
       if (authConfig.devBypass) {
@@ -40,7 +41,7 @@ builder.Services.AddScoped<${config.projectName}.Services.IAdService, ${config.p
           authAppUse += `app.UseAuthentication(); app.UseAuthorization();`;
       }
   } else if (authConfig?.useUserLogin) {
-      namespaces += `\nusing ${config.projectName}.Services;`;
+      namespaces += `\nusing ${safeNamespace}.Services;`;
       authServices += `\nbuilder.Services.AddScoped<IPermissionService, PermissionService>();\n`;
   }
 
@@ -84,9 +85,9 @@ public class WindowsDevBypassMiddleware
   const contentRawNamespaces = `using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ${config.projectName}.Data;
+using ${safeNamespace}.Data;
 ${namespaces}
-${config.multiTenancy?.enabled ? `using ${config.projectName}.Services;\nusing ${config.projectName}.Middleware;` : ''}`;
+${config.multiTenancy?.enabled ? `using ${safeNamespace}.Services;\nusing ${safeNamespace}.Middleware;` : ''}`;
 
   const uniqueNamespaces = Array.from(new Set(contentRawNamespaces.split('\n').map(l => l.trim()).filter(l => l.startsWith('using')))).join('\n');
 
@@ -141,6 +142,7 @@ ${swaggerUse}
 ${isBlazor ? 'app.UseBlazorFrameworkFiles();' : ''}
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseRouting();
 ${config.multiTenancy?.enabled ? `app.UseMiddleware<TenantMiddleware>();` : ''}
 
 // CORS Config

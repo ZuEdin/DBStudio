@@ -120,10 +120,15 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
-  const store = useProjectStore();
+  const tables = useProjectStore(state => state.tables);
+  const queries = useProjectStore(state => state.queries);
+  const reports = useProjectStore(state => state.reports);
+  const forms = useProjectStore(state => state.forms);
+  const charts = useProjectStore(state => state.charts);
+  const workflows = useProjectStore(state => state.workflows);
+  const pages = useProjectStore(state => state.pages);
   const ui = useUIStore();
   
-  const { tables, queries, reports, forms, charts, workflows, pages } = store;
   const { isSidebarOpen: isOpen, setIsSidebarOpen: toggleSidebar, setItemContextMenu } = ui;
 
   const onSelectTable = (id: string) => onSetView({ type: 'table_data', tableId: id });

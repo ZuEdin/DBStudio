@@ -1,4 +1,3 @@
-
 import { Table, Query, Form, VirtualFile, Relationship, BackendConfig, Report, CustomPage } from '../../types/index';
 import { generateAngularConfigs } from './angular/configs';
 import { generateAngularServices } from './angular/services';
@@ -16,6 +15,7 @@ export const generateAngular = (
   pages: CustomPage[] = [],
   customComponents: any[] = []
 ): VirtualFile[] => {
+
   const root = `Frontend`;
   const appRoot = `${root}/src/app`;
   const useAuth = config.authConfig?.useUserLogin;
@@ -51,10 +51,8 @@ export const generateAngular = (
   }).join(',\n');
 
   let routesContent = '';
-
   if (useAuth) {
-      routesContent = `
-  { path: 'login', component: LoginComponent },
+      routesContent = `  { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'forbidden', component: ForbiddenComponent },
@@ -68,8 +66,7 @@ ${routeDefs}
   },
   { path: '**', redirectTo: '' }`;
   } else {
-      routesContent = `
-  { 
+      routesContent = `  { 
     path: '', 
     component: LayoutComponent,
     children: [
@@ -102,7 +99,6 @@ Dieses Frontend wurde mit **Angular** (CLI) generiert.
 
 ### 2. Installation
 Wechseln Sie in das Verzeichnis \`Frontend\`:
-
 \`\`\`bash
 npm install
 \`\`\`
@@ -115,8 +111,8 @@ Oder alternativ via npm:
 \`\`\`bash
 npm start
 \`\`\`
-
 Die Anwendung läuft unter **http://localhost:4200**.
+
 ⚠️ Stellen Sie sicher, dass das Backend läuft (Port ${config.port}).
 
 ### 4. Build (Production)
@@ -126,6 +122,7 @@ ng build
 Die kompilierten Dateien liegen im Ordner \`dist/angular-client\`.
 
 ## 🛠 Konfiguration
+
 Die API-URL ist im Service \`src/app/services/api.service.ts\` hinterlegt:
 \`http://localhost:${config.port}/api\`
 `;

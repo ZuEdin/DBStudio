@@ -217,16 +217,20 @@ export const ${compName} = () => {
       const init = async () => {
         setLoading(true);
         try {
-            ${lookups.filter(l => !l.isQuery).map(l => `const ${l.variableName}Res = await get('${l.endpoint}', { pageSize: 10000 });
-            let ${l.variableName}Data = ${l.variableName}Res.data || ${l.variableName}Res;
-            ${l.sort ? `
-                const sortFieldObj = (l.table.fields || l.table.columns || []).find((f: any) => f.id === l.sort.fieldId);
-                const sortField = sortFieldObj ? "'" + toCamelCase(sortFieldObj.name || sortFieldObj.alias || sortFieldObj.fieldName) + "'" : 'null';
-                if (sortField && sortField !== 'null') {
-                    ${l.variableName}Data = ${l.variableName}Data.sort((a: any, b: any) => (a[sortField] > b[sortField] ? ${l.sort.direction === 'DESC' ? -1 : 1} : -1 * ${l.sort.direction === 'DESC' ? -1 : 1}));
-                }
-            ` : ''}
-            set${toPascalCase(l.variableName)}(${l.variableName}Data);`).join('\n            ')}
+            ${lookups.filter(l => !l.isQuery).map(l => `{
+                const ${l.variableName}Res = await get('${l.endpoint}', { pageSize: 10000 });
+                let ${l.variableName}Data = ${l.variableName}Res.data || ${l.variableName}Res;
+                ${(() => {
+                    if (!l.sort) return '';
+                    const sortFieldObj = (l.table.fields || l.table.columns || []).find((f: any) => f.id === l.sort.fieldId);
+                    if (!sortFieldObj) return '';
+                    const sortField = toCamelCase(sortFieldObj.name || sortFieldObj.alias || sortFieldObj.fieldName);
+                    return `
+                    ${l.variableName}Data = ${l.variableName}Data.sort((a: any, b: any) => (a['${sortField}'] > b['${sortField}'] ? ${l.sort.direction === 'DESC' ? -1 : 1} : -1 * ${l.sort.direction === 'DESC' ? -1 : 1}));
+                    `;
+                })()}
+                set${toPascalCase(l.variableName)}(${l.variableName}Data);
+            }`).join('\n            ')}
             if (id && id !== 'new') {
                 const res = await get(\`${sourceTableCamel}/\${id}\`);
                 setData(res.data || res);

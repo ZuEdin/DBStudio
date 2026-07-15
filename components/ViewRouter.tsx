@@ -157,6 +157,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         return (
             <WelcomeView 
                 tables={tables} queries={queries} reports={reports} forms={forms}
+                onSetView={onSetView}
                 onNavigate={(type, id) => {
                     if(type === 'table_create') onSetView({type: 'table_create'});
                     else if(type === 'query_designer') onSetView({type: 'query_designer'});

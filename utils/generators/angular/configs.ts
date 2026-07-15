@@ -19,8 +19,10 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
       if (stagingEnv && stagingEnv.apiUrl) stagingApiUrl = stagingEnv.apiUrl;
   }
 
-  const isTailwind = config.stylingFramework === 'tailwind' || !config.stylingFramework;
-  const isBootstrap = config.stylingFramework === 'bootstrap';
+  const isBootstrap = config.stylingFramework?.toLowerCase() === 'bootstrap' || 
+                      (config as any).frontendStyling?.toLowerCase() === 'bootstrap' || 
+                      (config as any).styling?.toLowerCase() === 'bootstrap';
+  const isTailwind = !isBootstrap;
 
   // Build package.json dependencies
   const dependencies: any = {

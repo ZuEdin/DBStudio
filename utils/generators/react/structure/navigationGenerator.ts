@@ -85,59 +85,59 @@ export const generateSidebar = (
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Daten</div>
                 <div className="space-y-1">
-                \${tables.map(t => {
+                ${tables.map(t => {
                     const isSystem = t.name.startsWith('sys_');
-                    const cond = isSystem && useAuth ? \`{user?.role === 'Admin' && (\` : \`\`;
-                    const closeCond = isSystem && useAuth ? \`)}\` : \`\`;
-                    return \`\${cond}
-                    <Link to="/\${toCamelCase(t.name)}" className={\\\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \\\${isActive('/\${toCamelCase(t.name)}')}\\\`}>
-                        \${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} \${t.name}
-                    </Link>\${closeCond}\`;
-                }).join('\\n')}
+                    const cond = isSystem && useAuth ? `{user?.role === 'Admin' && (` : ``;
+                    const closeCond = isSystem && useAuth ? `)}` : ``;
+                    return `${cond}
+                    <Link to="/${toCamelCase(t.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
+                        ${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} ${t.name}
+                    </Link>${closeCond}`;
+                }).join('\n')}
                 </div>
             </div>
             
             {/* Queries */}
-            {queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').length > 0 && (
+            ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').length > 0 ? `
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Abfragen</div>
                 <div className="space-y-1">
-                \${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').map(q => {
+                ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').map(q => {
                     const iconName = q.type === 'UPDATE' ? 'RefreshCw' : 'Search';
-                    return \`
-                    <Link to="/queries/\${toCamelCase(q.name)}" className={\\\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \\\${isActive('/queries/\${toCamelCase(q.name)}')}\\\`}>
-                        <\${iconName} size={16}/> \\\${q.name}
-                    </Link>\`;
-                }).join('\\n')}
+                    return `
+                    <Link to="/queries/${toCamelCase(q.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
+                        <${iconName} size={16}/> ${q.name}
+                    </Link>`;
+                }).join('\n')}
                 </div>
             </div>
-            )}
+            ` : ''}
 
             {/* Reports */}
-            {reports.length > 0 && (
+            ${reports.length > 0 ? `
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Berichte</div>
                 <div className="space-y-1">
-                \${reports.map(r => \`
-                    <Link to="/reports/\${toCamelCase(r.name)}" className={\\\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \\\${isActive('/reports/\${toCamelCase(r.name)}')}\\\`}>
-                        <FileText size={16}/> \\\${r.name}
-                    </Link>\`).join('\\n')}
+                ${reports.map(r => `
+                    <Link to="/reports/${toCamelCase(r.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/reports/${toCamelCase(r.name)}')}\`}>
+                        <FileText size={16}/> ${r.name}
+                    </Link>`).join('\n')}
                 </div>
             </div>
-            )}
+            ` : ''}
 
             {/* Custom Pages */}
-            {pages.filter(p => !p.isSubpage).length > 0 && (
+            ${pages.filter(p => !p.isSubpage).length > 0 ? `
             <div>
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Eigene Seiten</div>
                 <div className="space-y-1">
-                \${pages.filter(p => !p.isSubpage).map(p => \`
-                    <Link to="/custom/\${toCamelCase(p.name)}" className={\\\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \\\${isActive('/custom/\${toCamelCase(p.name)}')}\\\`}>
-                        <Layout size={16}/> \\\${p.name}
-                    </Link>\`).join('\\n')}
+                ${pages.filter(p => !p.isSubpage).map(p => `
+                    <Link to="/custom/${toCamelCase(p.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/custom/${toCamelCase(p.name)}')}\`}>
+                        <Layout size={16}/> ${p.name}
+                    </Link>`).join('\n')}
                 </div>
             </div>
-            )}
+            ` : ''}
       `;
   }
 

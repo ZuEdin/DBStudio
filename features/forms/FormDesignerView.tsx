@@ -25,6 +25,40 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   
   const mainFormTable = allTables.find(t => t.id === form.sourceId);
 
+  // Dynamically compute the displayed fields to ensure newly-added table fields are immediately available
+  const displayedFields = React.useMemo(() => {
+    if (!mainFormTable) return form.fields || [];
+    const tableFields = mainFormTable.fields || [];
+    const currentFields = form.fields || [];
+    const existingFieldIds = new Set(currentFields.map(f => f.fieldId));
+    const missing = tableFields.filter(f => !existingFieldIds.has(f.id));
+    if (missing.length === 0) return currentFields;
+    return [
+      ...currentFields,
+      ...missing.map(f => ({ fieldId: f.id, label: f.name }))
+    ];
+  }, [form.fields, mainFormTable?.fields]);
+
+  // Synchronize the newly-added table fields back to the form object
+  const tableFieldIdsString = JSON.stringify(mainFormTable?.fields?.map(f => f.id) || []);
+  const formFieldIdsString = JSON.stringify(form.fields?.map(f => f.fieldId) || []);
+
+  React.useEffect(() => {
+    if (!mainFormTable) return;
+    const tableFields = mainFormTable.fields || [];
+    const currentFields = form.fields || [];
+    const existingFieldIds = new Set(currentFields.map(f => f.fieldId));
+    
+    const missing = tableFields.filter(f => !existingFieldIds.has(f.id));
+    if (missing.length > 0) {
+      const merged = [
+        ...currentFields,
+        ...missing.map(f => ({ fieldId: f.id, label: f.name }))
+      ];
+      onFormChange({ ...form, fields: merged });
+    }
+  }, [tableFieldIdsString, formFieldIdsString, form.id]);
+
   // --- Helper Functions ---
   const findElement = (root: FormElement, id: string): FormElement | null => {
     if (root.id === id) return root;
@@ -457,7 +491,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                          onFormChange({...form, crossFieldValidations: updated});
                                                      }}
                                                  >
-                                                    {form.fields.map(f => (
+                                                    {displayedFields.map(f => (
                                                         <option key={f.fieldId} value={f.fieldId}>{f.label}</option>
                                                     ))}
                                                  </select>
@@ -507,7 +541,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                          onFormChange({...form, crossFieldValidations: updated});
                                                      }}
                                                  >
-                                                    {form.fields.map(f => (
+                                                    {displayedFields.map(f => (
                                                         <option key={f.fieldId} value={f.fieldId}>{f.label}</option>
                                                     ))}
                                                  </select>
@@ -543,10 +577,10 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                         onClick={() => {
                                             const newRule = {
                                                 id: crypto.randomUUID(),
-                                                triggerFieldId: form.fields[0]?.fieldId || '',
+                                                triggerFieldId: displayedFields[0]?.fieldId || '',
                                                 condition: 'equals' as const,
                                                 triggerValue: '',
-                                                targetFieldId: form.fields[1]?.fieldId || '',
+                                                targetFieldId: displayedFields[1]?.fieldId || '',
                                                 action: 'require' as const
                                             };
                                             onFormChange({...form, crossFieldValidations: [...(form.crossFieldValidations || []), newRule]});
@@ -588,7 +622,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
              <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">Verfügbare Felder</h4>
              <p className="text-[10px] text-slate-400 mb-2">Drag & Drop auf das Formular.</p>
              <div className="space-y-1">
-                 {form.fields.map(f => (
+                 {displayedFields.map(f => (
                      <div 
                         key={f.fieldId} 
                         draggable 

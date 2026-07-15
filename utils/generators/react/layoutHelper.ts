@@ -180,14 +180,14 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                          const f = lookupTable.fields.find((field: any) => field.id === fmt.fieldId);
                          if (!f) return '""';
                          const prop = toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName);
-                         return `"${fmt.prefix || ''}" + (i.${prop} !== undefined && i.${prop} !== null ? i.${prop} : "") + "${fmt.suffix || ''}"`;
+                         return `"${fmt.prefix || ''}" + (i.${prop} !== undefined && i.${prop} !== null ? i.${prop} : (i.${prop}Value !== undefined && i.${prop}Value !== null ? i.${prop}Value : "")) + "${fmt.suffix || ''}"`;
                      }).join(' + ');
                  } else if (element.lookup.labelFields && element.lookup.labelFields.length > 0) {
                      // Simple list of fields
                      displayExpression = element.lookup.labelFields.map(fid => {
                          const f = lookupTable.fields.find((field: any) => field.id === fid);
                          const prop = f ? toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName) : '';
-                         return prop ? `(i.${prop} !== undefined && i.${prop} !== null ? i.${prop} : "")` : '""';
+                         return prop ? `(i.${prop} !== undefined && i.${prop} !== null ? i.${prop} : (i.${prop}Value !== undefined && i.${prop}Value !== null ? i.${prop}Value : ""))` : '""';
                       }).filter(Boolean).join(' + " " + ');
                  }
                  // --- DISPLAY LOGIC END ---

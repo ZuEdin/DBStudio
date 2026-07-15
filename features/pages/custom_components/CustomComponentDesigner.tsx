@@ -16,6 +16,7 @@ import { ButtonViewDesigner } from './components/ButtonViewDesigner';
 import { DropdownViewDesigner } from './components/DropdownViewDesigner';
 import { MetricCardViewDesigner } from './components/MetricCardViewDesigner';
 import { KanbanBoardViewDesigner } from './components/KanbanBoardViewDesigner';
+import { CardTemplateDesigner } from './components/CardTemplateDesigner';
 import { PreviewPanel } from './components/PreviewPanel';
 
 interface CustomComponentDesignerProps {
@@ -30,7 +31,7 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
 
   const [componentName, setComponentName] = useState('');
   const [componentDescription, setComponentDescription] = useState('');
-  const [componentType, setComponentType] = useState<'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board'>('table_view');
+  const [componentType, setComponentType] = useState<'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template'>('table_view');
   
   // Tab control: 'visual' or 'json'
   const [activeTab, setActiveTab] = useState<'visual' | 'json'>('visual');
@@ -65,6 +66,15 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
         { type: "title", field: "Name", label: "Name", style: "text-sm font-bold text-slate-800" },
         { type: "description", field: "Email", label: "E-Mail", style: "text-xs text-slate-500 mt-1" }
       ]
+    },
+    card_template: {
+        title: "Standard Karte",
+        dataSourceType: "table",
+        dataSourceId: tables[0]?.id || '',
+        fields: [
+            { field: "Name", label: "Name", showLabel: true, fontSize: "text-sm", fontWeight: "font-bold", textColor: "text-slate-800 dark:text-slate-100", align: "text-left" },
+            { field: "Email", label: "E-Mail", showLabel: true, fontSize: "text-xs", fontWeight: "font-normal", textColor: "text-slate-500 dark:text-slate-400", align: "text-left" }
+        ]
     },
     chart_view: {
       chartType: "bar", // "bar", "line", "area", "pie"
@@ -466,6 +476,15 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
 
               {componentType === 'kanban_board' && (
                 <KanbanBoardViewDesigner 
+                  configObj={configObj}
+                  updateVisualConfig={updateVisualConfig}
+                  tables={tables}
+                  fields={fields}
+                />
+              )}
+
+              {componentType === 'card_template' && (
+                <CardTemplateDesigner 
                   configObj={configObj}
                   updateVisualConfig={updateVisualConfig}
                   tables={tables}

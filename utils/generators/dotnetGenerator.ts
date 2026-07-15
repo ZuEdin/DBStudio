@@ -9,7 +9,12 @@ import { generateDbInitializer } from './dotnet/seed';
 
 export const generateDotNet = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
-  const root = `Backend/${config.projectName}`;
+  const isBlazor = config.frontendFramework === 'blazor';
+  const isMaui = config.frontendFramework === 'maui';
+  const isMauiNative = config.frontendFramework === 'maui-native';
+  const serverName = (isBlazor || isMaui || isMauiNative) ? `${config.projectName}.Server` : config.projectName;
+  const root = `Backend/${serverName}`;
+  const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   
   // 1. Base appsettings.json
   const connectionString = config.dbConnection || (config.dbType === DbType.SQLite 
@@ -100,8 +105,8 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
           path: `${root}/Services/AdRoleTransformer.cs`,
           content: `using Microsoft.AspNetCore.Authentication;
 using System.Security.Claims;
-
-namespace ${config.projectName}.Services
+ 
+namespace ${safeNamespace}.Services
 {
     public class AdRoleTransformer : IClaimsTransformation
     {
@@ -121,8 +126,8 @@ namespace ${config.projectName}.Services
       files.push({
           name: 'TenantMiddleware.cs',
           path: `${root}/Middleware/TenantMiddleware.cs`,
-          content: `using ${config.projectName}.Services;
-namespace ${config.projectName}.Middleware
+          content: `using ${safeNamespace}.Services;
+namespace ${safeNamespace}.Middleware
 {
     public class TenantMiddleware
     {

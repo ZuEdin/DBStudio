@@ -7,14 +7,24 @@ export const generateSolution = (config: BackendConfig): VirtualFile => {
   const solutionGuid = crypto.randomUUID().toUpperCase();
   
   const projectName = config.projectName;
-  const clientName = `${projectName}.Client`;
+  const isBlazor = config.frontendFramework === 'blazor';
+  const isMaui = config.frontendFramework === 'maui';
+  const isMauiNative = config.frontendFramework === 'maui-native';
+  const serverName = (isBlazor || isMaui || isMauiNative) ? `${projectName}.Server` : projectName;
+  
+  let clientName = `${projectName}.Client`;
+  if (isMaui) {
+    clientName = `${projectName}.Maui`;
+  } else if (isMauiNative) {
+    clientName = `${projectName}.MauiNative`;
+  }
 
   const content = `
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "${projectName}", "${projectName}\\${projectName}.csproj", "{${projectGuid}}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "${serverName}", "${serverName}\\${serverName}.csproj", "{${projectGuid}}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "${clientName}", "${clientName}\\${clientName}.csproj", "{${clientGuid}}"
 EndProject

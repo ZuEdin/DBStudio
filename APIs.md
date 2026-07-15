@@ -108,3 +108,26 @@ Um die Migration von der lokalen IndexedDB zu einem echten SQL- oder MySQL-Serve
 4. **Referenzielle Integrität bei Feldlöschung:**
    - Sobald ein Tabellenfeld über den Designer gelöscht wird, bereinigt das System automatisch alle betroffenen Fremdschlüssel-Beziehungen, Formularelemente, Abfrage-Spalten und Workflow-Knoten.
    - Dies verhindert verwaiste Foreign Keys auf Server-Ebene, die bei echten SQL-Datenbanken zu schweren Integritätsverletzungen (`FOREIGN KEY constraint failed`) führen würden.
+
+---
+
+## 6. Interaktive Drag & Drop- / Kanban-Schnittstelle (Updatefähigkeit)
+
+Für die Verwaltung von Status- und Positionierungsänderungen via Drag & Drop (z. B. auf Kanban-Boards) stellt das generierte Frontend eine hoch-performante, ereignisgesteuerte Update-Schnittstelle bereit.
+
+### 6.1 Status-Aktualisierung bei Spaltenwechsel (Container Move)
+Wenn ein Element (z. B. ein Task oder Ticket) von einem Container/Status in einen anderen gezogen wird, löst das System automatisch ein Update-Ereignis aus.
+
+#### Client-seitiger Ablauf (Angular / Vue / React):
+1. **Event Capture:** Das `drop`-Event ermittelt die ID des gezogenen Elements (`activeDragItem`) und den Ziel-Container (`targetColumn`).
+2. **Local Sync:** Der Statuswert des Elements wird im lokalen Speicher (IndexedDB) aktualisiert.
+3. **API Dispatch:** Ein asynchroner Aufruf wird an das Speicher-Repository gesendet, um die Änderung dauerhaft zu persistieren:
+   - **IndexedDB:** `mauiIndexedDb.update(tableName, id, updatedRecord)`
+   - **SQL-Server (über API):** `PUT /api/data/:tableId/:rowId` mit `{ status: targetColumn }`
+4. **User Feedback:** Eine reaktive Notification-Bar zeigt dem Benutzer den genauen Zustand an ("Erfolgreich verschoben: 'Aufgabe A' von 'Offen' nach 'In Arbeit'"). Bei einem Netzwerk- oder Schreibfehler wird der Zustand automatisch auf den alten Spaltenwert zurückgesetzt (Rollback-Integrität).
+
+### 6.2 Reihenfolge-Aktualisierung (Reordering im selben Container)
+Beim Verschieben eines Elements innerhalb desselben Containers zur Änderung der Priorität oder Reihenfolge:
+- **Index-Mapping:** Das System berechnet das neue Positions-Attribut (z. B. `position` oder `sort_order`).
+- **Batch-Update:** Die betroffenen Zeilen werden lokal umsortiert und per Sammel-Update (Batch) aktualisiert, um übermäßige DB-Zugriffe zu vermeiden.
+- **Konsistenz:** Die Sortier-API `api.update` stellt sicher, dass die neue Reihenfolge sowohl in der lokalen IndexedDB als auch im SQL-Backend identisch abgelegt wird.

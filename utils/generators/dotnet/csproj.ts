@@ -2,7 +2,10 @@
 import { BackendConfig, DbType, VirtualFile } from '../../../types/index';
 
 export const generateCsproj = (config: BackendConfig, root: string): VirtualFile => {
-  const version = config.backendVersion || '10.0';
+  let version = config.backendVersion || '9.0';
+  if (parseFloat(version) > 9.0) {
+    version = '9.0';
+  }
   const targetFramework = `net${version}`;
   const packageVersion = `${version}.0`; 
   
@@ -13,6 +16,9 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
   else if (version === '6.0') openApiVersion = '6.0.0';
 
   const isBlazor = config.frontendFramework === 'blazor';
+  const isMaui = config.frontendFramework === 'maui';
+  const isMauiNative = config.frontendFramework === 'maui-native';
+  const projectName = (isBlazor || isMaui || isMauiNative) ? `${config.projectName}.Server` : config.projectName;
 
   let dbPackage = '';
   if (config.dbType === DbType.MySQL) {
@@ -28,17 +34,19 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
   if (config.authConfig?.useWindowsAuth) {
       authPackages = `
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="${packageVersion}" />
-    <PackageReference Include="System.DirectoryServices.AccountManagement" Version="${packageVersion}" />
-      `;
+    <PackageReference Include="System.DirectoryServices.AccountManagement" Version="${packageVersion}" />`;
   }
 
-  let blazorConfig = '';
+  let blazorPackage = '';
+  let projectReference = '';
   if (isBlazor) {
-      blazorConfig = `
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="${packageVersion}" />
-    <ItemGroup>
-      <ProjectReference Include="..\\${config.projectName}.Client\\${config.projectName}.Client.csproj" />
-    </ItemGroup>`;
+      blazorPackage = `
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="${packageVersion}" />`;
+      projectReference = `
+
+  <ItemGroup>
+    <ProjectReference Include="..\\${config.projectName}.Client\\${config.projectName}.Client.csproj" />
+  </ItemGroup>`;
   }
 
   const content = `<Project Sdk="Microsoft.NET.Sdk.Web">
@@ -52,18 +60,16 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="${packageVersion}" />
-    ${dbPackage}
-    ${authPackages}
+    ${dbPackage}${authPackages}
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.8.0" />
-    ${blazorConfig}
-  </ItemGroup>
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.8.0" />${blazorPackage}
+  </ItemGroup>${projectReference}
 
 </Project>`;
 
   return { 
-    name: `${config.projectName}.csproj`, 
-    path: `${root}/${config.projectName}.csproj`, 
+    name: `${projectName}.csproj`, 
+    path: `${root}/${projectName}.csproj`, 
     content: content, 
     language: 'xml' 
   };

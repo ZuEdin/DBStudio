@@ -49,6 +49,7 @@ export const sortTablesByDependencies = (tables: Table[], relationships: Relatio
 export const generateDbInitializer = (tables: Table[], relationships: Relationship[], config: BackendConfig, root: string, queries: Query[] = []): VirtualFile => {
     let seedLogic = '';
     const dbType = config.dbType;
+    const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
 
     // Create database views for custom queries if they don't exist
     const selectQueries = queries.filter(q => q.type === 'SELECT');
@@ -131,9 +132,9 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
     });
 
     const content = `using Microsoft.EntityFrameworkCore;
-using ${config.projectName}.Data;
+using ${safeNamespace}.Data;
 
-namespace ${config.projectName}.Data
+namespace ${safeNamespace}.Data
 {
     public static class DbInitializer
     {

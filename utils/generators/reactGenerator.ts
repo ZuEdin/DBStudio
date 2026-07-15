@@ -1,3 +1,4 @@
+import { toPascalCase } from './common';
 
 import { Table, Query, VirtualFile, Relationship, BackendConfig, Form, Report, CustomPage } from '../../types/index';
 import { generateReactConfigs } from './react/config';
@@ -15,8 +16,8 @@ export const generateReact = (
   pages: CustomPage[] = [],
   customComponents: any[] = []
 ): VirtualFile[] => {
+
   const root = `Frontend`;
-  
   const configFiles = generateReactConfigs(config, root);
   const apiFiles = generateReactApi(tables, queries, config, root);
   // Pass Queries and Custom Pages to Structure generator for Routes/Sidebar

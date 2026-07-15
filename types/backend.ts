@@ -1,7 +1,7 @@
 import { DbType } from './database';
 
 export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron' | 'python';
-export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'vue' | 'electron' | 'none';
+export type FrontendFramework = 'react' | 'angular' | 'blazor' | 'vue' | 'electron' | 'maui' | 'maui-native' | 'none';
 export type StylingFramework = 'tailwind' | 'bootstrap' | 'none';
 
 export interface AuthConfig {

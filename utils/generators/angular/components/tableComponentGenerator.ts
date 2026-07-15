@@ -281,7 +281,8 @@ import { ${interfaceName} } from '../../models/${interfaceName.toLowerCase()}.in
   selector: 'app-${kebabName}-list',
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
-  templateUrl: './${kebabName}-list.component.html'
+  templateUrl: './${kebabName}-list.component.html',
+  styleUrl: './${kebabName}-list.component.css'
 })
 export class ${pascalName}ListComponent implements OnInit {
   items: ${interfaceName}[] = [];
@@ -326,6 +327,7 @@ export class ${pascalName}ListComponent implements OnInit {
 }`;
 
       files.push({ name: `${kebabName}-list.component.html`, path: `${appRoot}/pages/${folder}/${kebabName}-list.component.html`, content: listHtml, language: 'html' });
+      files.push({ name: `${kebabName}-list.component.css`, path: `${appRoot}/pages/${folder}/${kebabName}-list.component.css`, content: `/* CSS for ${kebabName}-list component */\n:host { display: block; }`, language: 'css' });
       files.push({ name: `${kebabName}-list.component.ts`, path: `${appRoot}/pages/${folder}/${kebabName}-list.component.ts`, content: listTs, language: 'typescript' });
       routes.push({ path: camelName, component: `${pascalName}ListComponent`, folder: folder, file: `${kebabName}-list.component` });
 
@@ -577,7 +579,8 @@ import { ${interfaceName} } from '../../models/${interfaceName.toLowerCase()}.in
   selector: 'app-${kebabName}-form',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, UserPickerComponent],
-  templateUrl: './${kebabName}-form.component.html'
+  templateUrl: './${kebabName}-form.component.html',
+  styleUrl: './${kebabName}-form.component.css'
 })
 export class ${pascalName}FormComponent implements OnInit {
   data: ${interfaceName} = {} as ${interfaceName};
@@ -671,6 +674,7 @@ ${onFieldChangeCode}
 }`;
 
       files.push({ name: `${kebabName}-form.component.html`, path: `${appRoot}/pages/${folder}/${kebabName}-form.component.html`, content: formHtml, language: 'html' });
+      files.push({ name: `${kebabName}-form.component.css`, path: `${appRoot}/pages/${folder}/${kebabName}-form.component.css`, content: `/* CSS for ${kebabName}-form component */\n:host { display: block; }`, language: 'css' });
       files.push({ name: `${kebabName}-form.component.ts`, path: `${appRoot}/pages/${folder}/${kebabName}-form.component.ts`, content: formTs, language: 'typescript' });
       
       routes.push({ path: `${camelName}/:id`, component: `${pascalName}FormComponent`, folder: folder, file: `${kebabName}-form.component` });

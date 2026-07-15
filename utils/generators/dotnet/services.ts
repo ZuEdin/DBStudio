@@ -13,6 +13,7 @@ export const generatePermissionService = (config: BackendConfig, root: string): 
 
 export const generateAdServices = (config: BackendConfig, root: string): VirtualFile[] => {
     const files: VirtualFile[] = [];
+    const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
 
     // 1. Tenant & Permission Service
     const isDbPerTenant = config.multiTenancy?.enabled && config.multiTenancy.strategy === 'database';
@@ -29,9 +30,9 @@ export const generateAdServices = (config: BackendConfig, root: string): Virtual
 
     const permissionContent = `using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using ${config.projectName}.Data;
+using ${safeNamespace}.Data;
 
-namespace ${config.projectName}.Services
+namespace ${safeNamespace}.Services
 {
 ${tenantImpl}
 
@@ -48,7 +49,7 @@ ${tenantImpl}
     // 2. NEW: Current User Service (Who am I?)
     const currentUserContent = `using System.Security.Claims;
 
-namespace ${config.projectName}.Services
+namespace ${safeNamespace}.Services
 {
     public interface ICurrentUserService
     {
@@ -93,7 +94,7 @@ namespace ${config.projectName}.Services
 using System.Runtime.Versioning;
 using System.Security.Principal;
 
-namespace ${config.projectName}.Services
+namespace ${safeNamespace}.Services
 {
     public class AdUserInfo 
     {

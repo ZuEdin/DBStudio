@@ -17,6 +17,8 @@ const getDefaultPort = (framework: FrontendFramework): number => {
         case 'angular': return 4200;
         case 'vue': return 5173;
         case 'blazor': return 5002;
+        case 'maui': return 5003;
+        case 'maui-native': return 5004;
         default: return 3000;
     }
 };
@@ -31,8 +33,22 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
       case 'SQL': return 'SQL Server';
       case 'MySQL': return 'MySQL';
       case 'SQLite': return 'SQLite';
+      case 'PostgreSQL': return 'PostgreSQL';
       case 'NoSQL': return 'NoSQL (Mongo)';
       default: return type;
+    }
+  };
+
+  const getFrontendLabel = (fw: FrontendFramework) => {
+    switch(fw) {
+      case 'react': return 'React';
+      case 'vue': return 'Vue.js';
+      case 'angular': return 'Angular';
+      case 'blazor': return 'Blazor (WASM)';
+      case 'maui': return '.NET MAUI (Blazor Hybrid)';
+      case 'maui-native': return '.NET MAUI (XAML / Native)';
+      case 'none': return 'Keins (Nur API)';
+      default: return fw;
     }
   };
 
@@ -71,7 +87,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Web:</span>{' '}
-                  <span className="font-medium text-slate-700">{backendConfig.frontendFramework === 'none' ? 'Nur API' : backendConfig.frontendFramework} ({backendConfig.stylingFramework || 'tailwind'})</span>
+                  <span className="font-bold text-emerald-700">{getFrontendLabel(backendConfig.frontendFramework)} ({backendConfig.stylingFramework || 'tailwind'})</span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold">Port:</span>{' '}
@@ -194,6 +210,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                             <option value="SQL">SQL Server</option>
                             <option value="MySQL">MySQL</option>
                             <option value="SQLite">SQLite</option>
+                            <option value="PostgreSQL">PostgreSQL</option>
                             <option value="NoSQL">NoSQL (Mongo)</option>
                         </select>
                       </div>
@@ -321,6 +338,8 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                             <option value="vue">Vue.js</option>
                             <option value="angular">Angular</option>
                             <option value="blazor">Blazor (WASM)</option>
+                            <option value="maui">.NET MAUI (Blazor Hybrid)</option>
+                            <option value="maui-native">.NET MAUI (XAML / Native)</option>
                             <option value="none">Keins (Nur API)</option>
                         </select>
                       </div>

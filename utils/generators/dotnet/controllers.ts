@@ -4,6 +4,7 @@ import { resolveType, toPascalCase, toCamelCase } from '../common';
 
 export const generateControllers = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
+  const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   const useAuth = config.authConfig?.useUserLogin;
   const useWinAuth = config.authConfig?.useWindowsAuth;
 
@@ -11,9 +12,9 @@ export const generateControllers = (tables: Table[], relationships: Relationship
   if (useWinAuth) {
       const adControllerContent = `using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ${config.projectName}.Services;
+using ${safeNamespace}.Services;
 
-namespace ${config.projectName}.Controllers
+namespace ${safeNamespace}.Controllers
 {
     [Route("api/ad")]
     [ApiController]
@@ -67,7 +68,7 @@ namespace ${config.projectName}.Controllers
   if (useAuth) {
       const authControllerContent = `using Microsoft.AspNetCore.Mvc;
 
-namespace ${config.projectName}.Controllers
+namespace ${safeNamespace}.Controllers
 {
     [Route("api/auth")]
     [ApiController]
@@ -98,7 +99,7 @@ namespace ${config.projectName}.Controllers
       files.push({ name: 'AuthController.cs', path: `${root}/Controllers/AuthController.cs`, content: authControllerContent, language: 'csharp' });
   }
 
-  const pagedResultClass = `namespace ${config.projectName}.Models
+  const pagedResultClass = `namespace ${safeNamespace}.Models
 {
     public class PagedResult<T>
     {
@@ -114,6 +115,7 @@ namespace ${config.projectName}.Controllers
   // Generic CRUD Controllers with Audit
   tables.forEach(table => {
       const safeName = toPascalCase(table.name);
+      const getPropName = (f: any) => { let p = toPascalCase(f.name); return p === safeName ? p + 'Value' : p; };
       const pkField = table.fields.find(f => f.isPrimaryKey) || table.fields[0];
       
       // SEARCH LOGIC
@@ -121,7 +123,7 @@ namespace ${config.projectName}.Controllers
       const stringFields = table.fields.filter(f => f.type === 'VARCHAR' || f.type === 'TEXT');
       let searchLogic = '';
       if (stringFields.length > 0) {
-          const predicate = stringFields.map(f => `(x.${toPascalCase(f.name)} != null && x.${toPascalCase(f.name)}.ToLower().Contains(search.ToLower()))`).join(' || ');
+          const predicate = stringFields.map(f => `(x.${getPropName(f)} != null && x.${getPropName(f)}.ToLower().Contains(search.ToLower()))`).join(' || ');
           searchLogic = `
             if (!string.IsNullOrEmpty(search))
             {
@@ -140,37 +142,37 @@ namespace ${config.projectName}.Controllers
       let onCreateAudit = '';
       if (auditFields.createdBy) {
           if (auditFields.createdBy.type === 'VARCHAR' || auditFields.createdBy.type === 'TEXT') {
-              onCreateAudit += `                item.${toPascalCase(auditFields.createdBy.name)} = _currentUser.Username ?? "System";\n`;
+              onCreateAudit += `                item.${getPropName(auditFields.createdBy)} = _currentUser.Username ?? "System";\n`;
           } else if (auditFields.createdBy.type === 'INTEGER' || auditFields.createdBy.type === 'TINYINT') {
-              onCreateAudit += `                if (int.TryParse(_currentUser.UserId, out var parsedCreatedBy)) item.${toPascalCase(auditFields.createdBy.name)} = parsedCreatedBy;\n`;
+              onCreateAudit += `                if (int.TryParse(_currentUser.UserId, out var parsedCreatedBy)) item.${getPropName(auditFields.createdBy)} = parsedCreatedBy;\n`;
           }
       }
-      if (auditFields.createdDate) onCreateAudit += `                item.${toPascalCase(auditFields.createdDate.name)} = DateTime.Now;\n`;
+      if (auditFields.createdDate) onCreateAudit += `                item.${getPropName(auditFields.createdDate)} = DateTime.Now;\n`;
       
       let onUpdateAudit = '';
       if (auditFields.modifiedBy) {
           if (auditFields.modifiedBy.type === 'VARCHAR' || auditFields.modifiedBy.type === 'TEXT') {
-              onUpdateAudit += `            existing.${toPascalCase(auditFields.modifiedBy.name)} = _currentUser.Username ?? "System";\n`;
+              onUpdateAudit += `            existing.${getPropName(auditFields.modifiedBy)} = _currentUser.Username ?? "System";\n`;
           } else if (auditFields.modifiedBy.type === 'INTEGER' || auditFields.modifiedBy.type === 'TINYINT') {
-              onUpdateAudit += `            if (int.TryParse(_currentUser.UserId, out var parsedModifiedBy)) existing.${toPascalCase(auditFields.modifiedBy.name)} = parsedModifiedBy;\n`;
+              onUpdateAudit += `            if (int.TryParse(_currentUser.UserId, out var parsedModifiedBy)) existing.${getPropName(auditFields.modifiedBy)} = parsedModifiedBy;\n`;
           }
       }
-      if (auditFields.modifiedDate) onUpdateAudit += `            existing.${toPascalCase(auditFields.modifiedDate.name)} = DateTime.Now;\n`;
+      if (auditFields.modifiedDate) onUpdateAudit += `            existing.${getPropName(auditFields.modifiedDate)} = DateTime.Now;\n`;
 
       // Fallback logic for status fields to default to 1 if 0 (e.g. SQLite Status field)
       const statusField = table.fields.find(f => ['status', 'statusid'].includes(f.name.toLowerCase()) && f.type === 'INTEGER');
       let statusDefaultLogic = '';
       if (statusField) {
-          statusDefaultLogic = `            if (item.${toPascalCase(statusField.name)} == 0)
+          statusDefaultLogic = `            if (item.${getPropName(statusField)} == 0)
             {
-                item.${toPascalCase(statusField.name)} = 1;
+                item.${getPropName(statusField)} = 1;
             }\n`;
       }
 
       // Default values logic (e.g. TIMESTAMP with DEFAULT CURRENT_TIMESTAMP / NOW)
       let defaultValuesLogic = '';
       table.fields.forEach(f => {
-          const fieldPascal = toPascalCase(f.name);
+          const fieldPascal = getPropName(f);
           const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
           const hasNowDefault = f.defaultValue && (
               f.defaultValue.toLowerCase().includes('now') ||
@@ -220,11 +222,11 @@ namespace ${config.projectName}.Controllers
 
       const content = `using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ${config.projectName}.Data;
-using ${config.projectName}.Models;
-using ${config.projectName}.Services;
+using ${safeNamespace}.Data;
+using ${safeNamespace}.Models;
+using ${safeNamespace}.Services;
 
-namespace ${config.projectName}.Controllers
+namespace ${safeNamespace}.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -275,13 +277,13 @@ ${statusDefaultLogic}${defaultValuesLogic}
         [HttpPut("{id}")]
         public async Task<ActionResult> Put(${resolveType(pkField, 'csharp')} id, ${safeName} item) 
         { 
-            if (id != item.${toPascalCase(pkField.name)}) return BadRequest();
+            if (id != item.${getPropName(pkField)}) return BadRequest();
 
             var existing = await _context.${safeName}s.FindAsync(id);
             if (existing == null) return NotFound();
 
             // Retain original creation info to make it unmanipulatable
-${auditFields.createdBy ? `            item.${toPascalCase(auditFields.createdBy.name)} = existing.${toPascalCase(auditFields.createdBy.name)};\n` : ''}${auditFields.createdDate ? `            item.${toPascalCase(auditFields.createdDate.name)} = existing.${toPascalCase(auditFields.createdDate.name)};\n` : ''}
+${auditFields.createdBy ? `            item.${getPropName(auditFields.createdBy)} = existing.${getPropName(auditFields.createdBy)};\n` : ''}${auditFields.createdDate ? `            item.${getPropName(auditFields.createdDate)} = existing.${getPropName(auditFields.createdDate)};\n` : ''}
             _context.Entry(existing).CurrentValues.SetValues(item);
 
             // Audit: Update
@@ -316,7 +318,8 @@ ${auditFields.createdBy ? `            item.${toPascalCase(auditFields.createdBy
                           const paramName = `form_${formName}_${fieldName}`;
                           const opMatch = cr.match(/^(=|like |>|<|>=|<=)/i);
                           const op = opMatch ? opMatch[0].toUpperCase().trim() : '=';
-                          const colName = toPascalCase(c.alias || c.fieldName);
+                          let colName = toPascalCase(c.alias || c.fieldName);
+                          if (colName === safeName) colName += 'Value';
                           
                           const colTable = tables.find(t => t.id === c.tableId);
                           const colField = colTable?.fields.find(f => f.id === c.fieldId);
@@ -417,10 +420,10 @@ ${queryFiltering}
 
       const queriesControllerContent = `using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ${config.projectName}.Data;
-using ${config.projectName}.Models;
+using ${safeNamespace}.Data;
+using ${safeNamespace}.Models;
 
-namespace ${config.projectName}.Controllers
+namespace ${safeNamespace}.Controllers
 {
     [Route("api/queries")]
     [ApiController]

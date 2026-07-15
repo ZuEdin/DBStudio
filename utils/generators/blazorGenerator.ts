@@ -6,11 +6,15 @@ import { DATA_TYPES } from '../../config/dataTypes';
 export const generateBlazor = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, forms: Form[], reports: Report[]): VirtualFile[] => {
   const files: VirtualFile[] = [];
   const root = `Frontend/${config.projectName}.Client`;
-  const namespace = `${config.projectName}.Client`;
+  const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
+  const namespace = `${safeNamespace}.Client`;
   const useAuth = config.authConfig?.useUserLogin;
   const clientPort = config.port + 2;
 
-  const version = config.backendVersion || '9.0';
+  let version = config.backendVersion || '9.0';
+  if (parseFloat(version) > 9.0) {
+    version = '9.0';
+  }
   const targetFramework = `net${version}`;
   const packageVersion = `${version}.0`; 
 
@@ -54,7 +58,8 @@ ${useAuth ? '@using Microsoft.AspNetCore.Authorization' : ''}
   files.push({ name: '_Imports.razor', path: `${root}/_Imports.razor`, content: importsContent, language: 'razor' });
 
   // 3. Program.cs
-  let programContent = `using Microsoft.AspNetCore.Components.Web;
+  let programContent = `using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using ${namespace};
 using ${namespace}.Services;
@@ -138,11 +143,16 @@ ${useAuth ? `@code { async Task Logout() { await Auth.Logout(); Nav.NavigateTo("
       files.push({ name: `${className}.cs`, path: `${root}/Models/${className}.cs`, content: `namespace ${namespace}.Models { public class ${className} { \n${props}\n } }`, language: 'csharp' });
   });
 
+  // Always generate ApiService
+  files.push({ name: 'ApiService.cs', path: `${root}/Services/ApiService.cs`, content: `using System.Net.Http; using System.Net.Http.Json; using System.Collections.Generic; using System.Threading.Tasks; using Microsoft.JSInterop; namespace ${namespace}.Services { public class ApiService { private readonly HttpClient _http; private readonly IJSRuntime _js; public ApiService(HttpClient http, IJSRuntime js) { _http = http; _js = js; } private async Task AddHeader() { var token = await _js.InvokeAsync<string>("localStorage.getItem", "auth_token"); if(!string.IsNullOrEmpty(token)) _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token); } public async Task<List<T>> Get<T>(string uri) { await AddHeader(); return await _http.GetFromJsonAsync<List<T>>(uri) ?? new(); } public async Task<T> GetById<T>(string uri, object id) { await AddHeader(); return await _http.GetFromJsonAsync<T>($"{uri}/{id}"); } public async Task Create<T>(string uri, T val) { await AddHeader(); await _http.PostAsJsonAsync(uri, val); } public async Task Update<T>(string uri, object id, T val) { await AddHeader(); await _http.PutAsJsonAsync($"{uri}/{id}", val); } public async Task Delete(string uri, object id) { await AddHeader(); await _http.DeleteAsync($"{uri}/{id}"); } } }`, language: 'csharp' });
+
   if (useAuth) {
       files.push({
           name: 'CustomAuthStateProvider.cs',
           path: `${root}/Services/CustomAuthStateProvider.cs`,
           content: `using System.Security.Claims;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.JSInterop;
 using System.Text.Json;
@@ -203,8 +213,7 @@ namespace ${namespace}.Services {
       });
       
       files.push({ name: 'LoginModel.cs', path: `${root}/Models/LoginModel.cs`, content: `namespace ${namespace}.Models { public class LoginModel { public string Username { get; set; } = ""; public string Password { get; set; } = ""; } public class RegisterModel { public string Username { get; set; } = ""; public string Email { get; set; } = ""; public string Password { get; set; } = ""; } public class ChangePasswordModel { public string OldPassword { get; set; } = ""; public string NewPassword { get; set; } = ""; } public class AuthResponse { public string Token { get; set; } = ""; } }`, language: 'csharp' });
-      files.push({ name: 'AuthService.cs', path: `${root}/Services/AuthService.cs`, content: `using System.Net.Http.Json; using Microsoft.AspNetCore.Components.Authorization; using Microsoft.JSInterop; using ${namespace}.Models; namespace ${namespace}.Services { public class AuthService { private readonly HttpClient _http; private readonly AuthenticationStateProvider _provider; private readonly IJSRuntime _js; public AuthService(HttpClient http, AuthenticationStateProvider provider, IJSRuntime js) { _http = http; _provider = provider; _js = js; } public async Task Login(LoginModel model) { var res = await _http.PostAsJsonAsync("auth/login", model); if(!res.IsSuccessStatusCode) throw new Exception("Login failed"); var data = await res.Content.ReadFromJsonAsync<AuthResponse>(); await _js.InvokeVoidAsync("localStorage.setItem", "auth_token", data.Token); ((CustomAuthStateProvider)_provider).NotifyUserAuthentication(data.Token); } public async Task Register(RegisterModel model) { await _http.PostAsJsonAsync("auth/register", model); } public async Task ChangePassword(ChangePasswordModel model) { await _http.PostAsJsonAsync("auth/change-password", model); } public async Task Logout() { await _js.InvokeVoidAsync("localStorage.removeItem", "auth_token"); ((CustomAuthStateProvider)_provider).NotifyUserLogout(); } } }`, language: 'csharp' });
-      files.push({ name: 'ApiService.cs', path: `${root}/Services/ApiService.cs`, content: `using System.Net.Http.Json; using Microsoft.JSInterop; namespace ${namespace}.Services { public class ApiService { private readonly HttpClient _http; private readonly IJSRuntime _js; public ApiService(HttpClient http, IJSRuntime js) { _http = http; _js = js; } private async Task AddHeader() { var token = await _js.InvokeAsync<string>("localStorage.getItem", "auth_token"); if(!string.IsNullOrEmpty(token)) _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token); } public async Task<List<T>> Get<T>(string uri) { await AddHeader(); return await _http.GetFromJsonAsync<List<T>>(uri) ?? new(); } public async Task<T> GetById<T>(string uri, object id) { await AddHeader(); return await _http.GetFromJsonAsync<T>($"{uri}/{id}"); } public async Task Create<T>(string uri, T val) { await AddHeader(); await _http.PostAsJsonAsync(uri, val); } public async Task Update<T>(string uri, object id, T val) { await AddHeader(); await _http.PutAsJsonAsync($"{uri}/{id}", val); } public async Task Delete(string uri, object id) { await AddHeader(); await _http.DeleteAsync($"{uri}/{id}"); } } }`, language: 'csharp' });
+      files.push({ name: 'AuthService.cs', path: `${root}/Services/AuthService.cs`, content: `using System.Net.Http; using System.Net.Http.Json; using System.Threading.Tasks; using System.Collections.Generic; using Microsoft.AspNetCore.Components.Authorization; using Microsoft.JSInterop; using ${namespace}.Models; namespace ${namespace}.Services { public class AuthService { private readonly HttpClient _http; private readonly AuthenticationStateProvider _provider; private readonly IJSRuntime _js; public AuthService(HttpClient http, AuthenticationStateProvider provider, IJSRuntime js) { _http = http; _provider = provider; _js = js; } public async Task Login(LoginModel model) { var res = await _http.PostAsJsonAsync("auth/login", model); if(!res.IsSuccessStatusCode) throw new Exception("Login failed"); var data = await res.Content.ReadFromJsonAsync<AuthResponse>(); await _js.InvokeVoidAsync("localStorage.setItem", "auth_token", data.Token); ((CustomAuthStateProvider)_provider).NotifyUserAuthentication(data.Token); } public async Task Register(RegisterModel model) { await _http.PostAsJsonAsync("auth/register", model); } public async Task ChangePassword(ChangePasswordModel model) { await _http.PostAsJsonAsync("auth/change-password", model); } public async Task Logout() { await _js.InvokeVoidAsync("localStorage.removeItem", "auth_token"); ((CustomAuthStateProvider)_provider).NotifyUserLogout(); } } }`, language: 'csharp' });
       
       files.push({ name: 'Login.razor', path: `${root}/Pages/Login.razor`, content: `@page "/login"\n@inject AuthService Auth\n@inject NavigationManager Nav\n@using ${namespace}.Models\n<div class="col-md-4 mx-auto mt-5"><h3>Login</h3><EditForm Model="model" OnValidSubmit="DoLogin"><DataAnnotationsValidator/><div class="mb-3"><label>User</label><InputText @bind-Value="model.Username" class="form-control"/></div><div class="mb-3"><label>Pass</label><InputText @bind-Value="model.Password" type="password" class="form-control"/></div><button class="btn btn-primary w-100">Login</button></EditForm><div class="mt-2 text-center"><a href="forgot-password">Passwort vergessen?</a></div></div>\n@code { LoginModel model = new(); async Task DoLogin() { await Auth.Login(model); Nav.NavigateTo("/"); } }`, language: 'razor' });
       files.push({ name: 'Register.razor', path: `${root}/Pages/Register.razor`, content: `@page "/register"\n@inject AuthService Auth\n@inject NavigationManager Nav\n@using ${namespace}.Models\n<div class="col-md-4 mx-auto mt-5"><h3>Register</h3><EditForm Model="model" OnValidSubmit="DoReg"><DataAnnotationsValidator/><div class="mb-3"><label>User</label><InputText @bind-Value="model.Username" class="form-control"/></div><div class="mb-3"><label>Email</label><InputText @bind-Value="model.Email" class="form-control"/></div><div class="mb-3"><label>Pass</label><InputText @bind-Value="model.Password" type="password" class="form-control"/></div><button class="btn btn-success w-100">Register</button></EditForm></div>\n@code { RegisterModel model = new(); async Task DoReg() { await Auth.Register(model); Nav.NavigateTo("/login"); } }`, language: 'razor' });
@@ -215,6 +224,14 @@ namespace ${namespace}.Services {
       // Profile Page
       files.push({ name: 'Profile.razor', path: `${root}/Pages/Profile.razor`, content: `@page "/profile"\n@attribute [Authorize]\n@inject AuthService Auth\n@using ${namespace}.Models\n<h3>Mein Profil</h3><hr/><div class="col-md-4"><h5 class="mb-3">Passwort ändern</h5><EditForm Model="model" OnValidSubmit="ChangePw"><div class="mb-3"><label>Alt</label><InputText @bind-Value="model.OldPassword" type="password" class="form-control"/></div><div class="mb-3"><label>Neu</label><InputText @bind-Value="model.NewPassword" type="password" class="form-control"/></div><button class="btn btn-secondary">Ändern</button></EditForm></div>\n@code { ChangePasswordModel model = new(); async Task ChangePw() { await Auth.ChangePassword(model); } }`, language: 'razor' });
   }
+
+  // 9. Index Page
+  files.push({
+      name: 'Index.razor',
+      path: `${root}/Pages/Index.razor`,
+      content: `@page "/"\n${useAuth ? '@attribute [Authorize]\n' : ''}<div class="container mt-5"><div class="p-5 mb-4 bg-light rounded-3 shadow-sm border"><div class="container-fluid py-5"><h1 class="display-5 fw-bold text-primary">${config.projectName}</h1><p class="col-md-8 fs-4 text-muted">Willkommen in Ihrer C#- und Blazor-Anwendung. Verwalten Sie Ihre Tabellen, führen Sie Abfragen aus und erstellen Sie Berichte.</p><hr class="my-4"/><div class="row mt-4"><div class="col-md-6"><h5>Schnellstart</h5><p class="text-secondary">Wählen Sie links im Menü eine Tabelle aus, um Datensätze anzuzeigen, zu erstellen oder zu bearbeiten.</p></div><div class="col-md-6"><h5>Datenbank-Studio Pro</h5><p class="text-secondary">Diese Anwendung wurde mit dem modernen ASP.NET Core Backend und dem Blazor WebAssembly Frontend generiert.</p></div></div></div></div></div>`,
+      language: 'razor'
+  });
 
   // 10. Pages with [Authorize(Roles="Admin")] for System Tables
   tables.forEach(table => {

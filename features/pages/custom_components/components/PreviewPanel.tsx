@@ -3,10 +3,73 @@ import {
   AlertCircle, RefreshCw, HelpCircle, Filter, 
   TrendingUp, Users, DollarSign, Activity, Calendar, Percent, Award, ShoppingCart, Layout, Layers
 } from 'lucide-react';
+import { useProjectStore } from '../../../../stores/useProjectStore';
+import { getNestedValueCaseInsensitive } from '../../utils/pageViewUtils';
+
+const getNestedValue = (obj: any, path: string): any => {
+  if (!path) return undefined;
+  const parts = path.split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current === undefined || current === null) return undefined;
+    current = getNestedValueCaseInsensitive(current, part);
+  }
+  return current;
+};
+
+const renderCardWithTemplate = (row: any, config: any) => {
+  const fields = config?.fields || [];
+  const cardStyle = config?.cardStyle || {
+    padding: 'p-3',
+    rounded: 'rounded-xl',
+    bg: 'bg-white dark:bg-slate-950',
+    border: 'border border-slate-200 dark:border-slate-800',
+    shadow: 'shadow-xs'
+  };
+
+  return (
+    <div className={`${cardStyle.bg} ${cardStyle.padding} ${cardStyle.rounded} ${cardStyle.border} ${cardStyle.shadow} space-y-1.5 text-left transition-all duration-200`}>
+      {fields.length === 0 ? (
+        <div className="text-center py-4 text-[10px] text-slate-400 italic">Keine Felder definiert</div>
+      ) : (
+        fields.map((f: any, fIdx: number) => {
+          const val = getNestedValue(row, f.field);
+          if (val === undefined || val === null) return null;
+
+          const alignClass = f.align || 'text-left';
+          const sizeClass = f.fontSize || 'text-xs';
+          const weightClass = f.fontWeight || 'font-normal';
+          
+          if (f.isBadge) {
+            const badgeColorClass = f.badgeColor || 'bg-slate-100 text-slate-600';
+            return (
+              <div key={fIdx} className={`${alignClass} pt-0.5`}>
+                <span className={`inline-block ${sizeClass} ${weightClass} ${badgeColorClass} px-2 py-0.5 rounded-md`}>
+                  {f.showLabel !== false && f.label && <span className="opacity-80 mr-1">{f.label}:</span>}
+                  {String(val)}
+                </span>
+              </div>
+            );
+          } else {
+            const textColorClass = f.textColor || 'text-slate-800 dark:text-slate-100';
+            return (
+              <div key={fIdx} className={`${alignClass} ${sizeClass} ${weightClass} ${textColorClass} leading-tight`}>
+                {f.showLabel !== false && f.label && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mr-1">{f.label}:</span>
+                )}
+                {String(val)}
+              </div>
+            );
+          }
+        })
+      )}
+    </div>
+  );
+};
 
 interface PreviewPanelProps {
   componentName: string;
-  componentType: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board';
+  componentType: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template';
   configObj: any;
   activeTab: 'visual' | 'json';
   jsonError: string | null;
@@ -25,6 +88,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   calculateAggregate,
   forms,
 }) => {
+  const { customComponents = [], tables = [] } = useProjectStore();
   return (
     <div className="flex-1 bg-slate-100 dark:bg-slate-950 flex flex-col p-6 overflow-y-auto z-0">
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-full min-h-[500px]">
@@ -500,15 +564,40 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                   const descF = configObj.descField || 'Email';
                   const accentF = configObj.cardAccentField || 'Umsatz';
 
-                  // Dynamic grouping of mockRows
+                  // Build mapping: manual mapping + dynamic mapping from related table
+                  const columnMapping: Record<string, string> = { ...(configObj.columnMapping || {}) };
+                  if (configObj.columnSourceTableId && configObj.columnDisplayField) {
+                      const sourceTable = tables.find(t => t.id === configObj.columnSourceTableId);
+                      if (sourceTable && sourceTable.data) {
+                          sourceTable.data.forEach(item => {
+                              const idVal = getNestedValueCaseInsensitive(item, 'id') ?? getNestedValueCaseInsensitive(item, 'Id');
+                              const labelVal = getNestedValueCaseInsensitive(item, configObj.columnDisplayField);
+                              if (idVal !== undefined && idVal !== null && labelVal !== undefined && labelVal !== null) {
+                                  columnMapping[String(idVal)] = String(labelVal);
+                              }
+                          });
+                      }
+                  }
+
+                  const keysFromMapping = Object.keys(columnMapping);
+                  const defaultCols = keysFromMapping.length > 0 ? keysFromMapping : (configObj.columns || ['Offen', 'In Arbeit', 'Erledigt']);
+
                   const groups: Record<string, any[]> = {};
+                  const unassignedKey = "Nicht zugeordnet";
+
+                  defaultCols.forEach((col: string) => { groups[col] = []; });
+                  groups[unassignedKey] = [];
+
                   mockRows.forEach(row => {
-                     const val = String(row[groupBy] || 'Unbekannt');
-                     if (!groups[val]) groups[val] = [];
-                     groups[val].push(row);
+                     const val = String(getNestedValueCaseInsensitive(row, groupBy) || '');
+                     if (groups.hasOwnProperty(val)) {
+                        groups[val].push(row);
+                     } else {
+                        groups[unassignedKey].push(row);
+                     }
                   });
 
-                  const columnsKeys = Object.keys(groups);
+                  const columnsKeys = [...defaultCols, ...(groups[unassignedKey].length > 0 ? [unassignedKey] : [])];
 
                   return (
                     <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
@@ -527,30 +616,56 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-3 overflow-x-auto pb-2">
-                          {columnsKeys.slice(0, 4).map(colKey => (
+                          {columnsKeys.map(colKey => (
                             <div key={colKey} className="bg-slate-100/80 dark:bg-slate-850 p-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800/50 flex flex-col min-w-[150px]">
                               <div className="flex justify-between items-center mb-2 px-1">
-                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[80%]">{colKey}</span>
+                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[80%]">
+                                  {columnMapping[colKey] || colKey}
+                                </span>
                                 <span className="text-[9px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded-full">
-                                  {groups[colKey].length}
+                                  {groups[colKey]?.length || 0}
                                 </span>
                               </div>
 
                               <div className="space-y-2 flex-1">
-                                {groups[colKey].map((row, rIdx) => {
-                                  const cardTitle = row[titleF] ? String(row[titleF]) : `Karte #${rIdx + 1}`;
-                                  const cardDesc = row[descF] ? String(row[descF]) : '';
-                                  const cardAccent = row[accentF];
+                                {(groups[colKey] || []).map((row, rIdx) => {
+                                  if (configObj.cardTemplateId) {
+                                    const template = customComponents.find(c => c.id === configObj.cardTemplateId);
+                                    if (template) {
+                                      return (
+                                        <div key={rIdx} className="cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-transform">
+                                          {renderCardWithTemplate(row, template.configuration)}
+                                        </div>
+                                      );
+                                    }
+                                  }
+
+                                  const mapValWithLookup = (val: any): string => {
+                                    if (val === undefined || val === null) return '';
+                                    const sVal = String(val);
+                                    if (columnMapping && columnMapping[sVal] !== undefined) {
+                                      return columnMapping[sVal];
+                                    }
+                                    return typeof val === 'number' ? val.toLocaleString('de-DE') : sVal;
+                                  };
+
+                                  const cardTitleVal = getNestedValue(row, titleF) || getNestedValue(row, 'Name') || getNestedValue(row, 'name') || getNestedValue(row, 'Title') || getNestedValue(row, 'title') || getNestedValue(row, 'Username') || getNestedValue(row, 'username');
+                                  const cardTitle = cardTitleVal ? mapValWithLookup(cardTitleVal) : `Karte #${rIdx + 1}`;
+                                  
+                                  const cardDescVal = getNestedValue(row, descF) || getNestedValue(row, 'Email') || getNestedValue(row, 'email') || getNestedValue(row, 'Description') || getNestedValue(row, 'description') || getNestedValue(row, 'Untertitel');
+                                  const cardDesc = cardDescVal ? mapValWithLookup(cardDescVal) : '';
+
+                                  const cardAccent = getNestedValue(row, accentF);
 
                                   return (
                                     <div key={rIdx} className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all space-y-1.5">
                                       <h5 className="text-[10px] font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">{cardTitle}</h5>
                                       {cardDesc && <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-normal line-clamp-2">{cardDesc}</p>}
                                       
-                                      {cardAccent !== undefined && (
+                                      {cardAccent !== undefined && cardAccent !== null && (
                                         <div className="flex justify-end pt-1">
                                           <span className="text-[8px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-mono">
-                                            {typeof cardAccent === 'number' ? cardAccent.toLocaleString('de-DE') : String(cardAccent)}
+                                            {mapValWithLookup(cardAccent)}
                                           </span>
                                         </div>
                                       )}
@@ -565,6 +680,25 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                     </div>
                   );
                 })()}
+
+                {/* CARD TEMPLATE PREVIEW */}
+                {componentType === 'card_template' && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
+                    <div className="flex justify-between items-center pb-2 border-b dark:border-slate-800">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-xs">Kartenvorlage (Card Template)</span>
+                      <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.5 rounded font-bold uppercase dark:text-indigo-400">
+                        Vorlage
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {mockRows.slice(0, 2).map((row, rIdx) => (
+                        <div key={rIdx}>
+                          {renderCardWithTemplate(row, configObj)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* BOTTOM EXPLANATION BOX */}

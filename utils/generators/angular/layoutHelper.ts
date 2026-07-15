@@ -137,7 +137,7 @@ export const generateHtmlForLayout = (
                           const keys = new Set<string>();
                           keys.add(propOrig);
                           keys.add(propCamel);
-                          keys.add(propPascal);
+                          keys.add(propPascal); keys.add(propCamel + "Value"); keys.add(propOrig + "Value"); keys.add(propPascal + "Value");
                           keys.add(propOrig.toLowerCase());
                           keys.add(propCamel.toLowerCase());
                           keys.add(propOrig.charAt(0).toLowerCase() + propOrig.slice(1));
@@ -160,7 +160,7 @@ export const generateHtmlForLayout = (
                           const keys = new Set<string>();
                           keys.add(propOrig);
                           keys.add(propCamel);
-                          keys.add(propPascal);
+                          keys.add(propPascal); keys.add(propCamel + "Value"); keys.add(propOrig + "Value"); keys.add(propPascal + "Value");
                           keys.add(propOrig.toLowerCase());
                           keys.add(propCamel.toLowerCase());
                           keys.add(propOrig.charAt(0).toLowerCase() + propOrig.slice(1));
@@ -177,7 +177,7 @@ export const generateHtmlForLayout = (
 
                   if (isBootstrap) {
                       const quickCreateBtn = element.lookup.allowQuickCreate 
-                         ? `<button type="button" *ngIf="!isNew" (click)="openModal('lookup_${element.id}')" class="btn btn-outline-success">+</button>` 
+                         ? `<button type="button" (click)="openModal('lookup_${element.id}')" class="btn btn-outline-success">+</button>` 
                          : '';
 
                       const lookupModal = element.lookup.allowQuickCreate ? `
@@ -194,7 +194,7 @@ export const generateHtmlForLayout = (
                                          if (f.type === 'BOOLEAN') {
                                              return `
                                              <div class="form-check mb-3">
-                                                 <input type="checkbox" [(ngModel)]="tempData.${fName}" class="form-check-input" id="check_${fName}"/>
+                                                 <input type="checkbox" [(ngModel)]="tempData.${fName}" name="temp_${fName}" class="form-check-input" id="check_${fName}"/>
                                                  <label class="form-check-label" for="check_${fName}">${((f as any).name || (f as any).alias || (f as any).fieldName)}</label>
                                              </div>`;
                                          }
@@ -202,7 +202,7 @@ export const generateHtmlForLayout = (
                                          return `
                                          <div class="mb-3">
                                              <label class="form-label text-secondary small fw-bold">${((f as any).name || (f as any).alias || (f as any).fieldName)}</label>
-                                             <input type="${fType}" [(ngModel)]="tempData.${fName}" class="form-control"/>
+                                             <input type="${fType}" [(ngModel)]="tempData.${fName}" name="temp_${fName}" class="form-control"/>
                                          </div>`;
                                      }).join('')}
                                  </div>
@@ -227,7 +227,7 @@ export const generateHtmlForLayout = (
                     </div>`;
                   } else {
                       const quickCreateBtn = element.lookup.allowQuickCreate 
-                         ? `<button type="button" *ngIf="!isNew" (click)="openModal('lookup_${element.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 border border-emerald-300 rounded ml-2 font-bold flex items-center justify-center transition-colors" title="Neu">+</button>` 
+                         ? `<button type="button" (click)="openModal('lookup_${element.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 border border-emerald-300 rounded ml-2 font-bold flex items-center justify-center transition-colors" title="Neu">+</button>` 
                          : '';
 
                       const lookupModal = element.lookup.allowQuickCreate ? `
@@ -240,7 +240,7 @@ export const generateHtmlForLayout = (
                                      if (f.type === 'BOOLEAN') {
                                          return `
                                          <div class="flex items-center gap-2">
-                                             <input type="checkbox" [(ngModel)]="tempData.${fName}" class="w-4 h-4 text-blue-600 rounded"/>
+                                             <input type="checkbox" [(ngModel)]="tempData.${fName}" name="temp_${fName}" class="w-4 h-4 text-blue-600 rounded"/>
                                              <label class="text-sm font-medium text-slate-700">${((f as any).name || (f as any).alias || (f as any).fieldName)}</label>
                                          </div>`;
                                      }
@@ -248,7 +248,7 @@ export const generateHtmlForLayout = (
                                      return `
                                      <div>
                                          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">${((f as any).name || (f as any).alias || (f as any).fieldName)}</label>
-                                         <input type="${fType}" [(ngModel)]="tempData.${fName}" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/>
+                                         <input type="${fType}" [(ngModel)]="tempData.${fName}" name="temp_${fName}" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"/>
                                      </div>`;
                                  }).join('')}
                              </div>

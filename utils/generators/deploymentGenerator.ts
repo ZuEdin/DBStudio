@@ -10,7 +10,10 @@ export const generateDeploymentScripts = (config: BackendConfig, root: string): 
         let dockerfileContent = '';
         
         if (config.language === 'dotnet') {
-            const version = config.backendVersion || '9.0';
+            let version = config.backendVersion || '9.0';
+            if (parseFloat(version) > 9.0) {
+                version = '9.0';
+            }
             dockerfileContent = `# Build Stage
 FROM mcr.microsoft.com/dotnet/sdk:${version} AS build
 WORKDIR /src

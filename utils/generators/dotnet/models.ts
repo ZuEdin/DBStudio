@@ -38,6 +38,7 @@ export const getRelationshipNames = (relationships: Relationship[], tables: Tabl
 };
 
 export const generateDbContext = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile => {
+  const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   const dbSets = tables.map(t => `        public DbSet<${toPascalCase(t.name)}> ${toPascalCase(t.name)}s { get; set; }`).join('\n');
   const queryDbSets = queries
     .filter(q => q.type === 'SELECT')
@@ -96,10 +97,10 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
   let tenantConstructor = '';
   let tenantFilters = '';
   let onConfiguring = '';
-  let namespaces = `using Microsoft.EntityFrameworkCore;\nusing ${config.projectName}.Models;`;
+  let namespaces = `using Microsoft.EntityFrameworkCore;\nusing ${safeNamespace}.Models;`;
 
   if (config.multiTenancy?.enabled) {
-      namespaces += `\nusing ${config.projectName}.Services;\nusing Microsoft.Extensions.Configuration;`;
+      namespaces += `\nusing ${safeNamespace}.Services;\nusing Microsoft.Extensions.Configuration;`;
       tenantServiceInjection = `        private readonly ITenantService _tenantService;\n        private readonly IConfiguration _config;`;
       
       tenantConstructor = `
@@ -149,7 +150,7 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
 
   const content = `${namespaces}
 
-namespace ${config.projectName}.Data
+namespace ${safeNamespace}.Data
 {
     public class AppDbContext : DbContext
     {
@@ -235,6 +236,7 @@ ${checks}
 
 export const generateModels = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
+  const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
 
   // Table Models
   tables.forEach(table => {
@@ -287,7 +289,11 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
 
       const indent = "        "; 
       const attrBlock = attributes.length > 0 ? attributes.map(a => `${indent}${a}`).join('\n') + '\n' : '';
-      return `${attrBlock}${indent}public ${type} ${toPascalCase(f.name)} { get; set; }${initializer}`;
+      let propName = toPascalCase(f.name);
+      if (propName === safeName) {
+          propName = `${propName}Value`;
+      }
+      return `${attrBlock}${indent}public ${type} ${propName} { get; set; }${initializer}`;
     }).join('\n\n');
 
     let tenantProp = '';
@@ -341,7 +347,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
     const content = `using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ${config.projectName}.Models
+namespace ${safeNamespace}.Models
 {
     public class ${safeName}${interfaceDecl}
     {
@@ -371,6 +377,10 @@ ${validationMethod}
           
           let propName = toPascalCase(c.alias || c.fieldName);
           
+          if (propName === safeName) {
+              propName = `${propName}Value`;
+          }
+          
           // Deduplication Logic
           if (usedNames.has(propName)) {
               propName = toPascalCase(`${c.alias || c.fieldName}${toPascalCase(c.tableName)}`);
@@ -391,7 +401,7 @@ ${validationMethod}
           return `        public ${type} ${propName} { get; set; }${initializer}`;
       }).join('\n\n');
 
-      const content = `namespace ${config.projectName}.Models
+      const content = `namespace ${safeNamespace}.Models
 {
     public class ${safeName}
     {

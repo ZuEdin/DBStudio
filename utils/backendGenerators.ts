@@ -7,6 +7,8 @@ import { generateReact } from './generators/reactGenerator';
 import { generatePhp } from './generators/phpGenerator';
 import { generateLaravel } from './generators/laravelGenerator';
 import { generateBlazor } from './generators/blazorGenerator';
+import { generateMaui } from './generators/maui/index';
+import { generateMauiNative } from './generators/mauiNative/index';
 import { generateElectron } from './generators/electronGenerator';
 import { generateVue } from './generators/vueGenerator';
 import { generatePython } from './generators/pythonGenerator';
@@ -26,6 +28,53 @@ export const generateBackendCode = (
     customComponents: any[] = []
 ): VirtualFile[] => {
   let files: VirtualFile[] = [];
+
+    const toPascalCase = (str) => {
+        if (!str) return '';
+        const words = str.match(/[a-z]+/gi) || [];
+        return words.map(w => w.charAt(0).toUpperCase() + w.substr(1).toLowerCase()).join('');
+    };
+    
+    // Globally ensure that fields/columns do not have the same name as their table/class!
+    // This resolves compile errors in many languages and improves UI component safety.
+    const safeTables = tables.map(t => {
+        const safeName = toPascalCase(t.name);
+        return {
+            ...t,
+            fields: t.fields.map(f => {
+                const propName = toPascalCase(f.name);
+                if (propName === safeName) {
+                    return {
+                        ...f,
+                        name: f.name + 'Value',
+                        title: f.title || f.name
+                    };
+                }
+                return f;
+            })
+        };
+    });
+
+    const safeQueries = queries.map(q => {
+        const safeName = toPascalCase(q.name);
+        return {
+            ...q,
+            columns: (q.columns || []).map(c => {
+                const propName = toPascalCase(c.alias || c.fieldName);
+                if (propName === safeName) {
+                    return {
+                        ...c,
+                        alias: (c.alias || c.fieldName) + 'Value'
+                    };
+                }
+                return c;
+            })
+        };
+    });
+    
+    tables = safeTables;
+    queries = safeQueries;
+
 
   // Normalize Auth Config (Legacy String -> Mapping)
   // Ensures that simple comma-separated lists from the wizard are converted to proper Role Mappings for the backend
@@ -71,6 +120,12 @@ export const generateBackendCode = (
   } else if (activeConfig.frontendFramework === 'blazor') {
     const blazorFiles = generateBlazor(tables, relationships, queries, activeConfig, forms, reports);
     files = [...files, ...blazorFiles];
+  } else if (activeConfig.frontendFramework === 'maui') {
+    const mauiFiles = generateMaui(tables, relationships, queries, activeConfig, forms, reports);
+    files = [...files, ...mauiFiles];
+  } else if (activeConfig.frontendFramework === 'maui-native') {
+    const mauiNativeFiles = generateMauiNative(tables, relationships, queries, activeConfig, forms, reports);
+    files = [...files, ...mauiNativeFiles];
   } else if (activeConfig.frontendFramework === 'vue') {
     const vueFiles = generateVue(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents);
     files = [...files, ...vueFiles];
@@ -79,21 +134,37 @@ export const generateBackendCode = (
     files = [...files, ...electronFiles];
   }
 
-  // --- SPECIAL POST-PROCESSING FOR BLAZOR + .NET ---
-  // Transforms the structure from "Backend/Project" & "Frontend/Project.Client"
-  // to "Project" & "Project.Client" at root level + Solution File
-  if (activeConfig.language === 'dotnet' && activeConfig.frontendFramework === 'blazor') {
-      const backendPrefix = `Backend/${activeConfig.projectName}`;
-      const frontendPrefix = `Frontend/${activeConfig.projectName}.Client`;
+  // --- SPECIAL POST-PROCESSING FOR BLAZOR & MAUI + .NET ---
+  // Transforms the structure from "Backend/Project" & "Frontend/Project.Client" (or Project.Maui)
+  // to "Project" & "Project.Client" (or Project.Maui) at root level + Solution File
+  if (activeConfig.language === 'dotnet' && (
+      activeConfig.frontendFramework === 'blazor' || 
+      activeConfig.frontendFramework === 'maui' || 
+      activeConfig.frontendFramework === 'maui-native'
+  )) {
+      const isMaui = activeConfig.frontendFramework === 'maui';
+      const isMauiNative = activeConfig.frontendFramework === 'maui-native';
+      const backendPrefix = `Backend/${activeConfig.projectName}.Server`;
+      
+      let frontendPrefix = `Frontend/${activeConfig.projectName}.Client`;
+      let targetFrontendName = `${activeConfig.projectName}.Client`;
+      
+      if (isMaui) {
+          frontendPrefix = `Frontend/${activeConfig.projectName}.Maui`;
+          targetFrontendName = `${activeConfig.projectName}.Maui`;
+      } else if (isMauiNative) {
+          frontendPrefix = `Frontend/${activeConfig.projectName}.MauiNative`;
+          targetFrontendName = `${activeConfig.projectName}.MauiNative`;
+      }
       
       files.forEach(f => {
           // Move Backend up to Root
           if (f.path.startsWith(backendPrefix)) {
-              f.path = f.path.replace(backendPrefix, activeConfig.projectName);
+              f.path = f.path.replace(backendPrefix, `${activeConfig.projectName}.Server`);
           }
           // Move Frontend up to Root
           if (f.path.startsWith(frontendPrefix)) {
-              f.path = f.path.replace(frontendPrefix, `${activeConfig.projectName}.Client`);
+              f.path = f.path.replace(frontendPrefix, targetFrontendName);
           }
       });
 

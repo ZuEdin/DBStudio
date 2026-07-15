@@ -24,7 +24,9 @@ export const generateAngularComponents = (
   const files: VirtualFile[] = [];
   const routes: RouteInfo[] = [];
   const useAuth = config.authConfig?.useUserLogin;
-  const isBootstrap = config.stylingFramework === 'bootstrap';
+  const isBootstrap = config.stylingFramework?.toLowerCase() === 'bootstrap' || 
+                      (config as any).frontendStyling?.toLowerCase() === 'bootstrap' || 
+                      (config as any).styling?.toLowerCase() === 'bootstrap';
 
   // 1. Table Lists and Forms
   const tablesRes = generateTableComponents(tables, relationships, forms, appRoot, queries, !!useAuth, isBootstrap);
