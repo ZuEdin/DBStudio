@@ -20,7 +20,7 @@ export const generateReactPages = (
   // 1. Table Lists (Standard CRUD) & Forms
   tables.forEach(table => {
     // Generate List Page
-    files.push(generateListPage(table, forms, root));
+    files.push(generateListPage(table, forms, tables, root));
 
     // Generate Standard Form Page if no Custom Form override is defined
     const customForm = forms.find(f => f.sourceId === table.id && f.sourceType === 'table');

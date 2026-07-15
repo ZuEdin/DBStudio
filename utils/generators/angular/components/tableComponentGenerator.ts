@@ -153,9 +153,9 @@ export const generateTableComponents = (
                         <tr *ngFor="let item of items" class="align-middle" (dblclick)="viewDetails(item)" style="cursor: pointer;">
                             ${table.fields.map(f => `<td class="px-4 py-3">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
                             <td class="px-4 py-3">
-                                <button (click)="viewDetails(item)" class="btn btn-sm btn-link text-decoration-none me-2 p-0 fw-bold">Details</button>
-                                <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="btn btn-sm btn-link text-decoration-none me-2 p-0 fw-bold">Edit</a>
-                                <button (click)="delete(getFieldValue(item, '${pkField}'))" class="btn btn-sm btn-link text-danger text-decoration-none p-0 fw-bold">Delete</button>
+                                <button (click)="viewDetails(item)" class="btn btn-sm btn-link text-decoration-none me-2 p-0" title="Details"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/></svg></button>
+                                <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="btn btn-sm btn-link text-decoration-none me-2 p-0" title="Edit"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg></a>
+                                <button (click)="delete(getFieldValue(item, '${pkField}'))" class="btn btn-sm btn-link text-danger text-decoration-none p-0" title="Delete"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/></svg></button>
                             </td>
                         </tr>
                         <tr *ngIf="items.length === 0">
@@ -222,9 +222,9 @@ export const generateTableComponents = (
                     <tr *ngFor="let item of items" class="border-b hover:bg-slate-50 cursor-pointer" (dblclick)="viewDetails(item)">
                         ${table.fields.map(f => `<td class="p-4">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
                         <td class="p-4">
-                            <button (click)="viewDetails(item)" class="text-indigo-600 hover:underline mr-3 font-semibold">Details</button>
-                            <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="text-blue-600 hover:underline mr-3 font-semibold">Edit</a>
-                            <button (click)="delete(getFieldValue(item, '${pkField}'))" class="text-red-600 hover:underline font-semibold">Delete</button>
+                            <button (click)="viewDetails(item)" class="text-slate-500 hover:bg-slate-100 p-1.5 rounded mr-1" title="Details"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></button>
+                            <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded mr-1" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>
+                            <button (click)="delete(getFieldValue(item, '${pkField}'))" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                         </td>
                     </tr>
                     <tr *ngIf="items.length === 0">
@@ -270,6 +270,33 @@ export const generateTableComponents = (
 
       // Import the Interface
       const interfaceName = pascalName;
+      
+      const linkedForm = forms.find(f => f.sourceId === table.id && f.sourceType === 'table');
+      const listLookups: any[] = [];
+      if (linkedForm && linkedForm.layout) {
+          const extractLookups = (node: any) => {
+              if (node.type === 'field' && node.widgetType === 'select' && node.lookup) {
+                  const tableField = table.fields.find(f => f.id === node.fieldId);
+                  if (tableField) {
+                      const lookupTable = tables.find(t => t.id === node.lookup.tableId);
+                      const displayField = lookupTable?.fields.find(f => f.id === node.lookup.labelFields?.[0]);
+                      if (lookupTable && displayField) {
+                          listLookups.push({
+                              fieldName: toCamelCase(tableField.name),
+                              lookupTableName: toCamelCase(lookupTable.name),
+                              displayFieldName: toCamelCase(displayField.name),
+                              lookupStateName: `lookup_${toCamelCase(tableField.name)}`
+                          });
+                      }
+                  }
+              }
+              if (node.children) {
+                  node.children.forEach(extractLookups);
+              }
+          };
+          extractLookups(linkedForm.layout);
+      }
+
       const listTs = `import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -290,12 +317,24 @@ export class ${pascalName}ListComponent implements OnInit {
   pageSize = 10;
   total = 0;
   totalPages = 0;
+  
   search = '';
   selectedItem: any = null;
+  ${listLookups.map(l => `${l.lookupStateName}: any[] = [];`).join('\n  ')}
+
 
   constructor(private api: ApiService) {}
   
-  ngOnInit() { this.load(); }
+  
+  ngOnInit() { 
+    this.load(); 
+    ${listLookups.map(l => `
+    this.api.getAll('${l.lookupTableName}', 1, 1000, '').subscribe((res: any) => {
+      this.${l.lookupStateName} = res.data || [];
+    });
+    `).join('')}
+  }
+
   
   load() { 
       this.api.getAll('${camelName}', this.page, this.pageSize, this.search).subscribe((res: any) => {
@@ -321,7 +360,18 @@ export class ${pascalName}ListComponent implements OnInit {
   getFieldValue(item: any, fieldName: string): any {
     if (!item) return '-';
     const camel = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
-    const val = item[fieldName] !== undefined ? item[fieldName] : item[camel];
+    let val = item[fieldName] !== undefined ? item[fieldName] : item[camel];
+    
+    ${listLookups.map(l => `
+    if (camel === '${l.fieldName}') {
+        const match = this.${l.lookupStateName}.find(r => String(r.id || r.Id) === String(val));
+        if (match) {
+            const disp = '${l.displayFieldName}';
+            val = match[disp] !== undefined ? match[disp] : (match[disp.toLowerCase()] !== undefined ? match[disp.toLowerCase()] : match[disp.charAt(0).toUpperCase() + disp.slice(1)] || val);
+        }
+    }
+    `).join('')}
+    
     return val !== null && val !== undefined && val !== '' ? val : '-';
   }
 }`;
@@ -333,7 +383,7 @@ export class ${pascalName}ListComponent implements OnInit {
 
 
       // --- FORM COMPONENT ---
-      const linkedForm = forms.find(f => f.sourceId === table.id && f.sourceType === 'table');
+      
       
       let formHtml = '';
       let listDeclarations = '';

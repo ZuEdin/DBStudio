@@ -288,10 +288,11 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       }
 
       const indent = "        "; 
-      const attrBlock = attributes.length > 0 ? attributes.map(a => `${indent}${a}`).join('\n') + '\n' : '';
+      let attrBlock = attributes.length > 0 ? attributes.map(a => `${indent}${a}`).join('\n') + '\n' : '';
       let propName = toPascalCase(f.name);
       if (propName === safeName) {
           propName = `${propName}Value`;
+          attrBlock += `${indent}[JsonPropertyName("${f.name}")]\n`;
       }
       return `${attrBlock}${indent}public ${type} ${propName} { get; set; }${initializer}`;
     }).join('\n\n');
@@ -346,6 +347,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
 
     const content = `using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace ${safeNamespace}.Models
 {
@@ -376,9 +378,11 @@ ${validationMethod}
           if (c.aggregate === 'SUM' && type === 'int') type = 'long?';
           
           let propName = toPascalCase(c.alias || c.fieldName);
+          let colAttr = '';
           
           if (propName === safeName) {
               propName = `${propName}Value`;
+              colAttr = `        [Column("${c.alias || c.fieldName}")]\n        [JsonPropertyName("${c.alias || c.fieldName}")]\n`;
           }
           
           // Deduplication Logic
@@ -398,10 +402,13 @@ ${validationMethod}
               initializer = ' = string.Empty;';
           }
 
-          return `        public ${type} ${propName} { get; set; }${initializer}`;
+          return `${colAttr}        public ${type} ${propName} { get; set; }${initializer}`;
       }).join('\n\n');
 
-      const content = `namespace ${safeNamespace}.Models
+      const content = `using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
+
+namespace ${safeNamespace}.Models
 {
     public class ${safeName}
     {

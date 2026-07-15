@@ -1,7 +1,7 @@
 import { Table, Form, VirtualFile } from '../../../../types/index';
 import { toCamelCase, toPascalCase } from '../../common';
 
-export const generateListPage = (table: Table, forms: Form[], root: string): VirtualFile => {
+export const generateListPage = (table: Table, forms: Form[], tables: Table[], root: string): VirtualFile => {
   const pascalName = toPascalCase(table.name);
   const camelName = toCamelCase(table.name);
   const listName = `${pascalName}List`;
@@ -10,6 +10,32 @@ export const generateListPage = (table: Table, forms: Form[], root: string): Vir
   const customForm = forms.find(f => f.sourceId === table.id && f.sourceType === 'table');
   const createLink = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/new` : `/${camelName}/new`;
   const editLinkPrefix = customForm ? `/forms/${toPascalCase(customForm.name).toLowerCase()}Form/` : `/${camelName}/`;
+
+  const lookups: any[] = [];
+  if (customForm && customForm.layout) {
+      const extractLookups = (node: any) => {
+          if (node.type === 'field' && node.widgetType === 'select' && node.lookup) {
+              const tableField = table.fields.find(f => f.id === node.fieldId);
+              if (tableField) {
+                  const lookupTable = tables.find(t => t.id === node.lookup.tableId);
+                  const displayField = lookupTable?.fields.find(f => f.id === node.lookup.labelFields?.[0]);
+                  if (lookupTable && displayField) {
+                      lookups.push({
+                          fieldName: toCamelCase(tableField.name),
+                          lookupTableName: toCamelCase(lookupTable.name),
+                          displayFieldName: toCamelCase(displayField.name),
+                          lookupStateName: `lookup_${toCamelCase(tableField.name)}`
+                      });
+                  }
+              }
+          }
+          if (node.children) {
+              node.children.forEach(extractLookups);
+          }
+      };
+      extractLookups(customForm.layout);
+  }
+
 
   const fmtRules = (table.conditionalFormatting || []).map(r => {
       const f = table.fields.find(fi => fi.id === r.fieldId);
@@ -31,8 +57,11 @@ export const ${listName} = () => {
 
   // Double-click Detail modal and single-select keyboard selection states
   const [activeRecord, setActiveRecord] = useState<${pascalName} | null>(null);
+  
   const [showDetail, setShowDetail] = useState(false);
   const [detailRecord, setDetailRecord] = useState<${pascalName} | null>(null);
+  ${lookups.map(l => `const [${l.lookupStateName}, set_${l.lookupStateName}] = useState<any[]>([]);`).join('\n  ')}
+
 
   // Sorting & Filtering states
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -251,9 +280,16 @@ export const ${listName} = () => {
                                 />
                             </td>
                             ${table.fields.map(f => {
-                                const val = `i.${toCamelCase(f.name)}`;
+                                const fieldCamel = toCamelCase(f.name);
+                                let val = `i.${fieldCamel}`;
+                                
+                                const lookup = lookups.find(l => l.fieldName === fieldCamel);
+                                if (lookup) {
+                                    val = `(() => { const m = ${lookup.lookupStateName}.find(r => String(r.id || r.Id) === String(${val})); if (m) { const disp = '${lookup.displayFieldName}'; return m[disp] !== undefined ? m[disp] : (m[disp.toLowerCase()] !== undefined ? m[disp.toLowerCase()] : m[disp.charAt(0).toUpperCase() + disp.slice(1)] || ${val}); } return ${val}; })()`;
+                                }
+
                                 if (f.rendererType === 'progress') {
-                                    return `<td className="p-4"><div className="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-700"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: \`\${Math.min(100, Math.max(0, Number(${val}))) }%\` }}></div></div></td>`;
+                                    return `<td className="p-4"><div className="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-700"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: \`\${Math.min(100, Math.max(0, Number(${val}))) }\%\` }}></div></div></td>`;
                                 }
                                 if (f.rendererType === 'status_pill') {
                                     return `<td className="p-4 text-sm"><span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">{String(${val} ?? '')}</span></td>`;
@@ -327,7 +363,18 @@ export const ${listName} = () => {
             <div className="p-6 overflow-y-auto space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {${JSON.stringify(table.fields)}.map(field => {
-                  const val = detailRecord[field.name as keyof ${pascalName}];
+                  let val: any = detailRecord[field.name as keyof ${pascalName}];
+                  
+                  ${lookups.map(l => `
+                  if (toCamelCase(field.name) === '${l.fieldName}') {
+                      const match = ${l.lookupStateName}.find(r => String(r.id || r.Id) === String(val));
+                      if (match) {
+                          const disp = '${l.displayFieldName}';
+                          val = match[disp] !== undefined ? match[disp] : (match[disp.toLowerCase()] !== undefined ? match[disp.toLowerCase()] : match[disp.charAt(0).toUpperCase() + disp.slice(1)] || val);
+                      }
+                  }
+                  `).join('')}
+
                   return (
                     <div key={field.name} className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
                       <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">{field.name}</span>

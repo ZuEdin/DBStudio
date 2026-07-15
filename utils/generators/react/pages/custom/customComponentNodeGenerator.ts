@@ -194,7 +194,8 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                    }
                                }).join('\n') : `<div>{JSON.stringify(row)}</div>`}
                            </div>
-                       ))}
+                           );
+                       })}
                    </div>
                )}
            </div>`;
@@ -434,25 +435,69 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
            imports.add('put');
        }
 
+       
+       const groupByFieldObj = tbl ? tbl.fields.find(f => toCamelCase(f.name) === groupBy) : null;
+       const isNumericGroup = groupByFieldObj && ['INTEGER', 'DECIMAL', 'DOUBLE'].includes(groupByFieldObj.type);
+
+       let kanbanLookupDataState = '';
+       let lookupLogic = '';
+       let columnDisplayField = '';
+       let lookupTableVar = '';
+       if (conf.columnSourceTableId && conf.columnDisplayField) {
+           const lookupTable = tables.find((t) => t.id === conf.columnSourceTableId);
+           if (lookupTable) {
+               kanbanLookupDataState = `kanbanLookupData_${idSuffix}`;
+               columnDisplayField = toCamelCase(conf.columnDisplayField);
+               lookupTableVar = toCamelCase(lookupTable.name);
+               lookupLogic = `
+  const [${kanbanLookupDataState}, set_${kanbanLookupDataState}] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchLookup = async () => {
+      try {
+        const res = await get<any>('${lookupTableVar}', { pageSize: 1000 });
+        set_${kanbanLookupDataState}(res.data || res || []);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchLookup();
+  }, []);`;
+           }
+       }
+
        states.push(`
+  const [${colKeysState}, set_${colKeysState}] = useState<string[]>(${isNumericGroup ? '[]' : "['Offen', 'In Arbeit', 'Erledigt']"});
   const [${activeDragItemState}, set_${activeDragItemState}] = useState<any>(null);
   const [${targetDragOverItemState}, set_${targetDragOverItemState}] = useState<any>(null);
   const [${kanbanNotificationState}, set_${kanbanNotificationState}] = useState<string>('');
+  ${lookupLogic}
+
+  useEffect(() => {
+    if (${kanbanLookupDataState ? `${kanbanLookupDataState}.length > 0` : 'true'}) {
+        let uniqueVals: string[] = [];
+        if (${kanbanLookupDataState ? 'true' : 'false'}) {
+            uniqueVals = ${kanbanLookupDataState ? kanbanLookupDataState : '[]'}.map(r => String(r.id || r.Id));
+        } else {
+            uniqueVals = Array.from(new Set(${stateName}.map((r: any) => String(r['${groupBy}'] || 'Unassigned'))));
+        }
+        set_${colKeysState}(prev => Array.from(new Set([...prev, ...uniqueVals])));
+    } else {
+        const uniqueVals = Array.from(new Set(${stateName}.map((r: any) => String(r['${groupBy}'] || 'Unassigned'))));
+        set_${colKeysState}(prev => Array.from(new Set([...prev, ...uniqueVals])));
+    }
+  }, [${stateName}${kanbanLookupDataState ? `, ${kanbanLookupDataState}` : ''}]);
 
   const ${groupsState} = useMemo(() => {
     const groups: Record<string, any[]> = {};
-    const defaultCols = ['Offen', 'In Arbeit', 'Erledigt'];
-    defaultCols.forEach(col => { groups[col] = []; });
+    ${colKeysState}.forEach(col => { groups[col] = []; });
     
     ${stateName}.forEach(row => {
-      const val = String(row['${groupBy}'] || 'Offen');
+      const val = String(row['${groupBy}'] || 'Unassigned');
       if (!groups[val]) groups[val] = [];
       groups[val].push(row);
     });
     return groups;
-  }, [${stateName}]);
-
-  const ${colKeysState} = useMemo(() => Object.keys(${groupsState}), [${groupsState}]);
+  }, [${stateName}, ${colKeysState}]);
 
   const handleDragStart_${idSuffix} = (item: any) => {
     set_${activeDragItemState}(item);
@@ -470,11 +515,13 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
     const item = ${activeDragItemState};
     if (!item) return;
 
-    const oldColumn = String(item['${groupBy}'] || 'Offen');
+    const fallbackOld = ${isNumericGroup ? "'Unassigned'" : "'Offen'"};
+    const oldColumn = String(item['${groupBy}'] || fallbackOld);
     const itemTitle = item['${titleF}'] || item.name || item.title || 'ID: ' + (item.id || item.Id);
     
     const previousState = [...${stateName}];
-    const updatedItem = { ...item, '${groupBy}': targetColumn };
+    const parsedTarget = ${isNumericGroup} ? (isNaN(Number(targetColumn)) ? targetColumn : Number(targetColumn)) : targetColumn;
+    const updatedItem = { ...item, '${groupBy}': parsedTarget };
 
     let updatedList = ${stateName}.filter((t: any) => (t.id || t.Id) !== (item.id || item.Id));
     let newIndex = updatedList.length;
@@ -557,7 +604,21 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                    </div>
                ) : (
                    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-x-auto pb-2">
-                       {${colKeysState}.map(colKey => (
+                       {${colKeysState}.map(colKey => {
+                           let colDisplayName = colKey;
+                           if (${kanbanLookupDataState ? 'true' : 'false'} && ${kanbanLookupDataState ? kanbanLookupDataState : '[]'}.length > 0) {
+                               const match = ${kanbanLookupDataState ? kanbanLookupDataState : '[]'}.find((r: any) => String(r.id || r.Id) === String(colKey));
+                               if (match) {
+                                   const disp = '${columnDisplayField ? columnDisplayField : ''}';
+                                   const dispLower = disp.toLowerCase();
+                                   const dispCap = disp.charAt(0).toUpperCase() + disp.slice(1);
+                                   let val = match[disp] !== undefined ? match[disp] : (match[dispLower] !== undefined ? match[dispLower] : match[dispCap]);
+                                   if (val !== undefined && val !== null) {
+                                       colDisplayName = String(val);
+                                   }
+                               }
+                           }
+                           return (
                            <div 
                                key={colKey} 
                                className="bg-slate-50 dark:bg-slate-900/30 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 flex flex-col min-w-[250px] min-h-[450px]"
@@ -565,7 +626,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                onDrop={() => handleDrop_${idSuffix}(colKey)}
                            >
                                <div className="flex justify-between items-center mb-3 px-1">
-                                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[80%]">{colKey}</span>
+                                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[80%]">{colDisplayName}</span>
                                    <span className="text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full">
                                        {(${groupsState}[colKey] || []).length}
                                    </span>
@@ -600,7 +661,8 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                    })}
                                </div>
                            </div>
-                       ))}
+                           );
+                       })}
                    </div>
                )}
            </div>`;

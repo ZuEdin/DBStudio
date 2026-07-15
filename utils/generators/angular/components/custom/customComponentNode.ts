@@ -30,29 +30,57 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
         context.states.push(`${loadingState} = false;`);
         context.initCalls.push(`this.loadComp_${suffix}();`);
         
+        
         let kanbanInitLogic = '';
         if (comp.type === 'kanban_board') {
+            const groupBy = toCamelCase(conf.groupByField || 'status');
+            const tblField = tbl ? tbl.fields.find((f: any) => toCamelCase(f.name) === groupBy || f.name.toLowerCase() === groupBy.toLowerCase()) : null;
+            const isNumericGroup = tblField && ['INTEGER', 'DECIMAL', 'DOUBLE'].includes(tblField.type);
+            const defaultCols = isNumericGroup ? '[]' : "['Offen', 'In Arbeit', 'Erledigt']";
+            
             context.states.push(`kanbanTasks_${suffix}: any[] = [];`);
-            context.states.push(`kanbanColumns_${suffix}: string[] = ['Offen', 'In Arbeit', 'Erledigt'];`);
-            context.states.push(`kanbanStatusField_${suffix} = 'status';`);
+            context.states.push(`kanbanColumns_${suffix}: string[] = ${defaultCols};`);
+            context.states.push(`kanbanStatusField_${suffix} = '${groupBy}';`);
+            context.states.push(`kanbanIsNumericGroup_${suffix} = ${isNumericGroup ? 'true' : 'false'};`);
+            context.states.push(`kanbanFallbackOld_${suffix} = ${isNumericGroup ? "'Unassigned'" : "'Offen'"};`);
             context.states.push(`kanbanNotification_${suffix} = '';`);
             context.states.push(`activeDragItem_${suffix}: any = null;`);
             context.states.push(`targetDragOverItem_${suffix}: any = null;`);
+            context.states.push(`kanbanLookupData_${suffix}: any[] = [];`);
             
+            let lookupLogic = '';
+            if (conf.columnSourceTableId && conf.columnDisplayField) {
+                const lookupTable = context.tables.find((t) => t.id === conf.columnSourceTableId);
+                if (lookupTable) {
+                    const lookupTableVar = toCamelCase(lookupTable.name);
+                    lookupLogic = `
+        this.api.getAll('${lookupTableVar}', 1, 1000).subscribe({
+            next: (lres: any) => {
+                this.kanbanLookupData_${suffix} = lres.data || lres || [];
+                if (this.kanbanLookupData_${suffix}.length > 0) {
+                    const uniqueVals = this.kanbanLookupData_${suffix}.map((r: any) => String(r.id || r.Id));
+                    this.kanbanColumns_${suffix} = [...new Set([...this.kanbanColumns_${suffix}.map(String), ...uniqueVals])];
+                }
+            }
+        });
+                    `;
+                }
+            }
+
             kanbanInitLogic = `
         this.kanbanTasks_${suffix} = [...this.${stateName}];
-        ${tbl ? `
-        const fields = ${JSON.stringify(tbl.fields)};
-        const statusFieldObj = fields.find((f: any) => ['status', 'stage', 'state', 'category', 'progress'].includes(f.name.toLowerCase()));
-        if (statusFieldObj) {
-            this.kanbanStatusField_${suffix} = statusFieldObj.name;
-            const uniqueVals = [...new Set(this.${stateName}.map((d: any) => d[statusFieldObj.name] || d[statusFieldObj.name.toLowerCase()]))].filter(Boolean) as string[];
-            if (uniqueVals.length > 0) {
-                this.kanbanColumns_${suffix} = uniqueVals;
-            }
-        }` : ''}
+        
+        ${lookupLogic}
+        
+        const uniqueVals = [...new Set(this.${stateName}.map((d: any) => d[this.kanbanStatusField_${suffix}] || d[this.kanbanStatusField_${suffix}.toLowerCase()]))].filter(Boolean).map(String);
+        
+        const allCols = new Set([...this.kanbanColumns_${suffix}.map(String), ...uniqueVals]);
+        if (allCols.size > 0) {
+            this.kanbanColumns_${suffix} = Array.from(allCols);
+        }
             `;
         }
+
 
         context.methods.push(`
   loadComp_${suffix}() {
@@ -73,7 +101,25 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
 
     if (comp.type === 'kanban_board') {
         context.methods.push(`
+  
+  getKanbanColumnName_${suffix}(col: string): string {
+    if (this.kanbanLookupData_${suffix} && this.kanbanLookupData_${suffix}.length > 0) {
+        const match = this.kanbanLookupData_${suffix}.find((r: any) => String(r.id || r.Id) === String(col));
+        if (match) {
+            const disp = '${toCamelCase(conf.columnDisplayField || '')}';
+            const dispLower = disp.toLowerCase();
+            const dispCap = disp.charAt(0).toUpperCase() + disp.slice(1);
+            const val = match[disp] !== undefined ? match[disp] : (match[dispLower] !== undefined ? match[dispLower] : match[dispCap]);
+            if (val !== undefined && val !== null) {
+                return String(val);
+            }
+        }
+    }
+    return col;
+  }
+
   getTasksByStatus_${suffix}(column: string): any[] {
+
     const statusKey = this.kanbanStatusField_${suffix};
     const statusKeyLower = statusKey.toLowerCase();
     return this.kanbanTasks_${suffix}.filter(item => {
@@ -108,10 +154,10 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
     const statusKey = this.kanbanStatusField_${suffix};
     const statusKeyLower = statusKey.toLowerCase();
     const currentStatusKey = item[statusKey] !== undefined ? statusKey : (item[statusKeyLower] !== undefined ? statusKeyLower : statusKey);
-    const oldColumn = item[currentStatusKey] || 'Offen';
+    const oldColumn = item[currentStatusKey] || this.kanbanFallbackOld_${suffix};
     
     // Update local status
-    item[currentStatusKey] = targetColumn;
+    item[currentStatusKey] = this.kanbanIsNumericGroup_${suffix} ? (isNaN(Number(targetColumn)) ? targetColumn : Number(targetColumn)) : targetColumn;
 
     // Handle array reordering
     const listWithoutItem = this.kanbanTasks_${suffix}.filter(t => (t.id || t.Id) !== (item.id || item.Id));
@@ -148,9 +194,9 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
     const itemTitle = item.name || item.title || 'ID: ' + (item.id || item.Id);
     let notificationMsg = '';
     if (oldColumn === targetColumn) {
-        notificationMsg = 'Reihenfolge geändert: \'' + itemTitle + '\' innerhalb von \'' + targetColumn + '\' auf Position ' + (newIndex + 1) + ' verschoben.';
+        notificationMsg = "Reihenfolge geändert: '" + itemTitle + "' innerhalb von '" + targetColumn + "' auf Position " + (newIndex + 1) + " verschoben.";
     } else {
-        notificationMsg = 'Erfolgreich verschoben: \'' + itemTitle + '\' von \'' + oldColumn + '\' nach \'' + targetColumn + '\' auf Position ' + (newIndex + 1) + '.';
+        notificationMsg = "Erfolgreich verschoben: '" + itemTitle + "' von '" + oldColumn + "' nach '" + targetColumn + "' auf Position " + (newIndex + 1) + ".";
     }
 
     ${tbl ? `
@@ -160,7 +206,7 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
       },
       error: (err) => {
         console.error(err);
-        this.showKanbanNotification_${suffix}('Fehler beim Verschieben von \'' + itemTitle + '\'', true);
+        this.showKanbanNotification_${suffix}("Fehler beim Verschieben von '" + itemTitle + "'", true);
         // Rollback status
         item[currentStatusKey] = oldColumn;
         this.loadComp_${suffix}();
@@ -306,8 +352,8 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
     }
     
     if (comp.type === 'kanban_board') {
-        const titleField = conf.titleField || 'name';
-        const descField = conf.descField || 'description';
+        const titleField = toCamelCase(conf.titleField || 'name');
+        const descField = toCamelCase(conf.descField || 'description');
         
         if (context.isBootstrap) {
             return `
@@ -339,7 +385,7 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
                         <div class="card bg-light border-0 h-100" style="min-height: 500px;" (dragover)="onDragOver_${suffix}($event)" (drop)="onDrop_${suffix}($event, col)">
                             <!-- Column Header -->
                             <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3 pb-2 px-3">
-                                <span class="fw-bold text-dark text-uppercase tracking-wider small">{{ col }}</span>
+                                <span class="fw-bold text-dark text-uppercase tracking-wider small">{{ getKanbanColumnName_${suffix}(col) }}</span>
                                 <span class="badge bg-secondary rounded-pill small">{{ getTasksByStatus_${suffix}(col).length }}</span>
                             </div>
                             <!-- Cards List -->
@@ -397,7 +443,7 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
                     <!-- Columns -->
                     <div *ngFor="let col of kanbanColumns_${suffix}" class="bg-slate-100 rounded-lg p-4 flex flex-col min-h-[500px]" (dragover)="onDragOver_${suffix}($event)" (drop)="onDrop_${suffix}($event, col)">
                         <div class="flex justify-between items-center mb-4">
-                            <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">{{ col }}</span>
+                            <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">{{ getKanbanColumnName_${suffix}(col) }}</span>
                             <span class="bg-slate-200 text-slate-700 text-xs px-2.5 py-0.5 rounded-full font-bold">{{ getTasksByStatus_${suffix}(col).length }}</span>
                         </div>
                         
