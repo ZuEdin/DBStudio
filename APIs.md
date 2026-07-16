@@ -131,3 +131,87 @@ Beim Verschieben eines Elements innerhalb desselben Containers zur Änderung der
 - **Index-Mapping:** Das System berechnet das neue Positions-Attribut (z. B. `position` oder `sort_order`).
 - **Batch-Update:** Die betroffenen Zeilen werden lokal umsortiert und per Sammel-Update (Batch) aktualisiert, um übermäßige DB-Zugriffe zu vermeiden.
 - **Konsistenz:** Die Sortier-API `api.update` stellt sicher, dass die neue Reihenfolge sowohl in der lokalen IndexedDB als auch im SQL-Backend identisch abgelegt wird.
+
+---
+
+## 7. Externe Daten, Exporte, Backups & Server-Synchronisation
+
+Um den nahtlosen Datenaustausch zwischen verschiedenen Datenquellen (Excel, Access XML, SQL, JSON, APIs) und dem generierten Backend zu regeln, stehen folgende API-Schnittstellen zur Verfügung.
+
+### 7.1 Import- & Dateiformate
+
+#### A. Excel-Format (.xlsx, .xls)
+- **Parser:** Client-seitig via `xlsx` (SheetJS).
+- **Ablauf:** Datei-Upload &rarr; Schema-Inferenz (Smart Type Inference) &rarr; SVERWEIS-Beziehungsvorschläge &rarr; Speichern in IndexedDB.
+
+#### B. Access XML-Format (.xml)
+- **Struktur:** MS Access XML dataroot Format.
+- **Parser:** `DOMParser` im Browser. Extrahiert Tag-Namen als Spaltenbezeichner und Textinhalte als Werte.
+- **Beispiel XML-Schema:**
+  ```xml
+  <?xml version="1.0" encoding="UTF-8"?>
+  <dataroot xmlns:od="urn:schemas-microsoft-com:officedata">
+    <Kunden>
+      <KundenID>1</KundenID>
+      <Name>Muster GmbH</Name>
+      <Ort>Berlin</Ort>
+    </Kunden>
+  </dataroot>
+  ```
+
+#### C. SQL-Schema & Insert-Dumps (.sql)
+- **Import:** Unterstützt DDL-Anweisungen (`CREATE TABLE [Name] ([Feld] [Typ], ...)`) und DML (`INSERT INTO [Name] (...) VALUES (...)`).
+- **Export:** Generiert vollständig kompatible ANSI-SQL DDLs und INSERT-Skripte zur direkten Ausführung in PostgreSQL, MySQL oder SQLite.
+
+#### D. JSON-Dateien (.json)
+- **Import:** Erkennt Arrays von flachen oder verschachtelten Objekten mit automatischer Inferenz.
+- **Export:** Gibt die vollständige Datensatzliste als strukturiertes JSON-Array aus.
+
+### 7.2 Backend-API Schnittstellen (Multi-Source Express Server)
+
+Für die Synchronisation und Bereitstellung von Daten über das generierte Express-Backend werden folgende Routen verwendet:
+
+#### `GET /api/backend-apis`
+Ruft alle registrierten API-Konfigurationen und Datenquellen ab.
+- **Rückgabe:** `Promise<BackendApiConfig[]>`
+
+#### `POST /api/backend-apis`
+Registriert oder aktualisiert eine API-Schnittstelle.
+- **Request-Body:**
+  ```json
+  {
+    "name": "KundenSchnittstelle",
+    "url": "https://api.example.com/customers",
+    "method": "GET",
+    "headers": "{\"Content-Type\": \"application/json\"}",
+    "queryParams": [],
+    "option": "B", // A = Live-Proxy, B = Server-Cache
+    "refreshInterval": 3600, // Sync-Intervall in Sekunden
+    "fields": [...],
+    "data": [...] // Initiale Cachedaten für Option B
+  }
+  ```
+- **Rückgabe:** `Promise<{ success: true, config: BackendApiConfig }>`
+
+#### `DELETE /api/backend-apis/:name`
+Löscht eine registrierte Schnittstelle und bereinigt den Server-Cache.
+- **Rückgabe:** `Promise<{ success: true }>`
+
+#### `POST /api/backend-apis/:name/refresh`
+Triggert eine manuelle Server-seitige Aktualisierung der API-Cachedaten. Der Server holt die Daten live von der Quell-URL und speichert sie im lokalen Dateisystem (`data/api_cache_[name].json`).
+- **Rückgabe:** `Promise<{ success: true, count: number, data: any[] }>`
+
+#### `GET /api/backend-apis/:name/data`
+Gibt die Daten der registrierten Schnittstelle zurück. Bei Option A erfolgt ein Live-Proxying; bei Option B werden die serverseitig gecachten JSON-Daten ausgeliefert.
+- **Rückgabe:** `Promise<any[]>`
+
+#### `PUT /api/backend-apis/:name/data`
+Ermöglicht das direkte Editieren und Überschreiben des serverseitigen Daten-Caches. Ideal für manuelle Datenkorrekturen über das Externe Daten-Hub.
+- **Request-Body:** `any[]` (Komplettes Datenarray)
+- **Rückgabe:** `Promise<{ success: true, count: number }>`
+
+### 7.3 Projekt-Backup & Restore (Desaster Recovery)
+
+#### `POST /api/backup/download`
+Ermöglicht das Herunterladen eines vollständigen Relationalen-Schemas inkl. aller Daten, Queries und Layouts als komprimierte Sicherungsdatei.
+- **Rückgabe:** JSON-Dateidownload

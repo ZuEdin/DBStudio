@@ -80,49 +80,25 @@ class Database {
 ?>`;
   } else {
       // PDO Implementation
-      let dbConnectionLogic = '';
-      let dbProps = '';
+      let host = 'localhost';
+      let db_name = 'my_db';
+      let username = 'root';
+      let password = '';
+      let port = '';
 
-      if (config.dbType === DbType.SQLite) {
-          const dbFile = config.dbConnection.includes('=') ? config.dbConnection.split('=')[1] : 'app.db';
-          dbProps = `private $db_file = __DIR__ . '/../database/${dbFile}'; // Adjust path as needed`;
-          dbConnectionLogic = `$this->conn = new PDO("sqlite:" . $this->db_file);`;
-      } else {
-          // Parse Connection String for MySQL/SQLServer
-          let host = 'localhost';
-          let db_name = 'my_db';
-          let username = 'root';
-          let password = '';
-          let port = '';
-
-          if (config.dbConnection) {
-              const parts = config.dbConnection.split(';');
-              parts.forEach(p => {
-                  const [k, v] = p.split('=');
-                  if(!k || !v) return;
-                  const key = k.trim().toLowerCase();
-                  const val = v.trim();
-                  if (key === 'server' || key === 'data source' || key === 'host') host = val;
-                  if (key === 'database' || key === 'initial catalog') db_name = val;
-                  if (key === 'user id' || key === 'uid' || key === 'user') username = val;
-                  if (key === 'password' || key === 'pwd') password = val;
-                  if (key === 'port') port = val;
-              });
-          }
-
-          dbProps = `
-    private $host = "${host}";
-    private $db_name = "${db_name}";
-    private $username = "${username}";
-    private $password = "${password}";
-    private $port = "${port}";`;
-
-          if (config.dbType === DbType.MySQL) {
-              const portStr = port ? `;port=" . $this->port` : '';
-              dbConnectionLogic = `$this->conn = new PDO("mysql:host=" . $this->host . ";dbname=" . $this->db_name . "${portStr}", $this->username, $this->password);`;
-          } else if (config.dbType === DbType.SQL) {
-              dbConnectionLogic = `$this->conn = new PDO("sqlsrv:Server=" . $this->host . ";Database=" . $this->db_name, $this->username, $this->password);`;
-          }
+      if (config.dbConnection) {
+          const parts = config.dbConnection.split(';');
+          parts.forEach(p => {
+              const [k, v] = p.split('=');
+              if(!k || !v) return;
+              const key = k.trim().toLowerCase();
+              const val = v.trim();
+              if (key === 'server' || key === 'data source' || key === 'host') host = val;
+              if (key === 'database' || key === 'initial catalog') db_name = val;
+              if (key === 'user id' || key === 'uid' || key === 'user') username = val;
+              if (key === 'password' || key === 'pwd') password = val;
+              if (key === 'port') port = val;
+          });
       }
 
       dbClassContent = `<?php
@@ -132,13 +108,53 @@ use PDO;
 use PDOException;
 
 class Database {
-    ${dbProps}
     public $conn;
+
+    public function loadEnv() {
+        $activeEnv = getenv('APP_ENV') ?: 'development';
+        $envFile = __DIR__ . '/../.env.' . $activeEnv;
+        if (!file_exists($envFile)) {
+            $envFile = __DIR__ . '/../.env';
+        }
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                if (strpos(trim($line), '#') === 0) continue;
+                if (strpos($line, '=') === false) continue;
+                list($name, $value) = explode('=', $line, 2);
+                $name = trim($name);
+                $value = trim($value);
+                if (preg_match('/^"(.*)"$/', $value, $matches)) {
+                    $value = $matches[1];
+                }
+                $_ENV[$name] = $value;
+                putenv("{$name}={$value}");
+            }
+        }
+    }
 
     public function getConnection() {
         $this->conn = null;
+        $this->loadEnv();
         try {
-            ${dbConnectionLogic}
+            $dbType = getenv('DB_CONNECTION') ?: '${config.dbType === DbType.SQLite ? 'sqlite' : (config.dbType === DbType.MySQL ? 'mysql' : 'sqlsrv')}';
+            if ($dbType === 'sqlite') {
+                $dbFile = getenv('DB_STORAGE') ?: '${config.dbConnection.includes('=') ? config.dbConnection.split('=')[1] : 'app.db'}';
+                $this->conn = new PDO("sqlite:" . __DIR__ . "/../database/" . $dbFile);
+            } else {
+                $dbHost = getenv('DB_HOST') ?: '${host}';
+                $dbName = getenv('DB_NAME') ?: '${db_name}';
+                $dbUser = getenv('DB_USER') ?: '${username}';
+                $dbPass = getenv('DB_PASSWORD') ?: '${password}';
+                $dbPort = getenv('DB_PORT') ?: '${port}';
+                
+                if ($dbType === 'mysql') {
+                    $portStr = $dbPort ? ";port=" . $dbPort : '';
+                    $this->conn = new PDO("mysql:host=" . $dbHost . ";dbname=" . $dbName . $portStr, $dbUser, $dbPass);
+                } else {
+                    $this->conn = new PDO("sqlsrv:Server=" . $dbHost . ";Database=" . $dbName, $dbUser, $dbPass);
+                }
+            }
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->conn->exec("set names utf8");
         } catch(PDOException $exception) {
@@ -151,6 +167,61 @@ class Database {
   }
   
   files.push({ name: 'Database.php', path: `${root}/config/Database.php`, content: dbClassContent, language: 'php' });
+
+  // Generate .env and .env.{suffix} files for PHP
+  const generatePhpEnvContent = (conn: string, vars?: Record<string, string>) => {
+      let envHost = 'localhost';
+      let envDbName = 'my_db';
+      let envUser = 'root';
+      let envPass = '';
+      let envPort = '';
+
+      if (conn) {
+          const parts = conn.split(';');
+          parts.forEach(p => {
+              const [k, v] = p.split('=');
+              if(!k || !v) return;
+              const key = k.trim().toLowerCase();
+              const val = v.trim();
+              if (key === 'server' || key === 'data source' || key === 'host') envHost = val;
+              if (key === 'database' || key === 'initial catalog') envDbName = val;
+              if (key === 'user id' || key === 'uid' || key === 'user') envUser = val;
+              if (key === 'password' || key === 'pwd') envPass = val;
+              if (key === 'port') envPort = val;
+          });
+      }
+      let dbConnType = config.dbType === DbType.SQLite ? 'sqlite' : (config.dbType === DbType.MySQL ? 'mysql' : 'sqlsrv');
+      let base = `DB_CONNECTION=${dbConnType}\nDB_HOST=${envHost}\nDB_NAME=${envDbName}\nDB_USER=${envUser}\nDB_PASSWORD=${envPass}\nDB_PORT=${envPort}`;
+      if (config.dbType === DbType.SQLite) {
+          const dbFile = conn.includes('=') ? conn.split('=')[1] : 'app.db';
+          base = `DB_CONNECTION=sqlite\nDB_STORAGE=${dbFile}`;
+      }
+      if (vars) {
+          Object.entries(vars).forEach(([k, v]) => {
+              base += `\n${k}=${v}`;
+          });
+      }
+      return base + '\n';
+  };
+
+  files.push({
+      name: '.env',
+      path: `${root}/.env`,
+      content: generatePhpEnvContent(config.dbConnection),
+      language: 'text'
+  });
+
+  if (config.environments) {
+      config.environments.forEach(env => {
+          const suffix = env.name === 'Production' ? 'production' : env.name === 'Staging' ? 'staging' : 'development';
+          files.push({
+              name: `.env.${suffix}`,
+              path: `${root}/.env.${suffix}`,
+              content: generatePhpEnvContent(env.dbConnection || config.dbConnection, env.vars),
+              language: 'text'
+          });
+      });
+  }
 
   // 3. Base Model (Adapted for NoSQL vs SQL)
   const isNoSql = config.dbType === DbType.NoSQL;

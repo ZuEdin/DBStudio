@@ -55,10 +55,22 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
 }`, language: 'json' });
 
   // --- ENV Files ---
-  const generateEnvContent = (conn: string) => {
+  const generateEnvContent = (conn: string, vars?: Record<string, string>) => {
       let dbName = 'my_db', user = 'user', pass = 'pass', host = 'localhost';
-      if (config.dbType === DbType.SQLite) {
-          return `DB_DIALECT=sqlite\nDB_STORAGE=${conn.replace('Data Source=', '')}\nPORT=${config.port}`;
+      let dialect = 'mysql';
+      const dbTypeVal = config.dbType as any;
+      if (dbTypeVal === DbType.PostgreSQL || dbTypeVal === 'PostgreSQL') dialect = 'postgres';
+      else if (dbTypeVal === DbType.SQL || dbTypeVal === 'SQL') dialect = 'mssql';
+      else if (dbTypeVal === DbType.NoSQL || dbTypeVal === 'NoSQL') dialect = 'mongodb';
+
+      if (dbTypeVal === DbType.SQLite) {
+          let baseEnv = `DB_DIALECT=sqlite\nDB_STORAGE=${conn.replace('Data Source=', '')}\nPORT=${config.port}`;
+          if (vars) {
+              Object.entries(vars).forEach(([k, v]) => {
+                  baseEnv += `\n${k}=${v}`;
+              });
+          }
+          return baseEnv;
       }
       
       const parts = conn.split(';');
@@ -73,7 +85,13 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
           if (key.includes('password') || key.includes('pwd')) pass = val;
       });
 
-      return `DB_HOST=${host}\nDB_USER=${user}\nDB_PASS=${pass}\nDB_NAME=${dbName}\nDB_DIALECT=${config.dbType === DbType.MySQL ? 'mysql' : 'mssql'}\nPORT=${config.port}`;
+      let baseEnv = `DB_HOST=${host}\nDB_USER=${user}\nDB_PASS=${pass}\nDB_NAME=${dbName}\nDB_DIALECT=${dialect}\nPORT=${config.port}`;
+      if (vars) {
+          Object.entries(vars).forEach(([k, v]) => {
+              baseEnv += `\n${k}=${v}`;
+          });
+      }
+      return baseEnv;
   };
 
   // Base .env
@@ -85,7 +103,7 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
           files.push({ 
               name: `.env.${suffix}`, 
               path: `${root}/.env.${suffix}`, 
-              content: generateEnvContent(env.dbConnection || config.dbConnection), 
+              content: generateEnvContent(env.dbConnection || config.dbConnection, env.vars), 
               language: 'text' 
           });
       });

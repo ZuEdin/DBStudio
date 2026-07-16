@@ -35,7 +35,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                 if (node) nodeAlias = nodeAliases.get(node.id)!;
                 else nodeAlias = formatIdentifier(c.tableName);
             }
-            fieldExpr = `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
+            fieldExpr = `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
         }
 
         if (c.aggregate && !['GROUP_BY', 'EXPRESSION', 'FIRST', 'LAST'].includes(c.aggregate)) {
@@ -82,11 +82,11 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                 if (rel.fromTableId === currentNode.tableId && rel.toTableId === targetNode.tableId) {
                     const fromF = tables.find(t => t.id === rel.fromTableId)!.fields.find(f => f.id === rel.fromFieldId)!;
                     const toF = tables.find(t => t.id === rel.toTableId)!.fields.find(f => f.id === rel.toFieldId)!;
-                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(formatIdentifier(fromF.name), dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(formatIdentifier(toF.name), dbType)}`;
+                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
                 } else {
                     const fromF = tables.find(t => t.id === rel.toTableId)!.fields.find(f => f.id === rel.toFieldId)!;
                     const toF = tables.find(t => t.id === rel.fromTableId)!.fields.find(f => f.id === rel.fromFieldId)!;
-                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(formatIdentifier(fromF.name), dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(formatIdentifier(toF.name), dbType)}`;
+                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
                 }
 
                 joins += `\nLEFT JOIN ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
@@ -109,7 +109,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
             nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
         }
 
-        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
+        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
         
         const conditions = validCriteria.map(crit => {
             let criteria = crit.trim();
@@ -164,7 +164,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                 const node = nodes.find(n => n.tableId === c.tableId);
                 nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
             }
-            return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)}`;
+            return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
         }).join(', ');
         groupByClause = `\nGROUP BY ${groups}`;
     }
@@ -179,7 +179,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
             const node = nodes.find(n => n.tableId === c.tableId);
             nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
         }
-        return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(formatIdentifier(c.fieldName), dbType)} ${c.sort}`;
+        return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)} ${c.sort}`;
     }).join(', ');
     
     const orderByClause = orderByCols ? `\nORDER BY ${orderByCols}` : '';

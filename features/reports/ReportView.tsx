@@ -261,9 +261,23 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
   };
 
   const targetTable = detailView ? allTables.find(t => t.id === detailView.targetTableId) : null;
+  const isLandscape = report.settings?.orientation === 'landscape';
+  const sizeClasses = isLandscape ? 'max-w-[297mm] min-h-[210mm]' : 'max-w-[210mm] min-h-[297mm]';
 
   return (
     <div className={`${widgetMode ? 'bg-transparent' : 'bg-slate-200'} h-full overflow-hidden flex flex-col`}>
+      {/* Dynamic print orientation styling */}
+      <style>{`
+        @media print {
+          @page {
+            size: ${isLandscape ? 'landscape' : 'portrait'};
+            margin: 15mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}</style>
       {/* Sticky Toolbar */}
       {!widgetMode && (
           <div className="bg-white border-b border-slate-300 p-2 flex justify-end gap-2 flex-shrink-0 sticky top-0 z-20 shadow-sm">
@@ -277,7 +291,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
       )}
 
       <div className={`${widgetMode ? 'p-2 relative' : 'p-8 flex-1 bg-slate-200'} overflow-auto`}>
-        <div className={widgetMode ? 'w-full bg-white h-full' : `max-w-[210mm] mx-auto bg-white shadow-xl p-[15mm] min-h-[297mm] ${report.settings?.orientation === 'landscape' ? 'landscape:max-w-[297mm] landscape:min-h-[210mm]' : ''}`}>
+        <div className={widgetMode ? 'w-full bg-white h-full' : `mx-auto bg-white shadow-xl p-[15mm] transition-all duration-300 ${sizeClasses}`}>
             
             {/* Report Header */}
             {!widgetMode && (

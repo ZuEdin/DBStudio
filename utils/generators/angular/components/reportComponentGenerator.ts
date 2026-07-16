@@ -23,12 +23,25 @@ export const generateReportComponents = (
       const folder = 'reports';
       const sourceName = report.sourceType === 'table' 
           ? toCamelCase(tables.find(t => t.id === report.sourceId)?.name || '') 
-          : toCamelCase(queries.find(q => q.id === report.sourceId)?.name || '');
+          : `queries/${toCamelCase(queries.find(q => q.id === report.sourceId)?.name || '')}`;
       const groupingField = tables.find(t => t.id === report.sourceId)?.fields.find(f => f.id === report.groupingFieldId)?.name;
       const groupingProp = groupingField ? toCamelCase(groupingField) : null;
+      const orientation = report.settings?.orientation || 'portrait';
+      const widthClass = orientation === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]';
 
       const reportHtml = `
-      <div class="p-8 max-w-[210mm] mx-auto bg-white shadow-lg min-h-screen my-8 print:shadow-none print:m-0">
+      <style>
+          @media print {
+              @page {
+                  size: ${orientation};
+                  margin: 15mm;
+              }
+              body {
+                  -webkit-print-color-adjust: exact;
+              }
+          }
+      </style>
+      <div class="p-8 ${widthClass} mx-auto bg-white shadow-lg min-h-screen my-8 print:shadow-none print:m-0">
           <header class="border-b-4 border-slate-800 pb-4 mb-8">
               <h1 class="text-3xl font-bold">${report.name}</h1>
               <p class="text-slate-500">Erstellt am: {{ today | date }}</p>

@@ -804,6 +804,13 @@ export const useAppController = () => {
           return; 
       }
 
+      if (action === 'report_update_settings' && activeObject) {
+          const report = activeObject as Report;
+          const newReport = { ...report, ...payload };
+          handleActiveObjectChange(newReport);
+          return;
+      }
+
       switch(action) {
         case 'close_project':
         case 'new_db': 
@@ -1024,6 +1031,12 @@ export const useAppController = () => {
         case 'import_access': ui.setShowAccessWizard(true); break;
         case 'import_schema': ui.setShowSchemaWizard(true); break;
         case 'generate_dummy': ui.setShowDummyDataWizard(true); break;
+        case 'export_excel':
+        case 'export_access':
+        case 'export_sql':
+        case 'load_backup':
+             handleSetView({ type: 'api_import' });
+             break;
         case 'save': await handleSave(); break;
         
         case 'electron_settings': ui.setShowElectronSettings(true); break;

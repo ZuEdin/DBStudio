@@ -137,6 +137,33 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
       
       files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
   }
+
+  // Generate .env files for Vite
+  const defaultApiUrl = config.apiBaseUrl || `http://localhost:${config.port || 3000}`;
+  files.push({
+      name: '.env',
+      path: `${root}/.env`,
+      content: `VITE_API_URL=${defaultApiUrl}\n`,
+      language: 'text'
+  });
+
+  if (config.environments) {
+      config.environments.forEach(env => {
+          const mode = env.name === 'Production' ? 'production' : env.name === 'Staging' ? 'staging' : 'development';
+          let envContent = `VITE_API_URL=${env.apiUrl || defaultApiUrl}\n`;
+          if (env.vars) {
+              Object.entries(env.vars).forEach(([k, v]) => {
+                  envContent += `${k}=${v}\n`;
+              });
+          }
+          files.push({
+              name: `.env.${mode}`,
+              path: `${root}/.env.${mode}`,
+              content: envContent,
+              language: 'text'
+          });
+      });
+  }
   
   return files;
 };

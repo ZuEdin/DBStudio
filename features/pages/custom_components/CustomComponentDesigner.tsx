@@ -17,6 +17,7 @@ import { DropdownViewDesigner } from './components/DropdownViewDesigner';
 import { MetricCardViewDesigner } from './components/MetricCardViewDesigner';
 import { KanbanBoardViewDesigner } from './components/KanbanBoardViewDesigner';
 import { CardTemplateDesigner } from './components/CardTemplateDesigner';
+import { LayoutContainerDesigner } from './components/LayoutContainerDesigner';
 import { PreviewPanel } from './components/PreviewPanel';
 
 interface CustomComponentDesignerProps {
@@ -31,7 +32,7 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
 
   const [componentName, setComponentName] = useState('');
   const [componentDescription, setComponentDescription] = useState('');
-  const [componentType, setComponentType] = useState<'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template'>('table_view');
+  const [componentType, setComponentType] = useState<'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template' | 'layout_container'>('table_view');
   
   // Tab control: 'visual' or 'json'
   const [activeTab, setActiveTab] = useState<'visual' | 'json'>('visual');
@@ -134,7 +135,43 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
       groupByField: "Status",
       titleField: "Name",
       descField: "Email",
-      cardAccentField: "Umsatz"
+      cardAccentField: "Umsatz",
+      kanbanLayout: "columns"
+    },
+    layout_container: {
+      layoutType: "row",
+      cols: 3,
+      gap: "gap-4",
+      padding: "p-4",
+      bgStyle: "bg-white dark:bg-slate-900",
+      borderStyle: "border border-slate-200 dark:border-slate-800 rounded-xl",
+      shadow: "shadow-sm",
+      children: [
+        {
+          id: "child-1",
+          type: "text",
+          width: "flex-1",
+          config: {
+            text: "Spalte Links",
+            fontSize: "text-sm",
+            fontWeight: "font-semibold",
+            colorClass: "text-slate-800 dark:text-slate-100",
+            alignment: "text-left"
+          }
+        },
+        {
+          id: "child-2",
+          type: "text",
+          width: "flex-1",
+          config: {
+            text: "Spalte Rechts",
+            fontSize: "text-sm",
+            fontWeight: "font-normal",
+            colorClass: "text-slate-500 dark:text-slate-400",
+            alignment: "text-left"
+          }
+        }
+      ]
     }
   };
 
@@ -377,7 +414,7 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
 
       <div className="flex-1 flex overflow-hidden">
         {/* LEFT SIDE: CONFIGURATION & EDITOR PANEL */}
-        <div className="w-[440px] shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 overflow-y-auto">
+        <div className="w-[520px] max-w-[90vw] shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900 overflow-y-auto transition-all duration-300">
           {/* Metadata Section */}
           <MetadataSection 
             componentName={componentName}
@@ -489,6 +526,13 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
                   updateVisualConfig={updateVisualConfig}
                   tables={tables}
                   fields={fields}
+                />
+              )}
+
+              {componentType === 'layout_container' && (
+                <LayoutContainerDesigner 
+                  configObj={configObj}
+                  updateVisualConfig={updateVisualConfig}
                 />
               )}
             </div>

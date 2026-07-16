@@ -5,6 +5,7 @@ import { LiveForm } from '../LiveForm';
 import { CustomTableViewRunner } from '../CustomTableViewRunner';
 import { MetricCardRunner } from './MetricCardRunner';
 import { KanbanBoardRunner } from './kanban/KanbanBoardRunner';
+import { useProjectStore } from '../../../../stores/useProjectStore';
 
 interface CustomComponentRunnerProps {
     comp: any;
@@ -128,6 +129,115 @@ export const CustomComponentRunner: React.FC<CustomComponentRunnerProps> = ({
                     loading={loading}
                     setParam={setParam}
                 />
+            );
+        }
+
+        case 'layout_container': {
+            const layoutType = conf.layoutType || 'row';
+            const gap = conf.gap || 'gap-4';
+            const padding = conf.padding || 'p-4';
+            const bgStyle = conf.bgStyle || 'bg-white dark:bg-slate-900';
+            const shadow = conf.shadow || 'shadow-sm';
+            const borderStyle = conf.borderStyle || '';
+            const children = conf.children || [];
+
+            const getGridClass = () => {
+                const c = conf.cols || 3;
+                if (c === 1) return 'grid-cols-1';
+                if (c === 2) return 'grid-cols-1 sm:grid-cols-2';
+                if (c === 3) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3';
+                if (c === 4) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+                if (c === 6) return 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6';
+                return 'grid-cols-1 sm:grid-cols-3';
+            };
+
+            const containerClasses = layoutType === 'grid'
+                ? `grid ${getGridClass()} ${gap} ${padding} ${bgStyle} ${shadow} ${borderStyle}`
+                : layoutType === 'col'
+                    ? `flex flex-col ${gap} ${padding} ${bgStyle} ${shadow} ${borderStyle}`
+                    : `flex flex-col sm:flex-row flex-wrap sm:items-stretch ${gap} ${padding} ${bgStyle} ${shadow} ${borderStyle}`;
+
+            // We need useProjectStore to resolve references
+            const store = useProjectStore();
+            const { customComponents = [] } = store;
+
+            return (
+                <div className={`${containerClasses} transition-all text-left w-full`}>
+                    {children.map((child: any, cIdx: number) => {
+                        const widthClass = layoutType === 'row' ? (child.width || 'flex-1') : 'w-full';
+                        return (
+                            <div key={child.id || cIdx} className={`${widthClass} min-w-0 flex flex-col justify-center`}>
+                                {child.type === 'text' && (
+                                    <div className={`${child.config?.fontSize || 'text-xs'} ${child.config?.fontWeight || 'font-normal'} ${child.config?.colorClass || 'text-slate-700 dark:text-slate-300'} ${child.config?.alignment || 'text-left'} leading-relaxed`}>
+                                        {resolvePlaceholders(child.config?.text || '', context, params)}
+                                    </div>
+                                )}
+
+                                {child.type === 'button' && (
+                                    <div className="py-1">
+                                        <button 
+                                            type="button"
+                                            onClick={() => {
+                                                const btnConf = child.config || {};
+                                                if (btnConf.actionType === 'navigate' && btnConf.targetPageId) {
+                                                    navigate(btnConf.targetPageId);
+                                                } else if (btnConf.actionType === 'setParam' && btnConf.targetParamKey) {
+                                                    setParam(btnConf.targetParamKey, btnConf.targetParamVal);
+                                                }
+                                            }}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs hover:scale-[1.01] transition-transform ${
+                                                child.config?.variant === 'danger'
+                                                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                    : child.config?.variant === 'secondary'
+                                                        ? 'bg-slate-200 hover:bg-slate-350 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300'
+                                                        : child.config?.variant === 'outline'
+                                                            ? 'border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900'
+                                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                            }`}
+                                        >
+                                            {child.config?.label || 'Aktion'}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {child.type === 'metric_card' && (() => {
+                                    const theme = child.config?.themeColor || 'indigo';
+                                    const themeClasses: Record<string, string> = {
+                                        indigo: 'border-indigo-100 dark:border-indigo-950 bg-indigo-50/40 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400',
+                                        emerald: 'border-emerald-100 dark:border-emerald-950 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400',
+                                        rose: 'border-rose-100 dark:border-rose-950 bg-rose-50/40 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400',
+                                        amber: 'border-amber-100 dark:border-amber-950 bg-amber-50/40 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400',
+                                    };
+                                    return (
+                                        <div className={`p-3 rounded-xl border ${themeClasses[theme] || themeClasses.indigo} flex flex-col justify-center min-h-[64px]`}>
+                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">{child.config?.title || 'Kennzahl'}</span>
+                                            <span className="text-base font-bold text-slate-800 dark:text-white mt-0.5 truncate">
+                                                {child.config?.customValue || '0'}{child.config?.suffix || ''}
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
+
+                                {child.type === 'component_ref' && (() => {
+                                    const referenced = customComponents.find(c => c.id === child.config?.refComponentId);
+                                    if (!referenced) return null;
+                                    return (
+                                        <CustomComponentRunner
+                                            comp={referenced}
+                                            node={node}
+                                            context={context}
+                                            params={params}
+                                            setParam={setParam}
+                                            navigate={navigate}
+                                            fetchedData={fetchedData}
+                                            loading={loading}
+                                        />
+                                    );
+                                })()}
+                            </div>
+                        );
+                    })}
+                </div>
             );
         }
 

@@ -37,64 +37,160 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
                 damit Sie ohne manuelle Änderungen deployen können.
             </div>
 
-            {envs.map((env, idx) => (
-                <div key={env.name} className="bg-white border border-slate-200 rounded-lg shadow-sm p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className={`w-3 h-3 rounded-full ${env.name === 'Production' ? 'bg-red-500' : env.name === 'Staging' ? 'bg-orange-500' : 'bg-green-500'}`}></div>
-                        <h3 className="font-bold text-slate-700">{env.name}</h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                                Connection String ({dbType})
-                            </label>
-                            <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                                <Database size={16} className="text-slate-400" />
-                                <input 
-                                    type="text" 
-                                    className="flex-1 bg-transparent outline-none text-sm font-mono"
-                                    placeholder={dbType === 'SQL' ? "Server=prod-sql;Database=mydb;..." : "mongodb://prod-mongo:27017/..."}
-                                    value={env.dbConnection}
-                                    onChange={e => updateEnv(idx, 'dbConnection', e.target.value)}
-                                />
+            {envs.map((env, idx) => {
+                const customVars = env.vars || {};
+                const varKeys = Object.keys(customVars);
+
+                const handleAddVar = () => {
+                    const newEnvs = [...envs];
+                    const currentVars = newEnvs[idx].vars || {};
+                    // Find a unique name
+                    let counter = 1;
+                    while (currentVars[`CUSTOM_VAR_${counter}`] !== undefined) {
+                        counter++;
+                    }
+                    currentVars[`CUSTOM_VAR_${counter}`] = '';
+                    newEnvs[idx].vars = currentVars;
+                    setEnvs(newEnvs);
+                };
+
+                const handleUpdateVarKey = (oldKey: string, newKey: string) => {
+                    if (oldKey === newKey) return;
+                    const newEnvs = [...envs];
+                    const currentVars = { ...newEnvs[idx].vars };
+                    const value = currentVars[oldKey];
+                    delete currentVars[oldKey];
+                    currentVars[newKey] = value;
+                    newEnvs[idx].vars = currentVars;
+                    setEnvs(newEnvs);
+                };
+
+                const handleUpdateVarValue = (key: string, value: string) => {
+                    const newEnvs = [...envs];
+                    const currentVars = { ...newEnvs[idx].vars };
+                    currentVars[key] = value;
+                    newEnvs[idx].vars = currentVars;
+                    setEnvs(newEnvs);
+                };
+
+                const handleRemoveVar = (key: string) => {
+                    const newEnvs = [...envs];
+                    const currentVars = { ...newEnvs[idx].vars };
+                    delete currentVars[key];
+                    newEnvs[idx].vars = currentVars;
+                    setEnvs(newEnvs);
+                };
+
+                return (
+                    <div key={env.name} className="bg-white border border-slate-200 rounded-lg shadow-sm p-4 space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <div className="flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded-full ${env.name === 'Production' ? 'bg-red-500' : env.name === 'Staging' ? 'bg-orange-500' : 'bg-green-500'}`}></div>
+                                <h3 className="font-bold text-slate-700">{env.name}</h3>
                             </div>
+                            <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-mono">
+                                suffix: {env.name === 'Production' ? 'production' : env.name === 'Staging' ? 'staging' : 'development'}
+                            </span>
                         </div>
                         
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                                Server URL (Backend API)
-                            </label>
-                            <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                                <Server size={16} className="text-slate-400" />
-                                <input 
-                                    type="text" 
-                                    className="flex-1 bg-transparent outline-none text-sm font-mono"
-                                    placeholder="https://api.mydomain.com"
-                                    value={env.apiUrl || ''}
-                                    onChange={e => updateEnv(idx, 'apiUrl', e.target.value)}
-                                />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                    Connection String ({dbType})
+                                </label>
+                                <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                    <Database size={16} className="text-slate-400" />
+                                    <input 
+                                        type="text" 
+                                        className="flex-1 bg-transparent outline-none text-sm font-mono"
+                                        placeholder={dbType === 'SQL' ? "Server=prod-sql;Database=mydb;..." : "mongodb://prod-mongo:27017/..."}
+                                        value={env.dbConnection}
+                                        onChange={e => updateEnv(idx, 'dbConnection', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                    Server URL (Backend API)
+                                </label>
+                                <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                    <Server size={16} className="text-slate-400" />
+                                    <input 
+                                        type="text" 
+                                        className="flex-1 bg-transparent outline-none text-sm font-mono"
+                                        placeholder="https://api.mydomain.com"
+                                        value={env.apiUrl || ''}
+                                        onChange={e => updateEnv(idx, 'apiUrl', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                    Build Ordner (Output Path)
+                                </label>
+                                <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                    <FolderOpen size={16} className="text-slate-400" />
+                                    <input 
+                                        type="text" 
+                                        className="flex-1 bg-transparent outline-none text-sm font-mono"
+                                        placeholder="./dist/prod"
+                                        value={env.buildPath || ''}
+                                        onChange={e => updateEnv(idx, 'buildPath', e.target.value)}
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                                Build Ordner (Output Path)
-                            </label>
-                            <div className="flex items-center gap-2 border border-slate-300 rounded bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                                <FolderOpen size={16} className="text-slate-400" />
-                                <input 
-                                    type="text" 
-                                    className="flex-1 bg-transparent outline-none text-sm font-mono"
-                                    placeholder="./dist/prod"
-                                    value={env.buildPath || ''}
-                                    onChange={e => updateEnv(idx, 'buildPath', e.target.value)}
-                                />
+                        {/* Custom Environment Variables Section */}
+                        <div className="border-t border-slate-100 pt-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">Benutzerdefinierte Umgebungsvariablen</h4>
+                                <button 
+                                    onClick={handleAddVar}
+                                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded transition-colors"
+                                >
+                                    + Variable hinzufügen
+                                </button>
                             </div>
+
+                            {varKeys.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 italic">Keine zusätzlichen Variablen definiert. VITE_ prefixete Variablen werden auch im Frontend bereitgestellt.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {varKeys.map(key => (
+                                        <div key={key} className="flex items-center gap-2">
+                                            <input 
+                                                type="text" 
+                                                className="flex-1 border border-slate-300 rounded px-2 py-1 font-mono text-xs focus:outline-none focus:border-blue-500"
+                                                value={key}
+                                                placeholder="VAR_NAME"
+                                                onChange={e => handleUpdateVarKey(key, e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
+                                            />
+                                            <span className="text-slate-400">=</span>
+                                            <input 
+                                                type="text" 
+                                                className="flex-[1.5] border border-slate-300 rounded px-2 py-1 font-mono text-xs focus:outline-none focus:border-blue-500"
+                                                value={customVars[key]}
+                                                placeholder="Wert"
+                                                onChange={e => handleUpdateVarValue(key, e.target.value)}
+                                            />
+                                            <button 
+                                                onClick={() => handleRemoveVar(key)}
+                                                className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                                                title="Variable entfernen"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
 
         <div className="p-4 bg-white border-t flex justify-end gap-2">

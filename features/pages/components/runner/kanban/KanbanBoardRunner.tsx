@@ -456,7 +456,7 @@ export const KanbanBoardRunner: React.FC<KanbanBoardRunnerProps> = ({
                     Keine Daten gefunden. Bitte wählen Sie ein gültiges Gruppierungs-Feld.
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-x-auto pb-2">
+                <div className={conf.kanbanLayout === 'rows' ? "flex flex-col gap-6 w-full" : "grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-x-auto pb-2"}>
                     {columnsKeys.map(colKey => (
                         <KanbanColumn
                             key={colKey}
@@ -484,6 +484,7 @@ export const KanbanBoardRunner: React.FC<KanbanBoardRunnerProps> = ({
                             activeDragItem={activeDragItem}
                             allItems={fetchedData}
                             onPromoteToMainTask={handlePromoteToMainTask}
+                            layoutMode={conf.kanbanLayout}
                         />
                     ))}
                 </div>

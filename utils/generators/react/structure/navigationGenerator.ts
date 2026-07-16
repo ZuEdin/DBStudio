@@ -70,7 +70,7 @@ export const generateSidebar = (
                   </span>
               ` : '';
               return `${checkStart}
-              <Link to="${realRoute}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('${realRoute}')}\`}>
+              <Link to="${realRoute}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('${realRoute}')}\`}>
                   <${iconName} size={16}/> <span>{getLabel(${JSON.stringify(item)})}</span>
                   ${badgeHtml}
               </Link>
@@ -90,7 +90,7 @@ export const generateSidebar = (
                     const cond = isSystem && useAuth ? `{user?.role === 'Admin' && (` : ``;
                     const closeCond = isSystem && useAuth ? `)}` : ``;
                     return `${cond}
-                    <Link to="/${toCamelCase(t.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
+                    <Link to="/${toCamelCase(t.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
                         ${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} ${t.name}
                     </Link>${closeCond}`;
                 }).join('\n')}
@@ -105,7 +105,7 @@ export const generateSidebar = (
                 ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').map(q => {
                     const iconName = q.type === 'UPDATE' ? 'RefreshCw' : 'Search';
                     return `
-                    <Link to="/queries/${toCamelCase(q.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
+                    <Link to="/queries/${toCamelCase(q.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
                         <${iconName} size={16}/> ${q.name}
                     </Link>`;
                 }).join('\n')}
@@ -119,7 +119,7 @@ export const generateSidebar = (
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Berichte</div>
                 <div className="space-y-1">
                 ${reports.map(r => `
-                    <Link to="/reports/${toCamelCase(r.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/reports/${toCamelCase(r.name)}')}\`}>
+                    <Link to="/reports/${toCamelCase(r.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/reports/${toCamelCase(r.name)}')}\`}>
                         <FileText size={16}/> ${r.name}
                     </Link>`).join('\n')}
                 </div>
@@ -132,7 +132,7 @@ export const generateSidebar = (
                 <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Eigene Seiten</div>
                 <div className="space-y-1">
                 ${pages.filter(p => !p.isSubpage).map(p => `
-                    <Link to="/custom/${toCamelCase(p.name)}" className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/custom/${toCamelCase(p.name)}')}\`}>
+                    <Link to="/custom/${toCamelCase(p.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/custom/${toCamelCase(p.name)}')}\`}>
                         <Layout size={16}/> ${p.name}
                     </Link>`).join('\n')}
                 </div>

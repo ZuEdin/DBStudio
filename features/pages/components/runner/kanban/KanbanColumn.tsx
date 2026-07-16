@@ -32,6 +32,7 @@ interface KanbanColumnProps {
 
     allItems?: any[];
     onPromoteToMainTask?: (row: any) => void;
+    layoutMode?: 'columns' | 'rows';
 }
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -59,6 +60,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     activeDragItem,
     allItems,
     onPromoteToMainTask,
+    layoutMode = 'columns',
 }) => {
     // Recursive function to render a card and all its children down the tree
     const renderCardAndChildren = (row: any, depth: number = 0) => {
@@ -128,6 +130,50 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
             </div>
         );
     };
+
+    if (layoutMode === 'rows') {
+        return (
+            <div 
+                className="bg-slate-100/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 flex flex-col md:flex-row gap-4 items-stretch w-full min-h-[140px] transition-all"
+                onDragOver={onDragOver}
+                onDrop={() => onDrop(colKey)}
+            >
+                {/* Lane / Row Title and Badge */}
+                <div className="w-full md:w-52 shrink-0 flex flex-row md:flex-col justify-between md:justify-center items-center md:items-start border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 pb-2 md:pb-0 md:pr-4">
+                    <div>
+                        <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                            {columnMapping && columnMapping[colKey] ? columnMapping[colKey] : colKey}
+                        </h5>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 hidden md:block">
+                            Zeilen-Gruppe für '{groupByField}'
+                        </p>
+                    </div>
+                    <span className="text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full">
+                        {rows.length}
+                    </span>
+                </div>
+
+                {/* Horizontal list of items */}
+                <div className="flex-1 w-full flex flex-row gap-4 overflow-x-auto py-1 px-1 items-start min-w-0 scrollbar-thin">
+                    {rows.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center text-xs text-slate-400 italic py-4">
+                            Keine Einträge. Ziehen Sie ein Kärtchen hierher.
+                        </div>
+                    ) : (
+                        rows.map(row => {
+                            const rowId = row.id !== undefined && row.id !== null ? row.id : (row.Id !== undefined && row.Id !== null ? row.Id : 'null');
+                            return (
+                                <div key={rowId} className="w-72 shrink-0 min-w-[280px]">
+                                    {renderCardAndChildren(row, 0)}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div 

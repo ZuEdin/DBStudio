@@ -8,6 +8,9 @@ export const generateReportPage = (
   root: string
 ): VirtualFile => {
   const compName = `${toPascalCase(report.name)}ReportPage`;
+  const orientation = report.settings?.orientation || 'portrait';
+  const widthClass = orientation === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]';
+  
   // Determine endpoint: Table or Query
   let endpoint = '';
   let fields: any[] = [];
@@ -21,7 +24,7 @@ export const generateReportPage = (
   } else {
       const query = queries.find(q => q.id === report.sourceId);
       if (query) {
-          endpoint = toCamelCase(query.name);
+          endpoint = `queries/${toCamelCase(query.name)}`;
           fields = (query as SelectQuery).columns.map(c => ({ name: c.alias || c.fieldName, prop: toCamelCase(c.alias || c.fieldName) }));
       }
   }
@@ -93,7 +96,18 @@ export const ${compName} = () => {
   const handlePrint = () => window.print();
 
   return (
-    <div className="p-8 max-w-[210mm] mx-auto min-h-screen bg-white shadow-xl my-8 print:shadow-none print:m-0 text-slate-800">
+    <div className="p-8 ${widthClass} mx-auto min-h-screen bg-white shadow-xl my-8 print:shadow-none print:m-0 text-slate-800">
+        <style dangerouslySetInnerHTML={{ __html: \`
+            @media print {
+                @page {
+                    size: ${orientation};
+                    margin: 15mm;
+                }
+                body {
+                    -webkit-print-color-adjust: exact;
+                }
+            }
+        \` }} />
         <div className="flex justify-between items-start border-b-4 border-slate-800 pb-6 mb-8">
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">${report.name}</h1>

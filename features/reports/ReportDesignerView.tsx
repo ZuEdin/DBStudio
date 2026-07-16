@@ -85,10 +85,10 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                 if (field && !fieldMap.has(field.id)) {
                     fieldMap.set(field.id, field);
                 }
-            });
-            fields = Array.from(fieldMap.values());
-            // Execute query logic for preview WITH relationships to ensure JOINs work
-            data = executeSelectQuery(query, tables, relationships); 
+             });
+             fields = Array.from(fieldMap.values());
+             // Execute query logic for preview WITH relationships to ensure JOINs work
+             data = executeSelectQuery(query, tables, relationships); 
         }
     }
     setSourceFields(fields);
@@ -155,10 +155,6 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
       onReportChange({ ...report, columns: newCols });
   };
 
-  const updateSettings = (key: keyof typeof report.settings, value: any) => {
-      onReportChange({ ...report, settings: { ...report.settings, [key]: value } });
-  };
-
   const updateSingleColumn = (index: number, updates: Partial<ReportColumn>) => {
       const newCols = columns.map((c, i) => i === index ? { ...c, ...updates } : c);
       syncToReport(newCols);
@@ -175,11 +171,10 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
       {/* LEFT: Config Panel */}
       <div className="w-96 flex flex-col bg-white border-r border-slate-300 shadow-xl z-10">
           <div className="p-4 bg-slate-800 text-white flex justify-between items-center shrink-0">
-              <h2 className="font-bold text-lg flex items-center gap-2"><LayoutTemplate size={18}/> Struktur</h2>
+              <h2 className="font-bold text-lg flex items-center gap-2"><Columns size={18}/> Struktur</h2>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {/* Columns List */}
+          <div className="flex-1 overflow-y-auto p-4">
               <div>
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1"><Columns size={14}/> Spalten</h3>
                   <div className="space-y-2">
@@ -218,45 +213,6 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                               </div>
                           </div>
                       ))}
-                  </div>
-              </div>
-
-              {/* Grouping Settings */}
-              <div className="pt-4 border-t border-slate-200">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1"><AlignJustify size={14}/> Gruppierung</h4>
-                  <select value={report.groupingFieldId || ''} onChange={e => onReportChange({ ...report, groupingFieldId: e.target.value || undefined })} className="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50">
-                      <option value="">(Keine Gruppierung)</option>
-                      {sourceFields.map(f => (<option key={f.id} value={f.id}>{f.name}</option>))}
-                  </select>
-                  {report.groupingFieldId && (
-                      <div className="bg-blue-50 p-3 rounded border border-blue-100 space-y-3 mt-3">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                              <input type="checkbox" checked={report.settings?.pageBreakAfterGroup || false} onChange={e => updateSettings('pageBreakAfterGroup', e.target.checked)} className="rounded border-slate-300 text-blue-600" />
-                              <span className="text-xs text-slate-700">Seitenumbruch nach Gruppe</span>
-                          </label>
-                          <div>
-                              <label className="block text-xs font-semibold text-slate-600 mb-1">Methode</label>
-                              <select value={report.settings?.groupMethod || 'full'} onChange={e => updateSettings('groupMethod', e.target.value)} className="w-full border border-slate-300 rounded p-1 text-xs">
-                                  <option value="full">Vollständiger Wert</option>
-                                  <option value="firstLetter">Anfangsbuchstabe (A-Z)</option>
-                              </select>
-                          </div>
-                      </div>
-                  )}
-              </div>
-
-              {/* Security Settings */}
-              <div className="pt-4 border-t border-slate-200">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1"><Shield size={14}/> Sicherheit</h4>
-                  <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Erlaubte Rollen (kommasepariert)</label>
-                      <CommaSeparatedInput
-                         placeholder="z.B. Admin, User" 
-                         value={report.allowedRoles || []} 
-                         onChange={roles => onReportChange({ ...report, allowedRoles: roles })}
-                         className="w-full border border-slate-300 rounded p-2 text-sm bg-white" 
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">Leer lassen, wenn für alle zugänglich.</p>
                   </div>
               </div>
           </div>

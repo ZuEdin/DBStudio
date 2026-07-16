@@ -21,13 +21,33 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
         ? "Data Source=app.db" 
         : "Server=.;Database=MyDb;Trusted_Connection=True;TrustServerCertificate=True;");
   
-  // ... (Settings generation logic remains same) ...
   const baseAppSettings = {
     "Logging": { "LogLevel": { "Default": "Information", "Microsoft.AspNetCore": "Warning" } },
     "AllowedHosts": "*",
     "ConnectionStrings": { "DefaultConnection": connectionString }
   };
   files.push({ name: 'appsettings.json', path: `${root}/appsettings.json`, content: JSON.stringify(baseAppSettings, null, 2), language: 'json' });
+
+  // Generate appsettings.{Environment}.json
+  if (config.environments) {
+      config.environments.forEach(env => {
+          const envConn = env.dbConnection || connectionString;
+          const envSettings: any = {
+              "Logging": { "LogLevel": { "Default": "Information", "Microsoft.AspNetCore": "Warning" } },
+              "AllowedHosts": "*",
+              "ConnectionStrings": { "DefaultConnection": envConn }
+          };
+          if (env.vars) {
+              envSettings["CustomSettings"] = env.vars;
+          }
+          files.push({
+              name: `appsettings.${env.name}.json`,
+              path: `${root}/appsettings.${env.name}.json`,
+              content: JSON.stringify(envSettings, null, 2),
+              language: 'json'
+          });
+      });
+  }
 
   // 2. CSPROJ
   files.push(generateCsproj(config, root));

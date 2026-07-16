@@ -88,6 +88,59 @@ export const generatePython = (tables: Table[], relationships: Relationship[], q
     language: 'text'
   });
 
+  // --- ENV Generation for Python ---
+  const getPythonDbUrl = (conn: string) => {
+    if (config.dbType === DbType.SQLite) return `sqlite+aiosqlite:///./app.db`;
+    if (!conn) {
+      if (config.dbType === DbType.MySQL) return 'mysql+aiomysql://root:password@localhost/db_name';
+      return 'postgresql+asyncpg://postgres:password@localhost/db_name';
+    }
+    let host = 'localhost', dbName = 'my_db', user = 'user', pass = 'pass';
+    const parts = conn.split(';');
+    parts.forEach(p => {
+        const [k, v] = p.split('=');
+        if(!k || !v) return;
+        const key = k.trim().toLowerCase();
+        const val = v.trim();
+        if (key.includes('database')) dbName = val;
+        if (key.includes('server') || key.includes('host')) host = val;
+        if (key.includes('user')) user = val;
+        if (key.includes('password') || key.includes('pwd')) pass = val;
+    });
+    if (config.dbType === DbType.MySQL) {
+      return `mysql+aiomysql://${user}:${pass}@${host}/${dbName}`;
+    }
+    return `postgresql+asyncpg://${user}:${pass}@${host}/${dbName}`;
+  };
+
+  const baseDbUrl = getPythonDbUrl(config.dbConnection);
+  let baseEnv = `DATABASE_URL=${baseDbUrl}\nDATABASE_NAME=${config.projectName.toLowerCase()}\nPORT=${config.port}`;
+  files.push({
+    name: '.env',
+    path: `${root}/.env`,
+    content: baseEnv + '\n',
+    language: 'text'
+  });
+
+  if (config.environments) {
+    config.environments.forEach(env => {
+      const suffix = env.name === 'Production' ? 'production' : env.name === 'Staging' ? 'staging' : 'development';
+      const envConn = env.dbConnection ? getPythonDbUrl(env.dbConnection) : baseDbUrl;
+      let envContent = `DATABASE_URL=${envConn}\nDATABASE_NAME=${config.projectName.toLowerCase()}\nPORT=${config.port}`;
+      if (env.vars) {
+        Object.entries(env.vars).forEach(([k, v]) => {
+          envContent += `\n${k}=${v}`;
+        });
+      }
+      files.push({
+        name: `.env.${suffix}`,
+        path: `${root}/.env.${suffix}`,
+        content: envContent + '\n',
+        language: 'text'
+      });
+    });
+  }
+
   // 2. config/database.py
   let dbContent = '';
   if (isNoSql) {

@@ -63,6 +63,66 @@ SESSION_LIFETIME=120
 `;
   files.push({ name: '.env', path: `${root}/.env`, content: envContent, language: 'text' });
 
+  // Generate .env.{environment} for Laravel
+  if (config.environments) {
+      config.environments.forEach(env => {
+          const suffix = env.name === 'Production' ? 'production' : env.name === 'Staging' ? 'staging' : 'development';
+          let envDbConnection = dbConnection;
+          let envDbHost = dbHost;
+          let envDbPort = dbPort;
+          let envDbDatabase = dbDatabase;
+          let envDbUsername = dbUsername;
+          let envDbPassword = dbPassword;
+
+          if (env.dbConnection) {
+              const parts = env.dbConnection.split(';');
+              parts.forEach(p => {
+                  const [k, v] = p.split('=');
+                  if (!k || !v) return;
+                  const key = k.trim().toLowerCase();
+                  const val = v.trim();
+                  if (key === 'server' || key === 'host' || key === 'data source') envDbHost = val;
+                  if (key === 'database' || key === 'initial catalog') envDbDatabase = val;
+                  if (key === 'user' || key === 'uid' || key === 'user id') envDbUsername = val;
+                  if (key === 'password' || key === 'pwd') envDbPassword = val;
+                  if (key === 'port') envDbPort = val;
+              });
+          }
+
+          let envFileContent = `APP_NAME="${config.projectName}"
+APP_ENV=${suffix}
+APP_KEY=base64:${btoa(config.projectName + suffix + Date.now())}
+APP_DEBUG=${suffix === 'production' ? 'false' : 'true'}
+APP_URL=${env.apiUrl || 'http://localhost'}
+
+LOG_CHANNEL=stack
+LOG_LEVEL=${suffix === 'production' ? 'info' : 'debug'}
+
+DB_CONNECTION=${envDbConnection}
+DB_HOST=${envDbHost}
+DB_PORT=${envDbPort}
+DB_DATABASE=${envDbDatabase}
+DB_USERNAME=${envDbUsername}
+DB_PASSWORD="${envDbPassword}"
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+SESSION_DRIVER=file
+`;
+          if (env.vars) {
+              Object.entries(env.vars).forEach(([k, v]) => {
+                  envFileContent += `\n${k}=${v}`;
+              });
+          }
+          files.push({
+              name: `.env.${suffix}`,
+              path: `${root}/.env.${suffix}`,
+              content: envFileContent,
+              language: 'text'
+          });
+      });
+  }
+
   // 2. Composer JSON (Minimal)
   files.push({
       name: 'composer.json',

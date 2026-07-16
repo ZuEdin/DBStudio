@@ -164,41 +164,122 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
       <div className="bg-slate-50 py-20">
           <div className="max-w-6xl mx-auto px-4">
               <div className="text-center mb-16">
-                  <h2 className="text-3xl font-bold text-slate-800 mb-4">Umfassende Features inklusive</h2>
+                  <h2 className="text-3xl font-bold text-slate-800 mb-4">Umfassende Features & Fähigkeiten</h2>
                   <p className="text-slate-500 max-w-2xl mx-auto text-sm md:text-base">
-                      Wir bauen keine simplen "Hello World"-Beispiele. DB Studio Pro entwirft und konfiguriert die komplexe, relationale Logik und die Infrastruktur, die moderne Teams benötigen.
+                      DB Studio Pro ist kein einfaches Prototyping-Werkzeug. Es entwirft und konfiguriert die komplexe relationale Logik, die Benutzeroberflächen und die gesamte IaC-Infrastruktur für Ihr Enterprise-System.
                   </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* Feature 1 */}
-                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 transition-all hover:-translate-y-1">
-                      <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-6">
-                          <ShieldCheck size={32} />
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-4">
+                              <Database size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">1. Visuelles DB-Design (ERD)</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Erstellen Sie relationale Datenmodelle im interaktiven ERD-Editor. Entwerfen Sie Tabellen, Fremdschlüssel und Indizes manuell oder generieren Sie diese per KI-Copilot.
+                          </p>
                       </div>
-                      <h3 className="text-lg font-bold text-slate-800 mb-3">Sicherheit & RBAC</h3>
-                      <p className="text-slate-600 text-xs leading-relaxed">
-                          Integrierte Rollenverwaltung (Admin, User, Guest) und fein granulierte Rechte-Matrix bis auf Tabellenebene. Voller Support für moderne JWT, API Keys oder relationale Benutzerkontrollen.
-                      </p>
+                      <div className="mt-4 text-[10px] font-semibold text-indigo-600 uppercase tracking-wider">IndexedDB & SQL Export</div>
                   </div>
+
                   {/* Feature 2 */}
-                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 transition-all hover:-translate-y-1">
-                      <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6">
-                          <Globe size={32} />
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4">
+                              <Terminal size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">2. Abfrage-Designer</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Visuelle Generierung komplexer Abfragen (SELECT, UPDATE, DELETE, APPEND) mit Branchenassistenten für das automatische Aufspüren von Daten-Inkonsistenzen und Dubletten.
+                          </p>
                       </div>
-                      <h3 className="text-lg font-bold text-slate-800 mb-3">Multi-Tenancy</h3>
-                      <p className="text-slate-600 text-xs leading-relaxed">
-                          Bauen Sie vollwertige SaaS-Anwendungen. Der Code-Generator unterstützt performante Mandantenfähigkeit wahlweise über diskriminierende Spalten oder komplett getrennte Datenbankinstanzen.
-                      </p>
+                      <div className="mt-4 text-[10px] font-semibold text-blue-600 uppercase tracking-wider">Echtzeit SQL Engine</div>
                   </div>
+
                   {/* Feature 3 */}
-                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-all hover:-translate-y-1">
-                      <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
-                          <CpuIcon size={32} />
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
+                              <Layout size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">3. Formular-Designer</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Erstellen Sie anspruchsvolle Eingabemasken per Drag & Drop. Integrieren Sie Lookup-Felder, relationale Unterformulare (n:m), Dateimanager und benutzerdefinierte Auswahlelemente.
+                          </p>
                       </div>
-                      <h3 className="text-lg font-bold text-slate-800 mb-3">Automatisierte Deployments</h3>
-                      <p className="text-slate-600 text-xs leading-relaxed">
-                          Erzeugt automatisierte **Terraform Infrastructure as Code (AWS)** Skripte, Azure Bicep Deployment Schemata, Multi-Stage Dockerfiles sowie vollständige Continuous Integration mit GitHub Actions Workflows.
-                      </p>
+                      <div className="mt-4 text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">Drag & Drop Form-Builder</div>
+                  </div>
+
+                  {/* Feature 4 */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4">
+                              <ClipboardList size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">4. Berichts- & Print-Designer</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Entwerfen Sie druckfertige PDF- und Bildschirm-Reports. Nutzen Sie bedingte Formatierungen, Gruppierungen (mit Seitenumbrüchen) und die Steuerung über das Ribbon-Menü.
+                          </p>
+                      </div>
+                      <div className="mt-4 text-[10px] font-semibold text-purple-600 uppercase tracking-wider">Bericht-Entwurf Ribbon</div>
+                  </div>
+
+                  {/* Feature 5 */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-amber-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-4">
+                              <Zap size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">5. Workflows & Lifecycle</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Modellieren Sie Geschäftslogiken und Daten-Lebenszyklen visuell im AST-basierten Workflow-Editor. Richten Sie zeitgesteuerte Cron-Jobs oder Event-Trigger ein.
+                          </p>
+                      </div>
+                      <div className="mt-4 text-[10px] font-semibold text-amber-600 uppercase tracking-wider">Typsichere Ablaufsteuerung</div>
+                  </div>
+
+                  {/* Feature 6 */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-sky-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center mb-4">
+                              <Cloud size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">6. Daten-Integrationen</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Importieren Sie mühelos Excel/CSV, SharePoint-Listen oder klassische MS Access XML-Schemata. Synchronisieren Sie lokale Entwürfe per Live-Sync mit echten SQL-Datenbanken.
+                          </p>
+                      </div>
+                      <div className="mt-4 text-[10px] font-semibold text-sky-600 uppercase tracking-wider">Migrations- & Import-Hub</div>
+                  </div>
+
+                  {/* Feature 7 */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center mb-4">
+                              <ShieldCheck size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">7. RBAC & Multi-Tenancy</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Verwalten Sie Berechtigungen granular bis auf Tabellenebene. Richten Sie anspruchsvolle SaaS-Architekturen mit Spalten- oder DB-basierter Mandantenfähigkeit ein.
+                          </p>
+                      </div>
+                      <div className="mt-4 text-[10px] font-semibold text-rose-600 uppercase tracking-wider">Enterprise Security</div>
+                  </div>
+
+                  {/* Feature 8 */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-orange-300 transition-all hover:-translate-y-1 flex flex-col justify-between">
+                      <div>
+                          <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center mb-4">
+                              <Code size={24} />
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800 mb-2">8. Full-Stack Generator</h3>
+                          <p className="text-slate-600 text-xs leading-relaxed">
+                              Generieren Sie Code für .NET 9, Node.js, PHP/Laravel, React, Angular und Desktop-Pakete für Tauri (Rust) oder Electron inkl. Dockerfiles und Terraform AWS Skripten.
+                          </p>
+                      </div>
+                      <div className="mt-4 text-[10px] font-semibold text-orange-600 uppercase tracking-wider">Tauri & Cloud-Native ready</div>
                   </div>
               </div>
           </div>

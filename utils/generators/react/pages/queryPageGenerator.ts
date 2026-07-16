@@ -10,7 +10,7 @@ export const generateQueryPage = (
 
   if (query.type === 'SELECT') {
       const q = query as SelectQuery;
-      const endpoint = toCamelCase(q.name); // Using view/query endpoint
+      const endpoint = `queries/${toCamelCase(q.name)}`; // Using view/query endpoint
       
       const columns = q.columns.filter(c => c.show).map(c => {
           return `<th className="p-4">${c.alias || c.fieldName}</th>`;
@@ -37,7 +37,8 @@ export const ${compName} = () => {
       setLoading(true);
       try {
           const res = await get('${endpoint}', { page, pageSize: 20, search });
-          setData(res as any);
+          const d = Array.isArray(res) ? { data: res, total: res.length, page: 1, totalPages: 1 } : res;
+          setData(d);
       } finally { setLoading(false); }
   };
 

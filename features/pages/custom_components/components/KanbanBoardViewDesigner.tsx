@@ -54,6 +54,21 @@ export const KanbanBoardViewDesigner: React.FC<KanbanBoardViewDesignerProps> = (
       </div>
 
       <div>
+        <label className="block text-[10px] text-slate-500 font-bold uppercase mb-1">Layout-Ausrichtung (Orientierung)</label>
+        <select
+          value={configObj.kanbanLayout || 'columns'}
+          onChange={(e) => updateVisualConfig({ kanbanLayout: e.target.value })}
+          className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 text-xs dark:text-white font-semibold text-indigo-700 dark:text-indigo-400"
+        >
+          <option value="columns">Spaltenweise (Vertikal, Standard)</option>
+          <option value="rows">Zeilenweise (Horizontal / Swimlanes)</option>
+        </select>
+        <p className="text-[9px] text-slate-400 mt-0.5">
+          Wählen Sie 'Zeilenweise', um Aufgaben horizontal in Zeilen/Swimlanes darzustellen und Drag & Drop zeilenübergreifend zu nutzen.
+        </p>
+      </div>
+
+      <div>
         <label className="block text-[10px] text-slate-500 font-bold uppercase mb-1">Datenquelle (Tabelle)</label>
         <select
           value={configObj.dataSourceId || ''}

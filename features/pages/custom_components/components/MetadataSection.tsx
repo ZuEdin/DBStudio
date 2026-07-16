@@ -6,7 +6,7 @@ interface MetadataSectionProps {
   setComponentName: (name: string) => void;
   componentDescription: string;
   setComponentDescription: (desc: string) => void;
-  componentType: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template';
+  componentType: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template' | 'layout_container';
   handleTypeChange: (type: any) => void;
 }
 
@@ -51,6 +51,7 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
             <option value="metric_card">📊 Kennzahl-Karte (Metric Card)</option>
             <option value="kanban_board">📋 Aufgaben-Board (Kanban Board)</option>
             <option value="card_template">🃏 Kartenvorlage (Card Template)</option>
+            <option value="layout_container">📐 Layout Spalten/Zeilen (Layout Container)</option>
           </select>
         </div>
       </div>
