@@ -1,22 +1,17 @@
 
 import React, { useState, useMemo } from 'react';
-import { Table } from '../../../types/index';
+import { Table, DeleteQuery, Criterion } from '../../../types/index';
 import { X, Trash2, AlertTriangle, Plus, Filter } from 'lucide-react';
 
 interface DeleteQueryWizardProps {
   tables: Table[];
   onExecute: (table: Table, criteria: Criterion[]) => void;
+  onSave?: (query: DeleteQuery) => void;
   onClose: () => void;
 }
 
-export interface Criterion {
-    id: string;
-    fieldId: string;
-    operator: string;
-    value: string;
-}
-
-export const DeleteQueryWizard: React.FC<DeleteQueryWizardProps> = ({ tables, onExecute, onClose }) => {
+export const DeleteQueryWizard: React.FC<DeleteQueryWizardProps> = ({ tables, onExecute, onSave, onClose }) => {
+  const [queryName, setQueryName] = useState('Neue Löschabfrage');
   const [tableId, setTableId] = useState('');
   const [criteria, setCriteria] = useState<Criterion[]>([]);
 
@@ -38,6 +33,22 @@ export const DeleteQueryWizard: React.FC<DeleteQueryWizardProps> = ({ tables, on
 
   const updateCriterion = (id: string, key: keyof Criterion, val: string) => {
       setCriteria(criteria.map(c => c.id === id ? { ...c, [key]: val } : c));
+  };
+
+  const handleExecute = () => {
+      if (!selectedTable) return;
+      if (onSave) {
+          onSave({
+              id: crypto.randomUUID(),
+              type: 'DELETE',
+              name: queryName,
+              targetTableId: selectedTable.id,
+              criteria
+          });
+      } else {
+          onExecute(selectedTable, criteria);
+      }
+      onClose();
   };
 
   // Calculate Impact Preview
@@ -71,11 +82,6 @@ export const DeleteQueryWizard: React.FC<DeleteQueryWizardProps> = ({ tables, on
       }).length;
   }, [selectedTable, criteria]);
 
-  const handleExecute = () => {
-      if (!selectedTable) return;
-      onExecute(selectedTable, criteria);
-      onClose();
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">

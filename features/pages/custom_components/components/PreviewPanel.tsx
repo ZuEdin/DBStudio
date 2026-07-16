@@ -1,4 +1,11 @@
 import React from 'react';
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+
+const ChartBar = Bar as any;
+const ChartLine = Line as any;
+const ChartArea = Area as any;
+const ChartPie = Pie as any;
+
 import { 
   AlertCircle, RefreshCw, HelpCircle, Filter, 
   TrendingUp, Users, DollarSign, Activity, Calendar, Percent, Award, ShoppingCart, Layout, Layers
@@ -351,47 +358,63 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                   </div>
                 )}
 
-                {/* CHART VIEW PREVIEW */}
+                                {/* CHART VIEW PREVIEW */}
                 {componentType === 'chart_view' && (
                   <div className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
                     <div className="flex justify-between items-center pb-2 border-b dark:border-slate-800">
                       <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">{configObj.title || 'Diagramm'}</span>
                       <span className="text-[10px] font-mono text-slate-400 uppercase">Typ: {configObj.chartType}</span>
                     </div>
-                    <div className="h-44 flex items-end gap-3 justify-around pt-6 bg-white dark:bg-slate-950 p-4 border border-dashed rounded-lg dark:border-slate-800">
-                      {mockRows.map((row, rIdx) => (
-                        <div key={rIdx} className="flex flex-col items-center gap-1 w-full max-w-[60px]">
-                          {/* Chart Pillar mockup */}
-                          {configObj.chartType === 'bar' ? (
-                            <div 
-                              className="w-full rounded-t-md transition-all duration-500"
-                              style={{ 
-                                height: `${Math.min(100, 20 + rIdx * 25)}px`,
-                                backgroundColor: configObj.series?.[0]?.color || '#3b82f6'
-                              }}
-                            />
-                          ) : (
-                            /* Line chart dot mockup */
-                            <div className="w-full flex flex-col items-center justify-center h-[100px] relative">
-                              <div 
-                                className="h-3.5 w-3.5 rounded-full absolute"
-                                style={{ 
-                                  bottom: `${20 + rIdx * 22}px`,
-                                  backgroundColor: configObj.series?.[0]?.color || '#3b82f6'
-                                }}
-                              />
-                              <div className="w-[1px] h-full bg-slate-100 dark:bg-slate-800" />
-                            </div>
-                          )}
-                          <span className="text-[10px] text-slate-400 truncate max-w-full font-mono mt-1">
-                            {String(row[configObj.xAxisKey] || row.Month || row.Name || rIdx)}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="h-64 bg-white dark:bg-slate-950 p-4 border rounded-lg dark:border-slate-800">
+                        <ResponsiveContainer width="100%" height="100%">
+                            {configObj.chartType === 'bar' ? (
+                                <BarChart data={mockRows}>
+                                    <XAxis dataKey={configObj.xAxisKey || 'Name'} tick={{ fontSize: 10 }} />
+                                    <Tooltip />
+                                    {configObj.series?.map((s, idx) => (
+                                        <ChartBar key={s.key || idx} dataKey={s.key || 'value'} fill={s.color || '#3b82f6'} />
+                                    ))}
+                                </BarChart>
+                            ) : configObj.chartType === 'line' ? (
+                                <LineChart data={mockRows}>
+                                    <XAxis dataKey={configObj.xAxisKey || 'Name'} tick={{ fontSize: 10 }} />
+                                    <Tooltip />
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    {configObj.series?.map((s, idx) => (
+                                        <ChartLine key={s.key || idx} type="monotone" dataKey={s.key || 'value'} stroke={s.color || '#3b82f6'} />
+                                    ))}
+                                </LineChart>
+                            ) : configObj.chartType === 'area' ? (
+                                <AreaChart data={mockRows}>
+                                    <XAxis dataKey={configObj.xAxisKey || 'Name'} tick={{ fontSize: 10 }} />
+                                    <Tooltip />
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    {configObj.series?.map((s, idx) => (
+                                        <ChartArea key={s.key || idx} type="monotone" dataKey={s.key || 'value'} fill={s.color || '#3b82f6'} stroke={s.color || '#3b82f6'} />
+                                    ))}
+                                </AreaChart>
+                            ) : configObj.chartType === 'pie' ? (
+                                <PieChart>
+                                    <ChartPie 
+                                        data={mockRows} 
+                                        dataKey={configObj.series?.[0]?.key || 'value'} 
+                                        nameKey={configObj.xAxisKey || 'Name'} 
+                                        cx="50%" cy="50%" outerRadius={80} 
+                                        label
+                                    >
+                                        {mockRows.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={(configObj.series && configObj.series.length > 0) ? configObj.series[index % configObj.series.length].color : ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                                        ))}
+                                    </ChartPie>
+                                    <Tooltip />
+                                </PieChart>
+                            ) : (
+                                <div className="flex h-full items-center justify-center text-slate-400">Typ nicht unterstützt</div>
+                            )}
+                        </ResponsiveContainer>
                     </div>
                   </div>
                 )}
-
                 {/* FORM VIEW PREVIEW */}
                 {componentType === 'form_view' && (
                   <div className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">

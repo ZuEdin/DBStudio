@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Canvas } from '../../components/Canvas';
 import { QueryGrid } from './components/QueryGrid';
 import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType, Form } from '../../types/index';
-import { Calculator, Sigma, Sparkles, Wand2, Loader2, Check, HelpCircle, X, Terminal } from 'lucide-react';
+import { Calculator, Sigma, Sparkles, Play, Database, Wand2, Loader2, Check, HelpCircle, X, Terminal } from 'lucide-react';
 import { generateSqlSelect } from '../../utils/sqlHelper';
 
 interface QueryDesignerViewProps {
@@ -26,9 +26,59 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   relationships,
   dbType,
 }) => {
+
   if (query.type !== 'SELECT') {
-    return <div className="p-4">Dieser Abfragetyp kann nicht im Designer bearbeitet werden.</div>;
+    const actionQuery = query as any;
+    
+    const handleExecuteAction = () => {
+        // Find the table and modify data in the store
+        // We will call an execution helper or just show a message that it requires generation
+        alert('Action-Abfragen können aktuell im Editor nur gespeichert werden. Im generierten Code stehen sie als API-Endpunkt (/api/actions/' + (actionQuery.name).replace(/\s+/g, '') + ') zur Verfügung.');
+    };
+
+    return (
+      <div className="flex-1 flex flex-col bg-slate-50 p-8 items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 max-w-xl w-full text-center">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Play size={32}/>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">{actionQuery.name}</h2>
+            <p className="text-slate-500 mb-6">
+                Typ: <span className="font-semibold text-blue-600">{actionQuery.type}</span>
+            </p>
+            <div className="bg-slate-50 p-4 rounded text-left border border-slate-200 mb-8 space-y-2 text-sm">
+                {actionQuery.type === 'INSERT' && (
+                    <>
+                        <div><span className="font-bold">Quelltabelle:</span> {tables.find(t => t.id === actionQuery.sourceTableId)?.name}</div>
+                        <div><span className="font-bold">Zieltabelle:</span> {tables.find(t => t.id === actionQuery.targetTableId)?.name}</div>
+                    </>
+                )}
+                {actionQuery.type === 'UPDATE' && (
+                    <>
+                        <div><span className="font-bold">Zieltabelle:</span> {tables.find(t => t.id === actionQuery.targetTableId)?.name}</div>
+                        <div><span className="font-bold">Aktualisierungen:</span> {Object.keys(actionQuery.updateMap || {}).length} Felder</div>
+                        <div><span className="font-bold">Kriterien:</span> {actionQuery.criteria?.length || 0}</div>
+                    </>
+                )}
+                {actionQuery.type === 'DELETE' && (
+                    <>
+                        <div><span className="font-bold">Zieltabelle:</span> {tables.find(t => t.id === actionQuery.targetTableId)?.name}</div>
+                        <div><span className="font-bold">Kriterien:</span> {actionQuery.criteria?.length || 0}</div>
+                    </>
+                )}
+            </div>
+            
+            <button 
+                onClick={handleExecuteAction}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-blue-700 flex items-center gap-2 mx-auto"
+            >
+                <Database size={18}/> Code-Integration Info
+            </button>
+        </div>
+      </div>
+    );
   }
+
   
   const [showTotals, setShowTotals] = useState(query.columns.some(c => c.aggregate));
   const [generatedSql, setGeneratedSql] = useState('');

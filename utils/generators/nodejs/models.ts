@@ -1,6 +1,6 @@
 
 import { Table, Relationship, BackendConfig, DbType, ValidationRule } from '../../../types/index';
-import { resolveType, isNullable, toPascalCase } from '../common';
+import { resolveType, isNullable, toPascalCase, toCamelCase } from '../common';
 
 export const generateSequelizeModels = (tables: Table[], relationships: Relationship[], config: BackendConfig): string => {
   let dialect = 'mssql';
@@ -34,7 +34,7 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
     const modelName = toPascalCase(table.name);
     const fields = table.fields.map(f => {
       const type = resolveType(f, 'sequelize');
-      const props = [`        type: ${type}`];
+      const props = [`        type: ${type}`, `        field: '${f.name}'`];
       if (f.isPrimaryKey) props.push('        primaryKey: true');
       if (f.isAutoIncrement) props.push('        autoIncrement: true');
       if (!isNullable(f)) props.push('        allowNull: false');
@@ -50,7 +50,7 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
           props.push(`        defaultValue: ${val}`);
       }
 
-      return `    ${f.name}: {\n${props.join(',\n')}\n    }`;
+      return `    ${toCamelCase(f.name)}: {\n${props.join(',\n')}\n    }`;
     }).join(',\n');
 
     // Validation Rules
@@ -63,7 +63,7 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
             let compareVal = '';
             if (rule.compareType === 'field') {
                 const other = table.fields.find(f => f.id === rule.compareValue);
-                compareVal = `this.${other?.name}`;
+                compareVal = `this.${toCamelCase(other?.name || '')}`;
             } else {
                 if (field.type === 'VARCHAR') compareVal = `'${rule.compareValue}'`;
                 else if (field.type === 'DATE') compareVal = `new Date('${rule.compareValue}')`;
@@ -71,7 +71,7 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
             }
 
             let jsCond = '';
-            const fVal = `this.${field.name}`;
+            const fVal = `this.${toCamelCase(field.name)}`;
             
             if (rule.operator === 'regex') {
                 return `            if (!/${rule.compareValue}/.test(${fVal})) throw new Error("${rule.errorMessage || 'Invalid format'}");`;
@@ -121,7 +121,11 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
           const parentModel = toPascalCase(parent.name);
           const childModel = toPascalCase(child.name);
           
-          let opts = `{ foreignKey: '${childField.name}'`;
+          let opts = `{ foreignKey: '${toCamelCase(childField.name)}'`;
+          const parentPk = parent.fields.find(f => f.id === rel.fromFieldId);
+          if (parentPk && !parentPk.isPrimaryKey) {
+             opts += `, targetKey: '${toCamelCase(parentPk.name)}'`;
+          }
           if (rel.onDelete && rel.onDelete !== 'NO ACTION') opts += `, onDelete: '${rel.onDelete}'`;
           if (rel.onUpdate && rel.onUpdate !== 'NO ACTION') opts += `, onUpdate: '${rel.onUpdate}'`;
           opts += ' }';

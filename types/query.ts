@@ -24,10 +24,39 @@ export interface SelectQuery {
   columns: QueryColumn[];
 }
 
-export interface ActionQuery {
-  id: string;
-  type: 'INSERT' | 'UPDATE' | 'DELETE';
-  name: string;
+export interface Criterion {
+    id: string;
+    fieldId: string;
+    operator: string;
+    value: string;
 }
+
+export interface InsertQuery {
+  id: string;
+  type: 'INSERT';
+  name: string;
+  sourceTableId: string;
+  targetTableId: string;
+  fieldMapping: Record<string, string>;
+}
+
+export interface UpdateQuery {
+  id: string;
+  type: 'UPDATE';
+  name: string;
+  targetTableId: string;
+  updateMap: Record<string, string>;
+  criteria: Criterion[];
+}
+
+export interface DeleteQuery {
+  id: string;
+  type: 'DELETE';
+  name: string;
+  targetTableId: string;
+  criteria: Criterion[];
+}
+
+export type ActionQuery = InsertQuery | UpdateQuery | DeleteQuery;
 
 export type Query = SelectQuery | ActionQuery;

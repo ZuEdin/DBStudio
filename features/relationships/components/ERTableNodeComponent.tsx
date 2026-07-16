@@ -114,7 +114,7 @@ export const ERTableNodeComponent = ({ id, data, selected }: any) => {
                   />
                 )}
                 <div className="text-[9px] text-slate-400 font-mono uppercase bg-slate-200/50 dark:bg-slate-800/50 px-1.5 py-0.5 rounded">
-                  {field.type.substring(0, 5)}
+                  {field.type}
                 </div>
               </div>
 

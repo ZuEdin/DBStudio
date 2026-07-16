@@ -58,7 +58,7 @@ export interface CustomPage {
   expectedParams?: string[];
 }
 
-export type PageComponentType = 'container' | 'text' | 'button' | 'table_view' | 'form_view' | 'image' | 'divider' | 'dropdown' | 'chart_view' | 'html' | 'list_repeater' | 'subpage_container' | 'row' | 'column' | 'card' | 'custom_component';
+export type PageComponentType = 'container' | 'text' | 'button' | 'table_view' | 'form_view' | 'image' | 'divider' | 'dropdown' | 'chart_view' | 'html' | 'list_repeater' | 'subpage_container' | 'row' | 'column' | 'card' | 'custom_component' | 'hero_section' | 'feature_grid' | 'testimonial' | 'pricing_table' | 'footer' | 'navbar';
 
 export interface PageComponent {
   id: string;

@@ -1,11 +1,13 @@
-import { VirtualFile, BackendConfig, Table, CustomPage } from '../../../../types/index';
+import { VirtualFile, BackendConfig, Table, CustomPage, Report, Query } from '../../../../types/index';
 import { toCamelCase, toKebabCase } from '../../common';
 
 export const generateNavigationComponents = (
     config: BackendConfig,
     tables: Table[],
     appRoot: string,
-    pages: CustomPage[] = []
+    pages: CustomPage[] = [],
+    reports: Report[] = [],
+    queries: Query[] = []
 ): VirtualFile[] => {
     const files: VirtualFile[] = [];
     const isBootstrap = config.stylingFramework?.toLowerCase() === 'bootstrap' || 
@@ -33,6 +35,30 @@ export const generateNavigationComponents = (
                 ${t.name}
             </a>
         </li>`).join('')}
+
+        ${queries && queries.length > 0 ? `
+        <li class="nav-item mt-3">
+            <span class="text-uppercase text-muted small fw-bold px-3 mb-2 d-block">Abfragen</span>
+        </li>
+        ${queries.map(q => `
+        <li class="nav-item">
+            <a routerLink="/queries/${toKebabCase(q.name)}" routerLinkActive="active" class="nav-link text-white">
+                ${q.name}
+            </a>
+        </li>`).join('')}
+        ` : ''}
+
+        ${reports && reports.length > 0 ? `
+        <li class="nav-item mt-3">
+            <span class="text-uppercase text-muted small fw-bold px-3 mb-2 d-block">Berichte</span>
+        </li>
+        ${reports.map(r => `
+        <li class="nav-item">
+            <a routerLink="/reports/${toKebabCase(r.name)}" routerLinkActive="active" class="nav-link text-white">
+                ${r.name}
+            </a>
+        </li>`).join('')}
+        ` : ''}
 
         ${pages && pages.length > 0 ? `
         <li class="nav-item mt-3">
@@ -74,6 +100,28 @@ export const generateNavigationComponents = (
                         <li><a routerLink="/${toCamelCase(t.name)}" class="dropdown-item">${t.name}</a></li>`).join('')}
                     </ul>
                 </li>
+                ${queries && queries.length > 0 ? `
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white-50" href="#" id="navbarDropdownQueries" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Abfragen
+                    </a>
+                    <ul class="dropdown-menu shadow-sm" aria-labelledby="navbarDropdownQueries">
+                        ${queries.map(q => `
+                        <li><a routerLink="/queries/${toKebabCase(q.name)}" class="dropdown-item">${q.name}</a></li>`).join('')}
+                    </ul>
+                </li>
+                ` : ''}
+                ${reports && reports.length > 0 ? `
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white-50" href="#" id="navbarDropdownReports" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Berichte
+                    </a>
+                    <ul class="dropdown-menu shadow-sm" aria-labelledby="navbarDropdownReports">
+                        ${reports.map(r => `
+                        <li><a routerLink="/reports/${toKebabCase(r.name)}" class="dropdown-item">${r.name}</a></li>`).join('')}
+                    </ul>
+                </li>
+                ` : ''}
                 ${pages && pages.length > 0 ? `
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle text-white-50" href="#" id="navbarDropdownPages" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -105,6 +153,22 @@ export const generateNavigationComponents = (
         <a routerLink="/${toCamelCase(t.name)}" routerLinkActive="bg-slate-700 text-white" class="flex items-center gap-3 px-3 py-2 rounded text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
             ${t.name}
         </a>`).join('')}
+
+        ${queries && queries.length > 0 ? `
+        <div class="text-[10px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-4 mb-2">Abfragen</div>
+        ${queries.map(q => `
+        <a routerLink="/queries/${toKebabCase(q.name)}" routerLinkActive="bg-slate-700 text-white" class="flex items-center gap-3 px-3 py-2 rounded text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+            ${q.name}
+        </a>`).join('')}
+        ` : ''}
+
+        ${reports && reports.length > 0 ? `
+        <div class="text-[10px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-4 mb-2">Berichte</div>
+        ${reports.map(r => `
+        <a routerLink="/reports/${toKebabCase(r.name)}" routerLinkActive="bg-slate-700 text-white" class="flex items-center gap-3 px-3 py-2 rounded text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+            ${r.name}
+        </a>`).join('')}
+        ` : ''}
 
         ${pages && pages.length > 0 ? `
         <div class="text-[10px] font-bold text-slate-500 px-3 uppercase tracking-wider mt-4 mb-2">Seiten</div>
@@ -140,6 +204,34 @@ export const generateNavigationComponents = (
                             <a routerLink="/${toCamelCase(t.name)}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition">${t.name}</a>`).join('')}
                         </div>
                     </div>
+
+                    <!-- Abfragen Dropdown -->
+                    ${queries && queries.length > 0 ? `
+                    <div class="relative group">
+                        <button class="text-slate-300 hover:bg-slate-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1 transition">
+                            Abfragen
+                            <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="absolute left-0 mt-1 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            ${queries.map(q => `
+                            <a routerLink="/queries/${toKebabCase(q.name)}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition">${q.name}</a>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Berichte Dropdown -->
+                    ${reports && reports.length > 0 ? `
+                    <div class="relative group">
+                        <button class="text-slate-300 hover:bg-slate-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1 transition">
+                            Berichte
+                            <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="absolute left-0 mt-1 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            ${reports.map(r => `
+                            <a routerLink="/reports/${toKebabCase(r.name)}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition">${r.name}</a>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
                     
                     <!-- Seiten Dropdown -->
                     ${pages && pages.length > 0 ? `

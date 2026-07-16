@@ -239,28 +239,12 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {/* Query Wizards */}
       {activeWizard === 'duplicate' && <DuplicateWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
       {activeWizard === 'inconsistency' && <InconsistencyWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
-      {activeWizard === 'append' && <AppendQueryWizard tables={tables} onExecute={onExecuteAppend} onClose={() => setActiveWizard(null)} />}
-      {activeWizard === 'delete' && <DeleteQueryWizard tables={tables} onExecute={onExecuteDelete} onClose={() => setActiveWizard(null)} />}
+      {activeWizard === 'append' && <AppendQueryWizard tables={tables} onExecute={onExecuteAppend} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
+      {activeWizard === 'delete' && <DeleteQueryWizard tables={tables} onExecute={onExecuteDelete} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
       {activeWizard === 'update' && (
         <UpdateQueryWizard 
           tables={tables} 
-          onExecute={(table, updatedData) => {
-            updateTable({ ...table, data: updatedData });
-            setActiveWizard(null);
-          }}
-          onSaveQuery={(name, tableId, mapping, matchField) => {
-            const newQuery = {
-              id: crypto.randomUUID(),
-              type: 'UPDATE',
-              name,
-              targetTableId: tableId,
-              mapping,
-              matchField,
-              columns: [],
-              nodes: []
-            };
-            setQueries([...queries, newQuery as any]);
-          }}
+          onSave={onSaveWizardQuery}
           onClose={() => setActiveWizard(null)} 
         />
       )}

@@ -362,28 +362,31 @@ export const ${listName} = () => {
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {${JSON.stringify(table.fields)}.map(field => {
-                  let val: any = detailRecord[field.name as keyof ${pascalName}];
-                  
-                  ${lookups.map(l => `
-                  if (toCamelCase(field.name) === '${l.fieldName}') {
-                      const match = ${l.lookupStateName}.find(r => String(r.id || r.Id) === String(val));
-                      if (match) {
-                          const disp = '${l.displayFieldName}';
-                          val = match[disp] !== undefined ? match[disp] : (match[disp.toLowerCase()] !== undefined ? match[disp.toLowerCase()] : match[disp.charAt(0).toUpperCase() + disp.slice(1)] || val);
-                      }
-                  }
-                  `).join('')}
-
-                  return (
-                    <div key={field.name} className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
-                      <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">{field.name}</span>
+                {${table.fields.map(f => {
+                    const fieldCamel = toCamelCase(f.name);
+                    const lookup = lookups.find(l => l.fieldName === fieldCamel);
+                    let valAssignment = `let val: any = detailRecord.${fieldCamel};`;
+                    if (lookup) {
+                        valAssignment += `
+                        const match = ${lookup.lookupStateName}.find(r => String(r.id || r.Id) === String(val));
+                        if (match) {
+                            const disp = '${lookup.displayFieldName}';
+                            val = match[disp] !== undefined ? match[disp] : (match[disp.toLowerCase()] !== undefined ? match[disp.toLowerCase()] : match[disp.charAt(0).toUpperCase() + disp.slice(1)] || val);
+                        }
+                        `;
+                    }
+                    return `
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                      <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">${f.name}</span>
                       <span className="text-sm text-slate-800 dark:text-slate-200 font-medium whitespace-pre-wrap break-all">
-                        {val === true ? '✅ Ja' : val === false ? '❌ Nein' : String(val ?? '-')}
+                        {(() => {
+                            ${valAssignment}
+                            return val === true ? '✅ Ja' : val === false ? '❌ Nein' : String(val ?? '-');
+                        })()}
                       </span>
                     </div>
-                  );
-                })}
+                    `;
+                }).join('')}}
               </div>
             </div>
 

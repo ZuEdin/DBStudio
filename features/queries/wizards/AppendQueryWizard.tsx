@@ -1,16 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import { Table, Field } from '../../../types/index';
+import { Table, Field, InsertQuery } from '../../../types/index';
 import { X, ArrowRight, CopyPlus, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface AppendQueryWizardProps {
   tables: Table[];
   onExecute: (sourceTable: Table, targetTable: Table, mapping: Record<string, string>) => void;
+  onSave?: (query: InsertQuery) => void;
   onClose: () => void;
 }
 
-export const AppendQueryWizard: React.FC<AppendQueryWizardProps> = ({ tables, onExecute, onClose }) => {
+export const AppendQueryWizard: React.FC<AppendQueryWizardProps> = ({ tables, onExecute, onSave, onClose }) => {
   const [step, setStep] = useState<1 | 2>(1);
+  const [queryName, setQueryName] = useState('Neue Anfügeabfrage');
   const [sourceTableId, setSourceTableId] = useState('');
   const [targetTableId, setTargetTableId] = useState('');
   
@@ -48,7 +50,18 @@ export const AppendQueryWizard: React.FC<AppendQueryWizardProps> = ({ tables, on
 
   const handleExecute = () => {
       if (!sourceTable || !targetTable) return;
-      onExecute(sourceTable, targetTable, fieldMapping);
+      if (onSave) {
+          onSave({
+              id: crypto.randomUUID(),
+              type: 'INSERT',
+              name: queryName,
+              sourceTableId: sourceTable.id,
+              targetTableId: targetTable.id,
+              fieldMapping
+          });
+      } else {
+          onExecute(sourceTable, targetTable, fieldMapping);
+      }
       onClose();
   };
 

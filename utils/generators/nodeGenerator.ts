@@ -186,7 +186,7 @@ module.exports = upload;`;
   tables.forEach(t => {
       const modelName = toPascalCase(t.name);
       const routeName = toCamelCase(t.name);
-      const searchableFields = t.fields.filter(f => f.type === 'VARCHAR' || f.type === 'TEXT').map(f => f.name);
+      const searchableFields = t.fields.filter(f => f.type === 'VARCHAR' || f.type === 'TEXT').map(f => toCamelCase(f.name));
 
       const createdByField = t.fields.find(f => ['createdby', 'created_by', 'erstellt_von', 'erstelltvon', 'created_user', 'createduser'].includes(f.name.toLowerCase()));
       const modifiedByField = t.fields.find(f => ['modifiedby', 'modified_by', 'updatedby', 'updated_by', 'geaendert_von', 'bearbeitetvon', 'bearbeitet_von'].includes(f.name.toLowerCase()));
@@ -206,21 +206,23 @@ module.exports = upload;`;
       let postAuditCode = `        const payload = { ...req.body };
         const username = getLoggedInUser(req);
 `;
-      if (createdByField) postAuditCode += `        payload.${createdByField.name} = username;\n`;
-      if (modifiedByField) postAuditCode += `        payload.${modifiedByField.name} = username;\n`;
-      if (createdDateField) postAuditCode += `        payload.${createdDateField.name} = new Date();\n`;
-      if (modifiedDateField) postAuditCode += `        payload.${modifiedDateField.name} = new Date();\n`;
+      if (createdByField) postAuditCode += `        payload.${toCamelCase(createdByField.name)} = username;\n`;
+      if (modifiedByField) postAuditCode += `        payload.${toCamelCase(modifiedByField.name)} = username;\n`;
+      if (createdDateField) postAuditCode += `        payload.${toCamelCase(createdDateField.name)} = new Date();\n`;
+      if (modifiedDateField) postAuditCode += `        payload.${toCamelCase(modifiedDateField.name)} = new Date();\n`;
       nowDefaultFields.forEach(df => {
-          postAuditCode += `        if (!payload.${df.name}) payload.${df.name} = new Date();\n`;
+          postAuditCode += `        if (!payload.${toCamelCase(df.name)}) payload.${toCamelCase(df.name)} = new Date();\n`;
       });
 
       let putAuditCode = `        const payload = { ...req.body };
         const username = getLoggedInUser(req);
 `;
-      if (createdByField) putAuditCode += `        payload.${createdByField.name} = existing.${createdByField.name};\n`;
-      if (createdDateField) putAuditCode += `        payload.${createdDateField.name} = existing.${createdDateField.name};\n`;
-      if (modifiedByField) putAuditCode += `        payload.${modifiedByField.name} = username;\n`;
-      if (modifiedDateField) putAuditCode += `        payload.${modifiedDateField.name} = new Date();\n`;
+      if (createdByField) putAuditCode += `        payload.${toCamelCase(createdByField.name)} = existing.${toCamelCase(createdByField.name)};\n`;
+      if (createdDateField) putAuditCode += `        payload.${toCamelCase(createdDateField.name)} = existing.${toCamelCase(createdDateField.name)};\n`;
+      if (modifiedByField) putAuditCode += `        payload.${toCamelCase(modifiedByField.name)} = username;\n`;
+      if (modifiedDateField) putAuditCode += `        payload.${toCamelCase(modifiedDateField.name)} = new Date();\n`;
+
+      const likeOp = (config.dbType === DbType.PostgreSQL || !config.dbType) ? 'iLike' : 'like';
 
       routes += `
 // ${modelName} Routes
@@ -237,7 +239,7 @@ app.get('/api/${routeName}', async (req, res) => {
             if (searchTerms.length > 0) {
                 whereClause[db.Sequelize.Op.and] = searchTerms.map(term => ({
                     [db.Sequelize.Op.or]: [
-                        ${searchableFields.map(f => `{ ${f}: { [db.Sequelize.Op.iLike]: \`%\${term}%\` } }`).join(',\n                        ')}
+                        ${searchableFields.map(f => `{ ${f}: { [db.Sequelize.Op.${likeOp}]: \`%\${term}%\` } }`).join(',\n                        ')}
                     ]
                 }));
             }
@@ -387,7 +389,7 @@ ${nodeQueryFiltering}
         });
         
         res.json({
-            data: results,
+            data: results.map(mapToCamelCase),
             total: countResult[0]?.count || 0,
             page: page,
             pageSize: limit,
@@ -399,6 +401,147 @@ ${nodeQueryFiltering}
     }
 });
 `;
+  });
+
+
+  // --- Action Query Endpoints ---
+  queries.filter(q => q.type !== 'SELECT').forEach(q => {
+      const routeName = toCamelCase(q.name);
+      
+      if (q.type === 'DELETE') {
+          const dq = q;
+          const targetTable = tables.find(t => t.id === dq.targetTableId);
+          if (!targetTable) return;
+          
+          let whereConditions = [];
+          let defaultReplacements = {};
+          
+          (dq.criteria || []).forEach((c, idx) => {
+              const field = targetTable.fields.find(f => f.id === c.fieldId);
+              if (!field) return;
+              const paramName = `param_${idx}`;
+              
+              if (c.operator === 'contains') {
+                  whereConditions.push(`"${field.name}" LIKE :${paramName}`);
+                  defaultReplacements[paramName] = `%${c.value}%`;
+              } else {
+                  whereConditions.push(`"${field.name}" ${c.operator} :${paramName}`);
+                  defaultReplacements[paramName] = c.value;
+              }
+          });
+          
+          const whereSql = whereConditions.length > 0 ? `WHERE ` + whereConditions.join(' AND ') : '';
+          
+          queryEndpoints += `
+app.post('/api/actions/${routeName}', async (req, res) => {
+    try {
+        const replacements = ${JSON.stringify(defaultReplacements)};
+        Object.keys(req.body).forEach(k => { replacements[k] = req.body[k]; });
+        
+        await db.sequelize.query(\`DELETE FROM "\${\`${targetTable.name}\`}" ${whereSql}\`, { 
+            replacements,
+            type: db.Sequelize.QueryTypes.DELETE 
+        });
+        res.json({ success: true, message: "Action executed" });
+    } catch (e) {
+        console.error('Error executing action ${routeName}:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+`;
+      } else if (q.type === 'UPDATE') {
+          const uq = q;
+          const targetTable = tables.find(t => t.id === uq.targetTableId);
+          if (!targetTable) return;
+          
+          let setParts = [];
+          let defaultReplacements = {};
+          
+          Object.entries(uq.updateMap || {}).forEach(([fieldId, val], idx) => {
+              const field = targetTable.fields.find(f => f.id === fieldId);
+              if (!field) return;
+              
+              if (String(val).includes(field.name)) {
+                  // It's an expression like "Preis * 1.1"
+                  setParts.push(`"${field.name}" = ${val}`);
+              } else {
+                  const paramName = `set_${idx}`;
+                  setParts.push(`"${field.name}" = :${paramName}`);
+                  defaultReplacements[paramName] = val;
+              }
+          });
+          const setSql = setParts.length > 0 ? `SET ` + setParts.join(', ') : '';
+          
+          let whereConditions = [];
+          (uq.criteria || []).forEach((c, idx) => {
+              const field = targetTable.fields.find(f => f.id === c.fieldId);
+              if (!field) return;
+              const paramName = `param_${idx}`;
+              
+              if (c.operator === 'contains') {
+                  whereConditions.push(`"${field.name}" LIKE :${paramName}`);
+                  defaultReplacements[paramName] = `%${c.value}%`;
+              } else {
+                  whereConditions.push(`"${field.name}" ${c.operator} :${paramName}`);
+                  defaultReplacements[paramName] = c.value;
+              }
+          });
+          const whereSql = whereConditions.length > 0 ? `WHERE ` + whereConditions.join(' AND ') : '';
+          
+          if (!setSql) return; // Nothing to update
+          
+          queryEndpoints += `
+app.post('/api/actions/${routeName}', async (req, res) => {
+    try {
+        const replacements = ${JSON.stringify(defaultReplacements)};
+        Object.keys(req.body).forEach(k => { replacements[k] = req.body[k]; });
+        
+        await db.sequelize.query(\`UPDATE "\${\`${targetTable.name}\`}" ${setSql} ${whereSql}\`, { 
+            replacements,
+            type: db.Sequelize.QueryTypes.UPDATE 
+        });
+        res.json({ success: true, message: "Action executed" });
+    } catch (e) {
+        console.error('Error executing action ${routeName}:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+`;
+      } else if (q.type === 'INSERT') {
+          const iq = q;
+          const sourceTable = tables.find(t => t.id === iq.sourceTableId);
+          const targetTable = tables.find(t => t.id === iq.targetTableId);
+          if (!sourceTable || !targetTable) return;
+          
+          let targetCols = [];
+          let sourceCols = [];
+          
+          Object.entries(iq.fieldMapping || {}).forEach(([tId, sId]) => {
+              const tField = targetTable.fields.find(f => f.id === tId);
+              const sField = sourceTable.fields.find(f => f.id === sId);
+              if (tField && sField) {
+                  targetCols.push(`"${tField.name}"`);
+                  sourceCols.push(`"${sField.name}"`);
+              }
+          });
+          
+          if (targetCols.length === 0) return;
+          
+          queryEndpoints += `
+app.post('/api/actions/${routeName}', async (req, res) => {
+    try {
+        // APPEND QUERY (INSERT INTO ... SELECT ...)
+        await db.sequelize.query(\`INSERT INTO "\${\`${targetTable.name}\`}" (${targetCols.join(', ')}) SELECT ${sourceCols.join(', ')} FROM "\${\`${sourceTable.name}\`}"\`, { 
+            type: db.Sequelize.QueryTypes.INSERT 
+        });
+        res.json({ success: true, message: "Action executed" });
+    } catch (e) {
+        console.error('Error executing action ${routeName}:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+`;
+      }
   });
 
   // --- Main Server ---
@@ -426,6 +569,25 @@ const getLoggedInUser = (req) => {
         return token;
     }
     return 'System';
+};
+
+// Map database row keys to camelCase to match the frontend expectations
+const mapToCamelCase = (row) => {
+    if (!row) return row;
+    const mapped = {};
+    for (let key in row) {
+        let clean = key.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+                       .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue');
+        clean = clean.replace(/[_-]/g, ' ');
+        clean = clean.replace(/[^a-zA-Z0-9 ]/g, '');
+        let pascal = clean.split(' ').filter(w => w.length > 0).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+        if (pascal) {
+            mapped[pascal.charAt(0).toLowerCase() + pascal.slice(1)] = row[key];
+        } else {
+            mapped[key] = row[key];
+        }
+    }
+    return mapped;
 };
 
 // Enable CORS with Credentials support (fixes Status 0 errors in fetch)

@@ -332,6 +332,124 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ node, selectedNodeId, on
                isDropTarget = false;
                break;
          }
+         case 'navbar':
+             content = (
+                 <div className={`w-full flex items-center justify-between p-4 bg-white border-b border-slate-200 shadow-sm ${node.props.className || ''}`} style={node.props.style}>
+                     <div className="font-bold text-slate-800 text-lg">{node.props.brandName || 'BrandLogo'}</div>
+                     <div className="flex gap-4 text-sm text-slate-600 font-medium">
+                         <span>Home</span>
+                         <span>Features</span>
+                         <span>Pricing</span>
+                         <span>Contact</span>
+                     </div>
+                 </div>
+             );
+             isDropTarget = false;
+             break;
+         case 'hero_section':
+             content = (
+                 <div className={`w-full p-12 py-24 flex flex-col items-center text-center bg-gradient-to-b from-slate-50 to-white ${node.props.className || ''}`} style={node.props.style}>
+                     <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-6">{node.props.headline || 'Catchy Headline Here'}</h1>
+                     <p className="text-lg text-slate-600 max-w-2xl mb-8">{node.props.subheadline || 'A compelling subheadline that explains the value proposition of your product or service.'}</p>
+                     <div className="flex gap-4">
+                         <button className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md">{node.props.primaryButtonText || 'Get Started'}</button>
+                         <button className="px-6 py-3 bg-white text-slate-700 font-bold border border-slate-200 rounded-lg shadow-sm">{node.props.secondaryButtonText || 'Learn More'}</button>
+                     </div>
+                 </div>
+             );
+             isDropTarget = false;
+             break;
+         case 'feature_grid':
+             content = (
+                 <div className={`w-full p-12 bg-white ${node.props.className || ''}`} style={node.props.style}>
+                     <div className="text-center mb-12">
+                         <h2 className="text-3xl font-bold text-slate-900">{node.props.title || 'Amazing Features'}</h2>
+                         <p className="text-slate-500 mt-2">{node.props.subtitle || 'Everything you need to succeed.'}</p>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                         {[1, 2, 3].map(i => (
+                             <div key={i} className="flex flex-col items-center text-center p-6 border border-slate-100 rounded-xl bg-slate-50">
+                                 <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-4">✨</div>
+                                 <h3 className="font-bold text-lg mb-2">Feature {i}</h3>
+                                 <p className="text-slate-500 text-sm">Description for this amazing feature that will help users.</p>
+                             </div>
+                         ))}
+                     </div>
+                 </div>
+             );
+             isDropTarget = false;
+             break;
+         case 'pricing_table':
+             content = (
+                 <div className={`w-full p-12 bg-slate-50 ${node.props.className || ''}`} style={node.props.style}>
+                     <div className="text-center mb-12">
+                         <h2 className="text-3xl font-bold text-slate-900">Simple Pricing</h2>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                         {['Basic', 'Pro', 'Enterprise'].map((plan, i) => (
+                             <div key={plan} className={`p-8 rounded-2xl border ${i === 1 ? 'border-blue-500 shadow-xl bg-white relative' : 'border-slate-200 bg-white shadow-sm'}`}>
+                                 {i === 1 && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white px-3 py-1 text-xs font-bold rounded-full">MOST POPULAR</div>}
+                                 <h3 className="text-xl font-bold mb-2">{plan}</h3>
+                                 <div className="text-4xl font-extrabold mb-6">${(i + 1) * 19}<span className="text-sm font-normal text-slate-500">/mo</span></div>
+                                 <ul className="space-y-3 mb-8 text-sm text-slate-600">
+                                     <li>✓ Feature A</li>
+                                     <li>✓ Feature B</li>
+                                     <li>✓ Feature C</li>
+                                 </ul>
+                                 <button className={`w-full py-2 rounded-lg font-bold ${i === 1 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>Choose Plan</button>
+                             </div>
+                         ))}
+                     </div>
+                 </div>
+             );
+             isDropTarget = false;
+             break;
+         case 'testimonial':
+             content = (
+                 <div className={`w-full p-12 bg-white ${node.props.className || ''}`} style={node.props.style}>
+                     <div className="max-w-3xl mx-auto text-center">
+                         <div className="text-4xl text-blue-500 mb-4">"</div>
+                         <p className="text-2xl font-medium text-slate-800 mb-8 italic">{node.props.quote || 'This product completely transformed how we work. Highly recommended!'}</p>
+                         <div className="flex items-center justify-center gap-3">
+                             <div className="w-10 h-10 bg-slate-200 rounded-full"></div>
+                             <div className="text-left">
+                                 <div className="font-bold text-slate-900">{node.props.author || 'Jane Doe'}</div>
+                                 <div className="text-sm text-slate-500">{node.props.role || 'CEO, Company Inc'}</div>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             );
+             isDropTarget = false;
+             break;
+         case 'footer':
+             content = (
+                 <div className={`w-full p-12 bg-slate-900 text-slate-400 ${node.props.className || ''}`} style={node.props.style}>
+                     <div className="flex flex-col md:flex-row justify-between items-start gap-8 border-b border-slate-800 pb-8 mb-8">
+                         <div className="max-w-xs">
+                             <div className="font-bold text-white text-xl mb-4">{node.props.brandName || 'BrandLogo'}</div>
+                             <p className="text-sm">Making the world a better place through constructing elegant hierarchies.</p>
+                         </div>
+                         <div className="flex gap-16">
+                             <div>
+                                 <h4 className="text-white font-bold mb-4">Product</h4>
+                                 <ul className="space-y-2 text-sm"><li>Features</li><li>Pricing</li><li>Docs</li></ul>
+                             </div>
+                             <div>
+                                 <h4 className="text-white font-bold mb-4">Company</h4>
+                                 <ul className="space-y-2 text-sm"><li>About</li><li>Blog</li><li>Contact</li></ul>
+                             </div>
+                         </div>
+                     </div>
+                     <div className="text-sm flex justify-between">
+                         <p>© 2024 Your Company. All rights reserved.</p>
+                         <div className="flex gap-4"><span>Twitter</span><span>GitHub</span></div>
+                     </div>
+                 </div>
+             );
+             isDropTarget = false;
+             break;
+
          case 'table_view':
          case 'form_view':
          case 'chart_view':

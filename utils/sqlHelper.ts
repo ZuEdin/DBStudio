@@ -169,6 +169,40 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         groupByClause = `\nGROUP BY ${groups}`;
     }
 
+
+    // 5.5 HAVING
+    const havingConditions = columns.map(c => {
+        if (!c.aggregate || ['GROUP_BY', 'EXPRESSION'].includes(c.aggregate)) return null;
+        const validCriteria = c.criteria.filter(crit => crit.trim() !== '');
+        if (validCriteria.length === 0) return null;
+        
+        let fieldRef = '';
+        if (c.alias && !c.isCalculated) {
+            fieldRef = `"${c.alias}"`;
+        } else {
+            let nodeAlias = '';
+            if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId);
+            else {
+                const node = nodes.find(n => n.tableId === c.tableId);
+                nodeAlias = node ? nodeAliases.get(node.id) : formatIdentifier(c.tableName);
+            }
+            fieldRef = `${c.aggregate}(${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)})`;
+        }
+
+        const conditions = validCriteria.map(criteria => {
+            if (/^=|>|<|>=|<=/.test(criteria)) return `${fieldRef} ${criteria}`;
+            const upper = criteria.toUpperCase().trim();
+            if (upper.startsWith('LIKE ')) return `${fieldRef} ${criteria}`;
+            if (upper === 'NULL') return `${fieldRef} IS NULL`;
+            if (upper === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
+            if (upper === 'IS NULL' || upper === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
+            return `${fieldRef} ${criteria}`; 
+        }).filter(Boolean);
+        return conditions.length > 0 ? (conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0]) : null;
+    }).filter(Boolean);
+
+    const havingClause = havingConditions.length > 0 ? `\nHAVING\n  ${havingConditions.join('\n  AND ')}` : '';
+
     // 6. ORDER BY
     const orderByCols = columns.filter(c => c.sort).map(c => {
         if (c.alias) return `${quoteIdentifier(formatIdentifier(c.alias), dbType)} ${c.sort}`;
@@ -184,5 +218,5 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     
     const orderByClause = orderByCols ? `\nORDER BY ${orderByCols}` : '';
     
-    return `SELECT\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause}${groupByClause}${orderByClause}`;
+    return `SELECT\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause}${groupByClause}${havingClause}${orderByClause}`;
 };

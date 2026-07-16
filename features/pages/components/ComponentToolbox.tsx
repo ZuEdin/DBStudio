@@ -2,7 +2,8 @@ import React from 'react';
 import { PageComponentType, SelectQuery } from '../../../types/index';
 import { 
   Square, Columns, Rows, CreditCard, LayoutTemplate, Layers, 
-  Type, MousePointerClick, List, Table2, Layout, Image as ImageIcon, Plus
+  Type, MousePointerClick, List, Table2, Layout, Image as ImageIcon, Plus,
+  Rocket, Grid as GridIcon, MessageSquare, DollarSign, PanelBottom, Navigation
 } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { useUIStore } from '../../../stores/useUIStore';
@@ -60,6 +61,28 @@ export const ComponentToolbox: React.FC = () => {
          </div>
          <div draggable onDragStart={(e) => handleDragStart(e, 'custom_component')} className="p-2 border border-emerald-200 rounded flex items-center gap-2 cursor-grab hover:bg-emerald-50 text-sm text-emerald-700 font-semibold active:cursor-grabbing border-emerald-100 bg-emerald-50/20">
              <Layout size={16} className="text-emerald-600"/> Custom Component
+         </div>
+      </div>
+
+      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 mt-6">Landingpage Blöcke</h3>
+      <div className="space-y-2">
+         <div draggable onDragStart={(e) => handleDragStart(e, 'navbar')} className="p-2 border border-amber-200 rounded flex items-center gap-2 cursor-grab hover:bg-amber-50 text-sm text-amber-800 font-semibold active:cursor-grabbing bg-amber-50/40">
+             <Navigation size={16} className="text-amber-500"/> Navigation (Navbar)
+         </div>
+         <div draggable onDragStart={(e) => handleDragStart(e, 'hero_section')} className="p-2 border border-amber-200 rounded flex items-center gap-2 cursor-grab hover:bg-amber-50 text-sm text-amber-800 font-semibold active:cursor-grabbing bg-amber-50/40">
+             <Rocket size={16} className="text-amber-600"/> Hero Section
+         </div>
+         <div draggable onDragStart={(e) => handleDragStart(e, 'feature_grid')} className="p-2 border border-amber-200 rounded flex items-center gap-2 cursor-grab hover:bg-amber-50 text-sm text-amber-800 font-semibold active:cursor-grabbing bg-amber-50/40">
+             <GridIcon size={16} className="text-amber-600"/> Feature Grid
+         </div>
+         <div draggable onDragStart={(e) => handleDragStart(e, 'pricing_table')} className="p-2 border border-amber-200 rounded flex items-center gap-2 cursor-grab hover:bg-amber-50 text-sm text-amber-800 font-semibold active:cursor-grabbing bg-amber-50/40">
+             <DollarSign size={16} className="text-amber-600"/> Pricing Table
+         </div>
+         <div draggable onDragStart={(e) => handleDragStart(e, 'testimonial')} className="p-2 border border-amber-200 rounded flex items-center gap-2 cursor-grab hover:bg-amber-50 text-sm text-amber-800 font-semibold active:cursor-grabbing bg-amber-50/40">
+             <MessageSquare size={16} className="text-amber-600"/> Testimonials
+         </div>
+         <div draggable onDragStart={(e) => handleDragStart(e, 'footer')} className="p-2 border border-amber-200 rounded flex items-center gap-2 cursor-grab hover:bg-amber-50 text-sm text-amber-800 font-semibold active:cursor-grabbing bg-amber-50/40">
+             <PanelBottom size={16} className="text-amber-600"/> Footer
          </div>
       </div>
 
