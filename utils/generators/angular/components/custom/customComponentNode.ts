@@ -32,6 +32,114 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
         
         
         let kanbanInitLogic = '';
+        if (comp.type === 'calendar_view') {
+            const titleField = conf.titleField || 'name';
+            const startField = conf.startDateField || 'date';
+            const endField = conf.endDateField || startField;
+            const colorField = conf.colorField || '';
+            const defaultView = conf.defaultView || 'month';
+            let fcDefaultView = 'dayGridMonth';
+            if (defaultView === 'week') fcDefaultView = 'timeGridWeek';
+            if (defaultView === 'day') fcDefaultView = 'timeGridDay';
+
+            context.states.push(`calendarOptions_${suffix}: CalendarOptions = {
+    plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin],
+    initialView: '${fcDefaultView}',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+    },
+    events: [],
+    height: '600px',
+    eventClick: this.handleEventClick_${suffix}.bind(this)
+  };`);
+
+            kanbanInitLogic = `
+        const combineDateTime = (dateVal: any, timeVal: any) => {
+            if (!dateVal) return undefined;
+            if (!timeVal) return dateVal;
+            let dateStr = '';
+            if (typeof dateVal === 'string') {
+                dateStr = dateVal.split('T')[0].split(' ')[0];
+            } else if (dateVal instanceof Date) {
+                dateStr = dateVal.toISOString().split('T')[0];
+            } else {
+                dateStr = String(dateVal).split(' ')[0];
+            }
+            let timeStr = String(timeVal);
+            const match = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (match) {
+                const h = match[1].padStart(2, '0');
+                const m = match[2].padStart(2, '0');
+                const s = match[3] ? match[3].padStart(2, '0') : '00';
+                return dateStr + 'T' + h + ':' + m + ':' + s;
+            }
+            return dateStr;
+        };
+
+        const events = this.${stateName}.map((row: any) => {
+            const startVal = row['${startField}'];
+            const startTimeVal = '${conf.startTimeField || ""}' ? row['${conf.startTimeField || ""}'] : undefined;
+            const endVal = '${conf.endDateField || ""}' ? row['${conf.endDateField || ""}'] : startVal;
+            const endTimeVal = '${conf.endTimeField || ""}' ? row['${conf.endTimeField || ""}'] : undefined;
+
+            return {
+                title: row['${titleField}'] || 'Termin',
+                start: combineDateTime(startVal, startTimeVal),
+                end: combineDateTime(endVal, endTimeVal),
+                color: '${colorField}' ? row['${colorField}'] : undefined,
+                extendedProps: { ...row }
+            };
+        });
+        this.calendarOptions_${suffix} = { ...this.calendarOptions_${suffix}, events };
+`;
+            
+            context.methods.push(`
+  handleEventClick_${suffix}(arg: any) {
+    console.log('Event clicked:', arg.event);
+  }
+`);
+            
+            context.methods.push(`
+  loadComp_${suffix}() {
+    this.${loadingState} = true;
+    this.api.getAll('${fetchUrl}', 1, ${conf.pageSize || 10000}).subscribe({
+      next: (res: any) => {
+        this.${stateName} = res.data || res || [];
+        this.${loadingState} = false;
+        ${kanbanInitLogic}
+      },
+      error: (err) => {
+        console.error(err);
+        this.${loadingState} = false;
+      }
+    });
+  }`);
+            
+            if (context.isBootstrap) {
+                return `
+                <div class="card mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">${conf.title || 'Kalender'}</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <full-calendar [options]="calendarOptions_${suffix}"></full-calendar>
+                    </div>
+                </div>`;
+            } else {
+                return `
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-[650px] flex flex-col space-y-4 p-4">
+                    <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2 shrink-0">
+                        <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100">${conf.title || 'Kalender'}</h4>
+                    </div>
+                    <div class="flex-1 overflow-hidden" style="min-height: 0;">
+                        <full-calendar [options]="calendarOptions_${suffix}"></full-calendar>
+                    </div>
+                </div>`;
+            }
+        }
+        
         if (comp.type === 'kanban_board') {
             const groupBy = toCamelCase(conf.groupByField || 'status');
             const tblField = tbl ? tbl.fields.find((f: any) => toCamelCase(f.name) === groupBy || f.name.toLowerCase() === groupBy.toLowerCase()) : null;

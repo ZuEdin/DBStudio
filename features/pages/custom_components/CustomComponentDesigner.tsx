@@ -5,6 +5,7 @@ import {
 import { useUIStore } from '../../../stores/useUIStore';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { CustomComponent } from '../../../types';
+import { executeSelectQuery } from '../../queries/utils/queryExecution';
 
 // Import small sub-components
 import { MetadataSection } from './components/MetadataSection';
@@ -19,6 +20,7 @@ import { KanbanBoardViewDesigner } from './components/KanbanBoardViewDesigner';
 import { CardTemplateDesigner } from './components/CardTemplateDesigner';
 import { LayoutContainerDesigner } from './components/LayoutContainerDesigner';
 import { PreviewPanel } from './components/PreviewPanel';
+import { CalendarViewDesigner } from './components/CalendarViewDesigner';
 
 interface CustomComponentDesignerProps {
   componentId?: string;
@@ -26,13 +28,13 @@ interface CustomComponentDesignerProps {
 
 export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = ({ componentId }) => {
   const ui = useUIStore();
-  const { customComponents = [], setCustomComponents, saveProject, queries, tables, forms, pages } = useProjectStore();
+  const { customComponents = [], setCustomComponents, saveProject, queries, tables, forms, pages, relationships } = useProjectStore();
   
   const existingComponent = componentId ? customComponents.find(c => c.id === componentId) : null;
 
   const [componentName, setComponentName] = useState('');
   const [componentDescription, setComponentDescription] = useState('');
-  const [componentType, setComponentType] = useState<'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template' | 'layout_container'>('table_view');
+  const [componentType, setComponentType] = useState<'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template' | 'layout_container' | 'calendar_view'>('table_view');
   
   // Tab control: 'visual' or 'json'
   const [activeTab, setActiveTab] = useState<'visual' | 'json'>('visual');
@@ -172,6 +174,17 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
           }
         }
       ]
+    },
+    calendar_view: {
+      title: "Mein Kalender",
+      dataSourceType: "table",
+      dataSourceId: tables[0]?.id || '',
+      startDateField: "Datum",
+      endDateField: "",
+      titleField: "Name",
+      colorField: "",
+      defaultView: "month",
+      views: ["month", "week", "day", "agenda"]
     }
   };
 
@@ -264,21 +277,45 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
   };
 
   // --- MOCK DATA ENGINE ---
-  const selectedTable = tables.find(t => t.id === configObj.dataSourceId);
-  const fields = selectedTable ? selectedTable.fields : [];
+  const selectedTable = configObj.dataSourceType === 'query' ? undefined : tables.find(t => t.id === configObj.dataSourceId);
+  const selectedQuery = configObj.dataSourceType === 'query' ? queries.find(q => q.id === configObj.dataSourceId) : undefined;
+  
+  let fields: any[] = [];
+  if (selectedTable) {
+    fields = selectedTable.fields;
+  } else if (selectedQuery && selectedQuery.type === 'SELECT') {
+    fields = selectedQuery.columns.map(c => ({
+      name: c.alias || c.fieldName,
+      type: 'VARCHAR', // Mock type for now
+      isPrimaryKey: false
+    }));
+  }
 
   const getMockRows = () => {
-    if (selectedTable) {
-      if (selectedTable.data && selectedTable.data.length > 0) {
-        return selectedTable.data;
+    if (selectedTable && selectedTable.data && selectedTable.data.length > 0) {
+      return selectedTable.data;
+    }
+    if (selectedQuery && selectedQuery.type === 'SELECT') {
+      try {
+        const queryData = executeSelectQuery(selectedQuery as any, tables, relationships || []);
+        if (queryData && queryData.length > 0) {
+          return queryData;
+        }
+      } catch (err) {
+        console.error("Error executing query in designer:", err);
       }
-      if (fields.length > 0) {
-        return Array.from({ length: 4 }).map((_, idx) => {
+    }
+    
+    if (fields.length > 0) {
+      return Array.from({ length: 4 }).map((_, idx) => {
           const row: any = {};
           fields.forEach(f => {
             if (f.isPrimaryKey) row[f.name] = idx + 1;
-            else if (f.type === 'VARCHAR' || f.type === 'TEXT') {
-              if (f.name.toLowerCase().includes('name')) {
+            else if (f.type === 'VARCHAR' || f.type === 'TEXT' || !f.type) {
+              const fname = f.name.toLowerCase();
+              if (fname.includes('preis') || fname.includes('betrag') || fname.includes('umsatz') || fname.includes('gehalt') || fname.includes('sum') || fname.includes('count') || fname.includes('avg') || fname.includes('total') || fname.includes('wert') || fname.includes('qty') || fname.includes('menge') || fname.includes('anzahl') || fname.includes('revenue') || fname.includes('sales')) {
+                row[f.name] = Number(125.50 * (idx + 1) + (Math.random() * 50));
+              } else if (f.name.toLowerCase().includes('name')) {
                 const names = ['Emma Wagner', 'Jonas Scholz', 'Sarah Becker', 'Lukas Meier'];
                 row[f.name] = names[idx % names.length];
               } else if (f.name.toLowerCase().includes('mail')) {
@@ -305,12 +342,16 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
             } else if (f.type === 'DATE' || f.type === 'DATETIME') {
               row[f.name] = new Date(Date.now() - idx * 36 * 60 * 60 * 1000).toISOString().split('T')[0];
             } else {
-              row[f.name] = 'Data';
+              const fname = f.name.toLowerCase();
+              if (fname.includes('preis') || fname.includes('betrag') || fname.includes('umsatz') || fname.includes('gehalt') || fname.includes('sum') || fname.includes('count') || fname.includes('avg') || fname.includes('total') || fname.includes('wert') || fname.includes('qty') || fname.includes('menge') || fname.includes('anzahl') || fname.includes('revenue') || fname.includes('sales')) {
+                row[f.name] = Number(125.50 * (idx + 1) + (Math.random() * 50));
+              } else {
+                row[f.name] = `${f.name} Wert ${idx + 1}`;
+              }
             }
           });
-          return row;
-        });
-      }
+        return row;
+      });
     }
     // Default mock rows
     return [
@@ -459,6 +500,7 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
                   updateVisualConfig={updateVisualConfig}
                   tables={tables}
                   fields={fields}
+                  queries={queries}
                 />
               )}
 
@@ -467,6 +509,8 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
                   configObj={configObj}
                   updateVisualConfig={updateVisualConfig}
                   fields={fields}
+                  tables={tables}
+                  queries={queries}
                 />
               )}
 
@@ -533,6 +577,16 @@ export const CustomComponentDesigner: React.FC<CustomComponentDesignerProps> = (
                 <LayoutContainerDesigner 
                   configObj={configObj}
                   updateVisualConfig={updateVisualConfig}
+                />
+              )}
+
+              {componentType === 'calendar_view' && (
+                <CalendarViewDesigner 
+                  configObj={configObj}
+                  updateVisualConfig={updateVisualConfig}
+                  tables={tables}
+                  queries={queries}
+                  fields={fields}
                 />
               )}
             </div>

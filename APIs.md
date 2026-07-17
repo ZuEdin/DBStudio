@@ -210,8 +210,74 @@ Ermöglicht das direkte Editieren und Überschreiben des serverseitigen Daten-Ca
 - **Request-Body:** `any[]` (Komplettes Datenarray)
 - **Rückgabe:** `Promise<{ success: true, count: number }>`
 
-### 7.3 Projekt-Backup & Restore (Desaster Recovery)
+### 7.3 Kalender-Datenbindung & Interaktions-API (`calendar_view`)
+
+Die Kalender-Komponente (`calendar_view`) fungiert als dynamischer Datenschnitt über Tabellen (IndexedDB) oder relationale Abfragen (Queries). Sie bietet ein vollumfängliches bidirektionales Data-Binding (Lese- und Schreibrechte für verknüpfte Tabellen) und unterstützt hochauflösende, interaktive Stunden-Wochen- und Stunden-Tagesansichten.
+
+#### A. JSON Schema & Konfigurationsparameter:
+```json
+{
+  "title": "Mein Terminplaner",
+  "dataSourceType": "table",      // "table" oder "query" (Datenbanktabelle oder SQL-Abfrage)
+  "dataSourceId": "table-uuid",   // Referenzierte Tabellen- oder Abfrage-ID
+  "startDateField": "date",       // Datumsspalte für den Start (z.B. "Datum", "date")
+  "endDateField": "end_date",     // Optionale Datumsspalte für das Ende
+  "startTimeField": "start_time", // Optionale Spalte für die Startzeit (z.B. "Uhrzeit", "zeit")
+  "endTimeField": "end_time",     // Optionale Spalte für die Endzeit (z.B. "Endzeit")
+  "titleField": "name",           // Spaltenzuordnung für den Termin-Titel
+  "colorField": "category_color", // Optionale Spalte für Termin-Hintergrundfarben (Hex)
+  "defaultView": "month",         // Standardansicht ("month", "week", "day", "agenda")
+  "views": ["month", "week", "day", "agenda"]
+}
+```
+
+#### B. Daten-Lese- und Mapping-Algorithmus (Smart Time Inference):
+Die Datensätze werden über den `useProjectStore` geladen. Das System verfügt über eine robuste, fehlertolerante Spaltennamen-Erkennung (Case-Insensitive und Fallback-Suche):
+1. **Titel-Extraktion:** `getNestedValueCaseInsensitive(row, titleField || 'name')`
+2. **Startdatum:** `getNestedValueCaseInsensitive(row, startDateField || 'date')` (Fallbacks: `datum`, `erstellt_am`)
+3. **Enddatum:** `getNestedValueCaseInsensitive(row, endDateField)` (Fallback: Startdatum)
+4. **Startuhrzeit (Fallback-Erkennung):** Sucht nach `startTimeField` oder den Spalten: `uhrzeit`, `zeit`, `startzeit`, `time`.
+5. **Enduhrzeit (Fallback-Erkennung):** Sucht nach `endTimeField` oder den Spalten: `endzeit`, `end_time`.
+6. **Farbliche Markierung:** `getNestedValueCaseInsensitive(row, colorField || 'color') || '#4f46e5'`
+
+#### C. Stundenbasierte Visualisierung & Interaktionen:
+- **Wochen- & Tagesraster:** Stellt die Stunden von `07:00` bis `22:00` in einem präzisen CSS-Grid/Flex-Layout dar.
+- **Ganztägige Einträge:** Termine ohne spezifisch erfasste Uhrzeiten werden übersichtlich im oberen Bereich unter "Ganztägig" zusammengefasst.
+- **Echtzeit-Indikator:** Eine dynamische rote Zeitlinie visualisiert die aktuelle Uhrzeit im Tagesverlauf.
+- **Eintrag Erstellen per Klick auf Zeitslot:** Beim Klick auf eine freie Stunde im Raster wird das Erstellungs-Modal geöffnet und füllt das Datum sowie das Zeitfeld automatisch mit dem ausgewählten Zeitslot aus (z. B. `14:00` Uhr).
+- **CRUD-Vorgänge:** Vollwertige Create-, Update- und Delete-Modals schreiben Daten transaktional zurück in die lokale IndexedDB oder das SQL-Backend.
+
+### 7.4 Projekt-Backup & Restore (Desaster Recovery)
 
 #### `POST /api/backup/download`
 Ermöglicht das Herunterladen eines vollständigen Relationalen-Schemas inkl. aller Daten, Queries und Layouts als komprimierte Sicherungsdatei.
 - **Rückgabe:** JSON-Dateidownload
+
+---
+
+## 7.5 Client-seitige Offline-First Integration (IndexedDB-first API-Layer)
+
+Im generierten React-Frontend (`src/services/api.ts`) ist eine hoch-performante, transaktionale **IndexedDB-Abstraktionsschicht** als primärer Datenbankspeicher integriert. Dies löst das Problem von Verbindungsabbrüchen, fehlenden Backend-Instanzen und `404 Not Found` Fehlern während der lokalen Entwicklung oder Ausführung im Browser.
+
+### Funktionsweise & Datenfluss
+1. **Automatisierte Initialisierung:**
+   - Beim ersten Aufruf der Applikation im Browser wird eine IndexedDB-Datenbank namens `[Projektname]_db` angelegt.
+   - Es werden automatisch **Object Stores** für alle im Datenmodell definierten Tabellen generiert. Jedes Object Store verwendet den exakten Primärschlüssel (z. B. `kundenId` oder `id`) der relationalen Tabelle als `keyPath`.
+   
+2. **Einheitliche CRUD-Schnittstelle:**
+   - Die React-Seiten und benutzerdefinierten Komponenten (z. B. Kalender, Kanban, Listenansichten) kommunizieren unverändert über die Standard-Funktionen:
+     - `get(endpoint, params)`
+     - `post(endpoint, data)`
+     - `put(endpoint, data)`
+     - `remove(endpoint)`
+   - Die Schnittstelle fängt die Pfade (z. B. `kunden`, `termin`, `termin/123`) ab und leitet sie direkt an die IndexedDB-Stores um.
+
+3. **Unterstützung für Fortgeschrittene Features:**
+   - **Paginierung:** Die `get`-Methode führt ein browserseitiges Slicing der Daten durch und gibt das standardisierte `PagedResponse<T>` Format zurück (`data`, `total`, `page`, `pageSize`, `totalPages`).
+   - **Volltextsuche:** Parameter wie `?search=wert` filtern alle Datensätze lokal über alle Textfelder hinweg.
+   - **Auto-Increment ID Generierung:** Beim Erstellen von neuen Datensätzen (`post`) ohne ID ermittelt die IndexedDB-Schicht den höchsten vorhandenen numerischen Schlüssel und inkrementiert diesen automatisch um `+1` (oder weicht auf einen zeitstempelbasierten Schlüssel aus), um Typkonflikte zu vermeiden.
+   - **Lokale Benutzerauthentifizierung:** Der `loginUser`, `registerUser` und `changePassword` Flow wird lokal über ein `users` Object Store in IndexedDB abgebildet, wodurch die gesamte Anwendung out-of-the-box voll funktionsfähig und passwortgeschützt läuft.
+
+4. **Zukunftssichere Backend-Migration (SQL/MySQL/PostgreSQL Ready):**
+   - Da die UI-Komponenten ausschließlich mit den Abstraktionsfunktionen (`get`, `post`, `put`, `remove`) arbeiten, kann der lokale Speicher jederzeit durch ein REST- oder GraphQL-Backend ausgetauscht werden. Ein Umbau der Benutzeroberfläche ist hierfür **nicht** notwendig — es muss lediglich die Implementierung in `src/services/api.ts` angepasst werden.
+

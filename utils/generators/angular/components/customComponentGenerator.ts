@@ -61,16 +61,43 @@ export const generateCustomPageComponents = (
           </div>`;
       }
 
-      const customTs = `import { Component, OnInit } from '@angular/core';
+      
+      const checkHasCalendar = (node: any): boolean => {
+          if (!node) return false;
+          if (node.type === 'calendar_view') return true;
+          if (node.type === 'custom_component' && node.props?.customComponentId) {
+              const comp = (customComponents || []).find(c => c.id === node.props.customComponentId);
+              if (comp && comp.type === 'calendar_view') {
+                  return true;
+              }
+          }
+          if (node.children && Array.isArray(node.children)) {
+              return node.children.some(checkHasCalendar);
+          }
+          return false;
+      };
+      const hasCalendar = checkHasCalendar(page.layout) || JSON.stringify(page.layout).includes('calendar_view');
+      const calendarImports = hasCalendar ? 
+        "import { FullCalendarModule } from '@fullcalendar/angular';\n" +
+        "import { CalendarOptions } from '@fullcalendar/core';\n" +
+        "import dayGridPlugin from '@fullcalendar/daygrid';\n" +
+        "import timeGridPlugin from '@fullcalendar/timegrid';\n" +
+        "import interactionPlugin from '@fullcalendar/interaction';\n" +
+        "import listPlugin from '@fullcalendar/list';" : '';
+      const moduleImports = hasCalendar ? ', FullCalendarModule' : '';
+
+      const customTs = `
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../services/api.service';
+${calendarImports}
 
 @Component({
   selector: 'app-${kebabName}-custom',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule${moduleImports}],
   templateUrl: './${kebabName}-custom.component.html'
 })
 export class ${pascalName}CustomComponent implements OnInit {
@@ -84,6 +111,7 @@ export class ${pascalName}CustomComponent implements OnInit {
 
   ${methods.join('\n\n  ')}
 }`;
+
 
       files.push({ name: `${kebabName}-custom.component.html`, path: `${appRoot}/pages/${folder}/${kebabName}-custom.component.html`, content: customHtml, language: 'html' });
       files.push({ name: `${kebabName}-custom.component.ts`, path: `${appRoot}/pages/${folder}/${kebabName}-custom.component.ts`, content: customTs, language: 'typescript' });

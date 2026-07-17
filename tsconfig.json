@@ -25,5 +25,9 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "test_angular.ts",
+    "test_angular.cjs"
+  ]
 }

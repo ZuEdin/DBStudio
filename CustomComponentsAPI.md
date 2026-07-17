@@ -219,6 +219,29 @@ Gruppiert Datensätze einer Tabelle anhand einer Status-Spalte in ein vollfunkti
 
 ---
 
+### 2.9 Kalender-Ansicht (`calendar_view`)
+
+Stellt datengebundene Datensätze in einem voll interaktiven Kalender dar (Monat, Woche, Tag, Agenda) mit automatischer Datumszuordnung. Es werden sowohl kombinierte Datetime-Felder als auch separate Spalten für Datum und Uhrzeit unterstützt.
+
+#### JSON Schema:
+```json
+{
+  "title": "Mein Terminplaner",   // Kalender-Titel
+  "dataSourceType": "table",      // "table" oder "query" (Datenbanktabelle oder benutzerdefinierte SQL-Abfrage)
+  "dataSourceId": "table-uuid",   // Eindeutige ID der verknüpften Tabelle oder Abfrage
+  "startDateField": "date",       // Spaltenzuordnung für das Startdatum (DATE/DATETIME)
+  "endDateField": "end_date",     // Optionale Spaltenzuordnung für das Enddatum (DATE/DATETIME)
+  "startTimeField": "start_time", // Optionale Spaltenzuordnung für separate Startzeit (TIME/VARCHAR)
+  "endTimeField": "end_time",     // Optionale Spaltenzuordnung für separate Endzeit (TIME/VARCHAR)
+  "titleField": "name",           // Spaltenzuordnung für den Namen/Titel des Termins
+  "colorField": "category_color", // Optionales Spaltenfeld für Termin-Farben (Hexadezimalwerte)
+  "defaultView": "month",         // Standard-Kalenderansicht: "month", "week", "work_week", "day", "agenda"
+  "views": ["month", "week", "day", "agenda"] // Array der auswählbaren Ansichten im Frontend
+}
+```
+
+---
+
 ## 3. Runtime Rendering & Datenbindung (LiveNode Integration)
 
 Im Renderer `LiveNode.tsx` wird jede Custom Component wie folgt verarbeitet:

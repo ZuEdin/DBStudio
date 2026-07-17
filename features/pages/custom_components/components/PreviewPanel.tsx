@@ -74,9 +74,11 @@ const renderCardWithTemplate = (row: any, config: any) => {
   );
 };
 
+import { CalendarRunner } from '../../components/runner/CalendarRunner';
+
 interface PreviewPanelProps {
   componentName: string;
-  componentType: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template';
+  componentType: 'table_view' | 'chart_view' | 'form_view' | 'text' | 'button' | 'dropdown' | 'metric_card' | 'kanban_board' | 'card_template' | 'calendar_view' | string;
   configObj: any;
   activeTab: 'visual' | 'json';
   jsonError: string | null;
@@ -367,8 +369,25 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                     </div>
                     <div className="h-64 bg-white dark:bg-slate-950 p-4 border rounded-lg dark:border-slate-800">
                         <ResponsiveContainer width="100%" height="100%">
+                            {(() => {
+                                const chartData = mockRows.map(row => {
+                                    const newRow = { ...row };
+                                    if (configObj.series) {
+                                        configObj.series.forEach(s => {
+                                            if (newRow[s.key] !== undefined && !isNaN(Number(newRow[s.key]))) {
+                                                newRow[s.key] = Number(newRow[s.key]);
+                                            } else if (newRow[s.key] === undefined || isNaN(Number(newRow[s.key]))) {
+                                                // Fallback if not a number, give it a random number for preview
+                                                newRow[s.key] = Math.floor(Math.random() * 500) + 100;
+                                            }
+                                        });
+                                    }
+                                    return newRow;
+                                });
+                                return (
+                                    <>
                             {configObj.chartType === 'bar' ? (
-                                <BarChart data={mockRows}>
+                                <BarChart data={chartData}>
                                     <XAxis dataKey={configObj.xAxisKey || 'Name'} tick={{ fontSize: 10 }} />
                                     <Tooltip />
                                     {configObj.series?.map((s, idx) => (
@@ -376,7 +395,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                                     ))}
                                 </BarChart>
                             ) : configObj.chartType === 'line' ? (
-                                <LineChart data={mockRows}>
+                                <LineChart data={chartData}>
                                     <XAxis dataKey={configObj.xAxisKey || 'Name'} tick={{ fontSize: 10 }} />
                                     <Tooltip />
                                     <CartesianGrid strokeDasharray="3 3" />
@@ -385,7 +404,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                                     ))}
                                 </LineChart>
                             ) : configObj.chartType === 'area' ? (
-                                <AreaChart data={mockRows}>
+                                <AreaChart data={chartData}>
                                     <XAxis dataKey={configObj.xAxisKey || 'Name'} tick={{ fontSize: 10 }} />
                                     <Tooltip />
                                     <CartesianGrid strokeDasharray="3 3" />
@@ -396,7 +415,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                             ) : configObj.chartType === 'pie' ? (
                                 <PieChart>
                                     <ChartPie 
-                                        data={mockRows} 
+                                        data={chartData} 
                                         dataKey={configObj.series?.[0]?.key || 'value'} 
                                         nameKey={configObj.xAxisKey || 'Name'} 
                                         cx="50%" cy="50%" outerRadius={80} 
@@ -411,6 +430,9 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                             ) : (
                                 <div className="flex h-full items-center justify-center text-slate-400">Typ nicht unterstützt</div>
                             )}
+                                    </>
+                                );
+                            })()}
                         </ResponsiveContainer>
                     </div>
                   </div>
@@ -791,6 +813,20 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* CALENDAR VIEW PREVIEW */}
+                {componentType === 'calendar_view' && (
+                  <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col relative w-full h-[650px] overflow-hidden">
+                      <div className="absolute top-0 right-0 z-10 p-1">
+                          <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50/80 px-1.5 py-0.5 rounded shadow-xs font-bold uppercase backdrop-blur-xs">Vorschau</span>
+                      </div>
+                      <CalendarRunner
+                          comp={{ configuration: configObj }}
+                          fetchedData={mockRows}
+                          loading={false}
+                      />
                   </div>
                 )}
 

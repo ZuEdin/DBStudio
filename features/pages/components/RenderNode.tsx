@@ -3,6 +3,8 @@ import { PageComponent, SelectQuery } from '../../../types/index';
 import { LayoutTemplate, Layers } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 
+import { CustomComponentRunner } from './runner/CustomComponentRunner';
+
 interface SubPagePreviewNodeProps {
     node: PageComponent;
     queries: any[];

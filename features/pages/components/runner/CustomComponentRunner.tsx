@@ -5,6 +5,7 @@ import { LiveForm } from '../LiveForm';
 import { CustomTableViewRunner } from '../CustomTableViewRunner';
 import { MetricCardRunner } from './MetricCardRunner';
 import { KanbanBoardRunner } from './kanban/KanbanBoardRunner';
+import { CalendarRunner } from './CalendarRunner';
 import { useProjectStore } from '../../../../stores/useProjectStore';
 
 interface CustomComponentRunnerProps {
@@ -238,6 +239,18 @@ export const CustomComponentRunner: React.FC<CustomComponentRunnerProps> = ({
                         );
                     })}
                 </div>
+            );
+        }
+
+        case 'calendar_view': {
+            return (
+                <CalendarRunner
+                    comp={comp}
+                    node={node}
+                    fetchedData={fetchedData}
+                    loading={loading}
+                    setParam={setParam}
+                />
             );
         }
 

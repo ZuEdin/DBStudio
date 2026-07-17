@@ -32,13 +32,16 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
       "lucide-react": "^0.460.0", 
       "clsx": "^2.1.1", 
       "tailwind-merge": "^2.3.0",
-      "react-joyride": "^2.8.2"
+      "react-joyride": "^2.8.2",
+      "react-big-calendar": "^1.13.0",
+      "date-fns": "^3.6.0"
   };
 
   const devDependencies: any = { 
       "@types/react": "^18.3.3", 
       "@types/react-dom": "^18.3.0", 
-      "@vitejs/plugin-react": "^4.3.4", 
+      "@vitejs/plugin-react": "^4.3.4",
+       "@types/react-big-calendar": "^1.8.9", 
       "typescript": "^5.4.5", 
       "vite": "^5.4.14" 
   };
@@ -90,11 +93,27 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   files.push({ name: 'tsconfig.node.json', path: `${root}/tsconfig.node.json`, content: JSON.stringify(tsConfigNode, null, 2), language: 'json' });
 
   if (isTailwind) {
-      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  @apply bg-gray-50 text-slate-900 dark:bg-gray-900 dark:text-slate-100;\n}`, language: 'css' });
+      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-50 text-slate-900 dark:bg-gray-900 dark:text-slate-100;
+}`, language: 'css' });
   } else if (isBootstrap) {
-      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f8f9fa;
+}`, language: 'css' });
   } else {
-      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n}`, language: 'css' });
+      files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `/* Custom CSS here */
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}`, language: 'css' });
   }
 
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: ${fePort} } });`, language: 'typescript' });
@@ -143,17 +162,20 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   files.push({
       name: '.env',
       path: `${root}/.env`,
-      content: `VITE_API_URL=${defaultApiUrl}\n`,
+      content: `VITE_API_URL=${defaultApiUrl}
+`,
       language: 'text'
   });
 
   if (config.environments) {
       config.environments.forEach(env => {
           const mode = env.name === 'Production' ? 'production' : env.name === 'Staging' ? 'staging' : 'development';
-          let envContent = `VITE_API_URL=${env.apiUrl || defaultApiUrl}\n`;
+          let envContent = `VITE_API_URL=${env.apiUrl || defaultApiUrl}
+`;
           if (env.vars) {
               Object.entries(env.vars).forEach(([k, v]) => {
-                  envContent += `${k}=${v}\n`;
+                  envContent += `${k}=${v}
+`;
               });
           }
           files.push({

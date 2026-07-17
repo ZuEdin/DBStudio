@@ -97,7 +97,7 @@ export const generateReactStructure = (
     const rolesProp = isSystem ? ` allowedRoles={['Admin']}` : ``;
     
     if (useAuth) {
-      routes.push(`<Route element={<ProtectedRoute${rolesProp} />}><Route path="/${camelName}" element={<${listName} />} /></Route>`);
+      routes.push(`<Route path="/${camelName}" element={<${listName} />} />`);
     } else {
       routes.push(`<Route path="/${camelName}" element={<${listName} />} />`);
     }
@@ -107,7 +107,7 @@ export const generateReactStructure = (
       const formCompName = `${pascalName}Form`;
       imports.push(`import { ${formCompName} } from './pages/${pascalName}/${formCompName}';`);
       if (useAuth) {
-        routes.push(`<Route element={<ProtectedRoute${rolesProp} />}><Route path="/${camelName}/new" element={<${formCompName} />} /><Route path="/${camelName}/:id" element={<${formCompName} />} /></Route>`);
+        routes.push(`<Route path="/${camelName}/new" element={<${formCompName} />} />\n                <Route path="/${camelName}/:id" element={<${formCompName} />} />`);
       } else {
         routes.push(`<Route path="/${camelName}/new" element={<${formCompName} />} />`);
         routes.push(`<Route path="/${camelName}/:id" element={<${formCompName} />} />`);

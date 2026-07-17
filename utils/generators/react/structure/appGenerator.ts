@@ -48,10 +48,9 @@ function App() {
                             <p className="text-slate-500 dark:text-slate-400 max-w-md">Wählen Sie einen Eintrag aus dem Menü, um zu starten.</p>
                         </div>
                     } />
+                    {/* Generated Routes */}
+                    ${routes.join('\n                    ')}
                 ${useAuth ? `</Route>` : `</Route>`}
-                
-                {/* Generated Routes */}
-                ${routes.join('\n                ')}
             </Routes>
         </BrowserRouter>
         ${useAuth ? "</AuthProvider>" : ""}

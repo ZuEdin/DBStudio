@@ -113,11 +113,11 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                        <div className="flex items-center gap-1.5">
                                            <span>${col.title || col.field}</span>
                                        </div>
-                                   </th>`).join('');
+                                   </th>`).join('\\n');
            tableBodyCells = cols.map((col: any) => `
                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-300">
                                                {String(row['${col.field}'] ?? '-')}
-                                           </td>`).join('');
+                                           </td>`).join('\\n');
        } else {
            tableHeaderCols = `<th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Daten</th>`;
            tableBodyCells = `<td className="px-6 py-4 text-sm text-slate-700 dark:text-slate-300">{JSON.stringify(row)}</td>`;
@@ -146,7 +146,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                    {${uniqueOptsState}.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                </select>
                            </div>`;
-                       }).join('\n')}
+                       }).join('\\n')}
                    </div>`;
        }
 
@@ -192,7 +192,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                            <span className="text-slate-700 dark:text-slate-300 font-medium">{String(row['${col.field}'] ?? '-')}</span>
                                        </div>`;
                                    }
-                               }).join('\n') : `<div>{JSON.stringify(row)}</div>`}
+                               }).join('\\n') : `<div>{JSON.stringify(row)}</div>`}
                            </div>
                            );
                        })}
@@ -235,6 +235,90 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
        }
    }
 
+   if (comp.type === 'chart_view') {
+       imports.add('ResponsiveContainer');
+       imports.add('XAxis');
+       imports.add('YAxis');
+       imports.add('Tooltip');
+       imports.add('CartesianGrid');
+       imports.add('Legend');
+       
+       let chartComponent = '';
+       let seriesHtml = '';
+       
+       const chartType = conf.chartType || 'bar';
+       const xAxisKey = conf.xAxisKey || 'id';
+       const series = conf.series || [{ key: 'value', label: 'Value', color: '#3b82f6' }];
+       
+       if (chartType === 'bar') {
+           imports.add('BarChart');
+           imports.add('Bar');
+           chartComponent = 'BarChart';
+           seriesHtml = series.map((s, idx) => 
+               `<Bar key={idx} dataKey="${s.key}" name="${s.label || s.key}" fill="${s.color || '#3b82f6'}" />`
+           ).join('\\n');
+       } else if (chartType === 'line') {
+           imports.add('LineChart');
+           imports.add('Line');
+           chartComponent = 'LineChart';
+           seriesHtml = series.map((s, idx) => 
+               `<Line key={idx} type="monotone" dataKey="${s.key}" name="${s.label || s.key}" stroke="${s.color || '#3b82f6'}" />`
+           ).join('\\n');
+       } else if (chartType === 'area') {
+           imports.add('AreaChart');
+           imports.add('Area');
+           chartComponent = 'AreaChart';
+           seriesHtml = series.map((s, idx) => 
+               `<Area key={idx} type="monotone" dataKey="${s.key}" name="${s.label || s.key}" stroke="${s.color || '#3b82f6'}" fill="${s.color || '#3b82f6'}" fillOpacity={0.3} />`
+           ).join('\\n');
+       } else if (chartType === 'pie') {
+           imports.add('PieChart');
+           imports.add('Pie');
+           chartComponent = 'PieChart';
+           seriesHtml = series.map((s, idx) => 
+               `<Pie key={idx} dataKey="${s.key}" nameKey="${xAxisKey}" cx="50%" cy="50%" outerRadius={80} fill="${s.color || '#3b82f6'}" label />`
+           ).join('\\n');
+       }
+       
+       return `
+           <div className="p-4 w-full text-left bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+               <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                   <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">${conf.title || 'Diagramm'}</h4>
+                   <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-mono font-medium">
+                       Typ: ${chartType}
+                   </span>
+               </div>
+               { ${loadingState} ? (
+                   <div className="h-64 flex items-center justify-center">
+                       <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                   </div>
+               ) : ${stateName}.length === 0 ? (
+                   <div className="h-64 flex items-center justify-center text-xs text-slate-400 italic">Keine Daten verfügbar</div>
+               ) : (
+                   <div className="h-64 w-full">
+                       <ResponsiveContainer width="100%" height="100%">
+                           <${chartComponent} 
+                             data={${stateName}.map((row: any) => {
+                               const newRow = { ...row };
+                               [${conf.series ? conf.series.map(s => `'${s.key}'`).join('\\n,') : ''}].forEach(k => {
+                                 if (newRow[k] !== undefined) newRow[k] = Number(newRow[k]) || 0;
+                               });
+                               return newRow;
+                             })} 
+                             margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                               {'${chartType}' !== 'pie' && <XAxis dataKey="${xAxisKey}" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />}
+                               {'${chartType}' !== 'pie' && <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />}
+                               <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                               ${seriesHtml}
+                           </${chartComponent}>
+                       </ResponsiveContainer>
+                   </div>
+               )}
+           </div>`;
+   }
+
    if (comp.type === 'form_view') {
        const formObj = forms.find(f => f.id === conf.formId);
        const tbl = formObj ? tables.find(t => t.id === formObj.sourceId) : null;
@@ -275,7 +359,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                    className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900"
                                />
                            </div>`;
-                       }).join('\n')}
+                       }).join('\\n')}
                    </div>
                    {!${conf.hideActions ? 'true' : 'false'} && (
                        <div className="flex justify-end pt-2">
@@ -418,6 +502,94 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                )}
            </div>`;
    }
+
+         if (comp.type === 'calendar_view') {
+       imports.add('{ Calendar, dateFnsLocalizer } from \'react-big-calendar\'');
+       imports.add('{ format, parse, startOfWeek, getDay } from \'date-fns\'');
+       imports.add('de from \'date-fns/locale/de\'');
+       imports.add('\'react-big-calendar/lib/css/react-big-calendar.css\'');
+
+       const titleField = conf.titleField || 'name';
+       const startField = conf.startDateField || 'date';
+       const endField = conf.endDateField || startField;
+       const colorField = conf.colorField || '';
+       const defaultView = conf.defaultView || 'month';
+       const availableViews = conf.views ? conf.views.join(', ') : 'month, week, work_week, day, agenda';
+
+       return `
+           <div className="p-4 w-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-[600px] flex flex-col space-y-4">
+               <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2 shrink-0">
+                   <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">${conf.title || 'Kalender'}</h4>
+               </div>
+               <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+                   {(() => {
+                       const locales = { 'de': de };
+                       const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
+                       
+                       const combineDateTime = (dateVal: any, timeVal: any) => {
+							if (!dateVal) return new Date();
+							if (!timeVal) return new Date(dateVal);
+							let dateStr = '';
+							if (typeof dateVal === 'string') {
+								dateStr = dateVal.split('T')[0].split(' ')[0];
+							} else if (dateVal instanceof Date) {
+								dateStr = dateVal.toISOString().split('T')[0];
+							} else {
+								dateStr = String(dateVal).split(' ')[0];
+							}
+							let timeStr = String(timeVal);
+							const match = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+							if (match) {
+								const h = match[1].padStart(2, '0');
+								const m = match[2].padStart(2, '0');
+								const s = match[3] ? match[3].padStart(2, '0') : '00';
+								return new Date(dateStr + 'T' + h + ':' + m + ':' + s);
+							}
+							return new Date(dateStr);
+						};
+
+						const events = (${stateName} || []).map((row: any) => {
+							const startVal = row['${startField}'];
+							const startTimeVal = '${conf.startTimeField || ""}' ? row['${conf.startTimeField || ""}'] : undefined;
+							const endVal = '${conf.endDateField || ""}' ? row['${conf.endDateField || ""}'] : startVal;
+							const endTimeVal = '${conf.endTimeField || ""}' ? row['${conf.endTimeField || ""}'] : undefined;
+
+							return {
+								title: row['${titleField}'] || 'Termin',
+								start: combineDateTime(startVal, startTimeVal),
+								end: combineDateTime(endVal, endTimeVal),
+								resource: row,
+								color: '${colorField}' ? row['${colorField}'] : undefined
+							};
+						});
+
+                       return (
+                           <Calendar
+                               localizer={localizer}
+                               events={events}
+                               startAccessor="start"
+                               endAccessor="end"
+                               defaultView="${defaultView}"
+                               views={[${availableViews.split(',').map(v => `'${v.trim()}'`).join(',')}]}
+                               culture="de"
+                               style={{ height: '100%' }}
+                               eventPropGetter={(event: any) => ({
+                                   style: {
+                                       backgroundColor: event.color || '#4f46e5',
+                                       borderRadius: '4px',
+                                       opacity: 0.9,
+                                       color: 'white',
+                                       border: '0',
+                                       display: 'block'
+                                   }
+                               })}
+                           />
+                       );
+                   })()}
+               </div>
+           </div>`;
+   }
+
 
    if (comp.type === 'kanban_board') {
        const groupBy = toCamelCase(conf.groupByField || 'Status');

@@ -82,7 +82,7 @@ export const useTheme = () => {
 
 export const generateAuthContext = (config: BackendConfig, root: string): VirtualFile => {
   const authCtxCode = `import React, { createContext, useContext, useState, useEffect } from 'react';
-import { post } from '../services/api';
+import { post, get } from '../services/api';
 
 interface AuthContextType {
     user: any;
@@ -99,20 +99,27 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-            const savedUser = localStorage.getItem('auth_user');
-            if (savedUser) {
+        const checkSession = async () => {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
                 try {
-                    setUser(JSON.parse(savedUser));
-                } catch {
-                    setUser({ username: 'Admin User', role: 'Admin' });
+                    const res: any = await get('auth/me');
+                    if (res && res.user) {
+                        setUser(res.user);
+                        localStorage.setItem('auth_user', JSON.stringify(res.user));
+                    } else {
+                        throw new Error('Invalid session');
+                    }
+                } catch (e) {
+                    console.error('Session verification failed', e);
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('auth_user');
+                    setUser(null);
                 }
-            } else {
-                setUser({ username: 'Admin User', role: 'Admin' });
             }
-        }
-        setLoading(false);
+            setLoading(false);
+        };
+        checkSession();
     }, []);
 
     const login = async (u: string, p: string) => {

@@ -362,7 +362,7 @@ export const ${listName} = () => {
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {${table.fields.map(f => {
+                ${table.fields.map(f => {
                     const fieldCamel = toCamelCase(f.name);
                     const lookup = lookups.find(l => l.fieldName === fieldCamel);
                     let valAssignment = `let val: any = detailRecord.${fieldCamel};`;
@@ -386,7 +386,7 @@ export const ${listName} = () => {
                       </span>
                     </div>
                     `;
-                }).join('')}}
+                }).join('')}
               </div>
             </div>
 

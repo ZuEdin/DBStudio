@@ -221,13 +221,30 @@ export const generateCustomPage = (
       if (imp === 'post') return "import { post } from '../../services/api';";
       if (imp === 'put') return "import { put } from '../../services/api';";
       if (imp === 'Loader2') return "";
+      if (imp === 'ResponsiveContainer' || imp === 'BarChart' || imp === 'Bar' || imp === 'LineChart' || imp === 'Line' || imp === 'AreaChart' || imp === 'Area' || imp === 'PieChart' || imp === 'Pie' || imp === 'XAxis' || imp === 'YAxis' || imp === 'CartesianGrid' || imp === 'Tooltip' || imp === 'Legend') {
+        return ""; // Handled specially below
+      }
+      if (imp.includes('from') || imp.startsWith("'") || imp.startsWith('"')) {
+        return `import ${imp};`;
+      }
       return '';
   }).filter(Boolean).join('\n');
+
+  // Add Recharts imports if needed
+  const rechartsImports = Array.from(imports).filter(imp => 
+    ['ResponsiveContainer', 'BarChart', 'Bar', 'LineChart', 'Line', 'AreaChart', 'Area', 'PieChart', 'Pie', 'XAxis', 'YAxis', 'CartesianGrid', 'Tooltip', 'Legend'].includes(imp)
+  );
+  
+  let rechartsImportsStr = '';
+  if (rechartsImports.length > 0) {
+      rechartsImportsStr = `import { ${rechartsImports.join(', ')} } from 'recharts';`;
+  }
+
   
   const content = `import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-${importsStr}
+${importsStr}\n${rechartsImportsStr}
 
 export const ${compName} = () => {
   const navigate = useNavigate();

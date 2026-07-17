@@ -5,18 +5,51 @@ interface ChartViewDesignerProps {
   configObj: any;
   updateVisualConfig: (newProps: any) => void;
   fields: any[];
+  tables?: any[];
+  queries?: any[];
 }
 
 export const ChartViewDesigner: React.FC<ChartViewDesignerProps> = ({
   configObj,
   updateVisualConfig,
   fields,
+  tables = [],
+  queries = [],
 }) => {
   return (
     <div className="space-y-4">
       <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
         <Sliders size={13} /> Diagramm konfigurieren
       </h4>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[10px] text-slate-500 font-bold uppercase mb-1">Datenquelle-Typ</label>
+          <select
+            value={configObj.dataSourceType || 'table'}
+            onChange={(e) => updateVisualConfig({ dataSourceType: e.target.value, dataSourceId: '' })}
+            className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 text-xs dark:text-white"
+          >
+            <option value="table">Tabelle</option>
+            <option value="query">Abfrage (Query)</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] text-slate-500 font-bold uppercase mb-1">Datenquelle</label>
+          <select
+            value={configObj.dataSourceId || ''}
+            onChange={(e) => updateVisualConfig({ dataSourceId: e.target.value })}
+            className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 text-xs dark:text-white"
+          >
+            <option value="">-- Bitte wählen --</option>
+            {configObj.dataSourceType === 'query' 
+              ? queries.filter(q => q.type === 'SELECT').map(q => <option key={q.id} value={q.id}>{q.name}</option>)
+              : tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
+            }
+          </select>
+        </div>
+      </div>
+
       <div>
         <label className="block text-[10px] text-slate-500 font-bold uppercase mb-1">Diagramm-Typ</label>
         <select
@@ -30,6 +63,7 @@ export const ChartViewDesigner: React.FC<ChartViewDesignerProps> = ({
           <option value="pie">Kreisdiagramm (Pie Chart)</option>
         </select>
       </div>
+
       <div>
         <label className="block text-[10px] text-slate-500 font-bold uppercase mb-1">Diagramm-Titel</label>
         <input 
@@ -39,6 +73,7 @@ export const ChartViewDesigner: React.FC<ChartViewDesignerProps> = ({
           className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded dark:text-white"
         />
       </div>
+
       <div>
         <label className="block text-[10px] text-slate-500 font-bold uppercase mb-1">X-Achsen Feld</label>
         <select

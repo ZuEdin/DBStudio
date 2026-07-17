@@ -608,6 +608,23 @@ if (${config.authConfig?.useUserLogin !== undefined ? config.authConfig?.useUser
 app.post('/api/auth/login', (req, res) => {
     res.json({ token: "dummy-jwt-token-for-" + (req.body.username || 'user'), user: { username: req.body.username || 'user', role: 'Admin' } });
 });
+
+app.get('/api/auth/me', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        if (token.startsWith('dummy-jwt-token-for-')) {
+            const username = token.replace('dummy-jwt-token-for-', '');
+            return res.json({ user: { username, role: 'Admin' } });
+        }
+        if (token.startsWith('dummy-jwt-token-sso-')) {
+            const username = token.replace('dummy-jwt-token-sso-', '') + ' User';
+            return res.json({ user: { username, role: 'User' } });
+        }
+        return res.json({ user: { username: 'System', role: 'Admin' } });
+    }
+    return res.status(401).json({ error: 'Unauthorized' });
+});
 app.post('/api/auth/register', (req, res) => {
     res.status(201).json({ message: "User registered successfully" });
 });

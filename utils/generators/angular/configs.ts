@@ -33,6 +33,12 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
       "@angular/platform-browser-dynamic":"^18.0.0",
       "@angular/router":"^18.0.0",
       "rxjs":"~7.8.0",
+      "@fullcalendar/core":"^6.1.11",
+      "@fullcalendar/angular":"^6.1.10",
+      "@fullcalendar/daygrid":"^6.1.11",
+      "@fullcalendar/timegrid":"^6.1.11",
+      "@fullcalendar/interaction":"^6.1.11",
+      "@fullcalendar/list":"^6.1.11",
       "tslib":"^2.3.0",
       "zone.js":"~0.14.0"
   };
@@ -162,19 +168,28 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   files.push({
       name: 'environment.ts',
       path: `${root}/src/environments/environment.ts`,
-      content: `export const environment = {\n  production: false,\n  apiUrl: ${getApiUrlExpr(devApiUrl)}\n};`,
+      content: `export const environment = {
+  production: false,
+  apiUrl: ${getApiUrlExpr(devApiUrl)}
+};`,
       language: 'typescript'
   });
   files.push({
       name: 'environment.prod.ts',
       path: `${root}/src/environments/environment.prod.ts`,
-      content: `export const environment = {\n  production: true,\n  apiUrl: ${getApiUrlExpr(prodApiUrl)}\n};`,
+      content: `export const environment = {
+  production: true,
+  apiUrl: ${getApiUrlExpr(prodApiUrl)}
+};`,
       language: 'typescript'
   });
   files.push({
       name: 'environment.staging.ts',
       path: `${root}/src/environments/environment.staging.ts`,
-      content: `export const environment = {\n  production: false,\n  apiUrl: ${getApiUrlExpr(stagingApiUrl)}\n};`,
+      content: `export const environment = {
+  production: false,
+  apiUrl: ${getApiUrlExpr(stagingApiUrl)}
+};`,
       language: 'typescript'
   });
 
@@ -182,15 +197,39 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   files.push({ name: 'tsconfig.app.json', path: `${root}/tsconfig.app.json`, content: JSON.stringify({ "extends": "./tsconfig.json", "compilerOptions": { "outDir": "./dist/out-tsc/app", "types": [] }, "files": ["src/main.ts", "src/polyfills.ts"], "include": ["src/**/*.d.ts"] }, null, 2), language: 'json' });
   
   // Always generate Tailwind config and postcss config to compile the layout classes
-  files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nmodule.exports = {\n  content: ["./src/**/*.{html,ts}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
+  files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./src/**/*.{html,ts}"],
+  theme: { extend: {} },
+  plugins: [],
+}`, language: 'javascript' });
   files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
 
   if (isTailwind) {
-      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8fafc;\n  color: #0f172a;\n}`, language: 'css' });
+      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}`, language: 'css' });
   } else if (isBootstrap) {
-      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f8f9fa;
+}`, language: 'css' });
   } else {
-      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n  background-color: #f8fafc;\n  color: #0f172a;\n}`, language: 'css' });
+      files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `/* Custom CSS here */
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+}`, language: 'css' });
   }
 
   files.push({ name: 'polyfills.ts', path: `${root}/src/polyfills.ts`, content: `import 'zone.js';`, language: 'typescript' });
