@@ -4,9 +4,11 @@ import { LanguageSelector } from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { CollaborationBar } from './CollaborationBar';
 import { cloudService } from '../services/cloudService';
-import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download, Edit2 } from 'lucide-react';
+import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download, Edit2, User, Settings, Shield } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
+import { useAuthStore } from '../stores/useAuthStore';
+import { useConfigStore } from '../stores/useConfigStore';
 import { Chat } from '../types/index';
 import { useTicketState } from '../hooks/useTicketState';
 
@@ -20,6 +22,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
   const store = useProjectStore();
   const ui = useUIStore();
   const ticketState = useTicketState();
+  const { user, isAdmin } = useAuthStore();
+  const { config } = useConfigStore();
   
   const totalUnreadChatCount = chats ? chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0) : 0;
   const todoTicketsCount = ticketState.allTicketsRaw ? ticketState.allTicketsRaw.filter(t => t.status === 'todo').length : 0;
@@ -40,6 +44,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
       } else {
           setFormActionTrigger({ action: 'backend_export', timestamp: Date.now() });
       }
+  };
+
+  const onOpenSettings = () => {
+    setIsChatOpen(true);
+    // The ChatPanel will handle switching to settings tab if user is admin
   };
 
   return (
@@ -87,33 +96,89 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
                   </span>
                 )}
             </span>
-            <div className="bg-slate-700 rounded px-2 py-0.5 flex items-center gap-1 text-[10px]">
-                <GitBranch size={10} className="text-green-400"/>
-                <span className="text-slate-300">main</span>
+            
+            {/* Status Pills */}
+            <div className="flex items-center gap-2">
+                <div className="bg-slate-700 rounded px-2 py-0.5 flex items-center gap-1 text-[9px] font-bold border border-slate-600/50">
+                    <GitBranch size={10} className="text-green-400"/>
+                    <span className="text-slate-300">main</span>
+                </div>
+                
+                {config.mode === 'DEMO' ? (
+                  <div className="bg-amber-900/30 text-amber-400 rounded px-2 py-0.5 flex items-center gap-1 text-[9px] font-bold border border-amber-500/30">
+                      <span>DEMO</span>
+                  </div>
+                ) : (
+                  <div className="bg-blue-900/30 text-blue-400 rounded px-2 py-0.5 flex items-center gap-1 text-[9px] font-bold border border-blue-500/30">
+                      <span>REGISTERED</span>
+                  </div>
+                )}
+
+                {config.storage === 'server' && (
+                  <div className="bg-emerald-900/30 text-emerald-400 rounded px-2 py-0.5 flex items-center gap-1 text-[9px] font-bold border border-emerald-500/30">
+                      <span>REMOTE-DB</span>
+                  </div>
+                )}
             </div>
         </div>
 
         <div className="flex items-center">
+            {/* User Profile */}
+            <div className={`flex items-center gap-2 px-2 py-1 rounded-full ${user?.isAuthenticated ? 'bg-slate-700/50 border border-slate-600/50' : ''} mr-2`}>
+                {user?.isAuthenticated ? (
+                   <>
+                    <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold">
+                        {user.name.charAt(0)}
+                    </div>
+                    <span className="text-slate-300 font-medium">{user.name}</span>
+                    {isAdmin() && <Shield size={10} className="text-amber-400" title="Administrator" />}
+                   </>
+                ) : (
+                   <button 
+                    onClick={() => setIsChatOpen(true)}
+                    className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-bold"
+                   >
+                     <User size={14} />
+                     <span>Anmelden</span>
+                   </button>
+                )}
+            </div>
+
             <CollaborationBar collaborators={collaborators} />
             
             {/* Chat & Tickets Toggle */}
-            <div className="ml-2 mr-1 relative">
+            {user?.isAuthenticated && (
+                <div className="ml-2 mr-1 relative">
+                    <button 
+                        onClick={() => setIsChatOpen(!isChatOpen)}
+                        className={`p-1.5 rounded transition-colors flex items-center gap-1.5 relative ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                        title="Team Chat & Tickets / Aufgaben"
+                    >
+                        <div className="relative">
+                            <MessageSquare size={16} />
+                            {totalUnread > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-slate-800">
+                                    {totalUnread}
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-[10px] font-bold">Chat & Tickets</span>
+                    </button>
+                </div>
+            )}
+
+            {/* Admin Settings Cog */}
+            {isAdmin() && (
+              <div className="mr-1">
                 <button 
-                    onClick={() => setIsChatOpen(!isChatOpen)}
-                    className={`p-1.5 rounded transition-colors flex items-center gap-1.5 relative ${isChatOpen ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
-                    title="Team Chat & Tickets / Aufgaben"
+                    onClick={onOpenSettings}
+                    className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    title="System-Einstellungen"
                 >
-                    <div className="relative">
-                        <MessageSquare size={16} />
-                        {totalUnread > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-slate-800">
-                                {totalUnread}
-                            </span>
-                        )}
-                    </div>
-                    <span className="text-[10px] font-bold">Chat & Tickets</span>
+                    <Settings size={16} />
                 </button>
-            </div>
+              </div>
+            )}
 
             {/* Dark / Light Mode Toggle */}
             <div className="mr-2">

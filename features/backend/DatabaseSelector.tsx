@@ -7,6 +7,7 @@ import { cloudService } from '../../services/cloudService';
 import { getTemplates } from '../../data/templates/index';
 import { LanguageSelector } from '../../components/LanguageSelector';
 import { useTranslation } from 'react-i18next';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 interface ProjectSelectionViewProps {
   onSelectProject: (project: Project) => void;
@@ -21,6 +22,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const [loading, setLoading] = useState(false);
   
   const { t, i18n } = useTranslation();
+  const { user } = useAuthStore();
   const templates = useMemo(() => getTemplates(i18n.language), [i18n.language]);
 
   // New Project Form State
@@ -225,12 +227,14 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
             >
                 <HardDrive size={16}/> Lokal
             </button>
-            <button 
-                onClick={() => setActiveSource('cloud')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeSource === 'cloud' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <Cloud size={16}/> Team Cloud
-            </button>
+            {user?.isAuthenticated && (
+                <button 
+                    onClick={() => setActiveSource('cloud')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeSource === 'cloud' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <Cloud size={16}/> Team Cloud
+                </button>
+            )}
         </div>
 
         <div className="flex justify-between items-center mb-4">

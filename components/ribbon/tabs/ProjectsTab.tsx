@@ -1,13 +1,18 @@
 import React from 'react';
-import { Briefcase, ClipboardList, Route, Zap, Database, Layers } from 'lucide-react';
+import { Briefcase, ClipboardList, Route, Zap, Database, Layers, LogIn, Cloud, User as UserIcon } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
+import { useAuthStore } from '../../../stores/useAuthStore';
+import { useUIStore } from '../../../stores/useUIStore';
 
 interface ProjectsTabProps {
   onAction: (action: string) => void;
 }
 
 export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onAction }) => {
+  const { user } = useAuthStore();
+  const { setIsChatOpen } = useUIStore();
+
   return (
     <div className="flex gap-4 h-full">
       <RibbonGroup label="Projektsteuerung">
@@ -46,13 +51,33 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onAction }) => {
         />
       </RibbonGroup>
 
-      <RibbonGroup label="Self-Hosting" isLast>
+      <RibbonGroup label="Self-Hosting">
         <RibbonButton 
           icon={<Layers className="text-purple-600" />} 
           label="DB Studio nachbauen" 
           onClick={() => onAction('project_rebuild')} 
           size="large" 
         />
+      </RibbonGroup>
+
+      <RibbonGroup label="Cloud & Account" isLast>
+        {user?.isAuthenticated ? (
+          <RibbonButton 
+            icon={<Cloud className="text-blue-500" />} 
+            label={`Cloud: ${user.name}`} 
+            onClick={() => setIsChatOpen(true)} 
+            size="large" 
+            sublabel={user.role === 'admin' ? 'Administrator' : 'Benutzer'}
+          />
+        ) : (
+          <RibbonButton 
+            icon={<LogIn className="text-blue-600" />} 
+            label="Cloud Login" 
+            onClick={() => setIsChatOpen(true)} 
+            size="large" 
+            sublabel="Team-Features"
+          />
+        )}
       </RibbonGroup>
     </div>
   );

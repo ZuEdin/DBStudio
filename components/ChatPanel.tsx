@@ -1,10 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Chat, ChatMessage } from '../types/index';
-import { MessageSquare, Users, X, Send, ChevronLeft, MoreVertical, Circle, ClipboardList, Sparkles } from 'lucide-react';
+import { MessageSquare, Users, X, Send, ChevronLeft, MoreVertical, Circle, ClipboardList, Sparkles, LogOut, Settings, LogIn } from 'lucide-react';
 import { useTicketState } from '../hooks/useTicketState';
 import { TicketBoard } from './TicketBoard';
 import { AiSchemaAssistant } from './AiSchemaAssistant';
+import { LoginPrompt } from './auth/LoginPrompt';
+import { ToolSettings } from './settings/ToolSettings';
+import { useAuthStore } from '../stores/useAuthStore';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -21,9 +24,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find(c => c.id === activeChatId);
+  const { user, logout, isAdmin } = useAuthStore();
 
   const ticketState = useTicketState();
-  const [activeTab, setActiveTab] = useState<'chat' | 'tickets' | 'ai_assistant'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'tickets' | 'ai_assistant' | 'settings'>('chat');
 
   useEffect(() => {
     if (activeChatId) {
@@ -45,32 +49,59 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   if (!isOpen) return null;
 
+  // If NOT authenticated, show ONLY login
+  if (!user?.isAuthenticated) {
+    return (
+      <div className="flex flex-col fixed bottom-6 right-6 w-80 h-[540px] bg-white border border-slate-300 shadow-2xl z-[9999] rounded-xl overflow-hidden shadow-black/20 transition-all duration-300">
+         <div className="bg-slate-800 text-white p-3 flex justify-between items-center shrink-0 h-10">
+            <div className="flex items-center gap-2">
+                <LogIn size={18}/>
+                <span className="font-bold text-sm">System Login</span>
+            </div>
+            <button onClick={onClose} className="hover:bg-slate-700 p-1 rounded text-slate-300 hover:text-white">
+                <X size={18}/>
+            </button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <LoginPrompt />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex flex-col fixed bottom-6 right-6 ${
       activeTab === 'chat' 
         ? 'w-80' 
         : activeTab === 'ai_assistant' 
           ? 'w-[360px] md:w-[410px]' 
-          : 'w-[640px] md:w-[720px]'
+          : activeTab === 'settings'
+            ? 'w-[420px]'
+            : 'w-[640px] md:w-[720px]'
     } h-[540px] bg-white border border-slate-300 shadow-2xl z-[9999] rounded-xl overflow-hidden shadow-black/20 transition-all duration-300`}>
         
         {/* Header */}
         <div className="bg-slate-800 text-white p-3 flex justify-between items-center shrink-0 h-10">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
                 {activeChatId ? (
                     <button onClick={() => onSelectChat(null)} className="hover:bg-slate-700 p-1 rounded">
                         <ChevronLeft size={18}/>
                     </button>
                 ) : (
-                    activeTab === 'chat' ? <MessageSquare size={18}/> : activeTab === 'tickets' ? <ClipboardList size={18}/> : <Sparkles size={18} className="text-indigo-400 animate-pulse"/>
+                    activeTab === 'chat' ? <MessageSquare size={18}/> : activeTab === 'tickets' ? <ClipboardList size={18}/> : activeTab === 'settings' ? <Settings size={18}/> : <Sparkles size={18} className="text-indigo-400 animate-pulse"/>
                 )}
                 <span className="font-bold text-sm truncate">
-                    {activeChat ? activeChat.name : (activeTab === 'chat' ? 'Team Chat' : activeTab === 'tickets' ? 'Projekt-Tickets & Todos' : 'AI Schema Assistant')}
+                    {activeChat ? activeChat.name : (activeTab === 'chat' ? 'Team Chat' : activeTab === 'tickets' ? 'Projekt-Tickets & Todos' : activeTab === 'settings' ? 'System Settings' : 'AI Schema Assistant')}
                 </span>
             </div>
-            <button onClick={onClose} className="hover:bg-slate-700 p-1 rounded text-slate-300 hover:text-white">
-                <X size={18}/>
-            </button>
+            <div className="flex items-center gap-1">
+                <button onClick={logout} title="Logout" className="hover:bg-red-900/40 p-1 rounded text-red-400 hover:text-red-200">
+                    <LogOut size={16}/>
+                </button>
+                <button onClick={onClose} className="hover:bg-slate-700 p-1 rounded text-slate-300 hover:text-white">
+                    <X size={18}/>
+                </button>
+            </div>
         </div>
 
         {/* Content */}
@@ -83,42 +114,44 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <button 
                             type="button"
                             onClick={() => setActiveTab('chat')}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'chat' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-bold transition-all ${activeTab === 'chat' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
                         >
-                            <MessageSquare size={13} />
-                            <span>Team Chat</span>
-                            {totalUnreadChatCount > 0 && (
-                                <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-extrabold scale-90">
-                                    {totalUnreadChatCount}
-                                </span>
-                            )}
+                            <MessageSquare size={12} />
+                            <span>Chat</span>
                         </button>
                         <button 
                             type="button"
                             onClick={() => setActiveTab('ai_assistant')}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'ai_assistant' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
+                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-bold transition-all ${activeTab === 'ai_assistant' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
                         >
-                            <Sparkles size={13} className="text-indigo-500" />
-                            <span>AI Assistant</span>
+                            <Sparkles size={12} className="text-indigo-500" />
+                            <span>AI</span>
                         </button>
                         <button 
                             type="button"
                             onClick={() => setActiveTab('tickets')}
-                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-bold transition-all ${activeTab === 'tickets' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-bold transition-all ${activeTab === 'tickets' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
                         >
-                            <ClipboardList size={13} />
+                            <ClipboardList size={12} />
                             <span>Tickets</span>
-                            {todoTicketsCount > 0 && (
-                                <span className="bg-blue-600 text-white text-[9px] px-1.5 py-0.2 rounded-full font-extrabold scale-90">
-                                    {todoTicketsCount}
-                                </span>
-                            )}
                         </button>
+                        {isAdmin() && (
+                            <button 
+                                type="button"
+                                onClick={() => setActiveTab('settings')}
+                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-bold transition-all ${activeTab === 'settings' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                                <Settings size={12} />
+                                <span>Settings</span>
+                            </button>
+                        )}
                     </div>
                 );
             })()}
 
-            {activeTab === 'tickets' ? (
+            {activeTab === 'settings' ? (
+                <ToolSettings />
+            ) : activeTab === 'tickets' ? (
                 <TicketBoard
                     tickets={ticketState.tickets}
                     allTicketsRaw={ticketState.allTicketsRaw}

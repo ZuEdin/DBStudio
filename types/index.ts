@@ -9,3 +9,5 @@ export * from './backend';
 export * from './navigation';
 export * from './ui';
 export * from './collaboration';
+export * from './auth';
+export * from './config';

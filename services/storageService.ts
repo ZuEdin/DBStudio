@@ -1,11 +1,19 @@
 
 import { Project } from '../types/index';
+import { useConfigStore } from '../stores/useConfigStore';
 
 const DB_NAME = 'DBStudioProDB';
 const STORE_METADATA = 'projects_meta';
 const STORE_PAYLOAD = 'projects_data';
 const STORE_LEGACY = 'projects';
-const DB_VERSION = 3; // Incremented for migration logic
+const DB_VERSION = 3; 
+
+// Helper to get remote URL
+const getRemoteUrl = (path: string) => {
+    const config = useConfigStore.getState().config;
+    const baseUrl = config.apiUrl || '';
+    return `${baseUrl}${path}`;
+};
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -64,6 +72,23 @@ const openDB = (): Promise<IDBDatabase> => {
 };
 
 export const saveProjectToStorage = async (project: Project): Promise<void> => {
+  const { storage } = useConfigStore.getState().config;
+  
+  if (storage === 'server') {
+    try {
+      const response = await fetch(getRemoteUrl('/projects'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(project)
+      });
+      if (!response.ok) throw new Error('Remote storage error');
+      return;
+    } catch (e) {
+      console.warn('Remote storage failed, falling back to local', e);
+      // Fallback allowed or strictly restricted? User said "switch between", so fallback is safe if it fails
+    }
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_METADATA, STORE_PAYLOAD], 'readwrite');
@@ -93,6 +118,17 @@ export const saveProjectToStorage = async (project: Project): Promise<void> => {
 };
 
 export const getAllProjects = async (): Promise<Project[]> => {
+  const { storage } = useConfigStore.getState().config;
+  
+  if (storage === 'server') {
+     try {
+       const response = await fetch(getRemoteUrl('/projects'));
+       if (response.ok) return await response.json();
+     } catch(e) {
+       console.warn('Remote fetch failed', e);
+     }
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_METADATA], 'readonly');
@@ -121,6 +157,17 @@ export const getAllProjects = async (): Promise<Project[]> => {
 };
 
 export const getProjectById = async (id: string): Promise<Project | undefined> => {
+  const { storage } = useConfigStore.getState().config;
+  
+  if (storage === 'server') {
+     try {
+       const response = await fetch(getRemoteUrl(`/projects/${id}`));
+       if (response.ok) return await response.json();
+     } catch(e) {
+       console.warn('Remote fetch failed', e);
+     }
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_METADATA, STORE_PAYLOAD], 'readonly');
@@ -148,6 +195,15 @@ export const getProjectById = async (id: string): Promise<Project | undefined> =
 };
 
 export const deleteProjectFromStorage = async (id: string): Promise<void> => {
+  const { storage } = useConfigStore.getState().config;
+  
+  if (storage === 'server') {
+     try {
+       await fetch(getRemoteUrl(`/projects/${id}`), { method: 'DELETE' });
+       return;
+     } catch(e) {}
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_METADATA, STORE_PAYLOAD], 'readwrite');
