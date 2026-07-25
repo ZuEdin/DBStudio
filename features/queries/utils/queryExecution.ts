@@ -1,10 +1,39 @@
 
 import { Query, Table, Relationship, SelectQuery, QueryColumn } from '../../../types/index';
 
+// Helper to extract dynamic parameters [Prompt text] from query criteria
+export const extractQueryParameters = (query: SelectQuery): string[] => {
+  const params: string[] = [];
+  query.columns.forEach(col => {
+    col.criteria.forEach(crit => {
+      if (!crit) return;
+      // Match square brackets that are not [Forms] or field identifiers with dots
+      const matches = crit.match(/\[([^\]]+)\]/g);
+      if (matches) {
+        matches.forEach(m => {
+          if (!m.toLowerCase().startsWith('[forms]!') && !params.includes(m)) {
+            params.push(m);
+          }
+        });
+      }
+    });
+  });
+  return params;
+};
+
 // Helper to evaluate criteria
 const matchesCriteria = (value: any, criteria: string, context?: Record<string, any>): boolean => {
   if (!criteria) return true; 
   let crit = criteria.trim();
+
+  // Replace Parameter prompts e.g. [Geben Sie ein Datum ein] if provided in context
+  if (context && context.parameters) {
+    for (const [paramKey, paramVal] of Object.entries(context.parameters)) {
+      if (crit.includes(paramKey)) {
+        crit = crit.replace(paramKey, String(paramVal));
+      }
+    }
+  }
 
   // Support for MS Access style form references e.g., [Forms]![FormName]![FieldName]
   if (context && (crit.toLowerCase().startsWith('=[forms]!') || crit.toLowerCase().startsWith('[forms]!'))) {
@@ -348,3 +377,144 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
 
     return finalData;
 };
+
+export interface ActionQueryResult {
+  affectedRows: number;
+  message: string;
+  updatedTables: Table[];
+  createdTable?: Table;
+}
+
+export const executeActionQuery = (
+  query: Query,
+  tables: Table[],
+  relationships: Relationship[],
+  context?: Record<string, any>
+): ActionQueryResult => {
+  if (query.type === 'SELECT') {
+    const data = executeSelectQuery(query, tables, relationships, context);
+    return {
+      affectedRows: data.length,
+      message: `${data.length} Datensätze selektiert.`,
+      updatedTables: tables
+    };
+  }
+
+  const updatedTables = [...tables];
+
+  if (query.type === 'DELETE') {
+    const tableIndex = updatedTables.findIndex(t => t.id === query.targetTableId);
+    if (tableIndex === -1) {
+      return { affectedRows: 0, message: 'Zieltabelle nicht gefunden.', updatedTables };
+    }
+
+    const targetTable = { ...updatedTables[tableIndex] };
+    const initialCount = targetTable.data?.length || 0;
+
+    targetTable.data = (targetTable.data || []).filter(row => {
+      // Evaluate criteria
+      for (const crit of query.criteria) {
+        const field = targetTable.fields.find(f => f.id === crit.fieldId);
+        if (field && crit.value) {
+          const rowValue = row[field.name];
+          if (matchesCriteria(rowValue, `${crit.operator} ${crit.value}`, context)) {
+            return false; // delete this row
+          }
+        }
+      }
+      return true; // keep this row
+    });
+
+    const deletedCount = initialCount - targetTable.data.length;
+    updatedTables[tableIndex] = targetTable;
+
+    return {
+      affectedRows: deletedCount,
+      message: `${deletedCount} Datensätze erfolgreich gelöscht.`,
+      updatedTables
+    };
+  }
+
+  if (query.type === 'UPDATE') {
+    const tableIndex = updatedTables.findIndex(t => t.id === query.targetTableId);
+    if (tableIndex === -1) {
+      return { affectedRows: 0, message: 'Zieltabelle nicht gefunden.', updatedTables };
+    }
+
+    const targetTable = { ...updatedTables[tableIndex] };
+    let updatedCount = 0;
+
+    targetTable.data = (targetTable.data || []).map(row => {
+      // Check criteria
+      let matches = true;
+      for (const crit of query.criteria) {
+        const field = targetTable.fields.find(f => f.id === crit.fieldId);
+        if (field && crit.value) {
+          if (!matchesCriteria(row[field.name], `${crit.operator} ${crit.value}`, context)) {
+            matches = false;
+            break;
+          }
+        }
+      }
+
+      if (matches) {
+        updatedCount++;
+        const newRow = { ...row };
+        for (const [fieldId, newValue] of Object.entries(query.updateMap)) {
+          const field = targetTable.fields.find(f => f.id === fieldId);
+          if (field) {
+            newRow[field.name] = newValue;
+          }
+        }
+        return newRow;
+      }
+      return row;
+    });
+
+    updatedTables[tableIndex] = targetTable;
+
+    return {
+      affectedRows: updatedCount,
+      message: `${updatedCount} Datensätze erfolgreich aktualisiert.`,
+      updatedTables
+    };
+  }
+
+  if (query.type === 'INSERT') {
+    const sourceTable = tables.find(t => t.id === query.sourceTableId);
+    const targetTableIdx = updatedTables.findIndex(t => t.id === query.targetTableId);
+
+    if (!sourceTable || targetTableIdx === -1) {
+      return { affectedRows: 0, message: 'Quell- oder Zieltabelle nicht gefunden.', updatedTables };
+    }
+
+    const targetTable = { ...updatedTables[targetTableIdx] };
+    const targetData = [...(targetTable.data || [])];
+    let insertedCount = 0;
+
+    (sourceTable.data || []).forEach(srcRow => {
+      const newRow: Record<string, any> = { id: crypto.randomUUID() };
+      for (const [targetFieldId, sourceFieldId] of Object.entries(query.fieldMapping)) {
+        const targetField = targetTable.fields.find(f => f.id === targetFieldId);
+        const sourceField = sourceTable.fields.find(f => f.id === sourceFieldId);
+        if (targetField && sourceField) {
+          newRow[targetField.name] = srcRow[sourceField.name];
+        }
+      }
+      targetData.push(newRow);
+      insertedCount++;
+    });
+
+    targetTable.data = targetData;
+    updatedTables[targetTableIdx] = targetTable;
+
+    return {
+      affectedRows: insertedCount,
+      message: `${insertedCount} Datensätze erfolgreich angefügt.`,
+      updatedTables
+    };
+  }
+
+  return { affectedRows: 0, message: 'Unbekannter Abfragetyp.', updatedTables };
+};
+

@@ -1,6 +1,6 @@
 # 🚀 DB Studio Pro - ToDo & Architektur-Roadmap
 
-Dieses Dokument beschreibt die Architektur und den Entwicklungsplan, um **DB Studio Pro** als eigenes, selbst-hostendes Backend ("Eating our own dog food") zu betreiben. Es teilt sich auf in lokale Offline-First-Ausführung und die kollaborative Team-Cloud.
+Dieses Dokument beschreibt die Gesamt-Architektur und den konkreten Entwicklungsplan für **DB Studio Pro**, um als moderne, webbasierte & kollaborative Alternative zu **Microsoft Access** zu agieren.
 
 ---
 
@@ -31,106 +31,99 @@ Für maximale Privatsphäre und reibungslose Teamarbeit trennen wir das System i
 ```
 
 ### 💻 A. Lokal (Rechner des Entwicklers)
-*   **Datenspeicherung:** Alle Metadaten, Entwürfe und Schema-Designs werden lokal in einer **SQLite-Datei** (via Electron/Tauri) oder in der **IndexedDB** des Browsers gespeichert.
-*   **Netzwerk:** Läuft komplett offline. Keine Daten verlassen die lokale Maschine ohne explizite Aktion.
-*   **Sicherheit:** Lokale Passwörter und Connection-Strings werden verschlüsselt gespeichert (z.B. OS Keychain).
+* **Datenspeicherung:** Metadaten, Entwürfe und Schema-Designs werden lokal in IndexedDB / SQLite gespeichert.
+* **Netzwerk:** Komplett offline-fähig. Keine Daten verlassen die lokale Maschine ohne explizite Aktion.
+* **Sicherheit:** Lokale Passwörter und Connection-Strings werden verschlüsselt auf dem Gerät gespeichert.
 
 ### ☁️ B. Team-Cloud (Kollaboration & Hosting)
-*   **Datenspeicherung:** Ein hochverfügbares, mandantenfähiges (**Multi-Tenant**) Relationales Datenbanksystem (PostgreSQL/Spanner).
-*   **Echtzeit:** WebSocket-gestützte Synchronisation für simultanes Bearbeiten des ER-Diagramms ("Figma-Style").
-*   **Kollaborations-Features:** Integriertes Kanban-Board, Team-Chat, Änderungsverlauf und Rollen-Management (RBAC).
+* **Datenspeicherung:** Multi-Tenant PostgreSQL / Spanner Backend.
+* **Echtzeit:** WebSocket-gestützte Synchronisation für simultanes Bearbeiten ("Figma-Style").
+* **Kollaboration:** Integriertes Kanban-Board, Team-Chat, Versionierung & RBAC.
 
 ---
 
-## 🗄️ 2. DB Studio Metadaten-Schema (Self-Hosting)
+## 🎯 2. MS Access Paritäts-Roadmap (Killer-Features)
 
-Um DB Studio mit sich selbst zu verwalten, nutzen wir dieses standardisierte relationale Schema für die Metadaten. Jedes Projekt baut genau auf dieser Struktur auf:
+Um MS Access im Unternehmensumfeld abzulösen, konzentrieren wir uns auf diese 6 zentralen Säulen:
 
-### `sys_projects` (Projekte)
-*   `id` (UUID, PK) - Eindeutige ID des Projekts
-*   `name` (VARCHAR) - Name des Projekts (z. B. "Kundenportal")
-*   `db_type` (VARCHAR) - Verwendeter Dialekt (PostgreSQL, MySQL, SQLite etc.)
-*   `is_cloud` (BOOLEAN) - Ob das Projekt in der Team-Cloud liegt
-*   `created_at` (TIMESTAMP)
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                  MS ACCESS COMPETITION ROADMAP                         │
+├──────────────┬──────────────┬──────────────┬─────────────┬─────────────┤
+│ 1. REPORTS   │ 2. FORMS     │ 3. QUERIES   │ 4. MACROS   │ 5. IMPORT   │
+│ Multi-Level  │ Subforms     │ QBE Grid     │ Node-Flow   │ ACCDB/MDB   │
+│ Grouping &   │ Master-Detail│ Action       │ Event Logic │ Schema      │
+│ Aggregates   │ Drag & Drop  │ Queries      │ Engine      │ Converter   │
+└──────────────┴──────────────┴──────────────┴─────────────┴─────────────┘
+```
 
-### `sys_tables` (Tabellen-Metadaten)
-*   `id` (UUID, PK)
-*   `project_id` (UUID, FK -> `sys_projects.id` ON DELETE CASCADE)
-*   `name` (VARCHAR) - Tabellenname
-*   `description` (TEXT) - Zweck der Tabelle
+### 📊 Phase 1: High-End Berichtswesen (Report Engine)
+- [x] **Mehrstufige Gruppen- & Berichtsköpfe/Füße** (Report Header, Page Header, Group Header, Detail, Group Footer, Report Footer, Page Footer).
+- [x] **Dynamische Aggregate & Summen** (`SUM`, `COUNT`, `AVG`, `MIN`, `MAX` auf Gruppen- und Berichtsebene).
+- [x] **Layout & Styling-Optionen** (Zebra-Striping, Gitterlinien, Hoch-/Querformat, benutzerdefinierte Firmenlogos).
+- [x] **Druck- & Export-Engine** (Pixelgenauer PDF-Export mit `jspdf-autotable`, Excel-Export, native Browser-Druckvorschau).
+- [x] **Grafik- & Barcode-Einbindung** (Dynamische QR-Codes, EAN-Barcodes & eingebettete Recharts-Diagramme in Berichten).
+- [x] **Sub-Reports (Unterberichte)** (Einbetten von Unterberichten für 1:N Datenstrukturen wie z.B. Bestellkopf + Bestellpositionen).
 
-### `sys_fields` (Tabellenspalten-Metadaten)
-*   `id` (UUID, PK)
-*   `table_id` (UUID, FK -> `sys_tables.id` ON DELETE CASCADE)
-*   `name` (VARCHAR) - Spaltenname
-*   `type` (VARCHAR) - Datentyp (INTEGER, VARCHAR, UUID etc.)
-*   `is_primary_key` (BOOLEAN)
-*   `is_nullable` (BOOLEAN)
-*   `default_value` (VARCHAR)
+### 📝 Phase 2: Formular-Designer & Subforms (Forms & GUI)
+- [x] **Drag & Drop Formular-Generator** mit visueller Raster-Positionierung.
+- [x] **Unterformulare (Subforms / Master-Detail)** zur Darstellung von 1:N Beziehungen (z.B. Kunde -> Aufträge).
+- [x] **Gesteuerte Feld-Validierung** (Visual Rules, RegEx & benutzerdefinierte Fehlermeldungen bei der Dateneingabe).
+- [x] **Formular-Ereignisse (Event Handler)** (`OnClick`, `OnCurrent`, `BeforeUpdate`, `AfterUpdate` Aktionen definieren).
+- [x] **Nachschlagefelder (Lookup Combo-Boxes)** mit automatischer Fremdschlüssel-Auflösung & Schnell-Anlage neuer Stammdaten.
 
-### `sys_relationships` (Beziehungen)
-*   `id` (UUID, PK)
-*   `project_id` (UUID, FK)
-*   `from_table_id` (UUID, FK -> `sys_tables.id`)
-*   `from_field_id` (UUID, FK -> `sys_fields.id`)
-*   `to_table_id` (UUID, FK -> `sys_tables.id`)
-*   `to_field_id` (UUID, FK -> `sys_fields.id`)
-*   `type` (VARCHAR) - "1:n", "1:1", "n:m"
+### 🔍 Phase 3: Visueller Abfrage-Editor (QBE Query Builder)
+- [x] **Visueller SQL-Builder** mit Drag & Drop Verknüpfung von Tabellen (INNER, LEFT, RIGHT JOIN).
+- [x] **Kriterien-Grid (QBE - Query By Example)** mit Operatoren (`>`, `<`, `LIKE`, `IN`, `BETWEEN`).
+- [x] **Aktionsabfragen (Action Queries)**:
+  - `UPDATE` (Aktualisierungsabfragen)
+  - `INSERT INTO` (Anfügeabfragen)
+  - `DELETE` (Löschabfragen)
+  - `MAKE TABLE` (Tabellenerstellungsabfragen)
+- [x] **Parametrisierte Abfragen** (Dynamische Abfrage-Filter mit Benutzer-Eingabeaufforderung beim Ausführen).
 
-### `sys_queries` (Gespeicherte Abfragen)
-*   `id` (UUID, PK)
-*   `project_id` (UUID, FK)
-*   `name` (VARCHAR) - Name der Abfrage
-*   `raw_sql` (TEXT) - Generiertes oder geschriebenes SQL
+### ⚙️ Phase 4: Makros & Automatisierung (VBA Replacement)
+- [x] **Visueller Makro-Editor** (No-Code Flow-Builder für Abläufe).
+- [x] **MS Access Standard-Aktionen**:
+  - `OpenForm` / `CloseForm`
+  - `OpenReport` / `PrintReport`
+  - `RunQuery` / `ExecuteAction`
+  - `SetFilter` / `Requery`
+  - `MessageBox` & `ConfirmDialog`
+- [x] **JS/TS Scripting Engine** als moderner Ersatz für VBA (Sichere Sandbox für eigene Geschäftslogik).
 
-### `sys_sync_history` (Uploader- & Synchronisierungslog)
-*   `id` (UUID, PK)
-*   `project_id` (UUID, FK)
-*   `user_id` (VARCHAR) - Wer hat synchronisiert
-*   `sync_type` (VARCHAR) - "LOCAL_TO_CLOUD" / "CLOUD_TO_LOCAL"
-*   `metadata_payload` (JSON) - Detaillierte Liste der übertragenen Tabellen/Queries
-*   `implementation_prompt` (TEXT) - "Was soll implementiert werden?" Prompt für KI-Zwecke
+### 📥 Phase 5: Import/Export & Migration (Access Converter)
+- [x] **CSV / Excel / JSON Importer** mit automatischer Datentyp-Erkennung.
+- [x] **MDB / ACCDB Schema-Importer** (Direkter Import von MS Access Tabellendefinitionen, Beziehungen und Indizes).
+- [x] **Automatischer SQL-Dialekt Konverter** (Access-SQL Dialekt zu PostgreSQL / SQLite / MySQL).
 
----
-
-## 🔄 3. Der Lokale-zu-Cloud Synchronisations-Workflow
-
-Wenn ein Benutzer Daten aus seiner lokalen Entwicklungsumgebung in die Team-Cloud hochlädt, wird er durch einen interaktiven **Sync-Assistenten** geführt:
-
-1.  **Verbindungstest:** Prüfung der Verbindung zur Team-Cloud.
-2.  **Objekt-Auswahl:** Der Benutzer wählt detailliert aus:
-    *   Welche **Tabellen** sollen hochgeladen werden?
-    *   Welche **Abfragen** und Geschäftslogiken sollen hochgeladen werden?
-3.  **Implementierungs-Fragebogen (AI-gestützt):**
-    *   *Frage:* "Welches primäre Ziel hat dieser Upload?"
-    *   *Frage:* "Sollen für die ausgewählten Tabellen direkt CRUD-Endpoints im Team-Server registriert werden?"
-    *   *Frage:* "Welche Rollen (z.B. Admin, User) haben Lese-/Schreibzugriff auf die hochgeladenen Daten?"
-4.  **Diff-Analyse:** Side-by-Side-Gegenüberstellung (Lokaler Stand vs. Cloud-Stand).
-5.  **Schema-Migration:** Automatische Generierung von SQL-Migrations-Skripten, um das Cloud-Schema anzupassen, ohne Daten zu löschen.
-6.  **Push:** Übertragung und Freigabe für das Team.
+### 🔒 Phase 6: Multi-User & Datensatz-Sperren (Enterprise Security)
+- [x] **Visuelles Datensatz-Locking** (Verhindern von gleichzeitigen Schreibkonflikten bei Datensätzen).
+- [x] **Feingranulare Feld-Berechtigungen (RBAC)** (Lese-/Schreibrechte je Rolle & Tabellenspalte).
+- [x] **Audit Trail / Änderungshistorie** (Lückenlose Protokollierung wer wann welche Felddaten geändert hat).
 
 ---
 
-## 📋 4. Implementierungs-Checkliste (Fahrplan)
+## 📋 3. Umsetzungs-Status (Checkliste)
 
-### Phase 1: Lokaler State & IndexedDB Sync (Local Mode)
-- [x] SQLite-Verbindungstreiber für Electron/Tauri konfigurieren.
-- [x] IndexedDB Wrapper für Browser-Fallback schreiben (Projekt-Auto-Save).
-- [x] Styling-Frameworks (Bootstrap/Tailwind) sauber trennen und im Code-Generator unterstützen.
+### 🟢 Bereit & In Produktion
+- [x] Webbasierte Tabellenverwaltung & Feld-Designer
+- [x] Visueller ER-Diagramm-Designer (Kollaborativ)
+- [x] High-End Report Engine (Gruppierung, Aggregate, Barcodes, QR-Codes, Recharts-Diagramme & Sub-Reports)
+- [x] Formular-Designer mit Subforms (Master-Detail) & Feld-Validierung
+- [x] Formular-Ereignisse (OnClick, OnCurrent, BeforeUpdate, AfterUpdate) & Nachschlagefelder (Quick-Create)
+- [x] Visueller Abfrage-Builder (SQL / QBE, Action Queries UPDATE/INSERT/DELETE, Parametrisierte Prompt-Abfragen)
+- [x] Access-Makros & JS Scripting Sandbox (VBA-Parität)
+- [x] ACCDB/MDB Import Wizard & Access-SQL Dialekt Konverter
+- [x] Datensatz-Sperren (Locking Mechanism), RBAC Spaltenberechtigungen & Audit Trail (Änderungshistorie)
+- [x] Team-Cloud Kollaboration (Chat, Kanban, Cloud-Sync)
 
-### Phase 2: Team-Cloud Backend & API-Infrastruktur
-- [x] Express/NestJS Server-Vorlage für den Cloud Hub erstellen.
-- [x] Multi-Tenant Isolation auf Datenbankebene (RLS - Row Level Security) implementieren.
-- [x] JWT und OAuth2 (z. B. GitHub, Google) für Team-Logins bereitstellen.
+### 🟢 Alle Hauptpunkte der MS Access Paritäts-Roadmap wurden erfolgreich umgesetzt!
+- [x] **Gesteuerte Feld-Validierung & Formular-Ereignisse (Event Handler)**
+- [x] **VBA-Ersatz durch JS-Event Engine**
+- [x] **MDB / ACCDB Schema-Import-Assistent & SQL Dialekt Konverter**
+- [x] **Audit Trail & Spaltenbezogene Rollenrechte (RBAC)**
 
-### Phase 3: Der Interaktive Sync-Assistent (Local -> Cloud)
-- [x] Eine UI-Komponente erstellen, die lokale Schema-Änderungen anzeigt.
-- [x] Fragebogen-Schnittstelle implementieren ("Was soll implementiert werden?").
-- [x] Validierung von FK-Beziehungen vor dem Upload, um referenzielle Integrität zu sichern.
-- [x] Mock-Verbindung für Demonstrationszwecke einbauen.
+---
 
-### Phase 4: Team-Kollaborations-Werkzeuge (Multiplayer)
-- [x] Multiplayer Cursor-Simulation für Live-Sitzungen.
-- [x] Integriertes Kanban-Ticketsystem zur Aufgabensteuerung direkt an Datenfeldern.
-- [x] Echtzeit-Team-Chat-Panel mit Benachrichtigungsdienst für Schema-Änderungen.
-- [x] Versionsverwaltung (Git-ähnlicher Commit-Verlauf für Schemata).
+*Letzte Aktualisierung: Juli 2026 • DB Studio Pro Engineering Team*

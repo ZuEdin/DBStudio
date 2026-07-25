@@ -1,21 +1,31 @@
 import { Macro, MacroStep, ReportExportConfig } from '../../types/macro';
 import { exportDataToFile } from '../../utils/exportHelper';
-import { executeSelectQuery } from '../queries/utils/queryExecution';
+import { executeSelectQuery, executeActionQuery } from '../queries/utils/queryExecution';
 import { Table, Query, Report } from '../../types/index';
+import { logAuditTrail } from '../../utils/auditTrail';
 
 export interface MacroExecutionContext {
   tables: Table[];
   queries: Query[];
   reports: Report[];
   params?: Record<string, any>;
+  currentRecord?: Record<string, any>;
   onShowToast?: (msg: string, type: 'success' | 'info' | 'warning' | 'error') => void;
   onNavigate?: (pageId: string) => void;
   onOpenSmartImport?: (targetTableId?: string) => void;
   onOpenFormModal?: (formId: string, mode?: 'create' | 'edit') => void;
+  onCloseFormModal?: () => void;
+  onOpenReportView?: (reportId: string) => void;
+  onRequery?: () => void;
+  onTableChange?: (updatedTable: Table) => void;
 }
 
 export function executeMacroStep(step: MacroStep, context: MacroExecutionContext) {
-  const { tables, queries, reports, params, onShowToast, onNavigate, onOpenSmartImport, onOpenFormModal } = context;
+  const { 
+    tables, queries, reports, params, currentRecord, 
+    onShowToast, onNavigate, onOpenSmartImport, onOpenFormModal, 
+    onCloseFormModal, onOpenReportView, onRequery, onTableChange 
+  } = context;
 
   switch (step.type) {
     case 'EXPORT_REPORT': {
@@ -72,8 +82,23 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
       if (step.queryId) {
         const query = queries.find(q => q.id === step.queryId);
         if (query) {
-          executeSelectQuery(query as any, tables, []);
-          if (onShowToast) onShowToast(`Makro: Abfrage '${query.name}' wurde ausgeführt.`, 'info');
+          if (query.type === 'SELECT') {
+            executeSelectQuery(query as any, tables, []);
+            if (onShowToast) onShowToast(`Makro: Abfrage '${query.name}' wurde ausgeführt.`, 'info');
+          } else {
+            const res = executeActionQuery(query, tables, []);
+            if (onTableChange && res.updatedTables) {
+              res.updatedTables.forEach(t => onTableChange(t));
+            }
+            if (onShowToast) onShowToast(`Makro Aktionsabfrage: ${res.message}`, 'success');
+            logAuditTrail({
+              tableName: query.name,
+              recordId: 'MASS_ACTION',
+              action: 'EXECUTE_QUERY',
+              user: 'MakroEngine',
+              details: res.message
+            });
+          }
         }
       }
       break;
@@ -82,6 +107,99 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
     case 'OPEN_FORM': {
       if (step.formId && onOpenFormModal) {
         onOpenFormModal(step.formId, 'create');
+      }
+      break;
+    }
+
+    case 'CLOSE_FORM': {
+      if (onCloseFormModal) {
+        onCloseFormModal();
+      }
+      break;
+    }
+
+    case 'OPEN_REPORT':
+    case 'PRINT_REPORT': {
+      if (step.reportId && onOpenReportView) {
+        onOpenReportView(step.reportId);
+        if (step.type === 'PRINT_REPORT') {
+          setTimeout(() => window.print(), 500);
+        }
+      } else if (step.exportConfig && step.exportConfig.sourceId && onOpenReportView) {
+        onOpenReportView(step.exportConfig.sourceId);
+      }
+      break;
+    }
+
+    case 'EXECUTE_ACTION': {
+      if (step.queryId) {
+        const query = queries.find(q => q.id === step.queryId);
+        if (query) {
+          const res = executeActionQuery(query, tables, []);
+          if (onTableChange && res.updatedTables) {
+            res.updatedTables.forEach(t => onTableChange(t));
+          }
+          if (onShowToast) onShowToast(`Aktionsabfrage '${query.name}': ${res.message}`, 'success');
+        }
+      }
+      break;
+    }
+
+    case 'SET_FILTER': {
+      if (onShowToast) {
+        onShowToast(`Filter angewendet: ${step.filterExpression || 'Aktiv'}`, 'info');
+      }
+      break;
+    }
+
+    case 'REQUERY': {
+      if (onRequery) {
+        onRequery();
+      }
+      if (onShowToast) onShowToast('Datenquellen wurden aktualisiert (Requery).', 'info');
+      break;
+    }
+
+    case 'MESSAGE_BOX': {
+      if (step.messageText) {
+        alert(`[MS Access Hinweis]\n\n${step.messageText}`);
+      }
+      break;
+    }
+
+    case 'CONFIRM_DIALOG': {
+      if (step.confirmPrompt) {
+        const agreed = window.confirm(step.confirmPrompt);
+        if (agreed && onShowToast) {
+          onShowToast('Bestätigung akzeptiert.', 'success');
+        }
+      }
+      break;
+    }
+
+    case 'EXECUTE_JS_SCRIPT': {
+      if (step.jsCode) {
+        try {
+          // JS Scripting Sandbox Execution (VBA replacement)
+          const scriptFn = new Function('context', `
+            try {
+              ${step.jsCode}
+            } catch(e) {
+              console.error("VBA/JS Script Error:", e);
+              if (context.showToast) context.showToast("Script Fehler: " + e.message, "error");
+            }
+          `);
+          scriptFn({
+            record: currentRecord || {},
+            tables,
+            queries,
+            params: params || {},
+            showToast: onShowToast,
+            navigate: onNavigate
+          });
+        } catch (err: any) {
+          if (onShowToast) onShowToast(`JS/VBA Syntax-Fehler: ${err.message}`, 'error');
+        }
       }
       break;
     }

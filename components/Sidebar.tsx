@@ -495,6 +495,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
                     </div>
                 </div>
 
+                {/* Audit Trail / Änderungshistorie */}
+                <div 
+                  id="sidebar_btn_audit_trail"
+                  className="flex items-center justify-between px-2 py-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                  onClick={() => onSetView({ type: 'audit_trail' })}
+                >
+                    <div className="flex items-center gap-2">
+                        <History size={14} className="text-amber-600 dark:text-amber-400" />
+                        <span className="text-slate-700 dark:text-slate-300">Audit Trail (Änderungshistorie)</span>
+                    </div>
+                </div>
+
                 {/* Tickets Board */}
                 <div 
                   id="sidebar_btn_tickets_board"

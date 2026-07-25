@@ -1043,6 +1043,7 @@ export const useAppController = () => {
         
         case 'electron_settings': ui.setShowElectronSettings(true); break;
         case 'security_manager': ui.setShowSecurityManager(true); break;
+        case 'audit_trail': handleSetView({ type: 'audit_trail' }); break;
         case 'navigation_designer': handleSetView({ type: 'navigation_designer' }); break;
         case 'logic_designer': handleSetView({ type: 'logic_designer' }); break;
         case 'api_routing_designer': handleSetView({ type: 'api_routing_designer' }); break;

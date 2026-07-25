@@ -377,6 +377,55 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 />
             </div>
 
+            <div className="border border-emerald-200 bg-emerald-50/50 rounded p-2 text-xs space-y-2">
+                <div className="font-bold text-emerald-800 flex items-center gap-1">
+                  <Shield size={12}/> Validierungsregeln
+                </div>
+                <div className="space-y-1.5">
+                  {(selectedElement.validationRules || []).map((rule, rIdx) => (
+                    <div key={rule.id || rIdx} className="bg-white p-2 rounded border border-emerald-200 space-y-1">
+                      <div className="flex justify-between items-center font-bold text-[11px] text-slate-700">
+                        <span>Typ: {rule.type}</span>
+                        <button 
+                          onClick={() => {
+                            const updated = (selectedElement.validationRules || []).filter((_, i) => i !== rIdx);
+                            onPropertyChange('validationRules', updated);
+                          }}
+                          className="text-rose-500 hover:text-rose-700"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                      <input 
+                        type="text"
+                        placeholder="Fehlermeldung"
+                        value={rule.errorMessage || ''}
+                        onChange={e => {
+                          const updated = [...(selectedElement.validationRules || [])];
+                          updated[rIdx] = { ...updated[rIdx], errorMessage: e.target.value };
+                          onPropertyChange('validationRules', updated);
+                        }}
+                        className="w-full border p-1 rounded text-[11px]"
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newRule = {
+                        id: crypto.randomUUID(),
+                        fieldId: selectedElement.fieldId || selectedElement.id,
+                        type: 'required' as const,
+                        errorMessage: 'Dieses Feld darf nicht leer sein.'
+                      };
+                      onPropertyChange('validationRules', [...(selectedElement.validationRules || []), newRule]);
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded p-1 text-[11px] font-bold shadow-2xs"
+                  >
+                    + Validierungsregel hinzufügen
+                  </button>
+                </div>
+            </div>
+
             <div className="border border-amber-200 bg-amber-50 rounded p-2 text-xs space-y-2">
                 <div className="font-bold text-amber-800 flex items-center gap-1"><Settings2 size={12}/> Bedingte Anzeige</div>
                 <div className="space-y-1">

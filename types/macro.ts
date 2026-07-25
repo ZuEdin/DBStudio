@@ -3,6 +3,15 @@ export type MacroActionType =
   | 'SMART_IMPORT'          // Launch File Upload & Import Wizard
   | 'EXECUTE_QUERY'         // Execute a query or update
   | 'OPEN_FORM'             // Open form with parameters
+  | 'CLOSE_FORM'            // Close active form
+  | 'OPEN_REPORT'           // Open report
+  | 'PRINT_REPORT'          // Print/Export report
+  | 'EXECUTE_ACTION'        // Execute action query (UPDATE/INSERT/DELETE)
+  | 'SET_FILTER'            // Apply filter to view
+  | 'REQUERY'               // Refresh data sources
+  | 'MESSAGE_BOX'           // Show alert dialog
+  | 'CONFIRM_DIALOG'        // Show confirmation dialog
+  | 'EXECUTE_JS_SCRIPT'     // JS/TS Scripting Engine (VBA replacement)
   | 'CALCULATE_FORMULA'     // Run formula on fields
   | 'NAVIGATE'              // Navigate to page
   | 'SHOW_TOAST'            // Notification
@@ -42,7 +51,12 @@ export interface MacroStep {
   importConfig?: SmartImportConfig;
   queryId?: string;
   formId?: string;
+  reportId?: string;
   pageId?: string;
+  filterExpression?: string;
+  messageText?: string;
+  confirmPrompt?: string;
+  jsCode?: string; // JavaScript/TypeScript Sandbox Code
   toastMessage?: string;
   toastType?: 'success' | 'info' | 'warning' | 'error';
   params?: Record<string, any>;

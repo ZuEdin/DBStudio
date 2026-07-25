@@ -147,5 +147,6 @@ export type ViewType =
   | { type: 'roadmap_view' }
   | { type: 'project_management'; panel?: 'dashboard' | 'requirements' | 'vmodel' | 'dotnet' | 'sqlite' | 'rebuild' }
   | { type: 'version_control' }
+  | { type: 'audit_trail' }
   | { type: 'custom_component_designer'; componentId?: string }
   | { type: 'custom_components_manager' };

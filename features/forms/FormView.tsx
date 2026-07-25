@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Table, FormElement, Query } from '../../types/index';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout, AlertCircle } from 'lucide-react';
+import { Form, Table, FormElement, Query, ValidationRule } from '../../types/index';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout, AlertCircle, ShieldAlert } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FormWidget } from './renderer/FormWidget';
 import { evaluateFormFormula } from '../../utils/formulaEvaluator';
+import { logAuditTrail } from '../../utils/auditTrail';
 
 interface FormViewProps {
   form: Form;
@@ -161,10 +162,72 @@ export const FormView: React.FC<FormViewProps> = ({
       setIsCreating(true);
   };
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Validate record before save
+  const validateRecord = (record: Record<string, any>): boolean => {
+    setValidationError(null);
+    if (!sourceTable) return true;
+
+    // 1. Check required fields
+    for (const field of sourceTable.fields) {
+      if (!field.allowNull && !field.isAutoIncrement && field.type !== 'BOOLEAN') {
+        const val = record[field.name];
+        if (val === undefined || val === null || String(val).trim() === '') {
+          setValidationError(`Pflichtfeld-Fehler: '${field.name}' darf nicht leer sein.`);
+          return false;
+        }
+      }
+    }
+
+    // 2. Check Form Validation Rules
+    if (form.validationRules) {
+      for (const rule of form.validationRules) {
+        const fieldName = getFieldName(rule.fieldId);
+        const val = record[fieldName];
+
+        if (rule.type === 'required' && (!val || String(val).trim() === '')) {
+          setValidationError(rule.errorMessage || `Feld '${fieldName}' ist erforderlich.`);
+          return false;
+        }
+
+        if (rule.type === 'regex' && rule.regexPattern && val) {
+          try {
+            const re = new RegExp(rule.regexPattern);
+            if (!re.test(String(val))) {
+              setValidationError(rule.errorMessage || `Feld '${fieldName}' entspricht nicht dem erforderlichen Muster.`);
+              return false;
+            }
+          } catch (e) {
+            console.error('Invalid Regex in validation rule', e);
+          }
+        }
+
+        if (rule.type === 'min' && rule.minValue !== undefined && val !== undefined) {
+          if (Number(val) < rule.minValue) {
+            setValidationError(rule.errorMessage || `Feld '${fieldName}' muss mindestens ${rule.minValue} sein.`);
+            return false;
+          }
+        }
+
+        if (rule.type === 'max' && rule.maxValue !== undefined && val !== undefined) {
+          if (Number(val) > rule.maxValue) {
+            setValidationError(rule.errorMessage || `Feld '${fieldName}' darf höchstens ${rule.maxValue} sein.`);
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  };
+
   const saveNewRecord = () => {
       if (!sourceTable) return;
       const recordToSave = { ...tempRecord };
-      
+
+      if (!validateRecord(recordToSave)) return;
+
       // Auto Increment ID
       sourceTable.fields.forEach(f => {
           if (f.isAutoIncrement && f.type === 'INTEGER' && !recordToSave[f.name]) {
@@ -178,19 +241,22 @@ export const FormView: React.FC<FormViewProps> = ({
 
       const newData = [...(sourceTable.data || []), recordToSave];
       onTableChange({ ...sourceTable, data: newData });
-      
-      // Stay in create mode, just clear the form for the next record (MS Access style)
+
+      // Audit Log
+      logAuditTrail({
+        tableName: sourceTable.name,
+        recordId: recordToSave.id || recordToSave.ID || 'NEW',
+        action: 'INSERT',
+        user: 'admin',
+        details: `Datensatz in Formular '${form.name}' neu angelegt.`
+      });
+
+      // Stay in create mode, clear temp record
       let initialData: Record<string, any> = {};
       if (defaultValues) {
           initialData = { ...initialData, ...defaultValues };
       }
       setTempRecord(initialData);
-  };
-
-  const cancelCreate = () => {
-      setIsCreating(false);
-      setTempRecord({});
-      if (onClose) onClose();
   };
 
   const deleteCurrentRecord = () => {
@@ -205,8 +271,18 @@ export const FormView: React.FC<FormViewProps> = ({
             
         if (originalIndex === undefined || originalIndex === -1) return;
 
+        const deletedRec = sourceTable.data![originalIndex];
         const newFullData = (sourceTable.data || []).filter((_, i) => i !== originalIndex);
         onTableChange({...sourceTable, data: newFullData});
+
+        // Audit Log
+        logAuditTrail({
+          tableName: sourceTable.name,
+          recordId: deletedRec?.id || deletedRec?.ID || originalIndex,
+          action: 'DELETE',
+          user: 'admin',
+          details: `Datensatz in Formular '${form.name}' gelöscht.`
+        });
       }
      );
   };
@@ -585,6 +661,17 @@ export const FormView: React.FC<FormViewProps> = ({
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto p-6">
+                    {validationError && (
+                        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
+                            <div className="flex items-center gap-2">
+                                <ShieldAlert size={16} className="text-rose-600 shrink-0" />
+                                <span>{validationError}</span>
+                            </div>
+                            <button onClick={() => setValidationError(null)} className="text-rose-400 hover:text-rose-700">
+                                <X size={14} />
+                            </button>
+                        </div>
+                    )}
                     {(isUnbound || data.length > 0 || isCreating) ? (form.layout ? renderElement(form.layout) : <div>Kein Layout definiert.</div>) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400">
                             <p className="mb-4">Keine Daten vorhanden.</p>

@@ -11,10 +11,11 @@ interface ReportDesignerViewProps {
   tables: Table[];
   queries: Query[];
   relationships: Relationship[];
+  allReports?: Report[];
   onReportChange: (report: Report) => void;
 }
 
-export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, tables, queries, relationships, onReportChange }) => {
+export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, tables, queries, relationships, allReports = [], onReportChange }) => {
   const [activeTab, setActiveTab] = useState<'columns' | 'grouping' | 'summaries' | 'settings'>('columns');
   const [columns, setColumns] = useState<ReportColumn[]>([]);
   const [sourceFields, setSourceFields] = useState<Field[]>([]);
@@ -160,6 +161,13 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
     onReportChange({ ...report, summaries: updated });
   };
 
+  const handleRenderTypeChange = (index: number, renderType: any) => {
+    const updated = [...columns];
+    updated[index] = { ...updated[index], renderType };
+    setColumns(updated);
+    onReportChange({ ...report, columns: updated });
+  };
+
   // Settings Handlers
   const updateSettings = (key: string, value: any) => {
     onReportChange({
@@ -183,7 +191,7 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
           <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
               <div>
                 <h2 className="font-extrabold text-base flex items-center gap-2 text-amber-400">
-                  <Layout size={18}/> MS Access Designer
+                  <Layout size={18}/> Berichts-Designer
                 </h2>
                 <p className="text-[10px] text-slate-400">Berichtsstruktur & Sektionen bearbeiten</p>
               </div>
@@ -235,8 +243,22 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                             >
                                 <div className="cursor-move text-slate-400 hover:text-slate-600 p-1"><GripVertical size={14}/></div>
                                 <div className="flex-1 grid grid-cols-1 gap-1">
-                                    <div className="text-[10px] font-mono text-slate-400 truncate">
-                                        {sourceFields.find(f => f.id === col.fieldId)?.name || '???'}
+                                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                                        <span className="truncate">{sourceFields.find(f => f.id === col.fieldId)?.name || '???'}</span>
+                                        <select
+                                          value={col.renderType || 'text'}
+                                          onChange={e => handleRenderTypeChange(idx, e.target.value)}
+                                          className="text-[10px] bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-slate-700 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+                                          title="Darstellungstyp (Text, QR Code, Barcode, etc.)"
+                                        >
+                                          <option value="text">Text</option>
+                                          <option value="qrcode">QR Code</option>
+                                          <option value="barcode">Barcode</option>
+                                          <option value="currency">Währung (€)</option>
+                                          <option value="date">Datum</option>
+                                          <option value="badge">Badge</option>
+                                          <option value="image">Bild URL</option>
+                                        </select>
                                     </div>
                                     <input 
                                       type="text" 
@@ -483,6 +505,145 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                           <option value="landscape">Querformat (Landscape)</option>
                         </select>
                       </div>
+
+                      {/* Unterbericht (Sub-Report) Configuration */}
+                      <div className="pt-3 border-t border-slate-200 space-y-2">
+                        <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1">
+                          <Layers size={14} className="text-blue-600"/> Unterbericht (1:N Details)
+                        </h4>
+                        <select
+                          value={report.subReport?.reportId || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (!val) {
+                              onReportChange({ ...report, subReport: undefined });
+                            } else {
+                              onReportChange({
+                                ...report,
+                                subReport: {
+                                  reportId: val,
+                                  foreignKeyFieldId: report.subReport?.foreignKeyFieldId || '',
+                                  parentKeyFieldId: report.subReport?.parentKeyFieldId || sourceFields[0]?.id || ''
+                                }
+                              });
+                            }
+                          }}
+                          className="w-full border border-slate-300 rounded p-1.5 text-xs"
+                        >
+                          <option value="">Kein Unterbericht eingebunden</option>
+                          {allReports.filter(r => r.id !== report.id).map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))}
+                        </select>
+
+                        {report.subReport?.reportId && (
+                          <div className="space-y-1.5 p-2 bg-slate-50 border border-slate-200 rounded text-xs">
+                            <div>
+                              <label className="block font-bold text-slate-600">Fremdschlüssel im Unterbericht:</label>
+                              <input
+                                type="text"
+                                placeholder="z.B. kunden_id"
+                                value={report.subReport.foreignKeyFieldId}
+                                onChange={e => onReportChange({
+                                  ...report,
+                                  subReport: { ...report.subReport!, foreignKeyFieldId: e.target.value }
+                                })}
+                                className="w-full border border-slate-300 rounded p-1"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-bold text-slate-600">Primärschlüssel im Hauptbericht:</label>
+                              <select
+                                value={report.subReport.parentKeyFieldId}
+                                onChange={e => onReportChange({
+                                  ...report,
+                                  subReport: { ...report.subReport!, parentKeyFieldId: e.target.value }
+                                })}
+                                className="w-full border border-slate-300 rounded p-1"
+                              >
+                                {sourceFields.map(f => (
+                                  <option key={f.id} value={f.id}>{f.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Embedded Chart Configuration */}
+                      <div className="pt-3 border-t border-slate-200 space-y-2">
+                        <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1">
+                          <Calculator size={14} className="text-amber-600"/> Eingebettetes Diagramm
+                        </h4>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!report.chartConfig?.enabled}
+                            onChange={e => onReportChange({
+                              ...report,
+                              chartConfig: {
+                                enabled: e.target.checked,
+                                type: report.chartConfig?.type || 'bar',
+                                xAxisFieldId: report.chartConfig?.xAxisFieldId || sourceFields[0]?.id || '',
+                                yAxisFieldId: report.chartConfig?.yAxisFieldId || sourceFields[1]?.id || sourceFields[0]?.id || '',
+                                title: report.chartConfig?.title || 'Übersichtsdiagramm'
+                              }
+                            })}
+                          />
+                          <span className="font-semibold text-slate-800">Diagramm im Berichtskopf anzeigen</span>
+                        </label>
+
+                        {report.chartConfig?.enabled && (
+                          <div className="space-y-1.5 p-2 bg-slate-50 border border-slate-200 rounded text-xs">
+                            <div>
+                              <label className="block font-bold text-slate-600">Diagramm-Typ:</label>
+                              <select
+                                value={report.chartConfig.type}
+                                onChange={e => onReportChange({
+                                  ...report,
+                                  chartConfig: { ...report.chartConfig!, type: e.target.value as any }
+                                })}
+                                className="w-full border border-slate-300 rounded p-1"
+                              >
+                                <option value="bar">Säulendiagramm (Bar)</option>
+                                <option value="line">Liniendiagramm (Line)</option>
+                                <option value="pie">Kreisdiagramm (Pie)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block font-bold text-slate-600">X-Achse (Kategorie):</label>
+                              <select
+                                value={report.chartConfig.xAxisFieldId}
+                                onChange={e => onReportChange({
+                                  ...report,
+                                  chartConfig: { ...report.chartConfig!, xAxisFieldId: e.target.value }
+                                })}
+                                className="w-full border border-slate-300 rounded p-1"
+                              >
+                                {sourceFields.map(f => (
+                                  <option key={f.id} value={f.id}>{f.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block font-bold text-slate-600">Y-Achse (Wert):</label>
+                              <select
+                                value={report.chartConfig.yAxisFieldId}
+                                onChange={e => onReportChange({
+                                  ...report,
+                                  chartConfig: { ...report.chartConfig!, yAxisFieldId: e.target.value }
+                                })}
+                                className="w-full border border-slate-300 rounded p-1"
+                              >
+                                {sourceFields.map(f => (
+                                  <option key={f.id} value={f.id}>{f.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   </div>
                 </div>
@@ -495,7 +656,7 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
       <div className="flex-1 overflow-hidden flex flex-col">
           <div className="bg-slate-800 p-2 text-xs text-center text-slate-300 border-b border-slate-700 shrink-0 font-mono flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>LIVE ACCESS BERICHTSVORSCHAU (DESIGN MODUS)</span>
+              <span>LIVE BERICHTSVORSCHAU (DESIGN MODUS)</span>
           </div>
           <div className="flex-1 overflow-auto relative bg-slate-300 p-4">
              <div className="max-w-5xl mx-auto">
@@ -505,6 +666,8 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                     sourceFields={sourceFields}
                     allTables={tables} 
                     relationships={relationships} 
+                    allReports={allReports}
+                    allQueries={queries}
                 />
              </div>
           </div>

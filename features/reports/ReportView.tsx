@@ -1,11 +1,14 @@
 
 import React, { useMemo, useState } from 'react';
-import { Report, Field, ReportColumn, TextStyle, Table, Relationship, GroupLevel } from '../../types/index';
-import { FileText, FileSpreadsheet, ChevronDown, ExternalLink, Printer, Building2, Calculator } from 'lucide-react';
+import { Report, Field, ReportColumn, TextStyle, Table, Relationship, GroupLevel, Query, ColumnRenderType } from '../../types/index';
+import { FileText, FileSpreadsheet, ChevronDown, ExternalLink, Printer, Building2, Calculator, Layers } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { RecordDetailModal } from '../../components/modals/RecordDetailModal';
+import { ReportCellRenderer } from './components/ReportCellRenderer';
+import { SubReportRenderer } from './components/SubReportRenderer';
+import { ReportChartRenderer } from './components/ReportChartRenderer';
 
 interface ReportViewProps {
   report: Report;
@@ -14,6 +17,8 @@ interface ReportViewProps {
   // Props for Linking
   allTables: Table[];
   relationships: Relationship[];
+  allReports?: Report[];
+  allQueries?: Query[];
   widgetMode?: boolean;
 }
 
@@ -38,7 +43,16 @@ const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
     };
 };
 
-export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFields, allTables, relationships, widgetMode }) => {
+export const ReportView: React.FC<ReportViewProps> = ({ 
+  report, 
+  data, 
+  sourceFields, 
+  allTables, 
+  relationships, 
+  allReports = [], 
+  allQueries = [], 
+  widgetMode 
+}) => {
   const [detailView, setDetailView] = useState<{ targetTableId: string, recordId: any } | null>(null);
 
   // Normalize group levels: convert legacy groupingFieldId or use groupingFields
@@ -60,10 +74,10 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
   }, [report.groupingFields, report.groupingFieldId, sourceFields]);
 
   // Determine Columns to Display
-  const displayColumns = useMemo((): { id: string, label: string, fieldName: string, isFK?: boolean, targetTableId?: string }[] => {
-      let cols = [];
+  const displayColumns = useMemo((): { id: string, label: string, fieldName: string, renderType?: ColumnRenderType, isFK?: boolean, targetTableId?: string }[] => {
+      let cols: any[] = [];
       
-      const mapCol = (fieldId: string, label: string, fieldName: string) => {
+      const mapCol = (fieldId: string, label: string, fieldName: string, renderType?: ColumnRenderType) => {
           let isFK = false;
           let targetTableId = undefined;
 
@@ -74,14 +88,14 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
                   targetTableId = rel.toTableId;
               }
           }
-          return { id: fieldId, label, fieldName, isFK, targetTableId };
+          return { id: fieldId, label, fieldName, renderType, isFK, targetTableId };
       };
 
       if (report.columns && report.columns.length > 0) {
           cols = report.columns
             .filter(c => c.visible)
             .sort((a, b) => a.order - b.order)
-            .map(c => mapCol(c.fieldId, c.label, sourceFields.find(f => f.id === c.fieldId)?.name || ''));
+            .map(c => mapCol(c.fieldId, c.label, sourceFields.find(f => f.id === c.fieldId)?.name || '', c.renderType));
       } else {
           cols = sourceFields.map(f => mapCol(f.id, f.name, f.name));
       }
@@ -347,7 +361,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
           <div className="bg-white border-b border-slate-300 p-2 flex justify-between items-center flex-shrink-0 sticky top-0 z-20 shadow-sm">
               <div className="flex items-center gap-2 pl-2 text-xs font-bold text-slate-700">
                 <Printer size={16} className="text-blue-600" />
-                <span>MS Access Berichtsvorschau</span>
+                <span>Berichtsvorschau</span>
                 <span className="text-slate-400 font-normal">| {processedGroups.length} Gruppen ({data.length} Datensätze)</span>
               </div>
               <div className="flex items-center gap-2">
@@ -382,7 +396,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
                               <p className="text-xs text-slate-600 font-medium">{report.settings.subtitle}</p>
                             )}
                             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold pt-1">
-                              MS ACCESS DATA REPORT • SEKTION: BERICHTSKOPF
+                              BERICHT • SEKTION: BERICHTSKOPF
                             </p>
                         </div>
                         <div className="text-right text-xs text-slate-500 font-mono">
@@ -391,6 +405,15 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
                         </div>
                     </div>
                 </header>
+            )}
+
+            {/* Embedded Chart if enabled */}
+            {report.chartConfig && report.chartConfig.enabled && (
+              <ReportChartRenderer
+                config={report.chartConfig}
+                data={data}
+                sourceFields={sourceFields}
+              />
             )}
 
             {/* 2. HAUPTDATEN & GRUPPIERUNG (Detail Band & Group Headers/Footers) */}
@@ -430,25 +453,45 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
                             <tbody className="divide-y divide-slate-200">
                                 {group.items.map((item, itemIndex) => {
                                     const isZebra = report.settings?.zebraStriping && itemIndex % 2 === 1;
+                                    const parentKeyValue = report.subReport ? item[sourceFields.find(f => f.id === report.subReport?.parentKeyFieldId)?.name || 'id'] : null;
+
                                     return (
-                                      <tr key={itemIndex} className={`transition-colors ${isZebra ? 'bg-slate-50/80' : 'bg-white'} hover:bg-blue-50/50`}>
-                                          {displayColumns.map(col => (
-                                              <td key={col.id} className={`p-2.5 whitespace-nowrap ${report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''}`} style={getCellStyle(item[col.fieldName], { ...col } as any)}>
-                                                  <div className="flex items-center gap-2">
-                                                      <span>{String(item[col.fieldName] ?? '')}</span>
-                                                      {col.isFK && col.targetTableId && item[col.fieldName] && (
-                                                          <button 
-                                                              onClick={() => setDetailView({ targetTableId: col.targetTableId!, recordId: item[col.fieldName] })}
-                                                              className="text-blue-500 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                              title="Details anzeigen"
-                                                          >
-                                                              <ExternalLink size={12}/>
-                                                          </button>
-                                                      )}
-                                                  </div>
-                                              </td>
-                                          ))}
-                                      </tr>
+                                      <React.Fragment key={itemIndex}>
+                                        <tr className={`transition-colors ${isZebra ? 'bg-slate-50/80' : 'bg-white'} hover:bg-blue-50/50`}>
+                                            {displayColumns.map(col => (
+                                                <td key={col.id} className={`p-2.5 whitespace-nowrap ${report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''}`} style={getCellStyle(item[col.fieldName], { ...col } as any)}>
+                                                    <div className="flex items-center gap-2">
+                                                        <ReportCellRenderer value={item[col.fieldName]} renderType={col.renderType || 'text'} />
+                                                        {col.isFK && col.targetTableId && item[col.fieldName] && (
+                                                            <button 
+                                                                onClick={() => setDetailView({ targetTableId: col.targetTableId!, recordId: item[col.fieldName] })}
+                                                                className="text-blue-500 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                title="Details anzeigen"
+                                                            >
+                                                                <ExternalLink size={12}/>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            ))}
+                                        </tr>
+
+                                        {/* Nested Sub-Report if configured */}
+                                        {report.subReport && report.subReport.reportId && (
+                                          <tr className="bg-slate-50/60">
+                                            <td colSpan={displayColumns.length} className="p-2 pl-6">
+                                              <SubReportRenderer
+                                                subReportId={report.subReport.reportId}
+                                                foreignKeyFieldId={report.subReport.foreignKeyFieldId}
+                                                parentKeyValue={parentKeyValue}
+                                                allReports={allReports}
+                                                allTables={allTables}
+                                                allQueries={allQueries}
+                                              />
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </React.Fragment>
                                     );
                                 })}
                             </tbody>
@@ -503,7 +546,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
             {/* 4. SEITENFUSS (Page Footer) */}
             {(!widgetMode && report.settings?.showPageFooter !== false) && (
               <footer className="mt-12 pt-3 border-t border-slate-200 flex justify-between items-center text-[11px] text-slate-400 font-mono">
-                <div>DB Studio Pro • MS Access Report Engine</div>
+                <div>DB Studio Pro • Report Engine</div>
                 <div>Seite 1 von 1</div>
               </footer>
             )}

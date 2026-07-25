@@ -17,6 +17,7 @@ import { BackendView } from '../features/backend/BackendView';
 import { DbstudioBackendView } from '../features/backend/DbstudioBackendView';
 import { RoadmapView } from '../features/tools/RoadmapView';
 import { VersionControlView } from '../features/tools/VersionControlView';
+import { AuditTrailView } from '../features/tools/AuditTrailView';
 import { ProjectManagementView } from '../features/projects/ProjectManagementView';
 import { ApiImportView } from '../features/tools/ApiImportView';
 import { LiveDatabaseSyncView } from '../features/tools/LiveDatabaseSyncView';
@@ -214,7 +215,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 const query = queries.find(q => q.id === report.sourceId);
                 if (query) data = executeQuery(query);
             }
-            return <ReportView report={report} data={data} sourceFields={sourceFields} allTables={tables} relationships={relationships} />;
+            return <ReportView report={report} data={data} sourceFields={sourceFields} allTables={tables} relationships={relationships} allReports={reports} allQueries={queries} />;
         }
         return null;
       case 'report_designer':
@@ -229,7 +230,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                   };
                   return <DashboardDesigner report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} reports={reports} onReportChange={onActiveObjectChange as any} onOpenReport={handleOpenReport} />;
               }
-              return <ReportDesignerView report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} onReportChange={onActiveObjectChange as any} />;
+              return <ReportDesignerView report={activeObject as Report} tables={tables} queries={queries} relationships={relationships} allReports={reports} onReportChange={onActiveObjectChange as any} />;
           }
           return null;
       case 'form_view':
@@ -437,6 +438,8 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         );
       case 'version_control':
         return <VersionControlView />;
+      case 'audit_trail':
+        return <AuditTrailView />;
       case 'custom_component_designer':
         return <CustomComponentDesigner componentId={(currentView as any).componentId} />;
       case 'custom_components_manager':

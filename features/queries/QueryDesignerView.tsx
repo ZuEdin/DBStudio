@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Canvas } from '../../components/Canvas';
 import { QueryGrid } from './components/QueryGrid';
 import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType, Form } from '../../types/index';
-import { Calculator, Sigma, Sparkles, Play, Database, Wand2, Loader2, Check, HelpCircle, X, Terminal } from 'lucide-react';
+import { Calculator, Sigma, Sparkles, Play, Database, Wand2, Loader2, Check, HelpCircle, X, Terminal, Code } from 'lucide-react';
 import { generateSqlSelect } from '../../utils/sqlHelper';
+import { AccessSqlConverterModal } from '../tools/AccessSqlConverterModal';
 
 interface QueryDesignerViewProps {
   query: Query;
@@ -258,6 +259,8 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     } catch (err) { console.error('Grid drop error', err); }
   };
 
+  const [showAccessSqlModal, setShowAccessSqlModal] = useState(false);
+
   return (
     <div className="w-full h-full flex flex-col relative">
       <div className="bg-slate-100 border-b border-slate-300 p-1 flex gap-2 items-center">
@@ -269,13 +272,30 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
          </button>
          
          <button 
+           onClick={() => setShowAccessSqlModal(true)}
+           className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 font-bold transition ml-auto shrink-0 shadow-2xs"
+         >
+            <Code size={13} className="text-blue-600" />
+            <span>Access SQL Konverter</span>
+         </button>
+
+         <button 
            onClick={() => { setTranslatedSql(''); setShowAiTranslator(true); }}
-           className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold transition ml-auto shadow-sm shrink-0"
+           className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold transition shrink-0 shadow-2xs"
          >
             <Sparkles size={13} className="text-indigo-500 animate-pulse" /> 
             <span>AI SQL-Assistent</span>
          </button>
       </div>
+
+      {showAccessSqlModal && (
+        <AccessSqlConverterModal 
+          onClose={() => setShowAccessSqlModal(false)} 
+          onApplySql={(convertedSql) => {
+            setOverrideSql(convertedSql);
+          }}
+        />
+      )}
 
       <div className="flex-1 relative bg-slate-200" onDragOver={(e) => e.preventDefault()} onDrop={handleDropOnCanvas}>
         <Canvas nodes={nodes} tables={tables} relationships={relationships} onMoveNode={handleMoveNode} onRemoveNode={handleRemoveNode} isInteractive={true} />

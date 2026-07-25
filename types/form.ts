@@ -30,6 +30,27 @@ export interface ActionFlow {
   stateValue?: string;
 }
 
+export interface ValidationRule {
+  id: string;
+  fieldId: string;
+  type: 'required' | 'regex' | 'min' | 'max' | 'custom_js';
+  regexPattern?: string;
+  minValue?: number;
+  maxValue?: number;
+  customJsCode?: string;
+  errorMessage: string;
+}
+
+export interface FormEventHandler {
+  id: string;
+  event: 'OnCurrent' | 'BeforeUpdate' | 'AfterUpdate' | 'OnClick';
+  actionType: 'macro' | 'js_script' | 'toast' | 'open_form' | 'open_report';
+  macroId?: string;
+  jsCode?: string;
+  toastMessage?: string;
+  targetId?: string;
+}
+
 export interface FormElement {
   id: string;
   type: 'container' | 'field' | 'label' | 'subform' | 'button';
@@ -43,8 +64,10 @@ export interface FormElement {
   lookup?: LookupConfig;
   subform?: Subform;
   actions?: ActionFlow[];
+  eventHandlers?: FormEventHandler[];
   allowedRoles?: string[];
   visibilityCondition?: { fieldId: string; operator: 'eq' | 'neq'; value: string };
+  validationRules?: ValidationRule[];
 }
 
 export interface FormField {
@@ -79,5 +102,7 @@ export interface Form {
   subform?: Subform;
   settings?: FormSettings;
   crossFieldValidations?: CrossFieldValidation[];
+  validationRules?: ValidationRule[];
+  eventHandlers?: FormEventHandler[];
   allowedRoles?: string[];
 }

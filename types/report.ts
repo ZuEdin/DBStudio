@@ -15,11 +15,14 @@ export interface FormattingRule {
   style: TextStyle;
 }
 
+export type ColumnRenderType = 'text' | 'qrcode' | 'barcode' | 'badge' | 'currency' | 'date' | 'image';
+
 export interface ReportColumn {
   fieldId: string;
   label: string;
   visible: boolean;
   order: number;
+  renderType?: ColumnRenderType;
   formattingRules?: FormattingRule[];
 }
 
@@ -45,6 +48,21 @@ export interface ReportStyles {
   columnHeader?: TextStyle;
   detail?: TextStyle;
   footer?: TextStyle;
+}
+
+export interface SubReportConfig {
+  reportId: string; // ID of the target report to render as sub-report
+  foreignKeyFieldId: string; // FK in child report that connects to parent
+  parentKeyFieldId: string; // PK in parent report
+  title?: string;
+}
+
+export interface ReportChartConfig {
+  enabled: boolean;
+  type: 'bar' | 'pie' | 'line';
+  xAxisFieldId: string;
+  yAxisFieldId: string;
+  title?: string;
 }
 
 export interface ReportSettings {
@@ -83,7 +101,8 @@ export interface Report {
   summaries: ReportSummary[];
   styles?: ReportStyles;
   settings?: ReportSettings;
+  subReport?: SubReportConfig;
+  chartConfig?: ReportChartConfig;
   dashboardWidgets?: DashboardWidget[];
   allowedRoles?: string[];
 }
-
