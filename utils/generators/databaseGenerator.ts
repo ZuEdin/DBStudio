@@ -4,6 +4,42 @@ import { resolveType, quoteIdentifier, toPascalCase } from './common';
 import { generateSqlSelect } from '../sqlHelper';
 import { generatePrismaSchema, generateDrizzleSchema, generateTypeOrmEntities } from './ormGenerator';
 
+const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSql: boolean): any => {
+    if (!row || typeof row !== 'object') return row;
+    const newRow = { ...row };
+    const key = Object.keys(newRow).find(k => k.toLowerCase() === 'objectid');
+    if (!key) return row;
+
+    const objectId = newRow[key];
+    const objectTypeKey = Object.keys(newRow).find(k => k.toLowerCase() === 'objecttype');
+    const objectType = objectTypeKey ? String(newRow[objectTypeKey]).toLowerCase() : '';
+
+    if (objectType === 'table') {
+        const matchedTable = tables.find(t => t.id === objectId);
+        if (matchedTable) {
+            newRow[key] = isSql ? toPascalCase(matchedTable.name) : matchedTable.name;
+        }
+    } else if (objectType === 'query') {
+        const matchedQuery = queries.find(q => q.id === objectId);
+        if (matchedQuery) {
+            newRow[key] = isSql ? toPascalCase(matchedQuery.name) : matchedQuery.name;
+        }
+    } else if (objectType === 'field') {
+        let matchedFieldName = '';
+        for (const t of tables) {
+            const f = t.fields.find(field => field.id === objectId);
+            if (f) {
+                matchedFieldName = f.name;
+                break;
+            }
+        }
+        if (matchedFieldName) {
+            newRow[key] = matchedFieldName;
+        }
+    }
+    return newRow;
+};
+
 export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relationship[], config: BackendConfig, queries: Query[] = []): VirtualFile[] => {
     const relationships = rawRelationships.filter((rel, index, self) =>
         index === self.findIndex((r) =>
@@ -55,7 +91,11 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
         // Add Data Seeding for NoSQL (Collections.json usually just structure, but we can add seed data file)
         const seedData = processingTables.reduce((acc, t) => {
             if (t.data && t.data.length > 0) {
-                acc[t.name] = t.data;
+                if (t.name.toLowerCase() === 'sys_permissions') {
+                    acc[t.name] = t.data.map(row => mapPermissionObjectId(row, tables, queries || [], false));
+                } else {
+                    acc[t.name] = t.data;
+                }
             }
             return acc;
         }, {} as Record<string, any[]>);
@@ -105,7 +145,11 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
 
                 return line;
             }).join(',\n');
-            sql += `CREATE TABLE ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (\n${fields}\n);\n\n`;
+            if (config.dbType === DbType.SQL) {
+                sql += `IF OBJECT_ID(N'${quoteIdentifier(toPascalCase(table.name), config.dbType)}', N'U') IS NULL\nBEGIN\nCREATE TABLE ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (\n${fields}\n);\nEND\n\n`;
+            } else {
+                sql += `CREATE TABLE IF NOT EXISTS ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (\n${fields}\n);\n\n`;
+            }
         });
 
         // 2. Data Seeding (Insert Statements)
@@ -117,10 +161,13 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                     sql += `SET IDENTITY_INSERT ${quoteIdentifier(toPascalCase(table.name), config.dbType)} ON;\n`;
                 }
 
+                const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
+
                 table.data.forEach(row => {
+                    const mappedRow = isPermissionsTable ? mapPermissionObjectId(row, tables, queries || [], true) : row;
                     const columns = table.fields.map(f => quoteIdentifier(f.name, config.dbType)).join(', ');
                     const values = table.fields.map(f => {
-                        const val = row[f.name];
+                        const val = mappedRow[f.name];
                         if (val === undefined || val === null || val === '') return 'NULL';
                         
                         if (['INTEGER', 'DECIMAL', 'DOUBLE'].includes(f.type)) {

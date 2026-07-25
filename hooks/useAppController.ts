@@ -790,7 +790,9 @@ export const useAppController = () => {
     try {
       if (action === 'backend_generate' || action === 'backend_export' || action.startsWith('form_') || action === 'export_form') {
           ui.setFormActionTrigger({ action, timestamp: Date.now() });
-          if(action === 'backend_generate' && currentView.type !== 'backend_generator') handleSetView({ type: 'backend_generator' });
+          if ((action === 'backend_generate' || action === 'backend_export') && currentView.type !== 'backend_generator') {
+              handleSetView({ type: 'backend_generator' });
+          }
           return;
       }
       

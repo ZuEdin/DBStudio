@@ -9,6 +9,7 @@ import {
   Table, Query, Report, Form, NavigationItem, BackendConfig 
 } from '../../types/index';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { toCamelCase } from '../../utils/generators/common';
 
 // A dynamic icon mapping for easy visual choices
 const AVAILABLE_ICONS = [
@@ -71,7 +72,29 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
   // Initialize menu with existing pages or pre-existing config
   useEffect(() => {
     if (backendConfig.navigationConfig && backendConfig.navigationConfig.length > 0) {
-      setMenuItems(backendConfig.navigationConfig);
+      let currentConfig = [...backendConfig.navigationConfig];
+      const flatItems = getFlatItems(currentConfig);
+      const missingQueries = queries.filter(q => 
+        (q.type === 'SELECT' || q.type === 'UPDATE' || !q.type) && 
+        !flatItems.some(item => (item.targetType === 'query' && item.targetId === q.id) || item.id === `query-${q.id}` || item.route === `/queries/${toCamelCase(q.name)}`)
+      );
+
+      if (missingQueries.length > 0) {
+        const newQueryItems: NavigationItem[] = missingQueries.map(q => ({
+          id: `query-${q.id}`,
+          type: 'page',
+          title: q.name,
+          icon: 'search',
+          route: `/queries/${toCamelCase(q.name)}`,
+          requiredRoles: ['User', 'Admin'],
+          targetId: q.id,
+          targetType: 'query',
+          translations: { de: q.name, en: q.name }
+        }));
+        currentConfig = [...currentConfig, ...newQueryItems];
+        saveToConfig(currentConfig, selectedLayout);
+      }
+      setMenuItems(currentConfig);
     } else {
       // Auto-populate initial clean menu based on existing tables/queries/forms/reports
       const initialItems: NavigationItem[] = [
@@ -99,6 +122,21 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
           targetId: table.id,
           targetType: 'table',
           translations: { de: table.name.replace(/_/g, ' '), en: table.name.replace(/_/g, ' ') }
+        });
+      });
+
+      // Add queries
+      queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE' || !q.type).forEach(query => {
+        initialItems.push({
+          id: `query-${query.id}`,
+          type: 'page',
+          title: query.name,
+          icon: 'search',
+          route: `/queries/${toCamelCase(query.name)}`,
+          requiredRoles: ['User', 'Admin'],
+          targetId: query.id,
+          targetType: 'query',
+          translations: { de: query.name, en: query.name }
         });
       });
 
@@ -401,7 +439,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
   const handleAddToolboxItem = (type: 'table' | 'query' | 'form' | 'report', item: any) => {
     let iconName = 'database';
     let path = `/${item.name?.toLowerCase() || item.id}`;
-    if (type === 'query') { iconName = 'search'; path = `/query/${item.id}`; }
+    if (type === 'query') { iconName = 'search'; path = `/queries/${toCamelCase(item.name || item.id)}`; }
     if (type === 'form') { iconName = 'form'; path = `/form/${item.id}`; }
     if (type === 'report') { iconName = 'file-text'; path = `/report/${item.id}`; }
 
@@ -681,6 +719,30 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                   <Plus size={10} className="text-slate-400 group-hover:text-sky-600" />
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Queries sub-list */}
+          <div className="p-3 border-b border-slate-200 bg-white">
+            <span className="font-bold text-[11px] text-slate-500 flex items-center gap-1">
+              <Search size={12} />
+              Abfragen ({queries.length})
+            </span>
+            <div className="flex flex-col gap-1 mt-1.5">
+              {queries.length === 0 ? (
+                <span className="text-[10px] text-slate-400 italic">Keine Abfragen erstellt</span>
+              ) : (
+                queries.map(q => (
+                  <button
+                    key={q.id}
+                    onClick={() => handleAddToolboxItem('query', q)}
+                    className="w-full text-left p-2 rounded border border-slate-200 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
+                  >
+                    <span className="font-mono text-slate-700 group-hover:text-sky-900 font-medium truncate">{q.name}</span>
+                    <Plus size={10} className="text-slate-400 group-hover:text-sky-600" />
+                  </button>
+                ))
+              )}
             </div>
           </div>
 

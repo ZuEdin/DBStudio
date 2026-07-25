@@ -481,7 +481,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                {${loadingState} ? (
                    <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 animate-pulse rounded-2xl p-5 h-28"></div>
                ) : (
-                   <div className={"w-full max-w-sm border-2 p-5 rounded-2xl shadow-sm " + ("\${(themeClasses as any)[theme] || themeClasses.indigo}")}>
+                   <div className="w-full max-w-sm border-2 p-5 rounded-2xl shadow-sm ${(themeClasses as any)[theme] || themeClasses.indigo}">
                        <div className="flex justify-between items-start">
                            <div>
                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">${conf.title || 'Kennzahl'}</p>
@@ -489,7 +489,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
                                    ${conf.prefix || ''}{${computedValFn}}${conf.suffix || ''}
                                </h4>
                            </div>
-                           <div className={"p-2.5 rounded-xl " + ("\${(iconBgClasses as any)[theme] || iconBgClasses.indigo}")}>
+                           <div className="p-2.5 rounded-xl ${(iconBgClasses as any)[theme] || iconBgClasses.indigo}">
                                <span className="text-sm font-bold uppercase font-mono">${(conf.iconName || 'Up').substring(0, 3)}</span>
                            </div>
                        </div>

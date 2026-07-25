@@ -93,6 +93,9 @@ namespace ${safeNamespace}.Services
         const adServiceContent = `using System.DirectoryServices.AccountManagement;
 using System.Runtime.Versioning;
 using System.Security.Principal;
+using System.Security.Claims;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ${safeNamespace}.Services
 {
@@ -125,13 +128,15 @@ namespace ${safeNamespace}.Services
         {
             if (principal?.Identity?.Name == null) return null;
 
+            AdUserInfo? info = null;
+
             // 1. Try Domain Context (Active Directory)
             try 
             {
                 using var context = new PrincipalContext(ContextType.Domain);
                 using var user = UserPrincipal.FindByIdentity(context, principal.Identity.Name);
                 
-                if (user != null) return MapUser(user);
+                if (user != null) info = MapUser(user, includeGroups: true);
             }
             catch (Exception ex)
             {
@@ -143,7 +148,7 @@ namespace ${safeNamespace}.Services
                 {
                     using var context = new PrincipalContext(ContextType.Machine);
                     using var user = UserPrincipal.FindByIdentity(context, principal.Identity.Name);
-                    if (user != null) return MapUser(user, includeGroups: false);
+                    if (user != null) info = MapUser(user, includeGroups: true);
                 }
                 catch (Exception ex2)
                 {
@@ -151,8 +156,61 @@ namespace ${safeNamespace}.Services
                 }
             }
             
-            // 3. Last Resort: Return simple Identity info
-            return new AdUserInfo { Username = principal.Identity.Name ?? "", DisplayName = principal.Identity.Name ?? "" };
+            // 3. Last Resort: Create simple Identity info if not resolved yet
+            if (info == null)
+            {
+                info = new AdUserInfo { Username = principal.Identity.Name ?? "", DisplayName = principal.Identity.Name ?? "" };
+            }
+
+            // 4. Merge groups from ClaimsPrincipal (extremely reliable and fast fallback)
+            if (principal is ClaimsPrincipal claimsPrincipal)
+            {
+                var claimsGroups = new List<string>();
+                var groupClaims = claimsPrincipal.FindAll(ClaimTypes.GroupSid)
+                    .Concat(claimsPrincipal.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/groupsid"));
+
+                foreach (var claim in groupClaims)
+                {
+                    try
+                    {
+                        var sid = new SecurityIdentifier(claim.Value);
+                        var groupName = sid.Translate(typeof(NTAccount)).Value;
+                        if (!string.IsNullOrEmpty(groupName))
+                        {
+                            if (!claimsGroups.Contains(groupName))
+                            {
+                                claimsGroups.Add(groupName);
+                            }
+                            var parts = groupName.Split('\\\\');
+                            if (parts.Length > 1 && !claimsGroups.Contains(parts[1]))
+                            {
+                                claimsGroups.Add(parts[1]);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                var roleClaims = claimsPrincipal.FindAll(ClaimTypes.Role)
+                    .Concat(claimsPrincipal.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role"));
+                foreach (var claim in roleClaims)
+                {
+                    if (!string.IsNullOrEmpty(claim.Value) && !claimsGroups.Contains(claim.Value))
+                    {
+                        claimsGroups.Add(claim.Value);
+                    }
+                }
+
+                foreach (var g in claimsGroups)
+                {
+                    if (!info.Groups.Contains(g))
+                    {
+                        info.Groups.Add(g);
+                    }
+                }
+            }
+
+            return info;
         }
 
         public List<AdUserInfo> SearchUsers(string query)

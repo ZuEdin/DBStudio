@@ -89,10 +89,14 @@ export default defineConfig({
 
   // --- 3. Root Package.json (Orchestrator) ---
   const scripts: any = {
-      "install-all": "npm install && cd Frontend && npm install && cd ../Backend && npm install",
-      "dev": "concurrently -k \"npm run backend\" \"npm run frontend\" \"npm run electron\"",
+      "start": "electron .",
+      "electron": "electron .",
+      "electron:dev": `cross-env USE_DEV_SERVER=true wait-on tcp:${fePort} tcp:${bePort} && electron .`,
+      "dev": "concurrently -k \"npm run backend\" \"npm run frontend\" \"npm run electron:dev\"",
+      "build:frontend": "cd Frontend && npm run build",
       "build": "cd Frontend && npm run build && cd .. && electron-builder",
-      "dist": "npm run build"
+      "dist": "npm run build",
+      "install-all": "npm install && cd Frontend && npm install && cd ../Backend && npm install"
   };
 
   if (includeBackend) {
@@ -107,9 +111,6 @@ export default defineConfig({
       scripts["frontend"] = "echo 'No Frontend'";
   }
 
-  // Electron start script needs to wait for ports if in dev mode
-  scripts["electron"] = `wait-on tcp:${fePort} tcp:${bePort} && electron .`;
-
   const packageJson = {
     name: `${config.projectName.toLowerCase()}-desktop`,
     version: "1.0.0",
@@ -120,6 +121,7 @@ export default defineConfig({
       "electron": "^33.3.0",
       "electron-builder": "^25.1.8",
       "concurrently": "^9.1.0",
+      "cross-env": "^7.0.3",
       "wait-on": "^8.0.1",
       "electron-is-dev": "^3.0.1"
     },
@@ -138,7 +140,7 @@ export default defineConfig({
       },
       "extraResources": [
           // Falls Datenbank-Dateien (SQLite) mitkopiert werden müssen, hier definieren
-          // { "from": "Backend/app.db", "to": "app.db" }
+          // { "from": "Backend/database.sqlite", "to": "database.sqlite" }
       ]
     }
   };
@@ -165,7 +167,7 @@ function startApiServer() {
     env: { 
       ...process.env, 
       PORT: ${bePort}, // Fixer Port für interne Kommunikation
-      NODE_ENV: isDev ? 'development' : 'production'
+      NODE_ENV: 'production'
     },
     stdio: 'inherit'
   });
@@ -181,27 +183,27 @@ app.on('will-quit', () => {
 `;
   }
 
-  let frontendLoadLogic = '';
-  if (bundleFrontend) {
-      frontendLoadLogic = `
-  if (isDev) {
-    // Dev: Lade von Vite Dev Server
-    mainWindow.loadURL('http://localhost:${fePort}');
-    mainWindow.webContents.openDevTools();
-  } else {
-    // Prod: Lade gebautes HTML aus Frontend/dist
-    mainWindow.loadFile(path.join(__dirname, 'Frontend', 'dist', 'index.html'));
-  }`;
-  } else {
-      frontendLoadLogic = `mainWindow.loadURL('${targetUrl || 'http://google.com'}');`;
-  }
-
   const mainJsContent = `const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
-const { fork } = require('child_process');
+const fs = require('fs');
+const { fork, execSync } = require('child_process');
 
 let mainWindow;
+
+// Frontend automatisch transpilieren/bauen falls Frontend/dist/index.html nicht existiert
+function ensureFrontendBuilt() {
+  if (!${bundleFrontend ? 'true' : 'false'}) return;
+  const distIndex = path.join(__dirname, 'Frontend', 'dist', 'index.html');
+  if (!fs.existsSync(distIndex)) {
+    console.log('Frontend dist nicht gefunden. Transpiliere Frontend...');
+    try {
+      execSync('npm run build', { cwd: path.join(__dirname, 'Frontend'), stdio: 'inherit' });
+      console.log('Frontend erfolgreich transpiliert.');
+    } catch (err) {
+      console.error('Fehler beim Transpilieren des Frontends:', err);
+    }
+  }
+}
 
 ${backendLogic}
 
@@ -218,7 +220,16 @@ function createWindow() {
     title: "${config.projectName}"
   });
 
-  ${frontendLoadLogic}
+  const useDevServer = process.env.USE_DEV_SERVER === 'true';
+  if (useDevServer) {
+    // Entwicklungsmodus mit Hot Reloading
+    mainWindow.loadURL('http://localhost:${fePort}');
+    mainWindow.webContents.openDevTools();
+  } else {
+    // Normaler Desktop-Start (transpiliert falls noetig und laedt lokales HTML)
+    ensureFrontendBuilt();
+    mainWindow.loadFile(path.join(__dirname, 'Frontend', 'dist', 'index.html'));
+  }
 
   // Externe Links im Browser öffnen
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -265,16 +276,18 @@ echo   ${config.projectName} - ${i18n.t('generator.bat_menu')}
 echo =================================================
 echo.
 echo  [1] ${i18n.t('generator.bat_install')}
-echo  [2] ${i18n.t('generator.bat_dev')}
-echo  [3] ${i18n.t('generator.bat_build')}
-echo  [4] ${i18n.t('generator.bat_exit')}
+echo  [2] Electron App starten (electron .)
+echo  [3] Dev-Modus mit Live-Reload (${i18n.t('generator.bat_dev')})
+echo  [4] ${i18n.t('generator.bat_build')}
+echo  [5] ${i18n.t('generator.bat_exit')}
 echo.
-set /p choice="${i18n.t('generator.bat_choice')} (1-4): "
+set /p choice="${i18n.t('generator.bat_choice')} (1-5): "
 
 if "%choice%"=="1" goto INSTALL
-if "%choice%"=="2" goto DEV
-if "%choice%"=="3" goto BUILD
-if "%choice%"=="4" exit
+if "%choice%"=="2" goto START
+if "%choice%"=="3" goto DEV
+if "%choice%"=="4" goto BUILD
+if "%choice%"=="5" exit
 
 goto MENU
 
@@ -297,12 +310,20 @@ echo Fertig! Druecke eine Taste...
 pause
 goto MENU
 
+:START
+cls
+echo Starte Electron App...
+echo Backend Port: ${bePort}
+call npm start
+pause
+goto MENU
+
 :DEV
 cls
-echo Starte Development Environment...
+echo Starte Development Environment mit Live-Reload...
 echo Backend Port: ${bePort}
 echo Frontend Port: ${fePort}
-npm run dev
+call npm run dev
 pause
 goto MENU
 
@@ -314,7 +335,7 @@ call npm run build
 cd ..
 echo.
 echo Erstelle Desktop App (Electron Builder)...
-npm run dist
+call npm run dist
 echo.
 echo Build abgeschlossen! Siehe 'release' Ordner.
 pause
@@ -324,27 +345,32 @@ goto MENU
   files.push({ name: 'run.bat', path: `${root}/run.bat`, content: batContent, language: 'text' });
 
   // --- 7. Documentation - Localized ---
-  const readmeContent = `# ${config.projectName}
+  const readmeContent = `# ${config.projectName} Desktop App
 
 ## ${i18n.t('generator.structure')}
 
-- **Backend/**: ${i18n.t('generator.backend_desc')}
-- **Frontend/**: ${i18n.t('generator.frontend_desc')}
-- **release/**: Output (.exe).
-- **run.bat**: Start Script.
+- **Backend/**: Node.js Express API Server (unterstuetzt SQLite, MySQL, PostgreSQL, MSSQL).
+- **Frontend/**: React / Vite Frontend Application (wird für Electron transpiliert).
+- **main.js**: Electron Hauptprozess (startet internes Backend & laedt transpiliertes Frontend).
+- **release/**: Finale kompilierte Desktop Executables (.exe / .dmg / .AppImage).
+- **run.bat**: Interaktives Windows Startskript.
 
 ## ${i18n.t('generator.quickstart')}
 
-1. Run \`run.bat\`.
-2. Select **[1] ${i18n.t('generator.bat_install')}**.
-3. Select **[2] ${i18n.t('generator.bat_dev')}**.
+1. \`npm run install-all\`
+2. \`electron .\` (oder \`npm start\`) -> Transpiliert das Frontend bei Bedarf automatisch und startet die Anwendung ohne Dev-Server-Anzeige.
 
-## Manual Install
+## Entwicklungsmodus (Hot Reloading)
 
 \`\`\`bash
-npm run install-all
 npm run dev
 \`\`\`
+
+## Datenbank-Optionen
+
+Das Backend unterstützt:
+- **SQLite**: Einbettbare Datei (\`database.sqlite\`), perfekt für Offline-Desktop-Anwendungen ohne Serverinstallation.
+- **MySQL / PostgreSQL / MSSQL**: Externe Datenbankserver über Verbindungsparameter in \`Backend/.env\`.
 `;
 
   files.push({ name: 'README.md', path: `${root}/README.md`, content: readmeContent, language: 'markdown' });

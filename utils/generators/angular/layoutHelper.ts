@@ -52,7 +52,7 @@ export const generateHtmlForLayout = (
                 <div class="${wrapperClass}">
                     <label class="${labelClass}">${element.label}</label>
                     <div class="input-group">
-                        <input type="text" readonly [(ngModel)]="data.${bindProp}" name="${bindProp}" class="form-control bg-light font-monospace" placeholder="(Leer)"/>
+                        <input type="text" readonly [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" class="form-control bg-light font-monospace" placeholder="(Leer)"/>
                         <button type="button" (click)="openUserPicker('me', '${bindProp}')" class="btn btn-success">Ich (Auto)</button>
                     </div>
                 </div>`;
@@ -61,7 +61,7 @@ export const generateHtmlForLayout = (
             <div class="${wrapperClass}">
                 <label class="${labelClass}">${element.label}</label>
                 <div class="flex gap-2">
-                    <input type="text" readonly [(ngModel)]="data.${bindProp}" name="${bindProp}" class="${inputClass} bg-emerald-50 text-emerald-900 font-mono" placeholder="(Leer)"/>
+                    <input type="text" readonly [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" class="${inputClass} bg-emerald-50 text-emerald-900 font-mono" placeholder="(Leer)"/>
                     <button type="button" (click)="openUserPicker('me', '${bindProp}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap">Ich (Auto)</button>
                 </div>
             </div>`;
@@ -74,7 +74,7 @@ export const generateHtmlForLayout = (
                 <div class="${wrapperClass}">
                     <label class="${labelClass}">${element.label}</label>
                     <div class="input-group">
-                        <input type="text" [(ngModel)]="data.${bindProp}" name="${bindProp}" class="form-control" placeholder="Benutzer auswählen..."/>
+                        <input type="text" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" class="form-control" placeholder="Benutzer auswählen..."/>
                         <button type="button" (click)="openUserPicker('search', '${bindProp}')" class="btn btn-primary">Suchen</button>
                     </div>
                 </div>`;
@@ -83,7 +83,7 @@ export const generateHtmlForLayout = (
             <div class="${wrapperClass}">
                 <label class="${labelClass}">${element.label}</label>
                 <div class="flex gap-2">
-                    <input type="text" [(ngModel)]="data.${bindProp}" name="${bindProp}" class="${inputClass} pl-8" placeholder="Benutzer auswählen..."/>
+                    <input type="text" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" class="${inputClass} pl-8" placeholder="Benutzer auswählen..."/>
                     <button type="button" (click)="openUserPicker('search', '${bindProp}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors whitespace-nowrap">Suchen</button>
                 </div>
             </div>`;
@@ -175,6 +175,8 @@ export const generateHtmlForLayout = (
                   }
                   // --- DISPLAY LOGIC END ----
 
+                  const changeHandler = dataObjName === 'data' ? `(ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)"` : '';
+
                   if (isBootstrap) {
                       const quickCreateBtn = element.lookup.allowQuickCreate 
                          ? `<button type="button" (click)="openModal('lookup_${element.id}')" class="btn btn-outline-success">+</button>` 
@@ -217,7 +219,7 @@ export const generateHtmlForLayout = (
                       return `<div class="${wrapperClass}">
                         <label class="${labelClass}">${element.label}</label>
                         <div class="input-group">
-                            <select class="form-select" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)">
+                            <select class="form-select" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler}>
                                 <option value="">Bitte wählen...</option>
                                 <option *ngFor="let item of ${listVar}" [value]="${valExpression}">${displayExpression}</option>
                             </select>
@@ -262,7 +264,7 @@ export const generateHtmlForLayout = (
                       return `<div class="${wrapperClass}">
                         <label class="${labelClass}">${element.label}</label>
                         <div class="flex gap-2">
-                            <select class="${inputClass} bg-white flex-1" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)">
+                            <select class="${inputClass} bg-white flex-1" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler}>
                                 <option value="">Bitte wählen...</option>
                                 <option *ngFor="let item of ${listVar}" [value]="${valExpression}">${displayExpression}</option>
                             </select>
@@ -274,24 +276,26 @@ export const generateHtmlForLayout = (
              }
         }
 
+        const changeHandler = dataObjName === 'data' ? `(ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)"` : '';
+
         if (inputType === 'checkbox') {
             if (isBootstrap) {
                 return `<div class="${wrapperClass}">
                     <div class="form-check p-2 bg-light border rounded">
-                        <input type="checkbox" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)" class="form-check-input ms-0 me-2" id="check_field_${element.id}" />
+                        <input type="checkbox" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler} class="form-check-input ms-0 me-2" id="check_field_${element.id}" />
                         <label class="form-check-label fw-semibold text-secondary" for="check_field_${element.id}">${element.label}</label>
                     </div>
                 </div>`;
             }
             return `<div class="${wrapperClass} flex items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200">
-                <input type="checkbox" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+                <input type="checkbox" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler} class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
                 <label class="text-sm font-semibold text-slate-700 cursor-pointer select-none">${element.label}</label>
             </div>`;
         }
 
         return `<div class="${wrapperClass}">
             <label class="${labelClass}">${element.label}</label>
-            <input type="${inputType}" [(ngModel)]="data['${bindProp}']" name="${bindProp}" (ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)" class="${inputClass}" />
+            <input type="${inputType}" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler} class="${inputClass}" />
         </div>`;
     }
     
@@ -302,7 +306,7 @@ export const generateHtmlForLayout = (
         
         if (subTable) {
             const modalId = `sub_${element.id}`;
-            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms, "subData", queries, isBootstrap) : '<p>Leer</p>';
+            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms, "tempSubData", queries, isBootstrap) : '<p>Leer</p>';
             const subTableCamel = toCamelCase(subTable.name);
             const listVariable = `${subTableCamel}SubList_${element.id.substring(0,8)}`;
 
@@ -317,7 +321,7 @@ export const generateHtmlForLayout = (
                             </div>
                             <div class="modal-body subform-content">
                                 <!-- Bind to tempSubData -->
-                                ${subFormHtml.replace(/data\./g, 'tempSubData.')}
+                                ${subFormHtml}
                             </div>
                             <div class="modal-footer bg-light">
                                 <button type="button" (click)="closeModal('${modalId}')" class="btn btn-secondary">Abbrechen</button>
@@ -358,7 +362,7 @@ export const generateHtmlForLayout = (
                         <h3 class="font-bold mb-4 text-lg border-b pb-2 text-slate-800">Eintrag hinzufügen</h3>
                         <div class="subform-content space-y-4">
                             <!-- Bind to tempSubData -->
-                            ${subFormHtml.replace(/data\./g, 'tempSubData.')}
+                            ${subFormHtml}
                         </div>
                         <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
                             <button type="button" (click)="closeModal('${modalId}')" class="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm">Abbrechen</button>

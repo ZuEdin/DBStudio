@@ -3,6 +3,42 @@ import { Table, BackendConfig, VirtualFile, DbType, Relationship, Query, SelectQ
 import { toPascalCase, quoteIdentifier } from '../common';
 import { generateSqlSelect } from '../../sqlHelper';
 
+const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSql: boolean): any => {
+    if (!row || typeof row !== 'object') return row;
+    const newRow = { ...row };
+    const key = Object.keys(newRow).find(k => k.toLowerCase() === 'objectid');
+    if (!key) return row;
+
+    const objectId = newRow[key];
+    const objectTypeKey = Object.keys(newRow).find(k => k.toLowerCase() === 'objecttype');
+    const objectType = objectTypeKey ? String(newRow[objectTypeKey]).toLowerCase() : '';
+
+    if (objectType === 'table') {
+        const matchedTable = tables.find(t => t.id === objectId);
+        if (matchedTable) {
+            newRow[key] = isSql ? toPascalCase(matchedTable.name) : matchedTable.name;
+        }
+    } else if (objectType === 'query') {
+        const matchedQuery = queries.find(q => q.id === objectId);
+        if (matchedQuery) {
+            newRow[key] = isSql ? toPascalCase(matchedQuery.name) : matchedQuery.name;
+        }
+    } else if (objectType === 'field') {
+        let matchedFieldName = '';
+        for (const t of tables) {
+            const f = t.fields.find(field => field.id === objectId);
+            if (f) {
+                matchedFieldName = f.name;
+                break;
+            }
+        }
+        if (matchedFieldName) {
+            newRow[key] = matchedFieldName;
+        }
+    }
+    return newRow;
+};
+
 export const sortTablesByDependencies = (tables: Table[], relationships: Relationship[]): Table[] => {
     const dependencyMap = new Map<string, Set<string>>();
     tables.forEach(t => dependencyMap.set(t.id, new Set<string>()));
@@ -92,10 +128,13 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
             tableSeedSql += `SET IDENTITY_INSERT ${tableName} ON; \n`;
         }
 
+        const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
+
         table.data.forEach(row => {
+            const mappedRow = isPermissionsTable ? mapPermissionObjectId(row, tables, queries || [], true) : row;
             const columns = table.fields.map(f => quoteIdentifier(f.name, dbType)).join(', ');
             const values = table.fields.map(f => {
-                const val = row[f.name];
+                const val = mappedRow[f.name];
                 if (val === undefined || val === null || val === '') return 'NULL';
                 
                 if (['INTEGER', 'DECIMAL', 'DOUBLE'].includes(f.type)) {

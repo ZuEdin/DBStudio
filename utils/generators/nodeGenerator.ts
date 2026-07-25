@@ -14,6 +14,7 @@ export const generateNodeJs = (tables: Table[], relationships: Relationship[], q
   let dbDriverInfo = '"tedious": "^18.6.1"';
   if (config.dbType === DbType.MySQL) dbDriverInfo = '"mysql2": "^3.11.0"';
   else if (config.dbType === DbType.SQLite) dbDriverInfo = '"sqlite3": "^5.1.7"';
+  else if (config.dbType === DbType.PostgreSQL) dbDriverInfo = '"pg": "^8.13.1", "pg-hstore": "^2.3.4"';
 
   // --- Dependencies ---
   let dependencies = `

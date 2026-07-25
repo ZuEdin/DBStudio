@@ -72,8 +72,8 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
          {enableRowReorder && (
              <div className="w-8 shrink-0 border-r border-slate-200 bg-slate-100/80"></div>
          )}
-         {headers.map(h => (
-             <div key={h} title={headerTooltips?.[h]} className="p-3 w-40 shrink-0 border-r border-slate-200 last:border-0 truncate cursor-help">{h}</div>
+         {headers.map((h, index) => (
+             <div key={`${h}-${index}`} title={headerTooltips?.[h]} className="p-3 w-40 shrink-0 border-r border-slate-200 last:border-0 truncate cursor-help">{h}</div>
          ))}
          {/* Spacer to match scrollbar width roughly if needed, or just let content flow */}
          <div className="w-4 shrink-0"></div>

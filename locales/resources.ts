@@ -7,6 +7,10 @@ export const resources = {
         "description": "Eine professionelle Datenbank-Management-Anwendung",
         "save_backup": "Sicherung erstellen (.dbsp)"
       },
+      "auth": {
+        "logout": "Abmelden",
+        "login": "Anmelden"
+      },
       "start": {
         "title": "Neues Projekt starten",
         "empty_project": "Leeres Projekt",
@@ -155,6 +159,10 @@ export const resources = {
         "name": "DB Studio Pro",
         "description": "A professional database management application",
         "save_backup": "Create Backup (.dbsp)"
+      },
+      "auth": {
+        "logout": "Logout",
+        "login": "Login"
       },
       "start": {
         "title": "Start New Project",

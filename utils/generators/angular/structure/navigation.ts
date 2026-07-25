@@ -10,6 +10,7 @@ export const generateNavigationComponents = (
     queries: Query[] = []
 ): VirtualFile[] => {
     const files: VirtualFile[] = [];
+    const useAuth = config.authConfig?.useUserLogin;
     const isBootstrap = config.stylingFramework?.toLowerCase() === 'bootstrap' || 
                         (config as any).frontendStyling?.toLowerCase() === 'bootstrap' || 
                         (config as any).styling?.toLowerCase() === 'bootstrap';
@@ -72,6 +73,23 @@ export const generateNavigationComponents = (
         </li>`).join('')}
         ` : ''}
     </ul>
+    ${useAuth ? `
+    <div *ngIf="auth.user$ | async as user" class="p-3 border-top border-secondary my-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="rounded-circle bg-primary d-flex align-items-center justify-center text-white font-bold uppercase" style="width: 32px; height: 32px; font-size: 14px;">
+                {{ user.username.charAt(0) }}
+            </div>
+            <div class="text-truncate">
+                <div class="fw-bold text-white text-truncate">{{ user.username }}</div>
+                <div class="text-muted small text-uppercase" style="font-size: 10px;">{{ user.role }}</div>
+            </div>
+        </div>
+        <button (click)="auth.logout()" class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1">
+            <svg class="bi" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0v2z"/><path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3z"/></svg>
+            Abmelden
+        </button>
+    </div>
+    ` : ''}
     <hr>
     <div class="text-muted small text-center">
         &copy; ${new Date().getFullYear()} Generated App
@@ -134,6 +152,21 @@ export const generateNavigationComponents = (
                 </li>
                 ` : ''}
             </ul>
+            ${useAuth ? `
+            <div *ngIf="auth.user$ | async as user" class="d-flex align-items-center gap-3 me-3">
+                <div class="d-flex align-items-center gap-2 bg-secondary bg-opacity-25 px-3 py-1 rounded-pill border border-secondary border-opacity-50">
+                    <div class="rounded-circle bg-primary d-flex align-items-center justify-center text-white font-bold uppercase" style="width: 24px; height: 24px; font-size: 11px;">
+                        {{ user.username.charAt(0) }}
+                    </div>
+                    <span class="text-white-50 small">{{ user.username }}</span>
+                    <span class="badge bg-secondary text-uppercase" style="font-size: 9px;">{{ user.role }}</span>
+                </div>
+                <button (click)="auth.logout()" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1">
+                    <svg width="14" height="14" fill="currentColor" class="bi" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0v2z"/><path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3z"/></svg>
+                    <span>Abmelden</span>
+                </button>
+            </div>
+            ` : ''}
             <span class="navbar-text text-muted small">
                 &copy; ${new Date().getFullYear()} Generated App
             </span>
@@ -178,6 +211,24 @@ export const generateNavigationComponents = (
         </a>`).join('')}
         ` : ''}
     </nav>
+    ${useAuth ? `
+    <div *ngIf="auth.user$ | async as user" class="p-4 border-t border-slate-700 space-y-2">
+        <div class="text-xs text-slate-400">Eingeloggt als:</div>
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white uppercase">
+                {{ user.username.charAt(0) }}
+            </div>
+            <div class="truncate">
+                <div class="font-semibold text-sm text-slate-200">{{ user.username }}</div>
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{{ user.role }}</div>
+            </div>
+        </div>
+        <button (click)="auth.logout()" class="mt-2 w-full flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/40 text-red-200 py-2 rounded text-xs font-medium transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+            Abmelden
+        </button>
+    </div>
+    ` : ''}
     <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
         &copy; ${new Date().getFullYear()} Generated App
     </div>
@@ -248,8 +299,25 @@ export const generateNavigationComponents = (
                     ` : ''}
                 </div>
             </div>
-            <div class="text-slate-400 text-xs hidden sm:block">
-                &copy; ${new Date().getFullYear()} Generated App
+            <div class="flex items-center gap-4">
+                ${useAuth ? `
+                <div *ngIf="auth.user$ | async as user" class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-full border border-slate-600/50">
+                        <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white uppercase">
+                            {{ user.username.charAt(0) }}
+                        </div>
+                        <span class="text-slate-300 font-medium text-sm">{{ user.username }}</span>
+                        <span class="text-[10px] bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded font-mono uppercase font-bold tracking-wider">{{ user.role }}</span>
+                    </div>
+                    <button (click)="auth.logout()" class="flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-200 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        <span>Abmelden</span>
+                    </button>
+                </div>
+                ` : ''}
+                <div class="text-slate-400 text-xs hidden sm:block">
+                    &copy; ${new Date().getFullYear()} Generated App
+                </div>
             </div>
         </div>
     </div>
@@ -261,6 +329,7 @@ export const generateNavigationComponents = (
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+${useAuth ? "import { AuthService } from '../../services/auth.service';" : ""}
 
 @Component({
   selector: 'app-sidebar',
@@ -268,13 +337,16 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   imports: [CommonModule, RouterLink, RouterLinkActive],
   templateUrl: './sidebar.component.html'
 })
-export class SidebarComponent {}
+export class SidebarComponent {
+  ${useAuth ? "constructor(public auth: AuthService) {}" : ""}
+}
     `;
 
     const topnavTs = `
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+${useAuth ? "import { AuthService } from '../../services/auth.service';" : ""}
 
 @Component({
   selector: 'app-topnav',
@@ -282,7 +354,9 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   imports: [CommonModule, RouterLink, RouterLinkActive],
   templateUrl: './topnav.component.html'
 })
-export class TopnavComponent {}
+export class TopnavComponent {
+  ${useAuth ? "constructor(public auth: AuthService) {}" : ""}
+}
     `;
 
     if (isTopNav) {

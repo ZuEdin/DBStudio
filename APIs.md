@@ -281,3 +281,7 @@ Im generierten React-Frontend (`src/services/api.ts`) ist eine hoch-performante,
 4. **Zukunftssichere Backend-Migration (SQL/MySQL/PostgreSQL Ready):**
    - Da die UI-Komponenten ausschließlich mit den Abstraktionsfunktionen (`get`, `post`, `put`, `remove`) arbeiten, kann der lokale Speicher jederzeit durch ein REST- oder GraphQL-Backend ausgetauscht werden. Ein Umbau der Benutzeroberfläche ist hierfür **nicht** notwendig — es muss lediglich die Implementierung in `src/services/api.ts` angepasst werden.
 
+5. **Fehlertolerante Case- & Trennzeichen-Mapping:**
+   - Um maximale Kompatibilität mit verschiedenen Datenbanksystemen und Backend-Generatoren (wie Angular, Spring, Node) zu gewährleisten, ist die Schnittstelle vollkommen unempfindlich gegenüber unterschiedlichen Schreibweisen (`sys_users`, `sysUsers`, `sysusers`, `sys-users`). Ein zentraler Mapping-Algorithmus normalisiert und findet das passende IndexedDB-Store selbstständig.
+   - **Automatisierte Daten-Seeding:** Beim ersten Anlegen der lokalen Datenbank werden alle initialen Datenbestände aus dem Projekt-Workspace automatisch eingepflegt. Dabei werden alle Feldnamen sowohl im Original-Format als auch im `camelCase`-Format abgelegt. Dies garantiert, dass Frontends, die auf unterschiedliche Casing-Varianten zugreifen, immer die korrekten Attributwerte erhalten.
+

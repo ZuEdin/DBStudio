@@ -113,22 +113,35 @@ const mapTypeToSql = (type: string): string => {
  * Synchronizes list of designer tables to the SQLite database.
  */
 export const syncTablesToSql = async (tables: Table[]) => {
+    // Helper to get unique fields per table (prevent duplicate column name errors)
+    const getUniqueFields = (fields: typeof tables[0]['fields']) => {
+        const seen = new Set<string>();
+        return fields.filter(f => {
+            if (!f.name) return false;
+            const lower = f.name.trim().toLowerCase();
+            if (seen.has(lower)) return false;
+            seen.add(lower);
+            return true;
+        });
+    };
+
     // If native Tauri SQLite is active
     if (activeDriver === 'tauri' && tauriDbConnection) {
       try {
         // Drop existing and recreate tables dynamically in Tauri SQLite
         for (const table of tables) {
           await tauriDbConnection.execute(`DROP TABLE IF EXISTS "${table.name}"`);
-          const fields = table.fields.map(f => `"${f.name}" ${mapTypeToSql(f.type)}`).join(', ');
+          const uniqueFields = getUniqueFields(table.fields);
+          const fields = uniqueFields.map(f => `"${f.name}" ${mapTypeToSql(f.type)}`).join(', ');
           if (!fields) continue;
           
           await tauriDbConnection.execute(`CREATE TABLE "${table.name}" (${fields});`);
           
           if (table.data && table.data.length > 0) {
             for (const row of table.data) {
-              const keys = table.fields.map(f => `"${f.name}"`).join(', ');
-              const values = table.fields.map(() => '?').join(', ');
-              const sqlParams = table.fields.map(f => row[f.name] ?? null);
+              const keys = uniqueFields.map(f => `"${f.name}"`).join(', ');
+              const values = uniqueFields.map(() => '?').join(', ');
+              const sqlParams = uniqueFields.map(f => row[f.name] ?? null);
               await tauriDbConnection.execute(
                 `INSERT INTO "${table.name}" (${keys}) VALUES (${values})`,
                 sqlParams
@@ -175,7 +188,8 @@ export const syncTablesToSql = async (tables: Table[]) => {
         const uniqueTables = Array.from(uniqueTablesMap.values());
 
         uniqueTables.forEach(table => {
-            const fields = table.fields.map(f => `"${f.name}" ${mapTypeToSql(f.type)}`).join(', ');
+            const uniqueFields = getUniqueFields(table.fields);
+            const fields = uniqueFields.map(f => `"${f.name}" ${mapTypeToSql(f.type)}`).join(', ');
             // Handle empty tables (no fields) to avoid SQL errors
             if (!fields) return;
 
@@ -183,9 +197,9 @@ export const syncTablesToSql = async (tables: Table[]) => {
             db.run(createSql);
 
             if (table.data && table.data.length > 0) {
-                const stmt = db.prepare(`INSERT INTO "${table.name}" VALUES (${table.fields.map(() => '?').join(',')})`);
+                const stmt = db.prepare(`INSERT INTO "${table.name}" VALUES (${uniqueFields.map(() => '?').join(',')})`);
                 table.data.forEach(row => {
-                    const values = table.fields.map(f => {
+                    const values = uniqueFields.map(f => {
                         const val = row[f.name];
                         // sql.js throws on undefined, use null instead
                         return val === undefined ? null : val;

@@ -320,7 +320,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
               <GripVertical size={14} />
           </div>
 
-          {headers.map(header => {
+          {headers.map((header, colIdx) => {
             const field = table.fields.find(f => f.name === header);
             const isAutoInc = field?.isAutoIncrement;
             const rawVal = row[header] ?? '';
@@ -360,7 +360,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             }
 
             return (
-                <div key={`${rowIndex}-${header}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''} flex items-center`}>
+                <div key={`${rowIndex}-${header}-${colIdx}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''} flex items-center`}>
                     {inputType === 'checkbox' ? (
                         <div className="flex-1 flex items-center justify-center">
                             <input
@@ -495,18 +495,18 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                     <span className="text-xs font-bold text-orange-800 uppercase flex items-center gap-1"><Filter size={12}/> Filter</span>
                     <button onClick={clearFilters} className="text-orange-600 hover:text-orange-800 text-xs underline">Alle löschen</button>
                 </div>
-                {headers.map(h => {
+                {headers.map((h, colIdx) => {
                     const stats = columnStats[h];
                     const hasFilter = !!filters[h];
                     const field = table.fields.find(f => f.name === h);
                     const isDate = field?.type === 'DATE' || field?.type === 'TIME' || field?.type === 'DATETIME' || field?.type === 'TIMESTAMP';
                     return (
-                        <div key={h} className={`flex flex-col min-w-[120px] max-w-[200px] ${hasFilter ? 'bg-white rounded shadow-sm' : ''} p-1`}>
+                        <div key={`${h}-${colIdx}`} className={`flex flex-col min-w-[120px] max-w-[200px] ${hasFilter ? 'bg-white rounded shadow-sm' : ''} p-1`}>
                             <label className="text-[10px] font-bold text-orange-700 mb-0.5 truncate px-1">{h}</label>
                             {stats?.isLowCardinality && !isDate ? (
                                 <select value={filters[h] || ''} onChange={e => setFilter(h, e.target.value)} className={`w-full border rounded px-1 py-0.5 text-xs outline-none ${hasFilter ? 'border-orange-400 bg-orange-50' : 'border-orange-200 bg-white'}`}>
                                     <option value="">(Alle)</option>
-                                    {stats.uniqueValues.map(val => <option key={val} value={val}>{val}</option>)}
+                                    {stats.uniqueValues.map((val, valIdx) => <option key={`${val}-${valIdx}`} value={val}>{val}</option>)}
                                 </select>
                             ) : (
                                 <div className="relative">

@@ -134,7 +134,7 @@ export const generateBackendCode = (
       files.push(generateSolution(activeConfig));
   }
 
-  const apiDocsMd = generateMarkdownApiDocs(tables, activeConfig);
+  const apiDocsMd = generateMarkdownApiDocs(tables, activeConfig, queries, relationships);
   files.push({ name: "API_DOCUMENTATION.md", path: "API_DOCUMENTATION.md", content: apiDocsMd, language: "markdown" });
   return files;
 };

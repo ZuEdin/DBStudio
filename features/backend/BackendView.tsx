@@ -201,12 +201,27 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
   };
 
   const handleExportZip = async () => {
-    if (generatedFiles.length === 0) {
+    let filesToZip = generatedFiles;
+    if (filesToZip.length === 0) {
+      try {
+        filesToZip = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents);
+        if (localConfig.deploymentConfig) {
+          const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);
+          filesToZip = [...filesToZip, ...deployFiles];
+        }
+        setGeneratedFiles(filesToZip);
+      } catch (err: any) {
+        showMessage("Generierungsfehler", err.message || "Fehler beim Erstellen der Backend-Dateien", 'error');
+        return;
+      }
+    }
+
+    if (filesToZip.length === 0) {
         showMessage("Export fehlgeschlagen", "Keine Dateien zum Exportieren vorhanden.", 'warning');
         return;
     }
     const zip = new JSZip();
-    generatedFiles.forEach(file => zip.file(file.path, file.content));
+    filesToZip.forEach(file => zip.file(file.path, file.content));
 
     const content = await zip.generateAsync({ type: 'blob' });
     const url = window.URL.createObjectURL(content);
@@ -294,21 +309,24 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
         
         {/* Operations Section */}
         <div className="p-3 border-t border-slate-200 bg-slate-100 space-y-2">
-            <div className="bg-blue-50 border border-blue-100 p-2 rounded text-[10px] text-blue-800">
-                Nutzen Sie den <strong>Integration</strong> Tab für Deployment, Environments und externe Dienste.
-            </div>
+            <button 
+                onClick={handleExportZip}
+                className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded shadow text-xs font-bold transition-colors cursor-pointer"
+            >
+                <Download size={14} /> Projekt als ZIP Herunterladen
+            </button>
 
             <div className="grid grid-cols-2 gap-2">
                 <button 
                     onClick={() => setShowGitModal(true)}
-                    className="flex items-center justify-center gap-1 bg-slate-800 text-white p-2 rounded shadow text-xs font-bold hover:bg-slate-900"
+                    className="flex items-center justify-center gap-1 bg-slate-800 text-white p-2 rounded shadow text-xs font-bold hover:bg-slate-900 cursor-pointer"
                 >
                     <GitBranch size={14} className="text-orange-400"/> Push Git
                 </button>
                 {/* Fallback Deploy Button inside view, keeps context */}
                 <button 
                     onClick={onOpenDeployment}
-                    className="flex items-center justify-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-2 rounded shadow text-xs font-bold hover:from-blue-700 hover:to-indigo-700"
+                    className="flex items-center justify-center gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-2 rounded shadow text-xs font-bold hover:from-blue-700 hover:to-indigo-700 cursor-pointer"
                 >
                     <UploadCloud size={14} /> Deploy
                 </button>

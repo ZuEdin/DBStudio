@@ -45,6 +45,36 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
       if (backendConfig && onUpdateBackendConfig) {
           onUpdateBackendConfig({ ...backendConfig, authConfig });
       }
+
+      if (authConfig.useUserLogin) {
+          const hasUserTable = tables.some(t => t.name.toLowerCase() === 'sys_users' || t.name.toLowerCase() === 'users');
+          if (!hasUserTable) {
+              const usersPk = crypto.randomUUID();
+              const usersFields: Field[] = [
+                  { id: usersPk, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+                  { id: crypto.randomUUID(), name: 'Username', type: 'VARCHAR', length: 50, allowNull: false },
+                  { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255, allowNull: false },
+                  { id: crypto.randomUUID(), name: 'Email', type: 'VARCHAR', length: 100, allowNull: true },
+                  { id: crypto.randomUUID(), name: 'RoleId', type: 'INTEGER', allowNull: false, defaultValue: '4' },
+                  { id: crypto.randomUUID(), name: 'IsActive', type: 'BOOLEAN', allowNull: false, defaultValue: 'true' }
+              ];
+
+              const usersData = [
+                  { Id: 1, Username: 'admin', PasswordHash: 'admin123', Email: 'admin@demo.com', RoleId: 1, IsActive: true },
+                  { Id: 2, Username: 'manager', PasswordHash: 'manager123', Email: 'manager@demo.com', RoleId: 2, IsActive: true },
+                  { Id: 3, Username: 'editor', PasswordHash: 'editor123', Email: 'editor@demo.com', RoleId: 3, IsActive: true },
+                  { Id: 4, Username: 'user', PasswordHash: 'user123', Email: 'user@demo.com', RoleId: 4, IsActive: true }
+              ];
+
+              onCreateTable({
+                  id: 'sys_users',
+                  name: 'sys_users',
+                  fields: usersFields,
+                  data: usersData,
+                  description: 'System-Benutzertabelle für Logins und Authentifizierung'
+              });
+          }
+      }
   };
 
   const handleInitialize = () => {
@@ -71,7 +101,33 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           data: rolesData
       });
 
-      // 2. Create sys_permissions AND pre-fill for existing tables
+      // 2. Create sys_users with default users
+      const usersPk = crypto.randomUUID();
+      const usersFields: Field[] = [
+          { id: usersPk, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+          { id: crypto.randomUUID(), name: 'Username', type: 'VARCHAR', length: 50, allowNull: false },
+          { id: crypto.randomUUID(), name: 'PasswordHash', type: 'VARCHAR', length: 255, allowNull: false },
+          { id: crypto.randomUUID(), name: 'Email', type: 'VARCHAR', length: 100, allowNull: true },
+          { id: crypto.randomUUID(), name: 'RoleId', type: 'INTEGER', allowNull: false, defaultValue: '4' },
+          { id: crypto.randomUUID(), name: 'IsActive', type: 'BOOLEAN', allowNull: false, defaultValue: 'true' }
+      ];
+
+      const usersData = [
+          { Id: 1, Username: 'admin', PasswordHash: 'admin123', Email: 'admin@demo.com', RoleId: 1, IsActive: true },
+          { Id: 2, Username: 'manager', PasswordHash: 'manager123', Email: 'manager@demo.com', RoleId: 2, IsActive: true },
+          { Id: 3, Username: 'editor', PasswordHash: 'editor123', Email: 'editor@demo.com', RoleId: 3, IsActive: true },
+          { Id: 4, Username: 'user', PasswordHash: 'user123', Email: 'user@demo.com', RoleId: 4, IsActive: true }
+      ];
+
+      onCreateTable({
+          id: 'sys_users',
+          name: 'sys_users',
+          fields: usersFields,
+          data: usersData,
+          description: 'System-Benutzertabelle für Logins und Authentifizierung'
+      });
+
+      // 3. Create sys_permissions AND pre-fill for existing tables
       const permPk = crypto.randomUUID();
       const permFields: Field[] = [
           { id: permPk, name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
@@ -97,6 +153,13 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
           initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: false, CanDelete: false });
           initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: table.id, CanRead: false, CanWrite: false, CanDelete: false });
       });
+
+      // Add explicit default permissions for sys_users itself
+      initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: true, CanDelete: true });
+      initialPerms.push({ Id: permCounter++, RoleId: 2, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: true, CanDelete: false });
+      initialPerms.push({ Id: permCounter++, RoleId: 3, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: false, CanDelete: false });
+      initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: false, CanDelete: false });
+      initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: false, CanWrite: false, CanDelete: false });
 
       queries?.forEach(query => {
           initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });
@@ -152,6 +215,13 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
               initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: table.id, CanRead: true, CanWrite: false, CanDelete: false });
               initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: table.id, CanRead: false, CanWrite: false, CanDelete: false });
           });
+
+          // Add explicit default permissions for sys_users itself
+          initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: true, CanDelete: true });
+          initialPerms.push({ Id: permCounter++, RoleId: 2, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: true, CanDelete: false });
+          initialPerms.push({ Id: permCounter++, RoleId: 3, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: false, CanDelete: false });
+          initialPerms.push({ Id: permCounter++, RoleId: 4, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: true, CanWrite: false, CanDelete: false });
+          initialPerms.push({ Id: permCounter++, RoleId: 5, ObjectType: 'Table', ObjectId: 'sys_users', CanRead: false, CanWrite: false, CanDelete: false });
 
           queries?.forEach(query => {
               initialPerms.push({ Id: permCounter++, RoleId: 1, ObjectType: 'Query', ObjectId: query.id, CanRead: true, CanWrite: false, CanDelete: false });

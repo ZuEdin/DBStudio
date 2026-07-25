@@ -61,7 +61,7 @@ if (startIdx !== -1) {
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 \${calendarImports}
 
@@ -74,7 +74,7 @@ import { ApiService } from '../../services/api.service';
 export class \${pascalName}CustomComponent implements OnInit {
   \${states.join('\\n  ')}
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private router: Router, private route: ActivatedRoute) {}
 
   ngOnInit() {
     \${initCalls.join('\\n    ')}
