@@ -24,6 +24,18 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
   const headers = query.columns.filter(c => c.show).map(c => c.alias || c.fieldName);
   const dataKeys = query.columns.filter(c => c.show).map(c => c.alias || c.fieldName);
 
+  const getRowVal = (row: any, key: string) => {
+    if (!row) return '';
+    if (row[key] !== undefined && row[key] !== null) return row[key];
+    const camel = key.charAt(0).toLowerCase() + key.slice(1);
+    if (row[camel] !== undefined && row[camel] !== null) return row[camel];
+    const pascal = key.charAt(0).toUpperCase() + key.slice(1);
+    if (row[pascal] !== undefined && row[pascal] !== null) return row[pascal];
+    const lower = key.toLowerCase();
+    const foundKey = Object.keys(row).find(k => k.toLowerCase() === lower || k.toLowerCase().endsWith('.' + lower));
+    return foundKey ? row[foundKey] : '';
+  };
+
   const exportExcel = () => {
     if (filteredData.length === 0) return;
     const ws = XLSX.utils.json_to_sheet(filteredData);
@@ -152,7 +164,7 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
                   <tr key={`row-${rowIndex}`} className="hover:bg-slate-50">
                     {dataKeys.map((key, colIndex) => (
                       <td key={`cell-${rowIndex}-${colIndex}`} className="p-3 text-slate-700 whitespace-nowrap">
-                        {String(row[key] ?? '')}
+                        {String(getRowVal(row, key) ?? '')}
                       </td>
                     ))}
                   </tr>

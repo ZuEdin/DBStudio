@@ -59,7 +59,8 @@ export const ${compName} = () => {
       const load = async () => {
           try {
               const res = await get<any>('${endpoint}', { pageSize: 10000 }); // Fetch all for report
-              setData(Array.isArray(res) ? res : res.data);
+              const items = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
+              setData(items);
           } finally { setLoading(false); }
       };
       load();
@@ -67,9 +68,9 @@ export const ${compName} = () => {
 
   const groupedData = useMemo(() => {
       if (!data.length) return [];
-      const groupBy = '${groupingProp}';
+      const groupBy: string | null = ${groupingProp ? `'${groupingProp}'` : 'null'};
       
-      if (!groupBy || groupBy === 'null') {
+      if (!groupBy) {
           return [{ key: 'Gesamt', items: data, summaries: calculateSummaries(data) }];
       }
 

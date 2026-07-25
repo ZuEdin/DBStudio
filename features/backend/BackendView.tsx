@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report, IntegrationsConfig, EnvironmentConfig, DbType, WhitelabelConfig, MultiTenancyConfig, LicensingConfig, CustomPage } from '../../types/index';
 import Editor from '@monaco-editor/react';
 import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw, UploadCloud, GitBranch, CloudLightning, Globe, GitCommit, Briefcase, AlertCircle } from 'lucide-react';
@@ -155,6 +155,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
   const [showGitModal, setShowGitModal] = useState(false);
   
   const [localConfig, setLocalConfig] = useState(config);
+  const lastExportTriggerRef = useRef<number>(exportTrigger);
 
   useEffect(() => {
     setLocalConfig(config);
@@ -165,7 +166,8 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
   }, [generateTrigger, tables, relationships, queries, localConfig, customComponents]); 
 
   useEffect(() => {
-      if(exportTrigger > 0) {
+      if(exportTrigger > 0 && exportTrigger !== lastExportTriggerRef.current) {
+          lastExportTriggerRef.current = exportTrigger;
           handleExportZip();
       }
   }, [exportTrigger]);

@@ -46,7 +46,8 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
       try {
         set_${loadingState}(true);
         const res = await get<any>('${fetchUrl}', { pageSize: 10 });
-        set_${stateName}(res.data || res || []);
+        const items = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
+        set_${stateName}(items);
       } catch (err) {
         console.error(err);
       } finally {

@@ -52,12 +52,13 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onSetView, onActiveObjectC
 
   useEffect(() => {
       if (formActionTrigger?.action === 'backend_export') {
-          setExportTrigger(Date.now());
+          setExportTrigger(formActionTrigger.timestamp || Date.now());
+          ui.setFormActionTrigger(undefined);
+      } else if (formActionTrigger?.action === 'backend_generate') {
+          setGenerateTrigger(formActionTrigger.timestamp || Date.now());
+          ui.setFormActionTrigger(undefined);
       }
-      if (formActionTrigger?.action === 'backend_generate') {
-          setGenerateTrigger(Date.now());
-      }
-  }, [formActionTrigger]);
+  }, [formActionTrigger, ui]);
 
   const handleCommandNavigate = (type: string, id: string) => {
       if (type === 'table_data') onSetView({ type: 'table_data', tableId: id });

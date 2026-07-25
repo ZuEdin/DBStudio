@@ -91,8 +91,8 @@ export class ${pascalName}ReportComponent implements OnInit {
   constructor(private api: ApiService) {}
   ngOnInit() { this.api.getAll('${sourceName}', 1, 10000).subscribe((res: any) => { this.processData(res.data || res); }); }
   processData(data: any[]) {
-      const groupingProp = '${groupingProp}';
-      if (!groupingProp || groupingProp === 'null') {
+      const groupingProp: string | null = ${groupingProp ? `'${groupingProp}'` : 'null'};
+      if (!groupingProp) {
           this.reportData = [{ groupValue: 'Gesamt', items: data, summaries: this.calcSummaries(data) }];
           return;
       }

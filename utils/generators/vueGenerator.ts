@@ -114,12 +114,12 @@ export const generateVue = (
       }),
       ...forms.map(f => {
           const p = toPascalCase(f.name);
-          return `{ path: '/forms/${p.toLowerCase()}/:id', component: () => import('@/views/forms/${p}.vue') }`;
+          return `{ path: '/forms/${p.toLowerCase()}/:id', component: () => import('@/views/forms/${p}.vue') },\n    { path: '/forms/${p.toLowerCase()}', component: () => import('@/views/forms/${p}.vue') },\n    { path: '/form/${f.id}', component: () => import('@/views/forms/${p}.vue') },\n    { path: '/form/${f.id}/:id', component: () => import('@/views/forms/${p}.vue') },\n    { path: '/forms/${f.id}', component: () => import('@/views/forms/${p}.vue') }`;
       }),
       ...pages.map(p => {
           const kebab = toKebabCase(p.name);
           const pascal = toPascalCase(p.name);
-          return `{ path: '/custom/${kebab}', component: () => import('@/views/custom/${pascal}.vue') }`;
+          return `{ path: '/custom/${kebab}', component: () => import('@/views/custom/${pascal}.vue') },\n    { path: '/custom/${p.id}', component: () => import('@/views/custom/${pascal}.vue') },\n    { path: '/page/${p.id}', component: () => import('@/views/custom/${pascal}.vue') }`;
       })
   ];
 

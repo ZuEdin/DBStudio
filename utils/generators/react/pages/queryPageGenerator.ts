@@ -17,8 +17,9 @@ export const generateQueryPage = (
       }).join('\n');
 
       const cells = q.columns.filter(c => c.show).map(c => {
-          const propName = toCamelCase(c.alias || c.fieldName);
-          return `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(item.${propName} ?? '')}</td>`;
+          const rawKey = c.alias || c.fieldName || '';
+          const fieldName = c.fieldName || '';
+          return `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(getCellValue(item, ${JSON.stringify(rawKey)}, ${JSON.stringify(fieldName)}) ?? '')}</td>`;
       }).join('\n');
 
       const content = `import React, { useEffect, useState } from 'react';
@@ -33,12 +34,38 @@ export const ${compName} = () => {
 
   useEffect(() => { load(); }, [page, search]);
 
+  const getCellValue = (item: any, alias: string, fieldName: string) => {
+      if (!item) return '';
+      if (item[alias] !== undefined && item[alias] !== null) return item[alias];
+      const camelAlias = alias ? alias.charAt(0).toLowerCase() + alias.slice(1) : '';
+      if (camelAlias && item[camelAlias] !== undefined && item[camelAlias] !== null) return item[camelAlias];
+      if (fieldName && item[fieldName] !== undefined && item[fieldName] !== null) return item[fieldName];
+      const camelField = fieldName ? fieldName.charAt(0).toLowerCase() + fieldName.slice(1) : '';
+      if (camelField && item[camelField] !== undefined && item[camelField] !== null) return item[camelField];
+      const target = (alias || fieldName).toLowerCase();
+      const foundKey = Object.keys(item).find(k => k.toLowerCase() === target);
+      return foundKey ? item[foundKey] : '';
+  };
+
   const load = async () => {
       setLoading(true);
       try {
-          const res = await get('${endpoint}', { page, pageSize: 20, search });
-          const d = Array.isArray(res) ? { data: res, total: res.length, page: 1, totalPages: 1 } : res;
-          setData(d);
+          const res: any = await get('${endpoint}', { page, pageSize: 20, search });
+          let items: any[] = [];
+          let total = 0;
+          let curPage = page;
+          let totalPages = 1;
+
+          if (Array.isArray(res)) {
+              items = res;
+              total = res.length;
+          } else if (res && typeof res === 'object') {
+              items = res.data || res.Data || res.items || res.Items || [];
+              total = res.total ?? res.Total ?? items.length;
+              curPage = res.page ?? res.Page ?? page;
+              totalPages = (res.totalPages ?? res.TotalPages ?? Math.ceil(total / 20)) || 1;
+          }
+          setData({ data: items, total, page: curPage, totalPages });
       } finally { setLoading(false); }
   };
 

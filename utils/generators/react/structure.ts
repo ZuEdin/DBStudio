@@ -118,8 +118,18 @@ export const generateReactStructure = (
   // Custom Form Routes
   forms.forEach(form => {
     const compName = `${toPascalCase(form.name)}Form`;
+    const formSlug = toPascalCase(form.name).toLowerCase();
+    const camelName = toCamelCase(form.name);
     imports.push(`import { ${compName} } from './pages/forms/${compName}';`);
-    routes.push(`<Route path="/forms/${toPascalCase(form.name).toLowerCase()}Form/:id" element={<${compName} />} />`);
+    routes.push(`<Route path="/forms/${formSlug}Form/:id" element={<${compName} />} />`);
+    routes.push(`<Route path="/forms/${formSlug}Form" element={<${compName} />} />`);
+    routes.push(`<Route path="/forms/${formSlug}Form/new" element={<${compName} />} />`);
+    routes.push(`<Route path="/forms/${camelName}" element={<${compName} />} />`);
+    routes.push(`<Route path="/forms/${camelName}/:id" element={<${compName} />} />`);
+    routes.push(`<Route path="/form/${form.id}" element={<${compName} />} />`);
+    routes.push(`<Route path="/form/${form.id}/:id" element={<${compName} />} />`);
+    routes.push(`<Route path="/forms/${form.id}" element={<${compName} />} />`);
+    routes.push(`<Route path="/forms/${form.id}/:id" element={<${compName} />} />`);
   });
 
   // Query Routes
@@ -127,6 +137,8 @@ export const generateReactStructure = (
     const compName = `${toPascalCase(q.name)}QueryPage`;
     imports.push(`import { ${compName} } from './pages/queries/${compName}';`);
     routes.push(`<Route path="/queries/${toCamelCase(q.name)}" element={<${compName} />} />`);
+    routes.push(`<Route path="/query/${q.id}" element={<${compName} />} />`);
+    routes.push(`<Route path="/queries/${q.id}" element={<${compName} />} />`);
   });
 
   // Report Routes
@@ -134,6 +146,8 @@ export const generateReactStructure = (
     const compName = `${toPascalCase(r.name)}ReportPage`;
     imports.push(`import { ${compName} } from './pages/reports/${compName}';`);
     routes.push(`<Route path="/reports/${toCamelCase(r.name)}" element={<${compName} />} />`);
+    routes.push(`<Route path="/report/${r.id}" element={<${compName} />} />`);
+    routes.push(`<Route path="/reports/${r.id}" element={<${compName} />} />`);
   });
 
   // Custom Pages Routes
@@ -141,6 +155,8 @@ export const generateReactStructure = (
     const pascalName = toPascalCase(p.name);
     imports.push(`import { ${pascalName}Page } from './pages/custom/${pascalName}Page';`);
     routes.push(`<Route path="/custom/${toCamelCase(p.name)}" element={<${pascalName}Page />} />`);
+    routes.push(`<Route path="/custom/${p.id}" element={<${pascalName}Page />} />`);
+    routes.push(`<Route path="/page/${p.id}" element={<${pascalName}Page />} />`);
   });
 
   // Auth specific files and configurations

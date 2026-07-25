@@ -200,9 +200,28 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
     
     if (!initialTable || !initialTable.data) return [];
 
+    // Helper to extract field value safely from working row
+    const getFieldValue = (r: Record<string, any>, col: QueryColumn) => {
+        if (col.isCalculated) return r[`CALC_${col.id}`];
+        if (col.tableName && r[`${col.tableName}.${col.fieldName}`] !== undefined) return r[`${col.tableName}.${col.fieldName}`];
+        if (r[col.fieldName] !== undefined) return r[col.fieldName];
+        // Case-insensitive & suffix fallback search
+        const lowerField = col.fieldName.toLowerCase();
+        for (const k of Object.keys(r)) {
+            const lowerK = k.toLowerCase();
+            if (lowerK === lowerField || lowerK.endsWith('.' + lowerField)) {
+                return r[k];
+            }
+        }
+        return undefined;
+    };
+
     workingData = initialTable.data.map(row => {
         const newRow: Record<string, any> = {};
-        for (const key in row) { newRow[`${initialTable.name}.${key}`] = row[key]; }
+        for (const key in row) {
+            newRow[`${initialTable.name}.${key}`] = row[key];
+            newRow[key] = row[key];
+        }
         return newRow;
     });
     
@@ -225,9 +244,14 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
                     const newData: Record<string, any>[] = [];
                     workingData.forEach(row1 => {
                         table2.data!.forEach(row2 => {
-                            if (String(row1[`${table1.name}.${field1.name}`]) === String(row2[field2.name])) {
+                            const val1 = row1[`${table1.name}.${field1.name}`] ?? row1[field1.name];
+                            const val2 = row2[field2.name];
+                            if (val1 !== undefined && val2 !== undefined && String(val1) === String(val2)) {
                                 const newRow = {...row1};
-                                for (const key in row2) { newRow[`${table2.name}.${key}`] = row2[key]; }
+                                for (const key in row2) {
+                                    newRow[`${table2.name}.${key}`] = row2[key];
+                                    if (newRow[key] === undefined) newRow[key] = row2[key];
+                                }
                                 newData.push(newRow);
                             }
                         });
@@ -252,18 +276,11 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
     // 3. Filter (WHERE)
     let filteredData = workingData.filter(row => {
         for (const col of query.columns) {
-            // Apply filter only if column is part of Group By OR there is no aggregation
-            // We do a simplified approach: Filter applied before aggregation
             if (col.aggregate && col.aggregate !== 'GROUP_BY' && col.aggregate !== 'EXPRESSION') continue;
 
             const validCriteria = col.criteria.filter(c => c && c.trim() !== '');
             if (validCriteria.length > 0) {
-                let cellValue;
-                if (col.isCalculated) {
-                    cellValue = row[`CALC_${col.id}`];
-                } else {
-                    cellValue = row[`${col.tableName}.${col.fieldName}`];
-                }
+                const cellValue = getFieldValue(row, col);
 
                 const orConditionsMet = validCriteria.some(crit => matchesCriteria(cellValue, crit, context));
                 if (!orConditionsMet) return false;
@@ -273,8 +290,6 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
     });
 
     // 4. Aggregation / Grouping
-    const hasAggregation = query.columns.some(c => c.aggregate && c.aggregate !== 'EXPRESSION' && c.aggregate !== 'GROUP_BY'); // Fix check logic
-    // Check strict: If ANY aggregate function exists (Sum, Count), we must group.
     const strictAggregation = query.columns.some(c => ['SUM','COUNT','AVG','MIN','MAX'].includes(c.aggregate || ''));
 
     if (strictAggregation) {
@@ -282,9 +297,8 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         const groupByCols = query.columns.filter(c => c.aggregate === 'GROUP_BY');
         
         filteredData.forEach(row => {
-            // If no group by columns, everything is one group
             const groupKey = groupByCols.length > 0 ? groupByCols.map(c => {
-                 return c.isCalculated ? row[`CALC_${c.id}`] : row[`${c.tableName}.${c.fieldName}`];
+                 return getFieldValue(row, c);
             }).join('|||') : 'ALL';
             
             if (!groups[groupKey]) groups[groupKey] = [];
@@ -295,29 +309,32 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
             const resultRow: Record<string, any> = {};
             query.columns.forEach(col => {
                 const key = col.isCalculated ? `CALC_${col.id}` : `${col.tableName}.${col.fieldName}`;
-                const outputKey = key; // Keep internal key structure for now, map to alias later
 
                 if (col.aggregate === 'GROUP_BY') {
-                    resultRow[key] = groupRows[0][key];
+                    resultRow[key] = getFieldValue(groupRows[0], col);
                 } else if (col.aggregate === 'COUNT') {
                     resultRow[key] = groupRows.length;
                 } else if (col.aggregate === 'SUM') {
-                    resultRow[key] = groupRows.reduce((sum, r) => sum + (parseFloat(r[key]) || 0), 0);
+                    resultRow[key] = groupRows.reduce((sum, r) => sum + (parseFloat(getFieldValue(r, col)) || 0), 0);
                 } else if (col.aggregate === 'AVG') {
-                    const sum = groupRows.reduce((s, r) => s + (parseFloat(r[key]) || 0), 0);
+                    const sum = groupRows.reduce((s, r) => s + (parseFloat(getFieldValue(r, col)) || 0), 0);
                     resultRow[key] = groupRows.length ? Number((sum / groupRows.length).toFixed(2)) : 0;
                 } else if (col.aggregate === 'MIN') {
-                    resultRow[key] = groupRows.reduce((min, r) => (r[key] < min ? r[key] : min), groupRows[0][key]);
+                    resultRow[key] = groupRows.reduce((min, r) => {
+                        const val = getFieldValue(r, col);
+                        return val < min ? val : min;
+                    }, getFieldValue(groupRows[0], col));
                 } else if (col.aggregate === 'MAX') {
-                    resultRow[key] = groupRows.reduce((max, r) => (r[key] > max ? r[key] : max), groupRows[0][key]);
+                    resultRow[key] = groupRows.reduce((max, r) => {
+                        const val = getFieldValue(r, col);
+                        return val > max ? val : max;
+                    }, getFieldValue(groupRows[0], col));
                 } else if (col.aggregate === 'FIRST') {
-                    resultRow[key] = groupRows[0][key];
+                    resultRow[key] = getFieldValue(groupRows[0], col);
                 } else if (col.aggregate === 'LAST') {
-                    resultRow[key] = groupRows[groupRows.length - 1][key];
+                    resultRow[key] = getFieldValue(groupRows[groupRows.length - 1], col);
                 } else {
-                     // Non-aggregated field in a Group By query - technically invalid SQL usually, 
-                     // but in local engine we just pick first value
-                     resultRow[key] = groupRows[0][key]; 
+                     resultRow[key] = getFieldValue(groupRows[0], col); 
                 }
             });
             return resultRow;
@@ -329,19 +346,16 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         filteredData.sort((a, b) => {
             for (const col of query.columns) {
                 if (col.sort) {
-                    const key = col.isCalculated ? `CALC_${col.id}` : `${col.tableName}.${col.fieldName}`;
-                    const valA = a[key]; 
-                    const valB = b[key];
+                    const valA = getFieldValue(a, col); 
+                    const valB = getFieldValue(b, col);
                     
                     if (valA === valB) continue;
 
                     const direction = col.sort.toUpperCase() === 'DESC' ? -1 : 1;
                     
-                    // Numeric Sort
                     if (!isNaN(Number(valA)) && !isNaN(Number(valB))) {
                         return (Number(valA) - Number(valB)) * direction;
                     }
-                    // String Sort
                     if (valA < valB) return -1 * direction;
                     if (valA > valB) return 1 * direction;
                 }
@@ -355,7 +369,7 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         const newRow: Record<string, any> = {};
         const usedKeys = new Set<string>();
         query.columns.filter(c => c.show).forEach(col => {
-           const sourceKey = col.isCalculated ? `CALC_${col.id}` : `${col.tableName}.${col.fieldName}`;
+           const val = getFieldValue(row, col);
            let outputKey = col.alias && col.alias.trim() !== '' ? col.alias : col.fieldName;
            
            if (usedKeys.has(outputKey)) {
@@ -370,7 +384,7 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
                }
            }
            usedKeys.add(outputKey);
-           newRow[outputKey] = row[sourceKey];
+           newRow[outputKey] = val;
         });
         return newRow;
     });
