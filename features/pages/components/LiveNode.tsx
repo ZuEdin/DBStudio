@@ -5,6 +5,7 @@ import { executeSelectQuery } from '../../queries/utils/queryExecution';
 import { LiveTable } from './LiveTable';
 import { LiveForm } from './LiveForm';
 import { CustomComponentRunner } from './runner/CustomComponentRunner';
+import { exportDataToFile } from '../../../utils/exportHelper';
 import { 
     PageParamsContext, 
     PageViewContext, 
@@ -22,7 +23,7 @@ interface LiveNodeProps {
 export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
     const { queries, tables, relationships, pages, forms, updateTable, customComponents = [] } = useProjectStore();
     const { params, setParam } = useContext(PageParamsContext);
-    const { openFormModal, showConfirm, navigate, activeRole } = useContext(PageViewContext);
+    const { openFormModal, showConfirm, navigate, openMacroModal, openSmartImportModal, activeRole } = useContext(PageViewContext);
     
     // Role-Based Visibility Check
     if (node.props.allowedRoles && node.props.allowedRoles.length > 0) {
@@ -294,6 +295,31 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
                      }
 
                      navigate(node.props.targetPageId, targetParams);
+                 } else if (actType === 'run_macro') {
+                     if (openMacroModal) openMacroModal();
+                 } else if (actType === 'smart_import') {
+                     if (openSmartImportModal) openSmartImportModal(node.props.targetTableId);
+                 } else if (actType === 'export_report') {
+                     const fmt = node.props.exportFormat || 'PDF';
+                     const tbl = tables.find(t => t.id === node.props.targetTableId);
+                     const qry = queries.find(q => q.id === node.props.queryId);
+                     let dataToExport: any[] = [];
+                     let title = 'Export';
+
+                     if (tbl) {
+                         dataToExport = tbl.data || [];
+                         title = `Export_${tbl.name}`;
+                     } else if (qry && qry.type === 'SELECT') {
+                         dataToExport = executeSelectQuery(qry as any, tables, []);
+                         title = `Export_${qry.name}`;
+                     }
+
+                     exportDataToFile({
+                         title,
+                         data: dataToExport,
+                         format: fmt as any,
+                         filename: `${title}_${Date.now()}`
+                     });
                  }
              };
 

@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { CustomPage, Table } from '../../types/index';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { FormView } from '../forms/FormView';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Cpu, Upload } from 'lucide-react';
 import { 
     PageParamsContext, 
     PageViewContext 
 } from './utils/pageViewUtils';
 import { LiveNode } from './components/LiveNode';
+import { MacroModal } from '../logic/MacroModal';
+import { SmartImportModal } from '../tools/SmartImportModal';
+import { executeMacro } from '../logic/MacroEngine';
+import { Macro } from '../../types/macro';
 
 interface PageViewProps {
   page: CustomPage;
@@ -17,7 +21,7 @@ interface PageViewProps {
 export { PageParamsContext, PageViewContext } from './utils/pageViewUtils';
 
 export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
-  const { pages, tables, forms, updateTable } = useProjectStore();
+  const { pages, tables, forms, queries, reports, updateTable } = useProjectStore();
   const [currentPage, setCurrentPage] = useState<CustomPage>(page);
   const [pageParams, setPageParams] = useState<Record<string, any>>({});
 
@@ -43,6 +47,10 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
       message: string;
       onConfirm: () => void;
   } | null>(null);
+
+  // Macro and Smart Import Modals
+  const [isMacroModalOpen, setIsMacroModalOpen] = useState(false);
+  const [smartImportState, setSmartImportState] = useState<{ isOpen: boolean; targetTableId?: string }>({ isOpen: false });
 
   const handleSetParam = (key: string, value: any) => {
       setPageParams(prev => ({ ...prev, [key]: value }));
@@ -83,6 +91,18 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
       }
   };
 
+  const handleRunMacro = (macro: Macro) => {
+      executeMacro(macro, {
+          tables,
+          queries,
+          reports,
+          params: pageParams,
+          onNavigate: handleNavigate,
+          onOpenSmartImport: (tblId) => setSmartImportState({ isOpen: true, targetTableId: tblId }),
+          onOpenFormModal: (fId, m) => handleOpenFormModal(fId, m || 'create')
+      });
+  };
+
   const handleTableChange = (updatedT: Table) => {
       updateTable(updatedT);
       if (activeFormModal?.callback) {
@@ -118,6 +138,8 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
           openFormModal: handleOpenFormModal, 
           showConfirm: handleShowConfirm, 
           navigate: handleNavigate,
+          openMacroModal: () => setIsMacroModalOpen(true),
+          openSmartImportModal: (targetTableId) => setSmartImportState({ isOpen: true, targetTableId }),
           activeRole
       }}>
         <div className="flex flex-col h-full bg-slate-50 font-sans overflow-auto relative">
@@ -132,6 +154,27 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
               </div>
               
               <div className="flex items-center gap-4">
+                  {/* Macro and Smart Import Quick Action Buttons */}
+                  <button
+                    onClick={() => setIsMacroModalOpen(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded text-[11px] font-bold transition-all"
+                    title="MS Access Makro Manager Öffnen"
+                  >
+                    <Cpu size={13} />
+                    <span>Makros</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSmartImportState({ isOpen: true })}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded text-[11px] font-bold transition-all"
+                    title="Smart Excel/CSV Upload Wizard"
+                  >
+                    <Upload size={13} />
+                    <span>Smart Upload</span>
+                  </button>
+
+                  <span className="text-slate-700">|</span>
+
                   {/* Active Parameters List */}
                   <div className="flex items-center gap-1.5">
                       <span className="text-slate-400">Parameter:</span>
@@ -260,6 +303,26 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
                   </div>
               </div>
           )}
+
+          {/* MS Access Style Macro Manager Modal */}
+          <MacroModal
+              isOpen={isMacroModalOpen}
+              onClose={() => setIsMacroModalOpen(false)}
+              onRunMacro={(macro) => {
+                  handleRunMacro(macro);
+                  setIsMacroModalOpen(false);
+              }}
+          />
+
+          {/* Smart Upload & Import Wizard Modal */}
+          <SmartImportModal
+              isOpen={smartImportState.isOpen}
+              targetTableId={smartImportState.targetTableId}
+              onClose={() => setSmartImportState({ isOpen: false })}
+              onImportCompleted={(tableName, count) => {
+                  alert(`Erfolgreich ${count} Datensätze in Tabelle '${tableName}' importiert!`);
+              }}
+          />
         </div>
       </PageViewContext.Provider>
     </PageParamsContext.Provider>

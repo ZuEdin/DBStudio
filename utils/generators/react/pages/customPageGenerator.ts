@@ -244,6 +244,7 @@ export const generateCustomPage = (
   const content = `import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { exportDataToFile } from '../../utils/exportHelper';
 ${importsStr}\n${rechartsImportsStr}
 
 export const ${compName} = () => {

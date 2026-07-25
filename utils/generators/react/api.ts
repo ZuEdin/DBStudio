@@ -590,5 +590,139 @@ export const logoutUser = () => {
 
   files.push({ name: 'types.ts', path: `${root}/src/types/index.ts`, content: typesContent, language: 'typescript' });
 
+  // Export Helpers & Macro Services for Generated Sites
+  const exportHelperContent = `export type ExportFormat = 'PDF' | 'XLSX' | 'XML' | 'JSON' | 'CSV' | 'HTML_PRINT';
+
+export interface ExportDataOptions {
+  title?: string;
+  data: Record<string, any>[];
+  columns?: string[];
+  filename?: string;
+  format: ExportFormat;
+}
+
+export function exportDataToFile(options: ExportDataOptions) {
+  const { title = 'Bericht_Export', data, filename = \`export_\${Date.now()}\`, format } = options;
+
+  if (!data || data.length === 0) {
+    alert('Keine Daten für den Export vorhanden.');
+    return;
+  }
+
+  const columns = options.columns && options.columns.length > 0 ? options.columns : Object.keys(data[0] || {});
+
+  switch (format) {
+    case 'CSV': {
+      let csvContent = '\\uFEFF';
+      csvContent += columns.map(c => \`"\${String(c).replace(/"/g, '""')}"\`).join(';') + '\\n';
+      data.forEach(row => {
+        const line = columns.map(c => \`"\${String(row[c] ?? '').replace(/"/g, '""')}"\`).join(';');
+        csvContent += line + '\\n';
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      downloadBlob(blob, \`\${filename}.csv\`);
+      break;
+    }
+    case 'JSON': {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
+      downloadBlob(blob, \`\${filename}.json\`);
+      break;
+    }
+    case 'XLSX': {
+      let htmlContent = \`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"></head>
+<body><h2>\${title}</h2><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead>
+<tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`;
+      const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      downloadBlob(blob, \`\${filename}.xlsx\`);
+      break;
+    }
+    case 'PDF':
+    case 'HTML_PRINT': {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return alert('Pop-up blockiert.');
+      printWindow.document.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><button onclick="window.print()">Drucken / Als PDF Speichern</button><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+      printWindow.document.close();
+      break;
+    }
+  }
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+`;
+
+  files.push({ name: 'exportHelper.ts', path: `${root}/src/utils/exportHelper.ts`, content: exportHelperContent, language: 'typescript' });
+
+  const formulaEvaluatorContent = `export function evaluateFormFormula(formula: string, record: Record<string, any>): any {
+  if (!formula || typeof formula !== 'string') return '';
+  try {
+    let expr = formula.replace(/\\[([^\\]]+)\\]/g, (_, fieldName) => {
+      let val = record[fieldName];
+      if (val === undefined) {
+        const lowerKey = Object.keys(record).find(k => k.toLowerCase() === fieldName.toLowerCase());
+        if (lowerKey) val = record[lowerKey];
+      }
+      if (val === undefined || val === null || val === '') return '0';
+      return typeof val === 'number' ? String(val) : JSON.stringify(String(val));
+    });
+    const safeExpr = expr.replace(/[^0-9.\\-/*+()% ]/g, '');
+    if (!safeExpr) return '';
+    const fn = new Function('"use strict"; return (' + safeExpr + ');');
+    const res = fn();
+    return typeof res === 'number' && !isNaN(res) ? (Number.isInteger(res) ? res : Number(res.toFixed(2))) : res ?? '';
+  } catch {
+    return '';
+  }
+}
+`;
+
+  files.push({ name: 'formulaEvaluator.ts', path: `${root}/src/utils/formulaEvaluator.ts`, content: formulaEvaluatorContent, language: 'typescript' });
+
+  const macroServiceContent = `import { exportDataToFile, ExportFormat } from '../utils/exportHelper';
+
+export interface MacroStep {
+  id: string;
+  name: string;
+  type: 'EXPORT_REPORT' | 'SMART_IMPORT' | 'EXECUTE_QUERY' | 'SHOW_TOAST';
+  exportConfig?: {
+    sourceType: 'table' | 'query';
+    sourceId: string;
+    format: ExportFormat;
+    title?: string;
+  };
+}
+
+export interface Macro {
+  id: string;
+  name: string;
+  steps: MacroStep[];
+}
+
+export function executeGeneratedMacro(macro: Macro, contextData: { tablesData?: Record<string, any[]> }) {
+  if (!macro || !macro.steps) return;
+  macro.steps.forEach(step => {
+    if (step.type === 'EXPORT_REPORT' && step.exportConfig) {
+      const data = contextData.tablesData?.[step.exportConfig.sourceId] || [];
+      exportDataToFile({
+        title: step.exportConfig.title || macro.name,
+        data,
+        format: step.exportConfig.format || 'PDF'
+      });
+    }
+  });
+}
+`;
+
+  files.push({ name: 'macroService.ts', path: `${root}/src/services/macroService.ts`, content: macroServiceContent, language: 'typescript' });
+
   return files;
 };

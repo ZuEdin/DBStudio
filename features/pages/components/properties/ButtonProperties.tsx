@@ -54,8 +54,70 @@ export const ButtonProperties: React.FC<ButtonPropertiesProps> = ({
           <option value="delete_record">Datensatz löschen (CRUD Delete)</option>
           <option value="set_parameter">Parameter setzen (Status / Filter)</option>
           <option value="navigate_to_page">Seite wechseln (Details / Navigation)</option>
+          <option value="run_macro">⚡ Makro Ausführen (MS Access Style)</option>
+          <option value="export_report">📊 Bericht / Tabelle Exportieren (PDF, Excel, XML, JSON, CSV)</option>
+          <option value="smart_import">📥 Smart Upload & Import Wizard Starten</option>
         </select>
       </div>
+
+      {/* Macro Action Fields */}
+      {selectedNode.props.actionType === 'run_macro' && (
+        <div className="space-y-3 bg-purple-50/50 border border-purple-200 rounded p-2.5 text-xs font-mono">
+          <p className="text-purple-900 font-bold">⚡ Makro-Steuerung</p>
+          <p className="text-[10px] text-purple-700 font-sans">Klick führt den MS Access Makro-Manager aus oder startet konfigurierte Makros.</p>
+        </div>
+      )}
+
+      {/* Smart Import Action Fields */}
+      {selectedNode.props.actionType === 'smart_import' && (
+        <div className="space-y-3 bg-emerald-50/50 border border-emerald-200 rounded p-2.5 text-xs font-mono">
+          <p className="text-emerald-900 font-bold">📥 Smart Import Assistent</p>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 mb-1">Zieltabelle (Optional)</label>
+            <select
+              value={selectedNode.props.targetTableId || ''}
+              onChange={(e) => updateSelectedNodeProps({ targetTableId: e.target.value })}
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs"
+            >
+              <option value="">-- Bei Upload frei wählen --</option>
+              {tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Export Report Action Fields */}
+      {selectedNode.props.actionType === 'export_report' && (
+        <div className="space-y-3 bg-indigo-50/50 border border-indigo-200 rounded p-2.5 text-xs font-mono">
+          <p className="text-indigo-900 font-bold">📊 Berichts-Export Optionen</p>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 mb-1">Export-Format</label>
+            <select
+              value={selectedNode.props.exportFormat || 'PDF'}
+              onChange={(e) => updateSelectedNodeProps({ exportFormat: e.target.value })}
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-indigo-700"
+            >
+              <option value="PDF">📄 PDF Dokument</option>
+              <option value="XLSX">📈 Excel Arbeitsmappe (.xlsx)</option>
+              <option value="CSV">📑 CSV Tabelle (.csv)</option>
+              <option value="JSON">📦 JSON Datei (.json)</option>
+              <option value="XML">🏷️ XML Dokument (.xml)</option>
+              <option value="HTML_PRINT">🖨️ Druckansicht</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 mb-1">Zieltabelle</label>
+            <select
+              value={selectedNode.props.targetTableId || ''}
+              onChange={(e) => updateSelectedNodeProps({ targetTableId: e.target.value })}
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs"
+            >
+              <option value="">-- Tabelle wählen --</option>
+              {tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Open Form Action Fields */}
       {selectedNode.props.actionType === 'open_form' && (

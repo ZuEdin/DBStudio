@@ -11,3 +11,4 @@ export * from './ui';
 export * from './collaboration';
 export * from './auth';
 export * from './config';
+export * from './macro';

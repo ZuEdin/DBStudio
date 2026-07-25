@@ -9,16 +9,20 @@ export const PageParamsContext = createContext<{
     setParam: () => {}
 });
 
-// Context for managing page interactions (modals, confirmation overlays, page-navigation)
+// Context for managing page interactions (modals, confirmation overlays, page-navigation, macros)
 export const PageViewContext = createContext<{
     openFormModal: (formId: string, mode: 'create' | 'edit', recordId?: any, callback?: () => void, defaultValues?: Record<string, any>) => void;
     showConfirm: (title: string, message: string, onConfirm: () => void) => void;
     navigate: (pageId: string, initialParams?: Record<string, any>) => void;
+    openMacroModal?: () => void;
+    openSmartImportModal?: (targetTableId?: string) => void;
     activeRole?: string;
 }>({
     openFormModal: () => {},
     showConfirm: () => {},
     navigate: () => {},
+    openMacroModal: () => {},
+    openSmartImportModal: () => {},
     activeRole: 'Admin'
 });
 

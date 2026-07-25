@@ -4,6 +4,7 @@ import { Form, Table, FormElement, Query } from '../../types/index';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout, AlertCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FormWidget } from './renderer/FormWidget';
+import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
 interface FormViewProps {
   form: Form;
@@ -52,11 +53,37 @@ export const FormView: React.FC<FormViewProps> = ({
     }
   }, [data.length, isCreating, isUnbound]);
 
+  const recalculateCalculatedFields = (record: Record<string, any>): Record<string, any> => {
+      if (!form.layout) return record;
+
+      const updatedRecord = { ...record };
+
+      const walkAndCalculate = (el: FormElement) => {
+          if (!el) return;
+          if ((el.widgetType === 'calculated' || el.isCalculated) && el.calculationFormula && el.fieldId) {
+              const targetName = getFieldName(el.fieldId);
+              if (targetName) {
+                  const calculatedVal = evaluateFormFormula(el.calculationFormula, updatedRecord);
+                  updatedRecord[targetName] = calculatedVal;
+              }
+          }
+          if (Array.isArray(el.children)) {
+              el.children.forEach(walkAndCalculate);
+          }
+      };
+
+      walkAndCalculate(form.layout);
+      return updatedRecord;
+  };
+
   const handleInputChange = (fieldName: string, value: any) => {
       if (isReadOnly) return;
 
       if (isCreating || isUnbound) {
-          setTempRecord(prev => ({ ...prev, [fieldName]: value }));
+          setTempRecord(prev => {
+              const nextRec = { ...prev, [fieldName]: value };
+              return recalculateCalculatedFields(nextRec);
+          });
           return;
       }
 
@@ -69,7 +96,8 @@ export const FormView: React.FC<FormViewProps> = ({
       if (originalIndex === undefined || originalIndex === -1) return;
       
       const newData = [...sourceTable.data!];
-      newData[originalIndex] = { ...newData[originalIndex], [fieldName]: value };
+      const nextRec = recalculateCalculatedFields({ ...newData[originalIndex], [fieldName]: value });
+      newData[originalIndex] = nextRec;
       onTableChange({ ...sourceTable, data: newData });
   };
 

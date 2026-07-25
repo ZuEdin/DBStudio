@@ -52,6 +52,30 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
       else widget = 'text';
   }
 
+  // --- RENDER: Calculated Field ---
+  if (widget === 'calculated' || element.isCalculated) {
+      return (
+          <div className={element.className}>
+              <div className="flex justify-between items-center mb-1">
+                  <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700">{label}</label>
+                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300/50 flex items-center gap-1 font-mono">
+                      ⚡ Berechnet {element.calculationFormula ? `(${element.calculationFormula})` : ''}
+                  </span>
+              </div>
+              <div className="relative">
+                  <input
+                    id={elementId}
+                    type="text"
+                    readOnly
+                    value={value !== undefined && value !== null ? String(value) : ''}
+                    className="w-full border border-amber-200 bg-amber-50/60 text-amber-950 font-bold rounded-lg p-2.5 text-sm font-mono cursor-default focus:outline-none shadow-inner"
+                    placeholder="(Berechnung ausstehend)"
+                  />
+              </div>
+          </div>
+      );
+  }
+
   // --- RENDER: Current User (WhoAmI) ---
   if (widget === 'current-user') {
       return (

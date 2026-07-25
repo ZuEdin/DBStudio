@@ -37,7 +37,9 @@ export interface FormElement {
   label?: string;
   className?: string;
   children?: FormElement[];
-  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select' | 'ad-search' | 'current-user';
+  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select' | 'ad-search' | 'current-user' | 'calculated';
+  calculationFormula?: string;
+  isCalculated?: boolean;
   lookup?: LookupConfig;
   subform?: Subform;
   actions?: ActionFlow[];

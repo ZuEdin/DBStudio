@@ -15,6 +15,14 @@ export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => 
           return `<div className="break-words ${classNameStr}" style={${styleStr}}>${node.props?.text || ''}</div>`;
       }
       case 'button': {
+          const actType = node.props?.actionType;
+          if (actType === 'export_report') {
+            const fmt = node.props?.exportFormat || 'PDF';
+            return `<button onClick={() => exportDataToFile({ title: '${node.props?.label || 'Bericht Export'}', data: [], format: '${fmt}' })} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition cursor-pointer font-bold ${classNameStr}" style={${styleStr}}>${node.props?.label || '📊 Bericht Exportieren'}</button>`;
+          }
+          if (actType === 'run_macro' || actType === 'smart_import') {
+            return `<button onClick={() => alert('Makro / Smart Import Aktion gestartet')} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded transition cursor-pointer font-bold ${classNameStr}" style={${styleStr}}>${node.props?.label || '⚡ Makro / Import Starten'}</button>`;
+          }
           return `<button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition ${classNameStr}" style={${styleStr}}>${node.props?.label || 'Button'}</button>`;
       }
       case 'divider': {
