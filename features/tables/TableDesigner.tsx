@@ -22,8 +22,12 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const [showAi, setShowAi] = useState(false);
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
   const [showMockData, setShowMockData] = useState(false);
-  
-  const { name: tableName, description: tableDescription, fields, validationRules = [] } = table;
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+
+  const { name: tableName, description: tableDescription, fields = [], validationRules = [] } = table;
+
+  const activeSelectedFieldId = selectedFieldId || fields[0]?.id || null;
+  const selectedField = fields.find(f => f.id === activeSelectedFieldId) || fields[0] || null;
   
   const isLockedByMe = lockedBy?.userId === currentUserId;
   const isLockedByOther = lockedBy && !isLockedByMe;
@@ -378,178 +382,406 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
           </div>
 
           {activeTab === 'fields' ? (
-              <>
-                <table className="w-full border-collapse">
-                    <thead>
-                    <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                        {!isReadOnly && <th className="p-2 w-8"></th>}
-                        <th className="p-2 w-10 text-center" title="Primärschlüssel">PK</th>
-                        <th className="p-2 w-1/5">Feldname</th>
-                        <th className="p-2 w-40">Datentyp</th>
-                        <th className="p-2 w-20">Size/Attr</th>
-                        <th className="p-2 w-24">Formatierung</th>
-                        <th className="p-2 w-16 text-center" title="Erlaubt NULL-Werte">Null</th>
-                        <th className="p-2 w-16 text-center" title="Automatisch hochzählen (nur Integer)">Auto</th>
-                        <th className="p-2 w-48">Standardwert</th>
-                        <th className="p-2 flex-1">Kommentar</th>
-                        {!isReadOnly && <th className="p-2 w-10"></th>}
-                    </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                    {fields.map((field, idx) => {
-                        const typeConfig = DATA_TYPES[field.type];
-                        const isDate = field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP';
-                        return (
-                        <tr 
-                            key={field.id} 
-                            className={`group ${draggedFieldIndex === idx ? 'bg-blue-50 opacity-50' : 'hover:bg-slate-50'}`}
-                            draggable={!isReadOnly}
-                            onDragStart={(e) => handleDragStart(e, idx)}
-                            onDragOver={(e) => handleDragOver(e, idx)}
-                            onDrop={(e) => handleDrop(e, idx)}
-                        >
-                        {!isReadOnly && (
-                            <td className="p-2 text-center cursor-move text-slate-300 hover:text-slate-500">
-                                <GripVertical size={16} />
-                            </td>
-                        )}
-                        <td className="p-2 text-center">
-                            <button 
-                            disabled={isReadOnly}
-                            onClick={() => updateField(field.id, { isPrimaryKey: !field.isPrimaryKey, allowNull: field.isPrimaryKey })}
-                            className={`p-1 rounded ${field.isPrimaryKey ? 'text-yellow-600' : 'text-slate-300'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
-                            >
-                            <Key size={16} />
-                            </button>
-                        </td>
-                        <td className="p-2">
-                            <input 
-                            type="text" 
-                            value={field.name}
-                            disabled={isReadOnly}
-                            onChange={(e) => updateField(field.id, { name: e.target.value })}
-                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500"
-                            />
-                        </td>
-                        <td className="p-2">
-                            <select 
-                            value={field.type}
-                            disabled={isReadOnly}
-                            onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
-                            className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500"
-                            >
-                            {Object.entries(DATA_TYPES).map(([key, config]) => (
-                                <option key={key} value={key}>{config.label}</option>
-                            ))}
-                            </select>
-                        </td>
-                        <td className="p-2 flex gap-1">
-                            {typeConfig?.hasLength && (
-                                <input 
-                                    type="number" 
-                                    placeholder="Len"
-                                    value={field.length || ''} 
-                                    disabled={isReadOnly}
-                                    onChange={e => updateField(field.id, { length: parseInt(e.target.value) })}
-                                    className="w-16 border border-slate-300 rounded px-1 py-0.5 text-xs text-center disabled:bg-slate-100"
-                                />
-                            )}
-                            {typeConfig?.hasPrecision && (
-                                <>
-                                    <input 
-                                        type="number" 
-                                        placeholder="Prec"
-                                        value={field.precision || ''} 
-                                        disabled={isReadOnly}
-                                        onChange={e => updateField(field.id, { precision: parseInt(e.target.value) })}
-                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center disabled:bg-slate-100"
-                                    />
-                                    <span className="text-slate-400">,</span>
-                                    <input 
-                                        type="number" 
-                                        placeholder="Scale"
-                                        value={field.scale || ''} 
-                                        disabled={isReadOnly}
-                                        onChange={e => updateField(field.id, { scale: parseInt(e.target.value) })}
-                                        className="w-12 border border-slate-300 rounded px-1 py-0.5 text-xs text-center disabled:bg-slate-100"
-                                    />
-                                </>
-                            )}
-                        </td>
-                        <td className="p-2">
-                            {isDate && (
-                                <select 
-                                    value={field.displayFormat || ''}
-                                    disabled={isReadOnly}
-                                    onChange={e => updateField(field.id, { displayFormat: e.target.value })}
-                                    className="w-full border border-slate-200 rounded px-1 py-0.5 text-xs disabled:bg-slate-100"
-                                >
-                                    <option value="">(Standard)</option>
-                                    <option value="dd.MM.yyyy">dd.MM.yyyy (31.12.2024)</option>
-                                    <option value="dd.MM.yyyy HH:mm">dd.MM.yyyy HH:mm</option>
-                                    <option value="MM/dd/yyyy">MM/dd/yyyy (US)</option>
-                                    <option value="yyyy-MM-dd">yyyy-MM-dd (ISO)</option>
-                                    <option value="HH:mm">HH:mm (Zeit)</option>
-                                </select>
-                            )}
-                        </td>
-                        <td className="p-2 text-center">
-                            <input 
-                                type="checkbox" 
-                                checked={field.allowNull !== false}
-                                disabled={field.isPrimaryKey || isReadOnly}
-                                onChange={(e) => updateField(field.id, { allowNull: e.target.checked })}
-                            />
-                        </td>
-                        <td className="p-2 text-center">
-                            {field.type === 'INTEGER' && (
-                                <button 
-                                disabled={isReadOnly}
-                                onClick={() => updateField(field.id, { isAutoIncrement: !field.isAutoIncrement })}
-                                className={`p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-200'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
-                                >
-                                <Hash size={16} />
-                                </button>
-                            )}
-                        </td>
-                        <td className="p-2">
-                            {renderDefaultValueInput(field)}
-                        </td>
-                        <td className="p-2">
-                            <input 
-                                type="text" 
-                                value={field.comment || ''}
-                                disabled={isReadOnly}
-                                onChange={(e) => updateField(field.id, { comment: e.target.value })}
-                                placeholder="Kommentar (Optional)"
-                                className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500"
-                            />
-                        </td>
-                        {!isReadOnly && (
-                            <td className="p-2">
-                                <button 
-                                onClick={() => removeField(field.id)}
-                                className="text-slate-400 hover:text-red-600 p-1"
-                                title="Feld löschen"
-                                >
-                                <Trash2 size={16} />
-                                </button>
-                            </td>
-                        )}
+              <div className="space-y-6">
+                {/* Oberer Bereich: Tabellenfeld-Übersicht im MS Access Stil */}
+                <div className="border border-slate-300 rounded-lg overflow-hidden bg-white shadow-sm">
+                  <div className="bg-slate-100 px-3 py-2 border-b border-slate-300 text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                    <span>Felderliste ({fields.length} Felder)</span>
+                    <span className="text-[11px] text-slate-500 font-normal">Klicken Sie auf eine Zeile, um unten die Feldeigenschaften & Formeln zu bearbeiten.</span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    <table className="w-full border-collapse text-left">
+                        <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                            <th className="p-2 w-6 text-center"></th>
+                            {!isReadOnly && <th className="p-2 w-8"></th>}
+                            <th className="p-2 w-10 text-center" title="Primärschlüssel">PK</th>
+                            <th className="p-2 w-1/4">Feldname</th>
+                            <th className="p-2 w-44">Datentyp</th>
+                            <th className="p-2 w-20 text-center" title="Erlaubt NULL-Werte">Null</th>
+                            <th className="p-2 w-20 text-center" title="Automatisch hochzählen">Auto</th>
+                            <th className="p-2 flex-1">Standard / Berechnete Formel</th>
+                            <th className="p-2 w-1/4">Kommentar</th>
+                            {!isReadOnly && <th className="p-2 w-10"></th>}
                         </tr>
-                    )})}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 text-sm">
+                        {fields.map((field, idx) => {
+                            const typeConfig = DATA_TYPES[field.type];
+                            const isSelected = selectedField?.id === field.id;
+                            const isCalculated = Boolean(field.calculationFormula || field.isCalculated);
 
-                {!isReadOnly && (
-                    <button 
-                        onClick={addField}
-                        className="mt-4 flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold"
-                    >
-                        <Plus size={16} /> Feld hinzufügen
-                    </button>
+                            return (
+                            <tr 
+                                key={field.id} 
+                                onClick={() => setSelectedFieldId(field.id)}
+                                className={`cursor-pointer transition-colors ${
+                                  isSelected 
+                                    ? 'bg-blue-50/90 font-medium text-slate-900 border-l-4 border-l-blue-600' 
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                                draggable={!isReadOnly}
+                                onDragStart={(e) => handleDragStart(e, idx)}
+                                onDragOver={(e) => handleDragOver(e, idx)}
+                                onDrop={(e) => handleDrop(e, idx)}
+                            >
+                            <td className="p-2 text-center text-blue-600 font-bold text-xs">
+                              {isSelected ? '▶' : ''}
+                            </td>
+                            {!isReadOnly && (
+                                <td className="p-2 text-center cursor-move text-slate-300 hover:text-slate-500">
+                                    <GripVertical size={16} />
+                                </td>
+                            )}
+                            <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                <button 
+                                disabled={isReadOnly}
+                                onClick={() => updateField(field.id, { isPrimaryKey: !field.isPrimaryKey, allowNull: field.isPrimaryKey })}
+                                className={`p-1 rounded ${field.isPrimaryKey ? 'text-yellow-600' : 'text-slate-300'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
+                                >
+                                <Key size={16} />
+                                </button>
+                            </td>
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                                <input 
+                                type="text" 
+                                value={field.name}
+                                disabled={isReadOnly}
+                                onChange={(e) => updateField(field.id, { name: e.target.value })}
+                                className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500 font-medium"
+                                />
+                            </td>
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                                <select 
+                                value={field.type}
+                                disabled={isReadOnly}
+                                onChange={(e) => updateField(field.id, { type: e.target.value as FieldType })}
+                                className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-sm disabled:text-slate-500"
+                                >
+                                {Object.entries(DATA_TYPES).map(([key, config]) => (
+                                    <option key={key} value={key}>{config.label}</option>
+                                ))}
+                                </select>
+                            </td>
+                            <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={field.allowNull !== false}
+                                    disabled={field.isPrimaryKey || isReadOnly}
+                                    onChange={(e) => updateField(field.id, { allowNull: e.target.checked })}
+                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </td>
+                            <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                {field.type === 'INTEGER' && (
+                                    <button 
+                                    disabled={isReadOnly}
+                                    onClick={() => updateField(field.id, { isAutoIncrement: !field.isAutoIncrement })}
+                                    className={`p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-300'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
+                                    >
+                                    <Hash size={16} />
+                                    </button>
+                                )}
+                            </td>
+                            <td className="p-2">
+                                {isCalculated ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-mono font-bold">
+                                    ⚡ {field.calculationFormula || 'Berechnet'}
+                                  </span>
+                                ) : field.defaultValue ? (
+                                  <span className="text-xs text-slate-600 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                    = {String(field.defaultValue)}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-slate-400 italic">(Kein Standard)</span>
+                                )}
+                            </td>
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                                <input 
+                                    type="text" 
+                                    value={field.comment || ''}
+                                    disabled={isReadOnly}
+                                    onChange={(e) => updateField(field.id, { comment: e.target.value })}
+                                    placeholder="Kommentar..."
+                                    className="w-full border border-transparent hover:border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-transparent text-xs text-slate-600 disabled:text-slate-400"
+                                />
+                            </td>
+                            {!isReadOnly && (
+                                <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                    <button 
+                                    onClick={() => removeField(field.id)}
+                                    className="text-slate-400 hover:text-red-600 p-1"
+                                    title="Feld löschen"
+                                    >
+                                    <Trash2 size={16} />
+                                    </button>
+                                </td>
+                            )}
+                            </tr>
+                        )})}
+                        </tbody>
+                    </table>
+                  </div>
+
+                  {!isReadOnly && (
+                      <div className="p-2 bg-slate-50 border-t border-slate-200">
+                        <button 
+                            onClick={addField}
+                            className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-xs font-bold px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                        >
+                            <Plus size={16} /> Neues Feld hinzufügen
+                        </button>
+                      </div>
+                  )}
+                </div>
+
+                {/* Unterer Bereich: MS Access Style "Feldeigenschaften" Panel */}
+                {selectedField && (
+                  <div className="border border-slate-300 rounded-lg overflow-hidden bg-white shadow-md animate-in fade-in">
+                    <div className="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Database size={16} className="text-amber-400" />
+                        <span>Feldeigenschaften — Feld: <span className="text-amber-300 font-mono font-semibold text-sm">{selectedField.name}</span> ({selectedField.type})</span>
+                      </div>
+                      <span className="text-[11px] font-normal text-slate-300">MS Access Entwurfsmodus</span>
+                    </div>
+
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50">
+                      
+                      {/* Spalte 1: ⚡ Feldberechnung & Formel-Editor (Freies Schreiben & Assistent) */}
+                      <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                            <span className="p-1 bg-amber-100 text-amber-800 rounded">⚡</span>
+                            Feldberechnung & Freie Formel
+                          </h4>
+                          {selectedField.calculationFormula && (
+                            <button
+                              onClick={() => updateField(selectedField.id, { calculationFormula: '', isCalculated: false })}
+                              className="text-[10px] text-red-600 hover:underline font-semibold"
+                            >
+                              Formel löschen
+                            </button>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Freie Formel / Ausdruck:
+                          </label>
+                          <textarea
+                            value={selectedField.calculationFormula || ''}
+                            disabled={isReadOnly}
+                            onChange={(e) => updateField(selectedField.id, { 
+                              calculationFormula: e.target.value,
+                              isCalculated: Boolean(e.target.value.trim())
+                            })}
+                            rows={3}
+                            placeholder="z.B. [Preis] * [Menge] oder AGE([Geburtsdatum]) oder [Vorname] + ' ' + [Nachname]"
+                            className="w-full border border-slate-300 focus:border-blue-500 rounded p-2 text-xs font-mono text-slate-900 bg-white shadow-inner focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Formel-Assistent / Feld-Einfügen */}
+                        {!isReadOnly && (
+                          <div className="space-y-2 pt-1 border-t border-slate-100">
+                            <div className="text-[11px] font-bold text-slate-600">
+                              Formel-Assistent — Klick zum Einfügen in die Formel:
+                            </div>
+
+                            {/* Verfügbare Felder in der Tabelle */}
+                            <div>
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1 font-semibold">Tabelle-Felder:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {fields.map(f => (
+                                  <button
+                                    key={f.id}
+                                    type="button"
+                                    onClick={() => {
+                                      const current = selectedField.calculationFormula || '';
+                                      const newFormula = current ? `${current} [${f.name}]` : `[${f.name}]`;
+                                      updateField(selectedField.id, { calculationFormula: newFormula, isCalculated: true });
+                                    }}
+                                    className="px-2 py-0.5 bg-slate-100 hover:bg-amber-100 border border-slate-300 hover:border-amber-400 rounded text-[11px] font-mono text-slate-800 transition-colors"
+                                  >
+                                    [{f.name}]
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Operatoren & Vorlagen */}
+                            <div>
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1 font-semibold">Operatoren & Funktionen:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {[
+                                  { label: '+', expr: ' + ' },
+                                  { label: '-', expr: ' - ' },
+                                  { label: '*', expr: ' * ' },
+                                  { label: '/', expr: ' / ' },
+                                  { label: '( )', expr: '()' },
+                                  { label: 'AGE(...)', expr: 'AGE([Geburtsdatum])' },
+                                  { label: 'ROUND(x, 2)', expr: 'ROUND([Netto] * 1.19, 2)' },
+                                  { label: 'Text + Text', expr: "[Vorname] + ' ' + [Nachname]" },
+                                ].map((item, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => {
+                                      const current = selectedField.calculationFormula || '';
+                                      const newFormula = current ? `${current}${item.expr}` : item.expr;
+                                      updateField(selectedField.id, { calculationFormula: newFormula, isCalculated: true });
+                                    }}
+                                    className="px-1.5 py-0.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded text-[11px] font-mono text-slate-700 transition-colors"
+                                  >
+                                    {item.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <p className="text-[10px] text-slate-500 italic pt-1">
+                              💡 Hinweis: Sie können jedes Feld in eckigen Klammern `[Feldname]` in der Formel verwenden.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Spalte 2: ⚙️ Allgemeine Feldeigenschaften */}
+                      <div className="bg-white border border-slate-200 rounded-lg p-3.5 space-y-3 shadow-sm">
+                        <h4 className="font-bold text-xs text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                          <span className="p-1 bg-slate-100 text-slate-700 rounded">⚙️</span>
+                          Allgemeine Eigenschaften
+                        </h4>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Standardwert:
+                            </label>
+                            {renderDefaultValueInput(selectedField)}
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Formatierung:
+                            </label>
+                            <select 
+                              value={selectedField.rendererType || ''}
+                              disabled={isReadOnly}
+                              onChange={e => updateField(selectedField.id, { rendererType: e.target.value as any })}
+                              className="w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white"
+                            >
+                              <option value="">(Standard Text)</option>
+                              <option value="currency">💶 Währung (€)</option>
+                              <option value="progress">📊 Fortschrittsbalken (%)</option>
+                              <option value="status_pill">🏷️ Status Pill Badge</option>
+                              <option value="avatar">👤 Benutzer-Avatar</option>
+                              <option value="date">📅 Datum / Uhrzeit</option>
+                            </select>
+                          </div>
+
+                          {(DATA_TYPES[selectedField.type]?.hasLength || DATA_TYPES[selectedField.type]?.hasPrecision) && (
+                            <div>
+                              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                                Feldgröße / Länge:
+                              </label>
+                              <div className="flex items-center gap-1">
+                                {DATA_TYPES[selectedField.type]?.hasLength && (
+                                  <input 
+                                    type="number" 
+                                    value={selectedField.length || ''} 
+                                    disabled={isReadOnly}
+                                    onChange={e => updateField(selectedField.id, { length: parseInt(e.target.value) })}
+                                    className="w-20 border border-slate-300 rounded px-2 py-1 text-xs bg-white"
+                                    placeholder="255"
+                                  />
+                                )}
+                                {DATA_TYPES[selectedField.type]?.hasPrecision && (
+                                  <>
+                                    <input 
+                                      type="number" 
+                                      value={selectedField.precision || ''} 
+                                      disabled={isReadOnly}
+                                      onChange={e => updateField(selectedField.id, { precision: parseInt(e.target.value) })}
+                                      className="w-14 border border-slate-300 rounded px-1 py-1 text-xs text-center"
+                                      placeholder="10"
+                                    />
+                                    <span>,</span>
+                                    <input 
+                                      type="number" 
+                                      value={selectedField.scale || ''} 
+                                      disabled={isReadOnly}
+                                      onChange={e => updateField(selectedField.id, { scale: parseInt(e.target.value) })}
+                                      className="w-14 border border-slate-300 rounded px-1 py-1 text-xs text-center"
+                                      placeholder="2"
+                                    />
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Eingabe Erforderlich:
+                            </label>
+                            <div className="flex items-center gap-2 pt-1">
+                              <input 
+                                type="checkbox" 
+                                id="allowNullProp"
+                                checked={selectedField.allowNull === false}
+                                disabled={selectedField.isPrimaryKey || isReadOnly}
+                                onChange={(e) => updateField(selectedField.id, { allowNull: !e.target.checked })}
+                                className="rounded border-slate-300 text-blue-600"
+                              />
+                              <label htmlFor="allowNullProp" className="text-xs text-slate-700 cursor-pointer">
+                                Ja (Wert nicht leeren)
+                              </label>
+                            </div>
+                          </div>
+
+                          {selectedField.type === 'INTEGER' && (
+                            <div>
+                              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                                Auto-Inkrement:
+                              </label>
+                              <div className="flex items-center gap-2 pt-1">
+                                <input 
+                                  type="checkbox" 
+                                  id="autoIncProp"
+                                  checked={selectedField.isAutoIncrement || false}
+                                  disabled={isReadOnly}
+                                  onChange={(e) => updateField(selectedField.id, { isAutoIncrement: e.target.checked })}
+                                  className="rounded border-slate-300 text-blue-600"
+                                />
+                                <label htmlFor="autoIncProp" className="text-xs text-slate-700 cursor-pointer">
+                                  Automatisch hochzählen
+                                </label>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                            Beschreibung / Kommentar:
+                          </label>
+                          <input 
+                            type="text" 
+                            value={selectedField.comment || ''}
+                            disabled={isReadOnly}
+                            onChange={(e) => updateField(selectedField.id, { comment: e.target.value })}
+                            placeholder="Zweck oder Beschreibung dieses Feldes..."
+                            className="w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
                 )}
-              </>
+              </div>
           ) : activeTab === 'grid' ? (
               <div className="max-w-4xl animate-in fade-in space-y-6">
                 <div className="bg-slate-100 p-4 border border-slate-200 rounded-lg">

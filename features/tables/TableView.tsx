@@ -7,6 +7,7 @@ import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
 import { RecordDetailModal } from '../../components/modals/RecordDetailModal';
 import { KanbanBoard } from './components/KanbanBoard';
+import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
 interface TableViewProps {
   table: Table;
@@ -323,7 +324,13 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
           {headers.map((header, colIdx) => {
             const field = table.fields.find(f => f.name === header);
             const isAutoInc = field?.isAutoIncrement;
-            const rawVal = row[header] ?? '';
+            const isCalculated = field?.isCalculated || Boolean(field?.calculationFormula);
+            let rawVal = row[header] ?? '';
+            
+            if (isCalculated && field?.calculationFormula) {
+                rawVal = evaluateFormFormula(field.calculationFormula, row);
+            }
+
             const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
             const isFK = !!rel;
             const showLink = isFK && rawVal;
@@ -360,14 +367,14 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             }
 
             return (
-                <div key={`${rowIndex}-${header}-${colIdx}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : ''} flex items-center`}>
+                <div key={`${rowIndex}-${header}-${colIdx}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : isCalculated ? 'bg-amber-50/50' : ''} flex items-center`}>
                     {inputType === 'checkbox' ? (
                         <div className="flex-1 flex items-center justify-center">
                             <input
                                 type="checkbox"
                                 checked={inputValue as boolean}
                                 onChange={(e) => { handleDataChange(row, header, e.target.checked) }}
-                                disabled={isAutoInc}
+                                disabled={isAutoInc || isCalculated}
                                 className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                             />
                         </div>
@@ -375,10 +382,10 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                         <input
                             type={inputType}
                             value={inputValue as string} 
-                            title={String(rawVal)} 
+                            title={isCalculated ? `⚡ Berechnet: ${field?.calculationFormula} = ${String(rawVal)}` : String(rawVal)} 
                             onChange={(e) => { handleDataChange(row, header, e.target.value) }}
-                            readOnly={isAutoInc}
-                            className={`flex-1 h-full px-2 w-full bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : ''} ${showLink ? 'pr-8' : ''}`}
+                            readOnly={isAutoInc || isCalculated}
+                            className={`flex-1 h-full px-2 w-full bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : isCalculated ? 'cursor-default font-semibold text-amber-900 font-mono text-xs' : ''} ${showLink ? 'pr-8' : ''}`}
                         />
                     )}
                     {showLink && (

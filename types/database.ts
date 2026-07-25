@@ -26,6 +26,8 @@ export interface Field {
   enumValues?: string[];
   rendererType?: 'text' | 'progress' | 'status_pill' | 'avatar' | 'currency' | 'date';
   inlineEditable?: boolean;
+  isCalculated?: boolean;
+  calculationFormula?: string;
 }
 
 export interface ValidationRule {

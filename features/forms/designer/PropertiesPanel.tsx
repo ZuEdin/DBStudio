@@ -121,6 +121,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <option value="checkbox">Checkbox</option>
                         <option value="select">Dropdown (Lookup)</option>
                       </optgroup>
+                      <optgroup label="Berechnungen & Ausdrücke">
+                        <option value="calculated">⚡ Berechnetes Feld (Formel)</option>
+                      </optgroup>
                       <optgroup label="Active Directory / Auth">
                         <option value="ad-search">🔍 AD User Suche</option>
                         <option value="current-user">👤 Aktueller User (WhoAmI)</option>
@@ -139,6 +142,54 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <div className="p-2 bg-emerald-50 text-emerald-800 text-xs rounded border border-emerald-200">
                         <div className="flex items-center gap-1 font-bold mb-1"><Shield size={12}/> Auto-Fill</div>
                         Füllt das Feld automatisch mit dem Login-Namen des aktuellen Benutzers.
+                    </div>
+                )}
+                {selectedElement.widgetType === 'calculated' && (
+                    <div className="p-2.5 bg-amber-50 text-amber-900 text-xs rounded border border-amber-300/80 space-y-2">
+                        <div className="font-bold text-amber-950 flex items-center gap-1">⚡ Formel-Editor</div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Berechnungsformel:</label>
+                            <textarea
+                                value={selectedElement.calculationFormula || ''}
+                                onChange={e => onPropertyChange('calculationFormula', e.target.value)}
+                                rows={2}
+                                placeholder="z.B. AGE([Geburtsdatum]) oder [Preis] * [Menge]"
+                                className="w-full border border-amber-300 rounded p-1.5 font-mono text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Schnell-Vorlagen:</label>
+                            <div className="grid grid-cols-1 gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('calculationFormula', 'AGE([Geburtsdatum])')}
+                                    className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
+                                >
+                                    🎂 AGE([Geburtsdatum])
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('calculationFormula', '[Preis] * [Menge]')}
+                                    className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
+                                >
+                                    🧮 [Preis] * [Menge]
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('calculationFormula', "[Vorname] + ' ' + [Nachname]")}
+                                    className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
+                                >
+                                    👤 [Vorname] + ' ' + [Nachname]
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('calculationFormula', 'ROUND([Netto] * 1.19, 2)')}
+                                    className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
+                                >
+                                    🏷️ ROUND([Netto] * 1.19, 2)
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
 
