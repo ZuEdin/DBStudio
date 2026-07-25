@@ -332,7 +332,7 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
                         value={col.title}
                         onChange={(e) => {
                           const nextCols = [...configObj.columns];
-                          nextCols[index].title = e.target.value;
+                          nextCols[index] = { ...nextCols[index], title: e.target.value };
                           updateVisualConfig({ columns: nextCols });
                         }}
                         className="w-full px-2 py-0.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded dark:text-white"
@@ -345,7 +345,7 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
                         value={col.width || 'auto'}
                         onChange={(e) => {
                           const nextCols = [...configObj.columns];
-                          nextCols[index].width = e.target.value;
+                          nextCols[index] = { ...nextCols[index], width: e.target.value };
                           updateVisualConfig({ columns: nextCols });
                         }}
                         className="w-full px-2 py-0.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded font-mono dark:text-white"
@@ -361,11 +361,11 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
                         value={col.field}
                         onChange={(e) => {
                           const nextCols = [...configObj.columns];
-                          nextCols[index].field = e.target.value;
-                          // Auto prefill title with fieldname if not modified
+                          let newTitle = nextCols[index].title;
                           if (col.title === 'Neue Spalte') {
-                            nextCols[index].title = e.target.value;
+                            newTitle = e.target.value;
                           }
+                          nextCols[index] = { ...nextCols[index], field: e.target.value, title: newTitle };
                           updateVisualConfig({ columns: nextCols });
                         }}
                         className="w-full border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-[11px] bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
@@ -390,7 +390,7 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
                         value={col.type || 'text'}
                         onChange={(e) => {
                           const nextCols = [...configObj.columns];
-                          nextCols[index].type = e.target.value;
+                          nextCols[index] = { ...nextCols[index], type: e.target.value };
                           updateVisualConfig({ columns: nextCols });
                         }}
                         className="w-full border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-[11px] bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
@@ -412,7 +412,7 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
                             type="button"
                             onClick={() => {
                               const nextCols = [...configObj.columns];
-                              nextCols[index].align = align;
+                              nextCols[index] = { ...nextCols[index], align };
                               updateVisualConfig({ columns: nextCols });
                             }}
                             className={`flex-1 text-[10px] py-0.5 capitalize rounded ${col.align === align ? 'bg-slate-200 dark:bg-slate-700 font-bold dark:text-white' : 'text-slate-400'}`}
@@ -432,7 +432,7 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
                         value={col.footerType || 'none'}
                         onChange={(e) => {
                           const nextCols = [...configObj.columns];
-                          nextCols[index].footerType = e.target.value;
+                          nextCols[index] = { ...nextCols[index], footerType: e.target.value };
                           updateVisualConfig({ columns: nextCols });
                         }}
                         className="w-full border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-[10px] bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
@@ -452,7 +452,7 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
                           value={col.footerCustomText || ''}
                           onChange={(e) => {
                             const nextCols = [...configObj.columns];
-                            nextCols[index].footerCustomText = e.target.value;
+                            nextCols[index] = { ...nextCols[index], footerCustomText: e.target.value };
                             updateVisualConfig({ columns: nextCols });
                           }}
                           placeholder="z.B. Gesamt-Umsatz:"

@@ -30,7 +30,7 @@ export interface ActionFlow {
   stateValue?: string;
 }
 
-export interface ValidationRule {
+export interface FormValidationRule {
   id: string;
   fieldId: string;
   type: 'required' | 'regex' | 'min' | 'max' | 'custom_js';
@@ -67,7 +67,7 @@ export interface FormElement {
   eventHandlers?: FormEventHandler[];
   allowedRoles?: string[];
   visibilityCondition?: { fieldId: string; operator: 'eq' | 'neq'; value: string };
-  validationRules?: ValidationRule[];
+  validationRules?: FormValidationRule[];
 }
 
 export interface FormField {
@@ -102,7 +102,7 @@ export interface Form {
   subform?: Subform;
   settings?: FormSettings;
   crossFieldValidations?: CrossFieldValidation[];
-  validationRules?: ValidationRule[];
+  validationRules?: FormValidationRule[];
   eventHandlers?: FormEventHandler[];
   allowedRoles?: string[];
 }

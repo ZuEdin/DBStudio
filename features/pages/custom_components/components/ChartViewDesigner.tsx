@@ -117,7 +117,7 @@ export const ChartViewDesigner: React.FC<ChartViewDesignerProps> = ({
                       value={ser.key}
                       onChange={(e) => {
                         const nextSer = [...configObj.series];
-                        nextSer[sIdx].key = e.target.value;
+                        nextSer[sIdx] = { ...nextSer[sIdx], key: e.target.value };
                         updateVisualConfig({ series: nextSer });
                       }}
                       className="w-full bg-white dark:bg-slate-800 border dark:border-slate-700 text-[10px] p-1 rounded dark:text-white"
@@ -139,7 +139,7 @@ export const ChartViewDesigner: React.FC<ChartViewDesignerProps> = ({
                       value={ser.label}
                       onChange={(e) => {
                         const nextSer = [...configObj.series];
-                        nextSer[sIdx].label = e.target.value;
+                        nextSer[sIdx] = { ...nextSer[sIdx], label: e.target.value };
                         updateVisualConfig({ series: nextSer });
                       }}
                       className="w-full bg-white dark:bg-slate-800 border dark:border-slate-700 text-[10px] p-1 rounded dark:text-white"
@@ -153,7 +153,7 @@ export const ChartViewDesigner: React.FC<ChartViewDesignerProps> = ({
                     value={ser.color || '#4f46e5'}
                     onChange={(e) => {
                       const nextSer = [...configObj.series];
-                      nextSer[sIdx].color = e.target.value;
+                      nextSer[sIdx] = { ...nextSer[sIdx], color: e.target.value };
                       updateVisualConfig({ series: nextSer });
                     }}
                     className="h-5 w-8 rounded cursor-pointer border border-slate-300 dark:border-slate-700 bg-transparent"

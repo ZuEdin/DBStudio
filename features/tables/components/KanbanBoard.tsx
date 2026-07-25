@@ -261,11 +261,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ table, onUpdateRow }) 
                                                 value={update.fieldName}
                                                 onChange={e => {
                                                     const newUpdates = [...additionalUpdates];
-                                                    newUpdates[idx].fieldName = e.target.value;
                                                     const n = e.target.value.toLowerCase();
+                                                    let newVal = newUpdates[idx].value;
                                                     if (n.includes('date') || n.includes('time') || n.includes('modified') || n.includes('update') || n.includes('timestamp')) {
-                                                        newUpdates[idx].value = 'NOW';
+                                                        newVal = 'NOW';
                                                     }
+                                                    newUpdates[idx] = { ...newUpdates[idx], fieldName: e.target.value, value: newVal };
                                                     setAdditionalUpdates(newUpdates);
                                                 }}
                                                 className="border border-slate-200 bg-white rounded-lg text-xs py-1 px-2 focus:ring-1 focus:ring-indigo-500"
@@ -284,7 +285,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ table, onUpdateRow }) 
                                                         type="button" 
                                                         onClick={() => {
                                                             const newUpdates = [...additionalUpdates];
-                                                            newUpdates[idx].value = '';
+                                                            newUpdates[idx] = { ...newUpdates[idx], value: '' };
                                                             setAdditionalUpdates(newUpdates);
                                                         }}
                                                         className="text-[10px] text-indigo-600 underline font-medium"
@@ -299,7 +300,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ table, onUpdateRow }) 
                                                         value={update.value} 
                                                         onChange={e => {
                                                             const newUpdates = [...additionalUpdates];
-                                                            newUpdates[idx].value = e.target.value;
+                                                            newUpdates[idx] = { ...newUpdates[idx], value: e.target.value };
                                                             setAdditionalUpdates(newUpdates);
                                                         }}
                                                         placeholder="Wert..."
@@ -309,7 +310,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ table, onUpdateRow }) 
                                                         type="button" 
                                                         onClick={() => {
                                                             const newUpdates = [...additionalUpdates];
-                                                            newUpdates[idx].value = 'NOW';
+                                                            newUpdates[idx] = { ...newUpdates[idx], value: 'NOW' };
                                                             setAdditionalUpdates(newUpdates);
                                                         }}
                                                         className="text-[10px] text-indigo-600 underline font-medium"

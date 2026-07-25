@@ -487,7 +487,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                      value={rule.triggerFieldId}
                                                      onChange={e => {
                                                          const updated = [...(form.crossFieldValidations || [])];
-                                                         updated[idx].triggerFieldId = e.target.value;
+                                                         updated[idx] = { ...updated[idx], triggerFieldId: e.target.value };
                                                          onFormChange({...form, crossFieldValidations: updated});
                                                      }}
                                                  >
@@ -500,7 +500,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                     value={rule.condition}
                                                     onChange={e => {
                                                         const updated = [...(form.crossFieldValidations || [])];
-                                                        updated[idx].condition = e.target.value as any;
+                                                        updated[idx] = { ...updated[idx], condition: e.target.value as any };
                                                         onFormChange({...form, crossFieldValidations: updated});
                                                     }}
                                                 >
@@ -521,7 +521,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                         value={rule.triggerValue || ''}
                                                         onChange={e => {
                                                             const updated = [...(form.crossFieldValidations || [])];
-                                                            updated[idx].triggerValue = e.target.value;
+                                                            updated[idx] = { ...updated[idx], triggerValue: e.target.value };
                                                             onFormChange({...form, crossFieldValidations: updated});
                                                         }}
                                                     />
@@ -537,7 +537,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                      value={rule.targetFieldId}
                                                      onChange={e => {
                                                          const updated = [...(form.crossFieldValidations || [])];
-                                                         updated[idx].targetFieldId = e.target.value;
+                                                         updated[idx] = { ...updated[idx], targetFieldId: e.target.value };
                                                          onFormChange({...form, crossFieldValidations: updated});
                                                      }}
                                                  >
@@ -550,7 +550,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                                                     value={rule.action}
                                                     onChange={e => {
                                                         const updated = [...(form.crossFieldValidations || [])];
-                                                        updated[idx].action = e.target.value as any;
+                                                        updated[idx] = { ...updated[idx], action: e.target.value as any };
                                                         onFormChange({...form, crossFieldValidations: updated});
                                                     }}
                                                 >

@@ -377,7 +377,7 @@ export class ${targetName}Controller {
                                                 value={field.name}
                                                 onChange={e => {
                                                     const f = [...activeRoute.validationFields];
-                                                    f[idx].name = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
+                                                    f[idx] = { ...f[idx], name: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') };
                                                     handleUpdateRoute(activeRoute.id, { validationFields: f });
                                                 }}
                                                 placeholder="Param-Name (z.B. limit)"
@@ -387,7 +387,7 @@ export class ${targetName}Controller {
                                                 value={field.type}
                                                 onChange={e => {
                                                     const f = [...activeRoute.validationFields];
-                                                    f[idx].type = e.target.value as any;
+                                                    f[idx] = { ...f[idx], type: e.target.value as any };
                                                     handleUpdateRoute(activeRoute.id, { validationFields: f });
                                                 }}
                                                 className="text-xs border p-1 rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 dark:text-white"
@@ -404,7 +404,7 @@ export class ${targetName}Controller {
                                                     checked={field.required}
                                                     onChange={e => {
                                                         const f = [...activeRoute.validationFields];
-                                                        f[idx].required = e.target.checked;
+                                                        f[idx] = { ...f[idx], required: e.target.checked };
                                                         handleUpdateRoute(activeRoute.id, { validationFields: f });
                                                     }}
                                                     className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"

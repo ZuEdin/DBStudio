@@ -63,7 +63,7 @@ export const LogicDesigner: React.FC<LogicDesignerProps> = ({ config, onUpdateCo
                                                 <input 
                                                     type="text" 
                                                     value={state.name} 
-                                                    onChange={e => { const s=[...states]; s[i].name=e.target.value.replace(/[^a-zA-Z0-9_]/g,''); updateStates(s); }}
+                                                    onChange={e => { const s=[...states]; s[i] = { ...s[i], name: e.target.value.replace(/[^a-zA-Z0-9_]/g,'') }; updateStates(s); }}
                                                     className="w-full text-sm border p-2 rounded bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 dark:text-white font-mono"
                                                     placeholder="z.B. selectedYear"
                                                 />
@@ -72,7 +72,7 @@ export const LogicDesigner: React.FC<LogicDesignerProps> = ({ config, onUpdateCo
                                                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Datentyp</label>
                                                 <select 
                                                     value={state.type}
-                                                    onChange={e => { const s=[...states]; s[i].type=e.target.value as any; updateStates(s); }}
+                                                    onChange={e => { const s=[...states]; s[i] = { ...s[i], type: e.target.value as any }; updateStates(s); }}
                                                     className="w-full text-sm border p-2 rounded bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 dark:text-white"
                                                 >
                                                     <option value="string">String</option>
@@ -85,7 +85,7 @@ export const LogicDesigner: React.FC<LogicDesignerProps> = ({ config, onUpdateCo
                                                 <input 
                                                     type="text" 
                                                     value={state.defaultValue} 
-                                                    onChange={e => { const s=[...states]; s[i].defaultValue=e.target.value; updateStates(s); }}
+                                                    onChange={e => { const s=[...states]; s[i] = { ...s[i], defaultValue: e.target.value }; updateStates(s); }}
                                                     className="w-full text-sm border p-2 rounded bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 dark:text-white"
                                                     placeholder="Default Wert"
                                                 />
@@ -120,7 +120,7 @@ export const LogicDesigner: React.FC<LogicDesignerProps> = ({ config, onUpdateCo
                                                     <input 
                                                         type="text" 
                                                         value={tour.name} 
-                                                        onChange={e => { const t = [...tours]; t[tourIdx].name = e.target.value; updateTours(t); }}
+                                                        onChange={e => { const t = [...tours]; t[tourIdx] = { ...t[tourIdx], name: e.target.value }; updateTours(t); }}
                                                         className="w-1/2 text-sm border p-2 rounded bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 dark:text-white font-bold"
                                                     />
                                                 </div>
@@ -134,18 +134,18 @@ export const LogicDesigner: React.FC<LogicDesignerProps> = ({ config, onUpdateCo
                                                         <div className="pt-2 font-bold text-slate-400">{stepIdx + 1}.</div>
                                                         <div className="flex-1 space-y-2">
                                                             <div className="flex gap-2">
-                                                                <input type="text" placeholder="Titel (z.B. Willkommen)" value={step.title} onChange={e => { const t=[...tours]; t[tourIdx].steps[stepIdx].title = e.target.value; updateTours(t); }} className="w-1/2 text-sm border p-1.5 rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white" />
-                                                                <input type="text" placeholder="CSS Ziel (z.B. #nav-dashboard)" value={step.targetSelector} onChange={e => { const t=[...tours]; t[tourIdx].steps[stepIdx].targetSelector = e.target.value; updateTours(t); }} className="w-1/2 text-sm border p-1.5 rounded font-mono text-indigo-600 dark:text-indigo-400 dark:bg-slate-800 dark:border-slate-600" />
+                                                                <input type="text" placeholder="Titel (z.B. Willkommen)" value={step.title} onChange={e => { const t=[...tours]; const steps=[...(t[tourIdx].steps || [])]; steps[stepIdx] = { ...steps[stepIdx], title: e.target.value }; t[tourIdx] = { ...t[tourIdx], steps }; updateTours(t); }} className="w-1/2 text-sm border p-1.5 rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white" />
+                                                                <input type="text" placeholder="CSS Ziel (z.B. #nav-dashboard)" value={step.targetSelector} onChange={e => { const t=[...tours]; const steps=[...(t[tourIdx].steps || [])]; steps[stepIdx] = { ...steps[stepIdx], targetSelector: e.target.value }; t[tourIdx] = { ...t[tourIdx], steps }; updateTours(t); }} className="w-1/2 text-sm border p-1.5 rounded font-mono text-indigo-600 dark:text-indigo-400 dark:bg-slate-800 dark:border-slate-600" />
                                                             </div>
-                                                            <textarea placeholder="Text für dieses Popover..." value={step.content} onChange={e => { const t=[...tours]; t[tourIdx].steps[stepIdx].content = e.target.value; updateTours(t); }} rows={2} className="w-full text-sm border p-2 rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white"></textarea>
+                                                            <textarea placeholder="Text für dieses Popover..." value={step.content} onChange={e => { const t=[...tours]; const steps=[...(t[tourIdx].steps || [])]; steps[stepIdx] = { ...steps[stepIdx], content: e.target.value }; t[tourIdx] = { ...t[tourIdx], steps }; updateTours(t); }} rows={2} className="w-full text-sm border p-2 rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white"></textarea>
                                                         </div>
-                                                        <button onClick={() => { const t=[...tours]; t[tourIdx].steps.splice(stepIdx, 1); updateTours(t); }} className="text-red-500 hover:bg-red-50 p-1.5 rounded mt-1">
+                                                        <button onClick={() => { const t=[...tours]; const steps=(t[tourIdx].steps || []).filter((_, idx) => idx !== stepIdx); t[tourIdx] = { ...t[tourIdx], steps }; updateTours(t); }} className="text-red-500 hover:bg-red-50 p-1.5 rounded mt-1">
                                                             <Trash2 size={16}/>
                                                         </button>
                                                     </div>
                                                 ))}
                                                 <button 
-                                                    onClick={() => { const t=[...tours]; t[tourIdx].steps.push({ title: '', content: '', targetSelector: '' }); updateTours(t); }}
+                                                    onClick={() => { const t=[...tours]; const steps=[...(t[tourIdx].steps || []), { title: '', content: '', targetSelector: '' }]; t[tourIdx] = { ...t[tourIdx], steps }; updateTours(t); }}
                                                     className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 mt-2"
                                                 >
                                                     <Plus size={14} /> Weiteren Schritt hinzufügen

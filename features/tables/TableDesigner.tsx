@@ -832,14 +832,14 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                     <h3 className="font-bold text-slate-800 mb-4">Bedingte Formatierung (Zeilen)</h3>
                     <div className="space-y-2">
                         {(table.conditionalFormatting || []).map((rule, idx) => (
-                            <div key={rule.id} className="flex gap-2 items-center bg-white border border-slate-200 rounded p-2 text-sm shadow-sm">
+                             <div key={rule.id} className="flex gap-2 items-center bg-white border border-slate-200 rounded p-2 text-sm shadow-sm">
                                 <span>Wenn Feld</span>
                                 <select 
                                     className="border rounded p-1 bg-slate-50 text-xs"
                                     value={rule.fieldId}
                                     onChange={e => {
                                         const updated = [...(table.conditionalFormatting || [])];
-                                        updated[idx].fieldId = e.target.value;
+                                        updated[idx] = { ...updated[idx], fieldId: e.target.value };
                                         onTableChange({...table, conditionalFormatting: updated});
                                     }}
                                 >
@@ -850,7 +850,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                     value={rule.operator}
                                     onChange={e => {
                                         const updated = [...(table.conditionalFormatting || [])];
-                                        updated[idx].operator = e.target.value as any;
+                                        updated[idx] = { ...updated[idx], operator: e.target.value as any };
                                         onTableChange({...table, conditionalFormatting: updated});
                                     }}
                                 >
@@ -867,7 +867,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                     value={rule.value || ''}
                                     onChange={e => {
                                         const updated = [...(table.conditionalFormatting || [])];
-                                        updated[idx].value = e.target.value;
+                                        updated[idx] = { ...updated[idx], value: e.target.value };
                                         onTableChange({...table, conditionalFormatting: updated});
                                     }}
                                 />
@@ -876,13 +876,13 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                 <span className="text-xs text-slate-600">Zeile einfärben:</span>
                                 <input type="color" value={rule.style.backgroundColor || '#ffffff'} onChange={e => {
                                     const updated = [...(table.conditionalFormatting || [])];
-                                    updated[idx].style = { ...updated[idx].style, backgroundColor: e.target.value };
+                                    updated[idx] = { ...updated[idx], style: { ...updated[idx].style, backgroundColor: e.target.value } };
                                     onTableChange({...table, conditionalFormatting: updated});
                                 }} className="h-6 w-6 rounded border cursor-pointer"/>
                                                                 
                                 <input type="color" value={rule.style.color || '#000000'} onChange={e => {
                                     const updated = [...(table.conditionalFormatting || [])];
-                                    updated[idx].style = { ...updated[idx].style, color: e.target.value };
+                                    updated[idx] = { ...updated[idx], style: { ...updated[idx].style, color: e.target.value } };
                                     onTableChange({...table, conditionalFormatting: updated});
                                 }} className="h-6 w-6 rounded border cursor-pointer"/>
 

@@ -258,7 +258,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 value={action.trigger}
                                 onChange={e => {
                                     const newActions = [...(selectedElement.actions || [])];
-                                    newActions[actionIdx].trigger = e.target.value as any;
+                                    newActions[actionIdx] = { ...newActions[actionIdx], trigger: e.target.value as any };
                                     onPropertyChange('actions', newActions);
                                 }}
                                 className="w-full border rounded p-1 mb-1 font-bold"
@@ -272,7 +272,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 value={action.actionType}
                                 onChange={e => {
                                     const newActions = [...(selectedElement.actions || [])];
-                                    newActions[actionIdx].actionType = e.target.value as any;
+                                    newActions[actionIdx] = { ...newActions[actionIdx], actionType: e.target.value as any };
                                     onPropertyChange('actions', newActions);
                                 }}
                                 className="w-full border rounded p-1"
@@ -288,12 +288,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 <div className="space-y-1">
                                     <input type="text" placeholder="Nachricht..." value={action.toastMessage || ''} onChange={e => {
                                         const newActions = [...(selectedElement.actions || [])];
-                                        newActions[actionIdx].toastMessage = e.target.value;
+                                        newActions[actionIdx] = { ...newActions[actionIdx], toastMessage: e.target.value };
                                         onPropertyChange('actions', newActions);
                                     }} className="w-full border p-1 rounded" />
                                     <select value={action.toastType || 'success'} onChange={e => {
                                         const newActions = [...(selectedElement.actions || [])];
-                                        newActions[actionIdx].toastType = e.target.value as any;
+                                        newActions[actionIdx] = { ...newActions[actionIdx], toastType: e.target.value as any };
                                         onPropertyChange('actions', newActions);
                                     }} className="w-full border p-1 rounded">
                                         <option value="success">Erfolg (Grün)</option>
@@ -306,7 +306,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             {action.actionType === 'OpenModal' && (
                                 <select value={action.modalId || ''} onChange={e => {
                                         const newActions = [...(selectedElement.actions || [])];
-                                        newActions[actionIdx].modalId = e.target.value;
+                                        newActions[actionIdx] = { ...newActions[actionIdx], modalId: e.target.value };
                                         onPropertyChange('actions', newActions);
                                     }} className="w-full border p-1 rounded">
                                     <option value="">Formular wählen...</option>
@@ -317,7 +317,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             {action.actionType === 'Navigate' && (
                                 <input type="text" placeholder="/route/path" value={action.routeUrl || ''} onChange={e => {
                                     const newActions = [...(selectedElement.actions || [])];
-                                    newActions[actionIdx].routeUrl = e.target.value;
+                                    newActions[actionIdx] = { ...newActions[actionIdx], routeUrl: e.target.value };
                                     onPropertyChange('actions', newActions);
                                 }} className="w-full border p-1 rounded" />
                             )}
@@ -326,12 +326,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 <div className="flex gap-1">
                                     <input type="text" placeholder="State ID" value={action.stateVariableId || ''} onChange={e => {
                                         const newActions = [...(selectedElement.actions || [])];
-                                        newActions[actionIdx].stateVariableId = e.target.value;
+                                        newActions[actionIdx] = { ...newActions[actionIdx], stateVariableId: e.target.value };
                                         onPropertyChange('actions', newActions);
                                     }} className="w-1/2 border p-1 rounded" />
                                     <input type="text" placeholder="Wert" value={action.stateValue || ''} onChange={e => {
                                         const newActions = [...(selectedElement.actions || [])];
-                                        newActions[actionIdx].stateValue = e.target.value;
+                                        newActions[actionIdx] = { ...newActions[actionIdx], stateValue: e.target.value };
                                         onPropertyChange('actions', newActions);
                                     }} className="w-1/2 border p-1 rounded" />
                                 </div>

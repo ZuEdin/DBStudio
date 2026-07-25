@@ -111,7 +111,7 @@ export const FormViewProperties: React.FC<FormViewPropertiesProps> = ({
                       value={mapping.sourceKey}
                       onChange={(e) => {
                         const copy = [...mappings];
-                        copy[mIdx].sourceKey = e.target.value;
+                        copy[mIdx] = { ...copy[mIdx], sourceKey: e.target.value };
                         updateSelectedNodeProps({ navigateTargetParams: copy });
                       }}
                       placeholder="Quelle (z.B. id)"
@@ -122,7 +122,7 @@ export const FormViewProperties: React.FC<FormViewPropertiesProps> = ({
                       value={mapping.targetKey}
                       onChange={(e) => {
                         const copy = [...mappings];
-                        copy[mIdx].targetKey = e.target.value;
+                        copy[mIdx] = { ...copy[mIdx], targetKey: e.target.value };
                         updateSelectedNodeProps({ navigateTargetParams: copy });
                       }}
                       className="flex-1 text-[10px] font-mono px-1 py-0.5 border border-slate-300 rounded bg-white min-w-0"

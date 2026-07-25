@@ -43,14 +43,14 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
 
                 const handleAddVar = () => {
                     const newEnvs = [...envs];
-                    const currentVars = newEnvs[idx].vars || {};
+                    const currentVars = { ...newEnvs[idx].vars };
                     // Find a unique name
                     let counter = 1;
                     while (currentVars[`CUSTOM_VAR_${counter}`] !== undefined) {
                         counter++;
                     }
                     currentVars[`CUSTOM_VAR_${counter}`] = '';
-                    newEnvs[idx].vars = currentVars;
+                    newEnvs[idx] = { ...newEnvs[idx], vars: currentVars };
                     setEnvs(newEnvs);
                 };
 
@@ -61,7 +61,7 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
                     const value = currentVars[oldKey];
                     delete currentVars[oldKey];
                     currentVars[newKey] = value;
-                    newEnvs[idx].vars = currentVars;
+                    newEnvs[idx] = { ...newEnvs[idx], vars: currentVars };
                     setEnvs(newEnvs);
                 };
 
@@ -69,7 +69,7 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
                     const newEnvs = [...envs];
                     const currentVars = { ...newEnvs[idx].vars };
                     currentVars[key] = value;
-                    newEnvs[idx].vars = currentVars;
+                    newEnvs[idx] = { ...newEnvs[idx], vars: currentVars };
                     setEnvs(newEnvs);
                 };
 
@@ -77,7 +77,7 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
                     const newEnvs = [...envs];
                     const currentVars = { ...newEnvs[idx].vars };
                     delete currentVars[key];
-                    newEnvs[idx].vars = currentVars;
+                    newEnvs[idx] = { ...newEnvs[idx], vars: currentVars };
                     setEnvs(newEnvs);
                 };
 

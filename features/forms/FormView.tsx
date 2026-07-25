@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Table, FormElement, Query, ValidationRule } from '../../types/index';
+import { Form, Table, FormElement, Query, FormValidationRule } from '../../types/index';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Save, X, ChevronsLeft, ChevronsRight, Minimize2, ExternalLink, CheckCircle, XCircle, Layout, AlertCircle, ShieldAlert } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { FormWidget } from './renderer/FormWidget';
@@ -257,6 +257,11 @@ export const FormView: React.FC<FormViewProps> = ({
           initialData = { ...initialData, ...defaultValues };
       }
       setTempRecord(initialData);
+  };
+
+  const cancelCreate = () => {
+      setIsCreating(false);
+      setTempRecord({});
   };
 
   const deleteCurrentRecord = () => {

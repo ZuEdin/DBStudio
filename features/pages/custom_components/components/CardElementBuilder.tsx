@@ -94,12 +94,12 @@ export const CardElementBuilder: React.FC<CardElementBuilderProps> = ({
                     value={elem.type}
                     onChange={(e) => {
                       const next = [...configObj.cardTemplate];
-                      next[idx].type = e.target.value;
-                      // Auto apply some sensible classes
-                      if (e.target.value === 'title') next[idx].style = 'text-sm font-bold text-slate-800';
-                      else if (e.target.value === 'badge') next[idx].style = 'bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-block w-fit';
-                      else if (e.target.value === 'description') next[idx].style = 'text-xs text-slate-500 mt-1';
-                      else if (e.target.value === 'button') next[idx].style = 'mt-2 text-xs text-white bg-indigo-600 font-semibold px-3 py-1 rounded inline-block text-center';
+                      let newStyle = next[idx].style;
+                      if (e.target.value === 'title') newStyle = 'text-sm font-bold text-slate-800';
+                      else if (e.target.value === 'badge') newStyle = 'bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-block w-fit';
+                      else if (e.target.value === 'description') newStyle = 'text-xs text-slate-500 mt-1';
+                      else if (e.target.value === 'button') newStyle = 'mt-2 text-xs text-white bg-indigo-600 font-semibold px-3 py-1 rounded inline-block text-center';
+                      next[idx] = { ...next[idx], type: e.target.value, style: newStyle };
                       updateVisualConfig({ cardTemplate: next });
                     }}
                     className="w-full border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white text-slate-700"
@@ -117,7 +117,7 @@ export const CardElementBuilder: React.FC<CardElementBuilderProps> = ({
                     value={elem.field}
                     onChange={(e) => {
                       const next = [...configObj.cardTemplate];
-                      next[idx].field = e.target.value;
+                      next[idx] = { ...next[idx], field: e.target.value };
                       updateVisualConfig({ cardTemplate: next });
                     }}
                     className="w-full border border-slate-300 rounded px-1.5 py-0.5 text-xs bg-white text-slate-700"
@@ -145,7 +145,7 @@ export const CardElementBuilder: React.FC<CardElementBuilderProps> = ({
                     value={elem.label || ''}
                     onChange={(e) => {
                       const next = [...configObj.cardTemplate];
-                      next[idx].label = e.target.value;
+                      next[idx] = { ...next[idx], label: e.target.value };
                       updateVisualConfig({ cardTemplate: next });
                     }}
                     placeholder="Z.B. Name:"
@@ -159,7 +159,7 @@ export const CardElementBuilder: React.FC<CardElementBuilderProps> = ({
                     value={elem.style || ''}
                     onChange={(e) => {
                       const next = [...configObj.cardTemplate];
-                      next[idx].style = e.target.value;
+                      next[idx] = { ...next[idx], style: e.target.value };
                       updateVisualConfig({ cardTemplate: next });
                     }}
                     className="w-full px-2 py-0.5 text-xs border border-slate-300 rounded font-mono text-[10px]"

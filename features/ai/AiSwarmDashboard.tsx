@@ -351,7 +351,7 @@ export const AiSwarmDashboard: React.FC = () => {
                     const newAgents = [...agents];
                     const idx = newAgents.findIndex(a => a.id === selectedAgent.id);
                     if (idx !== -1) {
-                      newAgents[idx].systemPrompt = e.target.value;
+                      newAgents[idx] = { ...newAgents[idx], systemPrompt: e.target.value };
                       setAgents(newAgents);
                     }
                   }}
