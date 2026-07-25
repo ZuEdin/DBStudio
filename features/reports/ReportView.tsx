@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
-import { Report, Field, ReportColumn, TextStyle, Table, Relationship } from '../../types/index';
-import { FileText, FileSpreadsheet, ChevronDown, ExternalLink } from 'lucide-react';
+import { Report, Field, ReportColumn, TextStyle, Table, Relationship, GroupLevel } from '../../types/index';
+import { FileText, FileSpreadsheet, ChevronDown, ExternalLink, Printer, Building2, Calculator } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -17,10 +17,11 @@ interface ReportViewProps {
   widgetMode?: boolean;
 }
 
-interface GroupedData {
-  groupValue: string;
-  items: Record<string, any>[];
-  summaries: Record<string, number>;
+export interface SummaryResult {
+  fieldName: string;
+  calc: string;
+  label: string;
+  value: number | string;
 }
 
 const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
@@ -39,17 +40,30 @@ const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
 
 export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFields, allTables, relationships, widgetMode }) => {
   const [detailView, setDetailView] = useState<{ targetTableId: string, recordId: any } | null>(null);
-  const groupingField = sourceFields.find(f => f.id === report.groupingFieldId);
+
+  // Normalize group levels: convert legacy groupingFieldId or use groupingFields
+  const groupLevels = useMemo((): GroupLevel[] => {
+    if (report.groupingFields && report.groupingFields.length > 0) {
+      return report.groupingFields;
+    }
+    if (report.groupingFieldId) {
+      const field = sourceFields.find(f => f.id === report.groupingFieldId);
+      return [{
+        fieldId: report.groupingFieldId,
+        fieldName: field?.name,
+        sortOrder: 'asc',
+        showHeader: true,
+        showFooter: true
+      }];
+    }
+    return [];
+  }, [report.groupingFields, report.groupingFieldId, sourceFields]);
 
   // Determine Columns to Display
   const displayColumns = useMemo((): { id: string, label: string, fieldName: string, isFK?: boolean, targetTableId?: string }[] => {
       let cols = [];
       
       const mapCol = (fieldId: string, label: string, fieldName: string) => {
-          // Check for relationship
-          // We need to know which table this field belongs to. Report sourceId tells us the main source.
-          // If source is a table, simple. If query, we might lose context unless we map it back.
-          // Simplified approach: Check relationships where sourceTable matches report source
           let isFK = false;
           let targetTableId = undefined;
 
@@ -60,7 +74,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
                   targetTableId = rel.toTableId;
               }
           }
-          // Query logic would be more complex to trace back field origin, skipped for simple v1
           return { id: fieldId, label, fieldName, isFK, targetTableId };
       };
 
@@ -73,60 +86,113 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
           cols = sourceFields.map(f => mapCol(f.id, f.name, f.name));
       }
 
-      // Hide grouping field from the detail table
-      if (groupingField) {
-          return cols.filter(c => c.id !== groupingField.id);
+      // Hide active grouping fields from detail rows to avoid repetition (MS Access Stepped Style)
+      const groupFieldIds = new Set(groupLevels.map(g => g.fieldId));
+      if (groupFieldIds.size > 0) {
+          return cols.filter(c => !groupFieldIds.has(c.id));
       }
       return cols;
-  }, [report.columns, sourceFields, groupingField, relationships, report.sourceId]);
+  }, [report.columns, sourceFields, groupLevels, relationships, report.sourceId, report.sourceType]);
 
-  const processedData = useMemo((): GroupedData[] => {
-    const calculateSummaries = (items: Record<string, any>[]): Record<string, number> => {
-      const results: Record<string, number> = {};
-      report.summaries.forEach(summary => {
-        const key = `${summary.fieldName}_${summary.calculation}`;
-        if (summary.calculation === 'COUNT') {
-          results[key] = items.length;
-        } else if (summary.calculation === 'SUM') {
-          results[key] = items.reduce((acc, item) => acc + (Number(item[summary.fieldName]) || 0), 0);
+  // Calculate summaries for a dataset
+  const calculateSummaries = (items: Record<string, any>[], filterGroupFieldId?: string): SummaryResult[] => {
+    const results: SummaryResult[] = [];
+    if (!items || items.length === 0) return results;
+
+    const applicableSummaries = report.summaries.filter(s => {
+      if (filterGroupFieldId) {
+        return !s.groupFieldId || s.groupFieldId === filterGroupFieldId;
+      }
+      return true;
+    });
+
+    applicableSummaries.forEach(summary => {
+      const fieldName = summary.fieldName;
+      
+      if (summary.calculation === 'COUNT') {
+        results.push({
+          fieldName,
+          calc: 'COUNT',
+          label: `Anzahl (${fieldName})`,
+          value: items.length
+        });
+      } else {
+        const vals = items
+          .map(item => Number(item[fieldName]))
+          .filter(v => !isNaN(v) && v !== null);
+
+        if (vals.length === 0) {
+          results.push({ fieldName, calc: summary.calculation, label: `${summary.calculation} (${fieldName})`, value: 0 });
+          return;
         }
-      });
-      return results;
-    };
 
-    if (!groupingField) {
+        if (summary.calculation === 'SUM') {
+          const sum = vals.reduce((acc, v) => acc + v, 0);
+          results.push({ fieldName, calc: 'SUM', label: `Summe (${fieldName})`, value: Math.round(sum * 100) / 100 });
+        } else if (summary.calculation === 'AVG') {
+          const avg = vals.reduce((acc, v) => acc + v, 0) / vals.length;
+          results.push({ fieldName, calc: 'AVG', label: `Durchschnitt (${fieldName})`, value: Math.round(avg * 100) / 100 });
+        } else if (summary.calculation === 'MIN') {
+          const min = Math.min(...vals);
+          results.push({ fieldName, calc: 'MIN', label: `Minimum (${fieldName})`, value: min });
+        } else if (summary.calculation === 'MAX') {
+          const max = Math.max(...vals);
+          results.push({ fieldName, calc: 'MAX', label: `Maximum (${fieldName})`, value: max });
+        }
+      }
+    });
+    return results;
+  };
+
+  // Grand totals across all records
+  const grandTotalSummaries = useMemo(() => {
+    return calculateSummaries(data);
+  }, [data, report.summaries]);
+
+  // Multi-level grouping processor
+  const processedGroups = useMemo(() => {
+    if (groupLevels.length === 0) {
       return [{
+        groupPath: [],
+        level: 0,
         groupValue: 'Gesamt',
+        fieldLabel: '',
         items: data,
         summaries: calculateSummaries(data)
       }];
     }
 
-    const grouped: Record<string, Record<string, any>[]> = {};
+    // Single or Multi-level grouping logic
+    const level1Group = groupLevels[0];
+    const level1Field = sourceFields.find(f => f.id === level1Group.fieldId);
+    const level1FieldName = level1Field?.name || level1Group.fieldName || '';
+
+    const groupedMap: Record<string, Record<string, any>[]> = {};
     data.forEach(row => {
-      let rawVal = row[groupingField.name];
-      if (rawVal === undefined || rawVal === null) rawVal = 'Unbekannt';
-      
+      let rawVal = row[level1FieldName];
+      if (rawVal === undefined || rawVal === null || rawVal === '') rawVal = '(Nicht angegeben)';
       let key = String(rawVal);
       if (report.settings?.groupMethod === 'firstLetter') {
-          key = key.charAt(0).toUpperCase();
+        key = key.charAt(0).toUpperCase();
       }
-
-      if (!grouped[key]) {
-        grouped[key] = [];
-      }
-      grouped[key].push(row);
+      if (!groupedMap[key]) groupedMap[key] = [];
+      groupedMap[key].push(row);
     });
 
-    const sortedKeys = Object.keys(grouped).sort();
+    const sortedKeys = Object.keys(groupedMap).sort((a, b) => {
+      return level1Group.sortOrder === 'desc' ? b.localeCompare(a) : a.localeCompare(b);
+    });
 
-    return sortedKeys.map((key) => ({
+    return sortedKeys.map(key => ({
+      groupPath: [key],
+      level: 0,
       groupValue: key,
-      items: grouped[key],
-      summaries: calculateSummaries(grouped[key])
+      fieldLabel: level1FieldName,
+      items: groupedMap[key],
+      summaries: calculateSummaries(groupedMap[key], level1Group.fieldId)
     }));
-  }, [data, report, groupingField]);
-  
+  }, [data, groupLevels, sourceFields, report.summaries, report.settings?.groupMethod]);
+
   const handleExportPDF = () => {
       const doc = new jsPDF({ orientation: report.settings?.orientation || 'portrait' });
       
@@ -135,34 +201,26 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
       if(report.styles?.header?.color) doc.setTextColor(report.styles.header.color);
       doc.text(report.name, 14, 15);
       
-      // Reset
       doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
+      doc.setTextColor(100, 100, 100);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Erstellt am: ${new Date().toLocaleDateString()}`, 14, 22);
+      if (report.settings?.subtitle) {
+        doc.text(report.settings.subtitle, 14, 22);
+      }
+      doc.text(`Erstellt am: ${new Date().toLocaleDateString()}`, 14, report.settings?.subtitle ? 27 : 22);
       
-      let finalY = 30;
+      let finalY = report.settings?.subtitle ? 34 : 28;
 
-      processedData.forEach(group => {
+      processedGroups.forEach(group => {
           if (finalY > 250) { doc.addPage(); finalY = 20; }
 
-          // Render Group Header
-          if (groupingField) {
-              doc.setFontSize(report.styles?.groupHeader?.fontSize || 11);
-              doc.setFont('helvetica', report.styles?.groupHeader?.bold ? 'bold' : 'normal');
-              
-              if(report.styles?.groupHeader?.backgroundColor) {
-                  doc.setFillColor(report.styles.groupHeader.backgroundColor);
-                  doc.rect(14, finalY, 182, 8, 'F');
-              } else {
-                  doc.setFillColor(240, 240, 240); // default
-                  doc.rect(14, finalY, 182, 8, 'F');
-              }
-              
-              if(report.styles?.groupHeader?.color) doc.setTextColor(report.styles.groupHeader.color);
-              else doc.setTextColor(0,0,0);
-
-              doc.text(`${group.groupValue}`, 16, finalY + 5.5);
+          if (groupLevels.length > 0) {
+              doc.setFontSize(11);
+              doc.setFont('helvetica', 'bold');
+              doc.setFillColor(240, 243, 246);
+              doc.rect(14, finalY, 182, 8, 'F');
+              doc.setTextColor(30, 41, 59);
+              doc.text(`${group.fieldLabel}: ${group.groupValue}`, 16, finalY + 5.5);
               finalY += 12;
           }
 
@@ -173,34 +231,28 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
               startY: finalY,
               head: [tableHeaders],
               body: tableBody,
-              theme: 'plain',
+              theme: report.settings?.showGridlines ? 'grid' : report.settings?.zebraStriping ? 'striped' : 'plain',
               styles: { 
                   fontSize: report.styles?.detail?.fontSize || 9, 
-                  cellPadding: 1,
-                  textColor: report.styles?.detail?.color ? [0,0,0] : undefined
+                  cellPadding: 2,
               },
               headStyles: { 
-                  fillColor: report.styles?.columnHeader?.backgroundColor ? [200,200,200] : [255, 255, 255], 
-                  textColor: [100, 100, 100], 
-                  lineWidth: { bottom: 0.1 }, 
-                  lineColor: [200, 200, 200] 
+                  fillColor: [226, 232, 240], 
+                  textColor: [51, 65, 85], 
+                  fontStyle: 'bold',
               },
-              margin: { left: groupingField ? 20 : 14, right: 14 }
+              margin: { left: groupLevels.length > 0 ? 20 : 14, right: 14 }
           });
 
           // @ts-ignore
           finalY = doc.lastAutoTable.finalY + 5;
 
-          // Render Summaries
-          if (report.summaries.length > 0) {
-              doc.setFontSize(report.styles?.footer?.fontSize || 9);
+          if (group.summaries.length > 0) {
+              doc.setFontSize(9);
               doc.setFont('helvetica', 'bold');
-              doc.setTextColor(0,0,0);
-              const summaryText = Object.entries(group.summaries).map(([key, value]) => {
-                  const [fieldName, calc] = key.split('_');
-                  return `${calc === 'SUM' ? 'Summe' : 'Anzahl'} ${fieldName}: ${value}`;
-              }).join('   |   ');
-              doc.text(summaryText, groupingField ? 20 : 14, finalY);
+              doc.setTextColor(15, 23, 42);
+              const summaryText = group.summaries.map(s => `${s.label}: ${s.value}`).join('   |   ');
+              doc.text(`[Gruppen-Summe]: ${summaryText}`, groupLevels.length > 0 ? 20 : 14, finalY);
               finalY += 10;
           }
           
@@ -208,19 +260,31 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
               doc.addPage();
               finalY = 20;
           } else {
-              finalY += 5;
+              finalY += 4;
           }
       });
+
+      // Overall Grand Total
+      if (grandTotalSummaries.length > 0) {
+        if (finalY > 250) { doc.addPage(); finalY = 20; }
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setFillColor(226, 232, 240);
+        doc.rect(14, finalY, 182, 8, 'F');
+        doc.setTextColor(15, 23, 42);
+        const text = grandTotalSummaries.map(s => `${s.label}: ${s.value}`).join('   |   ');
+        doc.text(`GESAMTERGEBNIS: ${text}`, 16, finalY + 5.5);
+      }
 
       doc.save(`${report.name.replace(/[^a-z0-9]/gi, '_')}.pdf`);
   };
 
   const handleExportExcel = () => {
-      const exportData = processedData.flatMap(group => {
+      const exportData = processedGroups.flatMap(group => {
           return group.items.map(item => {
               const row: any = {};
-              if (groupingField) {
-                  row[`[Gruppe] ${groupingField.name}`] = group.groupValue;
+              if (groupLevels.length > 0) {
+                  row[`[Gruppe] ${group.fieldLabel}`] = group.groupValue;
               }
               displayColumns.forEach(col => {
                   row[col.label] = item[col.fieldName];
@@ -266,7 +330,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
 
   return (
     <div className={`${widgetMode ? 'bg-transparent' : 'bg-slate-200'} h-full overflow-hidden flex flex-col`}>
-      {/* Dynamic print orientation styling */}
       <style>{`
         @media print {
           @page {
@@ -278,119 +341,172 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
           }
         }
       `}</style>
+
       {/* Sticky Toolbar */}
       {!widgetMode && (
-          <div className="bg-white border-b border-slate-300 p-2 flex justify-end gap-2 flex-shrink-0 sticky top-0 z-20 shadow-sm">
-              <button onClick={handleExportExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
-                  <FileSpreadsheet size={14}/> Excel
-              </button>
-              <button onClick={handleExportPDF} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
-                  <FileText size={14}/> PDF
-              </button>
+          <div className="bg-white border-b border-slate-300 p-2 flex justify-between items-center flex-shrink-0 sticky top-0 z-20 shadow-sm">
+              <div className="flex items-center gap-2 pl-2 text-xs font-bold text-slate-700">
+                <Printer size={16} className="text-blue-600" />
+                <span>MS Access Berichtsvorschau</span>
+                <span className="text-slate-400 font-normal">| {processedGroups.length} Gruppen ({data.length} Datensätze)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
+                    <Printer size={14}/> Drucken
+                </button>
+                <button onClick={handleExportExcel} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
+                    <FileSpreadsheet size={14}/> Excel
+                </button>
+                <button onClick={handleExportPDF} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm">
+                    <FileText size={14}/> PDF
+                </button>
+              </div>
           </div>
       )}
 
       <div className={`${widgetMode ? 'p-2 relative' : 'p-8 flex-1 bg-slate-200'} overflow-auto`}>
-        <div className={widgetMode ? 'w-full bg-white h-full' : `mx-auto bg-white shadow-xl p-[15mm] transition-all duration-300 ${sizeClasses}`}>
+        <div className={widgetMode ? 'w-full bg-white h-full' : `mx-auto bg-white shadow-2xl p-[15mm] border border-slate-300 transition-all duration-300 ${sizeClasses}`}>
             
-            {/* Report Header */}
-            {!widgetMode && (
-                <header className="border-b-4 border-slate-800 pb-4 mb-8" style={getCssFromStyle(report.styles?.header)}>
+            {/* 1. BERICHTSKOPF (Report Header) */}
+            {(!widgetMode && report.settings?.showReportHeader !== false) && (
+                <header className="border-b-2 border-slate-800 pb-4 mb-6" style={getCssFromStyle(report.styles?.header)}>
                     <div className="flex justify-between items-start">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'inherit', fontSize: 'inherit' }}>{report.name}</h1>
-                            <p className="opacity-60 mt-1 uppercase tracking-wider text-xs font-bold">Bericht</p>
+                        <div className="space-y-1">
+                            {report.settings?.companyLogoUrl && (
+                              <img src={report.settings.companyLogoUrl} alt="Logo" className="h-10 mb-2 object-contain" />
+                            )}
+                            <h1 className="text-2xl font-black text-slate-900 tracking-tight" style={{ color: 'inherit', fontSize: 'inherit' }}>
+                              {report.name}
+                            </h1>
+                            {report.settings?.subtitle && (
+                              <p className="text-xs text-slate-600 font-medium">{report.settings.subtitle}</p>
+                            )}
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold pt-1">
+                              MS ACCESS DATA REPORT • SEKTION: BERICHTSKOPF
+                            </p>
                         </div>
-                        <div className="text-right">
-                            <p className="opacity-50 text-sm">{new Date().toLocaleDateString()}</p>
+                        <div className="text-right text-xs text-slate-500 font-mono">
+                            <p className="font-semibold text-slate-700">Datum: {new Date().toLocaleDateString('de-DE')}</p>
+                            <p className="text-[10px]">Uhrzeit: {new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                     </div>
                 </header>
             )}
 
-            {/* Data Loop */}
-            <main>
-            {processedData.map((group, index) => (
-                <div key={index} className={`mb-6 break-inside-avoid`}>
+            {/* 2. HAUPTDATEN & GRUPPIERUNG (Detail Band & Group Headers/Footers) */}
+            <main className="space-y-6">
+            {processedGroups.map((group, groupIdx) => (
+                <div key={groupIdx} className="break-inside-avoid border border-slate-200 rounded-lg overflow-hidden shadow-xs">
                     
-                    {/* Stepped Layout: Group Header */}
-                    {groupingField ? (
+                    {/* GRUPPENKOPF (Group Header) */}
+                    {groupLevels.length > 0 && (
                         <div 
-                            className="flex items-center gap-2 mb-2 pb-1 border-b border-slate-200 bg-slate-50 p-1 rounded-t"
+                            className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-300 text-slate-800 font-bold text-sm"
                             style={getCssFromStyle(report.styles?.groupHeader)}
                         >
-                            <div className="bg-slate-800 text-white p-1 rounded opacity-80 scale-75">
-                                <ChevronDown size={14} />
+                            <div className="flex items-center gap-2">
+                                <span className="p-1 bg-slate-800 text-white rounded text-[10px] font-mono">GRUPPE</span>
+                                <span className="text-xs text-slate-500 font-semibold">{group.fieldLabel}:</span>
+                                <span className="text-sm font-bold text-slate-900">{group.groupValue}</span>
                             </div>
-                            <h2 className="text-lg font-bold">
-                                {group.groupValue}
-                            </h2>
-                            <span className="text-[10px] opacity-60 ml-2 uppercase tracking-wide font-medium px-2 py-0.5 rounded border border-current">
-                                ({groupingField.name})
+                            <span className="text-xs text-slate-500 font-mono font-normal bg-white px-2 py-0.5 rounded border border-slate-200">
+                              {group.items.length} Zeilen
                             </span>
                         </div>
-                    ) : null}
+                    )}
                     
-                    {/* Stepped Layout: Details Container with Left Border/Indent */}
-                    <div className={`${groupingField ? "ml-3 pl-4 border-l-2 border-slate-200" : ""}`}>
-                        <table className="w-full border-collapse text-sm mb-2">
+                    {/* DETAILBEREICH (Detail Band Table) */}
+                    <div className="overflow-x-auto">
+                        <table className={`w-full text-left text-xs border-collapse ${report.settings?.showGridlines ? 'border border-slate-300 divide-y divide-slate-300' : ''}`}>
                             <thead>
-                                <tr className="border-b border-slate-300 text-left" style={getCssFromStyle(report.styles?.columnHeader)}>
+                                <tr className="bg-slate-50 border-b border-slate-300 text-slate-600 font-bold uppercase tracking-wider text-[11px]" style={getCssFromStyle(report.styles?.columnHeader)}>
                                     {displayColumns.map(col => (
-                                        <th key={col.id} className="py-2 pr-4 font-semibold opacity-70 text-xs uppercase tracking-wider">
+                                        <th key={col.id} className={`p-2.5 font-bold ${report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''}`}>
                                             {col.label}
                                         </th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody>
-                                {group.items.map((item, itemIndex) => (
-                                    <tr key={itemIndex} className="border-b border-slate-100 hover:bg-slate-50 last:border-0 transition-colors">
-                                        {displayColumns.map(col => (
-                                            <td key={col.id} className="py-2 pr-4 whitespace-nowrap group" style={getCellStyle(item[col.fieldName], { ...col } as any)}>
-                                                <div className="flex items-center gap-2">
-                                                    <span>{String(item[col.fieldName] ?? '')}</span>
-                                                    {col.isFK && col.targetTableId && item[col.fieldName] && (
-                                                        <button 
-                                                            onClick={() => setDetailView({ targetTableId: col.targetTableId!, recordId: item[col.fieldName] })}
-                                                            className="text-blue-400 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            title="Details"
-                                                        >
-                                                            <ExternalLink size={12}/>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
+                            <tbody className="divide-y divide-slate-200">
+                                {group.items.map((item, itemIndex) => {
+                                    const isZebra = report.settings?.zebraStriping && itemIndex % 2 === 1;
+                                    return (
+                                      <tr key={itemIndex} className={`transition-colors ${isZebra ? 'bg-slate-50/80' : 'bg-white'} hover:bg-blue-50/50`}>
+                                          {displayColumns.map(col => (
+                                              <td key={col.id} className={`p-2.5 whitespace-nowrap ${report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''}`} style={getCellStyle(item[col.fieldName], { ...col } as any)}>
+                                                  <div className="flex items-center gap-2">
+                                                      <span>{String(item[col.fieldName] ?? '')}</span>
+                                                      {col.isFK && col.targetTableId && item[col.fieldName] && (
+                                                          <button 
+                                                              onClick={() => setDetailView({ targetTableId: col.targetTableId!, recordId: item[col.fieldName] })}
+                                                              className="text-blue-500 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                              title="Details anzeigen"
+                                                          >
+                                                              <ExternalLink size={12}/>
+                                                          </button>
+                                                      )}
+                                                  </div>
+                                              </td>
+                                          ))}
+                                      </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
-
-                        {/* Group Summary Footer (Indented with the details) */}
-                        {report.summaries.length > 0 && (
-                            <div className="bg-slate-50 p-2 rounded-md border border-slate-200 inline-block mt-2 shadow-sm" style={getCssFromStyle(report.styles?.footer)}>
-                                {Object.entries(group.summaries).map(([key, value]) => {
-                                    const [fieldName, calc] = key.split('_');
-                                    return (
-                                        <span key={key} className="mr-6 text-sm">
-                                            <span className="opacity-70 font-bold text-xs uppercase mr-1">{calc === 'SUM' ? 'Summe' : 'Anzahl'} {fieldName}:</span>
-                                            <span className="font-mono font-bold">{value}</span>
-                                        </span>
-                                    )
-                                })}
-                            </div>
-                        )}
                     </div>
+
+                    {/* GRUPPENFUSS (Group Footer with Calculations) */}
+                    {group.summaries.length > 0 && (
+                        <div className="bg-amber-50/80 px-3 py-2 border-t border-amber-200 flex flex-wrap items-center gap-4 text-xs" style={getCssFromStyle(report.styles?.footer)}>
+                            <div className="flex items-center gap-1 font-bold text-amber-900">
+                              <Calculator size={14} className="text-amber-700" />
+                              <span>Gruppenfuss-Ergebnisse:</span>
+                            </div>
+                            {group.summaries.map((sum, i) => (
+                              <div key={i} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-amber-300 shadow-2xs">
+                                <span className="text-[10px] font-bold text-amber-800 uppercase">{sum.label}:</span>
+                                <span className="font-mono font-bold text-slate-900">{sum.value}</span>
+                              </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             ))}
             
+            {/* 3. BERICHTSFUSS / GESAMTERGEBNISSE (Report Footer - Grand Totals) */}
+            {grandTotalSummaries.length > 0 && (
+              <div className="mt-8 p-4 bg-slate-900 text-white rounded-lg shadow-md space-y-2 border border-slate-800">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
+                    <Calculator size={16} />
+                    <span>Berichtsfuss — Gesamtergebnisse ({data.length} Datensätze gesamt)</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-4 pt-1">
+                  {grandTotalSummaries.map((sum, i) => (
+                    <div key={i} className="bg-slate-800 px-3 py-1.5 rounded border border-slate-700 flex items-center gap-2">
+                      <span className="text-xs text-slate-300 font-medium">{sum.label}:</span>
+                      <span className="text-sm font-bold font-mono text-amber-300">{sum.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {data.length === 0 && (
                 <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-lg text-slate-400">
-                    Keine Daten vorhanden.
+                    Keine Daten für diesen Bericht vorhanden.
                 </div>
             )}
             </main>
+
+            {/* 4. SEITENFUSS (Page Footer) */}
+            {(!widgetMode && report.settings?.showPageFooter !== false) && (
+              <footer className="mt-12 pt-3 border-t border-slate-200 flex justify-between items-center text-[11px] text-slate-400 font-mono">
+                <div>DB Studio Pro • MS Access Report Engine</div>
+                <div>Seite 1 von 1</div>
+              </footer>
+            )}
         </div>
       </div>
 
@@ -404,3 +520,4 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, data, sourceFiel
     </div>
   );
 };
+

@@ -86,15 +86,33 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
         order: i
     }));
 
+    const groupingFieldsList = groupingFieldId ? [{
+      fieldId: groupingFieldId,
+      fieldName: selectedSourceFields.find(f => f.id === groupingFieldId)?.name || '',
+      sortOrder: 'asc' as const,
+      showHeader: true,
+      showFooter: true
+    }] : [];
+
     const newReport: Report = {
       id: crypto.randomUUID(),
       name: reportName,
       sourceType: sourceType as 'table' | 'query' | 'dashboard',
       sourceId,
       groupingFieldId: groupingFieldId || undefined,
+      groupingFields: groupingFieldsList,
       summaries,
       columns: initialColumns,
-      dashboardWidgets: sourceType === 'dashboard' ? [] : undefined
+      dashboardWidgets: sourceType === 'dashboard' ? [] : undefined,
+      settings: {
+        orientation: 'portrait',
+        pageSize: 'A4',
+        showGridlines: true,
+        zebraStriping: true,
+        showReportHeader: true,
+        showReportFooter: true,
+        showPageFooter: true
+      }
     };
     onSave(newReport);
   };

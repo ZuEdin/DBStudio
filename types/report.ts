@@ -27,6 +27,16 @@ export interface ReportSummary {
   fieldId: string;
   fieldName: string;
   calculation: 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX';
+  groupFieldId?: string; // If undefined, applies as grand total in Report Footer
+}
+
+export interface GroupLevel {
+  fieldId: string;
+  fieldName?: string;
+  sortOrder?: 'asc' | 'desc';
+  showHeader?: boolean;
+  showFooter?: boolean;
+  pageBreakAfter?: boolean;
 }
 
 export interface ReportStyles {
@@ -39,8 +49,16 @@ export interface ReportStyles {
 
 export interface ReportSettings {
   orientation?: 'portrait' | 'landscape';
+  pageSize?: 'A4' | 'Letter';
   pageBreakAfterGroup?: boolean;
   groupMethod?: 'full' | 'firstLetter';
+  showReportHeader?: boolean;
+  showReportFooter?: boolean;
+  showPageFooter?: boolean;
+  zebraStriping?: boolean;
+  showGridlines?: boolean;
+  subtitle?: string;
+  companyLogoUrl?: string;
 }
 
 export interface DashboardWidget {
@@ -59,7 +77,8 @@ export interface Report {
   name: string;
   sourceType: 'table' | 'query' | 'dashboard';
   sourceId: string;
-  groupingFieldId?: string;
+  groupingFieldId?: string; // Legacy single group
+  groupingFields?: GroupLevel[]; // Multi-level grouping
   columns?: ReportColumn[];
   summaries: ReportSummary[];
   styles?: ReportStyles;
@@ -67,3 +86,4 @@ export interface Report {
   dashboardWidgets?: DashboardWidget[];
   allowedRoles?: string[];
 }
+
