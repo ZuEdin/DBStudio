@@ -73,10 +73,19 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
   });
   
   const apiService = `import axios from 'axios';
-const API_URL = import.meta.env.VITE_API_URL || 
-    (typeof window !== 'undefined' ? 
-        (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:${config.port}/api/' : window.location.origin + '/api/') 
-        : '/api/');
+const getApiUrl = () => {
+    let raw = import.meta.env.VITE_API_URL || '';
+    if (raw) {
+        let u = raw.trim();
+        if (!u.endsWith('/')) u += '/';
+        if (!u.includes('/api/')) u = u.replace(/\/+$/, '') + '/api/';
+        return u;
+    }
+    return typeof window !== 'undefined'
+        ? (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:${config.port}/api/' : window.location.origin + '/api/')
+        : '/api/';
+};
+const API_URL = getApiUrl();
 
 // withCredentials: true is required for Windows Auth (Negotiate) to work cross-origin
 export const api = axios.create({ 
@@ -248,7 +257,7 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
         return null;
     }
 
-    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
     const cleanParams: any = {};
     if (params) {
         Object.keys(params).forEach(k => {
@@ -359,7 +368,7 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
 };
 
 export const post = async <T>(endpoint: string, data: any): Promise<T> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
     if (endpoint.startsWith('auth/')) {
         try {
             const response = await api.post(cleanEndpoint, data);
@@ -389,7 +398,6 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
         throw new Error('Unsupported auth endpoint: ' + endpoint);
     }
 
-    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
@@ -441,7 +449,7 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const put = async <T>(endpoint: string, data: any): Promise<T> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
@@ -479,7 +487,7 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const remove = async (endpoint: string): Promise<any> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
@@ -695,6 +703,8 @@ export const logoutUser = () => {
 
   // Export Helpers & Macro Services for Generated Sites
   const exportHelperContent = `import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export type ExportFormat = 'PDF' | 'XLSX' | 'XML' | 'JSON' | 'CSV' | 'HTML_PRINT';
 
@@ -761,38 +771,99 @@ export function exportDataToFile(options: ExportDataOptions) {
       }
       break;
     }
-    case 'PDF':
-    case 'HTML_PRINT': {
-      let printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
-        const doc = iframe.contentWindow?.document;
-        if (doc) {
-          doc.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
-          doc.close();
-          setTimeout(() => {
-            iframe.contentWindow?.focus();
-            iframe.contentWindow?.print();
-            setTimeout(() => document.body.removeChild(iframe), 1000);
-          }, 250);
+    case 'PDF': {
+      try {
+        const doc = new jsPDF({
+          orientation: columns.length > 5 ? 'landscape' : 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        doc.setFontSize(16);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title || 'Bericht', 14, 15);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.setFont('helvetica', 'normal');
+        doc.text(\`Erstellt am \${new Date().toLocaleString('de-DE')} • \${data.length} Datensätze\`, 14, 21);
+
+        const tableColumn = columns;
+        const tableRows = data.map(row => columns.map(col => {
+          const val = row[col];
+          return val !== undefined && val !== null ? String(val) : '';
+        }));
+
+        if (typeof (doc as any).autoTable === 'function') {
+          (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 26,
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', textColor: [30, 41, 59], overflow: 'linebreak' },
+            headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            margin: { top: 26, right: 14, bottom: 14, left: 14 }
+          });
+        } else {
+          const fnAutoTable = (autoTable as any).default || autoTable;
+          fnAutoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 26,
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', textColor: [30, 41, 59], overflow: 'linebreak' },
+            headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            margin: { top: 26, right: 14, bottom: 14, left: 14 }
+          });
         }
-        break;
+
+        const safeFilename = (filename || 'export').replace(/[^a-zA-Z0-9_\\-]/g, '_');
+        const pdfBlob = doc.output('blob');
+        downloadBlob(pdfBlob, \`\${safeFilename}.pdf\`);
+      } catch (err) {
+        console.error('PDF Export failed, falling back to print:', err);
+        openPrintIframeOrWindow(title, data, columns, filename);
       }
-      printWindow.document.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><button onclick="window.print()">Drucken / Als PDF Speichern</button><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
-      printWindow.document.close();
-      setTimeout(() => {
-        try { printWindow.print(); } catch(e) {}
-      }, 500);
+      break;
+    }
+    case 'HTML_PRINT': {
+      openPrintIframeOrWindow(title, data, columns, filename);
       break;
     }
   }
+}
+
+function openPrintIframeOrWindow(title: string, data: any[], columns: string[], filename: string) {
+  let printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }, 250);
+    }
+    return;
+  }
+  printWindow.document.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><button onclick="window.print()">Drucken / Als PDF Speichern</button><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+  printWindow.document.close();
+  setTimeout(() => {
+    try { printWindow.print(); } catch(e) {}
+  }, 500);
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -877,8 +948,25 @@ export function evaluateFormFormula(formula: string, record: Record<string, any>
 
   files.push({ name: 'formulaEvaluator.ts', path: `${root}/src/utils/formulaEvaluator.ts`, content: formulaEvaluatorContent, language: 'typescript' });
 
+  const tableEndpointsMap = tables ? tables.reduce((acc, t) => {
+    const routeName = toCamelCase(t.name);
+    acc[t.id] = routeName;
+    acc[t.name.toLowerCase()] = routeName;
+    return acc;
+  }, {} as Record<string, string>) : {};
+
+  const queryEndpointsMap = queries ? queries.reduce((acc, q) => {
+    const routeName = toCamelCase(q.name);
+    acc[q.id] = routeName;
+    acc[q.name.toLowerCase()] = routeName;
+    return acc;
+  }, {} as Record<string, string>) : {};
+
   const macroServiceContent = `import { exportDataToFile, ExportFormat } from '../utils/exportHelper';
 import { get } from './api';
+
+const tableEndpointsMap: Record<string, string> = ${JSON.stringify(tableEndpointsMap, null, 2)};
+const queryEndpointsMap: Record<string, string> = ${JSON.stringify(queryEndpointsMap, null, 2)};
 
 export interface MacroStep {
   id: string;
@@ -928,14 +1016,16 @@ export async function executeGeneratedMacro(
         let data: any[] = [];
         if (sourceType === 'table' && sourceId) {
           try {
-            const res = await get<any>(sourceId);
+            const mappedEndpoint = tableEndpointsMap[sourceId] || tableEndpointsMap[sourceId.toLowerCase()] || sourceId;
+            const res = await get<any>(mappedEndpoint);
             data = Array.isArray(res) ? res : (res?.data || []);
           } catch (e) {
             console.error('Error fetching table data for macro export:', e);
           }
         } else if (sourceType === 'query' && sourceId) {
           try {
-            const res = await get<any>('queries/' + sourceId);
+            const mappedEndpoint = queryEndpointsMap[sourceId] || queryEndpointsMap[sourceId.toLowerCase()] || sourceId;
+            const res = await get<any>('queries/' + mappedEndpoint);
             data = Array.isArray(res) ? res : (res?.data || []);
           } catch (e) {
             console.error('Error fetching query data for macro export:', e);

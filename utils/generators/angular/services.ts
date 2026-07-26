@@ -81,7 +81,7 @@ export class ApiService {
 
   private getUrl(ep: string): string {
     const base = this.baseUrl ? (this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/') : '/api/';
-    const cleanEp = (ep || '').replace(/^\\/+/g, '');
+    const cleanEp = (ep || '').replace(/^\/+/g, '');
     return base + cleanEp;
   }
 
@@ -294,6 +294,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // Export Service
   const exportServiceContent = `import { Injectable } from '@angular/core';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export type ExportFormat = 'PDF' | 'EXCEL' | 'XLSX' | 'CSV' | 'JSON' | 'HTML_PRINT';
 
@@ -362,46 +364,124 @@ export class ExportService {
         }
         break;
       }
-      case 'PDF':
-      case 'HTML_PRINT': {
-        let printWindow = window.open('', '_blank');
-        if (!printWindow) {
-          const iframe = document.createElement('iframe');
-          iframe.style.position = 'fixed';
-          iframe.style.right = '0';
-          iframe.style.bottom = '0';
-          iframe.style.width = '0';
-          iframe.style.height = '0';
-          iframe.style.border = '0';
-          document.body.appendChild(iframe);
-          const doc = iframe.contentWindow?.document;
-          if (doc) {
-            doc.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
-            doc.close();
-            setTimeout(() => {
-              iframe.contentWindow?.focus();
-              iframe.contentWindow?.print();
-              setTimeout(() => document.body.removeChild(iframe), 1000);
-            }, 250);
+      case 'PDF': {
+        try {
+          const doc = new jsPDF({
+            orientation: columns.length > 5 ? 'landscape' : 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          doc.setFontSize(16);
+          doc.setTextColor(30, 41, 59);
+          doc.setFont('helvetica', 'bold');
+          doc.text(title || 'Bericht', 14, 15);
+
+          doc.setFontSize(9);
+          doc.setTextColor(100, 116, 139);
+          doc.setFont('helvetica', 'normal');
+          doc.text(\`Erstellt am \${new Date().toLocaleString('de-DE')} • \${data.length} Datensätze\`, 14, 21);
+
+          const tableColumn = columns;
+          const tableRows = data.map(row => columns.map(col => {
+            const val = row[col];
+            return val !== undefined && val !== null ? String(val) : '';
+          }));
+
+          if (typeof (doc as any).autoTable === 'function') {
+            (doc as any).autoTable({
+              head: [tableColumn],
+              body: tableRows,
+              startY: 26,
+              theme: 'grid',
+              styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', textColor: [30, 41, 59], overflow: 'linebreak' },
+              headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
+              alternateRowStyles: { fillColor: [248, 250, 252] },
+              margin: { top: 26, right: 14, bottom: 14, left: 14 }
+            });
+          } else {
+            const fnAutoTable = (autoTable as any).default || autoTable;
+            fnAutoTable(doc, {
+              head: [tableColumn],
+              body: tableRows,
+              startY: 26,
+              theme: 'grid',
+              styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', textColor: [30, 41, 59], overflow: 'linebreak' },
+              headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
+              alternateRowStyles: { fillColor: [248, 250, 252] },
+              margin: { top: 26, right: 14, bottom: 14, left: 14 }
+            });
           }
-          break;
+
+          const safeFilename = (filename || 'export').replace(/[^a-zA-Z0-9_\\-]/g, '_');
+          const pdfBlob = doc.output('blob');
+          this.downloadBlob(pdfBlob, \`\${safeFilename}.pdf\`);
+        } catch (err) {
+          console.error('PDF Export failed, falling back to print:', err);
+          this.openPrintIframeOrWindow(title, data, columns, filename);
         }
-        printWindow.document.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><button onclick="window.print()">Drucken / Als PDF Speichern</button><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
-        printWindow.document.close();
-        setTimeout(() => {
-          try { printWindow.print(); } catch(e) {}
-        }, 500);
+        break;
+      }
+      case 'HTML_PRINT': {
+        this.openPrintIframeOrWindow(title, data, columns, filename);
         break;
       }
     }
+  }
+
+  openPrintIframeOrWindow(title: string, data: any[], columns: string[], filename: string) {
+    let printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow?.document;
+      if (doc) {
+        doc.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+        doc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 250);
+      }
+      return;
+    }
+    printWindow.document.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><button onclick="window.print()">Drucken / Als PDF Speichern</button><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+    printWindow.document.close();
+    setTimeout(() => {
+      try { printWindow.print(); } catch(e) {}
+    }, 500);
   }
 }`;
   files.push({ name: 'export.service.ts', path: `${appRoot}/services/export.service.ts`, content: exportServiceContent, language: 'typescript' });
 
   // Macro Service
+  const tableEndpointsMap = tables ? tables.reduce((acc, t) => {
+    const routeName = toCamelCase(t.name);
+    acc[t.id] = routeName;
+    acc[t.name.toLowerCase()] = routeName;
+    return acc;
+  }, {} as Record<string, string>) : {};
+
+  const queryEndpointsMap = queries ? queries.reduce((acc, q) => {
+    const routeName = toCamelCase(q.name);
+    acc[q.id] = routeName;
+    acc[q.name.toLowerCase()] = routeName;
+    return acc;
+  }, {} as Record<string, string>) : {};
+
   const macroServiceContent = `import { Injectable } from '@angular/core';
 import { ExportService, ExportFormat } from './export.service';
 import { ApiService } from './api.service';
+
+const tableEndpointsMap: Record<string, string> = ${JSON.stringify(tableEndpointsMap, null, 2)};
+const queryEndpointsMap: Record<string, string> = ${JSON.stringify(queryEndpointsMap, null, 2)};
 
 export interface MacroStep {
   id: string;
@@ -449,14 +529,16 @@ export class MacroService {
           let data: any[] = [];
           if (sourceType === 'table' && sourceId) {
             try {
-              const res = await this.api.get<any>(sourceId).toPromise();
+              const mappedEndpoint = tableEndpointsMap[sourceId] || tableEndpointsMap[sourceId.toLowerCase()] || sourceId;
+              const res = await this.api.get<any>(mappedEndpoint).toPromise();
               data = Array.isArray(res) ? res : (res?.data || []);
             } catch (e) {
               console.error('Error fetching table data for macro export:', e);
             }
           } else if (sourceType === 'query' && sourceId) {
             try {
-              const res = await this.api.get<any>('queries/' + sourceId).toPromise();
+              const mappedEndpoint = queryEndpointsMap[sourceId] || queryEndpointsMap[sourceId.toLowerCase()] || sourceId;
+              const res = await this.api.get<any>('queries/' + mappedEndpoint).toPromise();
               data = Array.isArray(res) ? res : (res?.data || []);
             } catch (e) {
               console.error('Error fetching query data for macro export:', e);

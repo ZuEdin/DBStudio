@@ -41,7 +41,9 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
       "@fullcalendar/list":"^6.1.11",
       "tslib":"^2.3.0",
       "zone.js":"~0.14.0",
-      "xlsx":"^0.18.5"
+      "xlsx":"^0.18.5",
+      "jspdf":"^2.5.1",
+      "jspdf-autotable":"^3.8.1"
   };
 
   const devDependencies: any = {

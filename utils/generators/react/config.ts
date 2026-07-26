@@ -35,7 +35,9 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
       "react-joyride": "^2.8.2",
       "react-big-calendar": "^1.13.0",
       "date-fns": "^3.6.0",
-      "xlsx": "^0.18.5"
+      "xlsx": "^0.18.5",
+      "jspdf": "^2.5.1",
+      "jspdf-autotable": "^3.8.1"
   };
 
   const devDependencies: any = { 
@@ -159,7 +161,15 @@ body {
   }
 
   // Generate .env files for Vite
-  const defaultApiUrl = config.apiBaseUrl || `http://localhost:${config.port || 3000}`;
+  const normalizeApiUrl = (url: string) => {
+      let u = (url || '').trim();
+      if (!u) return 'http://localhost:3000/api/';
+      if (!u.endsWith('/')) u += '/';
+      if (!u.includes('/api/')) u = u.replace(/\/+$/, '') + '/api/';
+      return u;
+  };
+  const rawDefaultApiUrl = config.apiBaseUrl || `http://localhost:${config.port || 3000}`;
+  const defaultApiUrl = normalizeApiUrl(rawDefaultApiUrl);
   files.push({
       name: '.env',
       path: `${root}/.env`,
@@ -171,7 +181,8 @@ body {
   if (config.environments) {
       config.environments.forEach(env => {
           const mode = env.name === 'Production' ? 'production' : env.name === 'Staging' ? 'staging' : 'development';
-          let envContent = `VITE_API_URL=${env.apiUrl || defaultApiUrl}
+          const envApiUrl = env.apiUrl ? normalizeApiUrl(env.apiUrl) : defaultApiUrl;
+          let envContent = `VITE_API_URL=${envApiUrl}
 `;
           if (env.vars) {
               Object.entries(env.vars).forEach(([k, v]) => {
