@@ -19,8 +19,16 @@ export const generateTextNode = (node: any, context: NodeGeneratorContext): stri
 export const generateButtonNode = (node: any, context: NodeGeneratorContext): string => {
     let classNameStr = node.props?.className || '';
     let styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
-    const defaultClass = context.isBootstrap ? 'btn btn-primary' : 'px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition';
-    return `<button class="${defaultClass} ${classNameStr}" ${styleAttr}>${node.props?.label || 'Button'}</button>`;
+    const defaultClass = context.isBootstrap ? 'btn btn-primary' : 'px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition cursor-pointer font-bold';
+    
+    let clickAttr = '';
+    const macroId = node.props?.macroId || node.props?.exportFormat;
+    if (macroId) {
+        clickAttr = `(click)="executeMacro('${macroId}')"`;
+    } else if (node.props?.actionType === 'run_macro' || node.props?.actionType === 'smart_import') {
+        clickAttr = `(click)="executeMacro('${node.props?.macroId || 'macro'}')"`;
+    }
+    return `<button type="button" ${clickAttr} class="${defaultClass} ${classNameStr}" ${styleAttr}>${node.props?.label || 'Button'}</button>`;
 };
 
 export const generateDividerNode = (node: any, context: NodeGeneratorContext): string => {

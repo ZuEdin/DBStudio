@@ -370,7 +370,7 @@ export class ${pascalName}ListComponent implements OnInit {
 
   
   load() { 
-      this.api.getAll('${camelName}', this.page, this.pageSize, this.search).subscribe((res: any) => {
+      this.api.getAll('${pascalName}', this.page, this.pageSize, this.search).subscribe((res: any) => {
           this.items = res.data;
           this.total = res.total;
           this.page = res.page;
@@ -400,7 +400,7 @@ export class ${pascalName}ListComponent implements OnInit {
 
   confirmDelete() {
       if (this.deleteId) {
-          this.api.delete('${camelName}', this.deleteId).subscribe(() => {
+          this.api.delete('${pascalName}', this.deleteId).subscribe(() => {
               this.cancelDelete();
               this.load();
           });
@@ -539,7 +539,7 @@ ${checkCondition}    const params: Record<string, any> = {};
   }`;
               } else {
                   return `  loadLookup_${camel}() {
-    this.api.getAll('${camel}', 1, 10000).subscribe((res: any) => this.${camel}List = (res.data || res)${sortLogic});
+    this.api.getAll('${toPascalCase(l.name)}', 1, 10000).subscribe((res: any) => this.${camel}List = (res.data || res)${sortLogic});
   }`;
               }
           }).join('\n\n');
@@ -555,10 +555,11 @@ ${checkCondition}    const params: Record<string, any> = {};
           const subforms = collectAngularSubforms(linkedForm.layout, tables, forms);
           subformDeclarations = subforms.map(s => `  public ${toCamelCase(s.tableName)}SubList_${s.id.substring(0,8)}: any[] = [];`).join('\n');
           subformLoads = subforms.map(s => {
+              const tPascal = toPascalCase(s.tableName);
               const tName = toCamelCase(s.tableName);
               const fName = toCamelCase(s.childField);
               const listVar = `${tName}SubList_${s.id.substring(0,8)}`;
-              return `    if(id && id!=='new') this.api.getAll('${tName}', 1, 10000).subscribe((res: any) => this.${listVar} = (res.data || res).filter((x:any) => String(x.${fName}) == String(id)));`;
+              return `    if(id && id!=='new') this.api.getAll('${tPascal}', 1, 10000).subscribe((res: any) => this.${listVar} = (res.data || res).filter((x:any) => String(x.${fName}) == String(id)));`;
           }).join('\n');
           
           subformSaveLogic = `
@@ -675,6 +676,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../services/api.service';
+import { MacroService } from '../../services/macro.service';
 import { UserPickerComponent } from '../../components/user-picker/user-picker.component';
 import { ${interfaceName} } from '../../models/${interfaceName.toLowerCase()}.interface';
 
@@ -700,13 +702,21 @@ export class ${pascalName}FormComponent implements OnInit {
 ${listDeclarations}
 ${subformDeclarations}
 
-  constructor(private api: ApiService, private route: ActivatedRoute, private router: Router) {}
+  constructor(private api: ApiService, private route: ActivatedRoute, private router: Router, private macroService: MacroService) {}
+
+  executeMacro(macroId: string, contextData?: any) {
+    this.macroService.executeMacro(macroId, contextData || this.data);
+  }
+
+  showToast(msg: string) {
+    alert(msg);
+  }
   
   ngOnInit() {
       const id = this.route.snapshot.paramMap.get('id');
       if (id && id !== 'new') {
           this.isNew = false;
-          this.api.getById('${camelName}', id).subscribe((res: any) => {
+          this.api.getById('${pascalName}', id).subscribe((res: any) => {
               this.data = res;
               if (this.data) {
                   ${table.fields.map(f => {
@@ -739,7 +749,7 @@ ${listFetches}
       // Auto-Sanitize empty strings to null for backend compatibility
       ${sanitizationLogic}
 
-      const op = this.isNew ? this.api.create('${camelName}', this.data) : this.api.update('${camelName}', (this.data as any).${pkCamel}, this.data);
+      const op = this.isNew ? this.api.create('${pascalName}', this.data) : this.api.update('${pascalName}', (this.data as any).${pkCamel}, this.data);
       op.subscribe({
           next: () => this.router.navigate(['/${camelName}']),
           error: (err) => alert('Fehler beim Speichern: ' + (err.error?.title || err.message))

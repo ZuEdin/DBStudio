@@ -75,8 +75,8 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
   const apiService = `import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 
     (typeof window !== 'undefined' ? 
-        (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:${config.port}/api' : window.location.origin + '/api') 
-        : '/api');
+        (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:${config.port}/api/' : window.location.origin + '/api/') 
+        : '/api/');
 
 // withCredentials: true is required for Windows Auth (Negotiate) to work cross-origin
 export const api = axios.create({ 
@@ -248,13 +248,24 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
         return null;
     }
 
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
+    const cleanParams: any = {};
+    if (params) {
+        Object.keys(params).forEach(k => {
+            const val = params[k];
+            if (val !== undefined && val !== null && val !== '') {
+                cleanParams[k] = val;
+            }
+        });
+    }
+
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
         if (token) {
             headers['Authorization'] = 'Bearer ' + token;
         }
-        const response = await api.get(endpoint, { params, headers });
+        const response = await api.get(cleanEndpoint, { params: cleanParams, headers });
         if (response && response.data !== undefined && response.data !== null) {
             return response.data;
         }
@@ -348,9 +359,10 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
 };
 
 export const post = async <T>(endpoint: string, data: any): Promise<T> => {
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     if (endpoint.startsWith('auth/')) {
         try {
-            const response = await api.post(endpoint, data);
+            const response = await api.post(cleanEndpoint, data);
             if (response && response.data) {
                 if (response.data.token) {
                     localStorage.setItem('auth_token', response.data.token);
@@ -377,11 +389,12 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
         throw new Error('Unsupported auth endpoint: ' + endpoint);
     }
 
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
         if (token) headers['Authorization'] = 'Bearer ' + token;
-        const response = await api.post(endpoint, data, { headers });
+        const response = await api.post(cleanEndpoint, data, { headers });
         if (response && response.data !== undefined) {
             return response.data;
         }
@@ -428,11 +441,12 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const put = async <T>(endpoint: string, data: any): Promise<T> => {
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
         if (token) headers['Authorization'] = 'Bearer ' + token;
-        const response = await api.put(endpoint, data, { headers });
+        const response = await api.put(cleanEndpoint, data, { headers });
         if (response && response.data !== undefined) {
             return response.data;
         }
@@ -465,11 +479,12 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const remove = async (endpoint: string): Promise<any> => {
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
         if (token) headers['Authorization'] = 'Bearer ' + token;
-        const response = await api.delete(endpoint, { headers });
+        const response = await api.delete(cleanEndpoint, { headers });
         if (response && response.data !== undefined) {
             return response.data;
         }
@@ -748,10 +763,33 @@ export function exportDataToFile(options: ExportDataOptions) {
     }
     case 'PDF':
     case 'HTML_PRINT': {
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) return alert('Pop-up blockiert.');
+      let printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+          doc.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+          doc.close();
+          setTimeout(() => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            setTimeout(() => document.body.removeChild(iframe), 1000);
+          }, 250);
+        }
+        break;
+      }
       printWindow.document.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><button onclick="window.print()">Drucken / Als PDF Speichern</button><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
       printWindow.document.close();
+      setTimeout(() => {
+        try { printWindow.print(); } catch(e) {}
+      }, 500);
       break;
     }
   }
@@ -840,17 +878,24 @@ export function evaluateFormFormula(formula: string, record: Record<string, any>
   files.push({ name: 'formulaEvaluator.ts', path: `${root}/src/utils/formulaEvaluator.ts`, content: formulaEvaluatorContent, language: 'typescript' });
 
   const macroServiceContent = `import { exportDataToFile, ExportFormat } from '../utils/exportHelper';
+import { get } from './api';
 
 export interface MacroStep {
   id: string;
   name: string;
-  type: 'EXPORT_REPORT' | 'SMART_IMPORT' | 'EXECUTE_QUERY' | 'SHOW_TOAST';
+  type: string;
   exportConfig?: {
-    sourceType: 'table' | 'query';
+    sourceType: 'table' | 'query' | 'report';
     sourceId: string;
     format: ExportFormat;
     title?: string;
   };
+  toastMessage?: string;
+  toastType?: 'success' | 'info' | 'warning' | 'error';
+  messageText?: string;
+  confirmPrompt?: string;
+  pageId?: string;
+  jsCode?: string;
 }
 
 export interface Macro {
@@ -859,18 +904,86 @@ export interface Macro {
   steps: MacroStep[];
 }
 
-export function executeGeneratedMacro(macro: Macro, contextData: { tablesData?: Record<string, any[]> }) {
-  if (!macro || !macro.steps) return;
-  macro.steps.forEach(step => {
-    if (step.type === 'EXPORT_REPORT' && step.exportConfig) {
-      const data = contextData.tablesData?.[step.exportConfig.sourceId] || [];
-      exportDataToFile({
-        title: step.exportConfig.title || macro.name,
-        data,
-        format: step.exportConfig.format || 'PDF'
-      });
+export async function executeGeneratedMacro(
+  macroOrId: string | Macro, 
+  contextData?: any, 
+  addToast?: (msg: string, type?: any) => void
+) {
+  let macro: Macro | null = null;
+  let savedMacros: Macro[] = [];
+  try {
+    savedMacros = JSON.parse(localStorage.getItem('db_studio_macros') || '[]');
+  } catch (e) {}
+
+  if (typeof macroOrId === 'string') {
+    macro = savedMacros.find(m => m.id === macroOrId || m.name === macroOrId || m.id?.toLowerCase() === macroOrId.toLowerCase() || m.name?.toLowerCase() === macroOrId.toLowerCase()) || null;
+  } else {
+    macro = macroOrId;
+  }
+
+  if (macro && macro.steps && macro.steps.length > 0) {
+    for (const step of macro.steps) {
+      if ((step.type === 'EXPORT_REPORT' || step.type === 'PRINT_REPORT') && step.exportConfig) {
+        const { sourceType, sourceId, format, title } = step.exportConfig;
+        let data: any[] = [];
+        if (sourceType === 'table' && sourceId) {
+          try {
+            const res = await get<any>(sourceId);
+            data = Array.isArray(res) ? res : (res?.data || []);
+          } catch (e) {
+            console.error('Error fetching table data for macro export:', e);
+          }
+        } else if (sourceType === 'query' && sourceId) {
+          try {
+            const res = await get<any>('queries/' + sourceId);
+            data = Array.isArray(res) ? res : (res?.data || []);
+          } catch (e) {
+            console.error('Error fetching query data for macro export:', e);
+          }
+        }
+        if (!data || data.length === 0) {
+          if (Array.isArray(contextData) && contextData.length > 0) {
+            data = contextData;
+          } else if (contextData && typeof contextData === 'object' && Object.keys(contextData).length > 0) {
+            data = [contextData];
+          }
+        }
+        exportDataToFile({
+          title: title || macro.name || 'Export',
+          data,
+          format: format || 'PDF'
+        });
+      } else if (step.type === 'SHOW_TOAST') {
+        if (addToast) addToast(step.toastMessage || 'Aktion ausgeführt', step.toastType || 'info');
+      } else if (step.type === 'MESSAGE_BOX') {
+        alert(step.messageText || step.name || 'Hinweis');
+      } else if (step.type === 'CONFIRM_DIALOG') {
+        confirm(step.confirmPrompt || 'Bestätigen?');
+      }
     }
-  });
+    if (addToast) addToast(\`Makro '\${macro.name || macro.id}' wurde ausgeführt\`, 'success');
+    return;
+  }
+
+  // Fallback if macro object not found, or macroId is a direct command/format name
+  const macroStr = typeof macroOrId === 'string' ? macroOrId.toLowerCase() : '';
+  let exportFormat: ExportFormat | null = null;
+  if (macroStr.includes('pdf')) exportFormat = 'PDF';
+  else if (macroStr.includes('xlsx') || macroStr.includes('excel')) exportFormat = 'XLSX';
+  else if (macroStr.includes('csv')) exportFormat = 'CSV';
+  else if (macroStr.includes('json')) exportFormat = 'JSON';
+
+  if (exportFormat) {
+    let dataToExport = Array.isArray(contextData) ? contextData : (contextData && Object.keys(contextData).length > 0 ? [contextData] : []);
+    exportDataToFile({
+      title: 'Export_' + exportFormat,
+      data: dataToExport,
+      format: exportFormat
+    });
+    if (addToast) addToast(\`Export als \${exportFormat} gestartet\`, 'success');
+  } else {
+    if (addToast) addToast(\`Makro '\${typeof macroOrId === 'string' ? macroOrId : macroOrId.name}' ausgeführt\`, 'info');
+  }
 }
 `;
 

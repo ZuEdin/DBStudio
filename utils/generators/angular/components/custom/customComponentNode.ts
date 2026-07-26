@@ -1,5 +1,5 @@
 import { NodeGeneratorContext } from './types';
-import { toCamelCase, toKebabCase } from '../../../common';
+import { toCamelCase, toKebabCase, toPascalCase } from '../../../common';
 
 export const generateCustomComponentNode = (node: any, context: NodeGeneratorContext): string => {
     const comp = (context.customComponents || []).find(c => c.id === node.props?.customComponentId);
@@ -19,7 +19,7 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
     let fetchUrl = '';
     if (dsType === 'table' && dsId) {
         const tObj = context.tables.find(t => t.id === dsId);
-        if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+        if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
     } else if (dsType === 'query' && dsId) {
         const qObj = context.queries.find(q => q.id === dsId);
         if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
@@ -308,7 +308,7 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
     }
 
     ${tbl ? `
-    this.api.update('${toCamelCase(tbl.name)}', item.id || item.Id, item).subscribe({
+    this.api.update('${toPascalCase(tbl.name)}', item.id || item.Id, item).subscribe({
       next: () => {
         this.showKanbanNotification_${suffix}(notificationMsg);
       },
@@ -384,14 +384,14 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
         const formObj = context.forms.find(f => f.id === conf.formId);
         const tbl = formObj ? context.tables.find(t => t.id === formObj.sourceId) : null;
         if (tbl) {
-            const tblCamel = toCamelCase(tbl.name);
+            const tblPascal = toPascalCase(tbl.name);
             const fieldsToRender = tbl.fields.filter(f => !f.isPrimaryKey);
             const formDataState = `formData_${suffix}`;
             context.states.push(`${formDataState}: Record<string, any> = {};`);
             
             context.methods.push(`
   submitForm_${suffix}() {
-    this.api.create('${tblCamel}', this.${formDataState}).subscribe({
+    this.api.create('${tblPascal}', this.${formDataState}).subscribe({
       next: () => {
         alert('Erfolgreich gespeichert!');
         this.${formDataState} = {};

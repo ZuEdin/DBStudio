@@ -34,7 +34,7 @@ export const generateCustomFormPage = (
   const sourceTable = tables.find(t => t.id === form.sourceId);
   if (!sourceTable) return null;
   
-  const sourceTableCamel = toCamelCase(sourceTable.name);
+  const sourceTablePascal = toPascalCase(sourceTable.name);
   const lookups = form.layout ? collectLookups(form.layout, tables, queries) : [];
   const requiredModals: any[] = [];
   const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables, [form], "data", requiredModals, queries) : '<div>Kein Layout definiert.</div>';
@@ -46,10 +46,11 @@ export const generateCustomFormPage = (
     }).join('\n  ');
 
   const subformLoadLogic = requiredModals.filter(m => m.type === 'subform').map(m => {
+        const childTablePascal = toPascalCase(m.table.name);
         const childTableCamel = toCamelCase(m.table.name);
         const childField = m.table.fields.find(f => f.id === m.childField)?.name;
         const varName = `${childTableCamel}SubList_${m.id.replace('sub_field_', '')}`;
-        return `if(id && id!=='new') { const subRes = await get('${childTableCamel}', { search: '', pageSize: 10000 }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
+        return `if(id && id!=='new') { const subRes = await get('${childTablePascal}', { pageSize: 10000 }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
     }).join('\n        ');
 
   const modalJsx = requiredModals.map(m => {
@@ -159,7 +160,7 @@ export const generateCustomFormPage = (
   const content = `import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { get, post, put } from '../../services/api';
-import { Save, ArrowLeft, Loader2, Plus, Layout, User, Search } from 'lucide-react';
+import { Save, ArrowLeft, Loader2, Plus, Layout, User, Search, ChevronDown } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { UserPickerModal } from '../../components/UserPickerModal';
 import { useGlobalState } from '../../context/GlobalStateContext';
@@ -175,7 +176,7 @@ export const ${compName} = () => {
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [modals, setModals] = useState<Record<string, boolean>>({});
-  const { states, setGlobalState, addToast } = useGlobalState() || { states: {}, setGlobalState: () => {}, addToast: () => {} };
+  const { states, setGlobalState, addToast, executeMacro = (macroId: string) => console.log('Macro executed:', macroId) } = useGlobalState() || { states: {}, setGlobalState: () => {}, addToast: () => {}, executeMacro: () => {} };
   
   const UXRules = ${JSON.stringify(form.crossFieldValidations || [])};
 
@@ -232,7 +233,7 @@ export const ${compName} = () => {
                 set${toPascalCase(l.variableName)}(${l.variableName}Data);
             }`).join('\n            ')}
             if (id && id !== 'new') {
-                const res = await get(\`${sourceTableCamel}/\${id}\`);
+                const res = await get(\`${sourceTablePascal}/\${id}\`);
                 setData(res.data || res);
                 ${subformLoadLogic}
             } else {
@@ -251,9 +252,9 @@ export const ${compName} = () => {
     try { 
       ${payloadSetupsCode}
       if (id && id !== 'new') {
-          await put(\`${sourceTableCamel}/\${id}\`, payload); 
+          await put(\`${sourceTablePascal}/\${id}\`, payload); 
       } else {
-          await post('${sourceTableCamel}', payload); 
+          await post('${sourceTablePascal}', payload); 
       }
       navigate(-1); 
     } catch (e) { 

@@ -31,7 +31,7 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
   let fetchUrl = '';
   if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
       const tObj = ctx.tables.find(t => t.id === node.props.dataSourceId);
-      if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+      if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
   } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
       const qObj = ctx.queries.find(q => q.id === node.props.dataSourceId);
       if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;

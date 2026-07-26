@@ -1,5 +1,5 @@
 import { GeneratorContext } from './types';
-import { toCamelCase } from '../../../common';
+import { toCamelCase, toPascalCase } from '../../../common';
 
 export const generateDropdownNode = (node: any, ctx: GeneratorContext): string => {
   const classNameStr = node.props?.className || '';
@@ -17,7 +17,7 @@ export const generateDropdownNode = (node: any, ctx: GeneratorContext): string =
       if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
   } else if (node.props?.dataSourceId) {
       const tObj = ctx.tables.find(t => t.id === node.props.dataSourceId);
-      if (tObj) fetchUrl = `${toCamelCase(tObj.name)}`;
+      if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
   }
   
   if (fetchUrl) {

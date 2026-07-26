@@ -28,7 +28,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
    if (dsType === 'table' && dsId) {
        const tObj = tables.find(t => t.id === dsId);
        if (tObj) {
-           fetchUrl = `${toCamelCase(tObj.name)}`;
+           fetchUrl = `${toPascalCase(tObj.name)}`;
            tbl = tObj;
        }
    } else if (dsType === 'query' && dsId) {

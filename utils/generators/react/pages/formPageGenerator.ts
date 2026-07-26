@@ -144,7 +144,7 @@ export const ${formCompName} = () => {
         if (id && id !== 'new') {
             setLoading(true);
             try {
-                const res = await get(\`${camelName}/\${id}\`);
+                const res = await get(\`${pascalName}/\${id}\`);
                 setData(res.data || res);
             } catch (e) { 
                 console.error(e); 
@@ -162,9 +162,9 @@ export const ${formCompName} = () => {
     try { 
       ${payloadSetupsCode}
       if (id && id !== 'new') {
-          await put(\`${camelName}/\${id}\`, payload); 
+          await put(\`${pascalName}/\${id}\`, payload); 
       } else {
-          await post('${camelName}', payload); 
+          await post('${pascalName}', payload); 
       }
       navigate(-1); 
     } catch (e) { 

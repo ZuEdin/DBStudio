@@ -17,7 +17,7 @@ export const collectLookups = (element: FormElement, tables: Table[], queries: a
                     sort: element.lookup!.sort,
                     table,
                     variableName,
-                    endpoint: isQuery ? `queries/${toCamelCase(table.name)}` : toCamelCase(table.name),
+                    endpoint: isQuery ? `queries/${toCamelCase(table.name)}` : toPascalCase(table.name),
                     isQuery
                 });
             }
@@ -47,7 +47,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         if (element.actions && element.actions.length > 0) {
             const clickActions = element.actions.filter(a => a.trigger === 'OnClick').map(action => {
                 if (action.actionType === 'RunMacro' && action.macroId) {
-                    return `executeMacro('${action.macroId}');`;
+                    return `executeMacro('${action.macroId}', ${dataVar});`;
                 }
                 if (action.actionType === 'ShowToast') {
                     return `addToast('${action.toastMessage?.replace(/'/g, "\\'")}', '${action.toastType || 'info'}');`;
@@ -74,7 +74,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             if (item.actions && item.actions.length > 0) {
                 itemActions = item.actions.map(act => {
                     if (act.actionType === 'RunMacro' && act.macroId) {
-                        return `executeMacro('${act.macroId}');`;
+                        return `executeMacro('${act.macroId}', ${dataVar});`;
                     }
                     if (act.actionType === 'ShowToast') {
                         return `addToast('${act.toastMessage?.replace(/'/g, "\\'")}', '${act.toastType || 'info'}');`;
@@ -88,7 +88,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             return `<button key="${item.id}" type="button" onClick={() => { ${itemActions} }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2">\n        <span>${item.label}</span>\n      </button>`;
         }).join('\n      ');
 
-        return `<div className="relative inline-block text-left group">\n  <button type="button" className="${element.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm inline-flex items-center gap-2'}">\n    <span>${element.label || 'Aktionen'}</span>\n    <ChevronDown size={14} />\n  </button>\n  <div className="hidden group-hover:block group-focus-within:block absolute left-0 mt-1 w-52 rounded-md shadow-lg bg-white border border-slate-200 z-50 py-1">\n      ${itemsJsx}\n  </div>\n</div>`;
+        return `<div className="relative inline-block text-left group">\n  <button type="button" className="${element.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm inline-flex items-center gap-2'}">\n    <span>${element.label || 'Aktionen'}</span>\n    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>\n  </button>\n  <div className="hidden group-hover:block group-focus-within:block absolute left-0 mt-1 w-52 rounded-md shadow-lg bg-white border border-slate-200 z-50 py-1">\n      ${itemsJsx}\n  </div>\n</div>`;
     }
     else if (element.type === 'subform' && element.subform) {
         const subformDef = forms.find(f => f.id === element.subform!.formId);

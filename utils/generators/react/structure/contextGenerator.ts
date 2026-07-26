@@ -6,6 +6,7 @@ export const generateGlobalStateContext = (config: BackendConfig, root: string, 
     path: `${root}/src/context/GlobalStateContext.tsx`,
     language: 'typescript',
     content: `import React, { createContext, useContext, useState } from 'react';
+import { executeGeneratedMacro } from '../services/macroService';
 
 export const GlobalStateContext = createContext<any>(null);
 
@@ -23,9 +24,13 @@ export const GlobalStateProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setToasts(prev => [...prev, { id, message, type }]);
       setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   };
+
+  const executeMacro = (macroId: string, contextData?: any) => {
+      executeGeneratedMacro(macroId, contextData, addToast);
+  };
   
   return (
-      <GlobalStateContext.Provider value={{ states, setGlobalState, addToast }}>
+      <GlobalStateContext.Provider value={{ states, setGlobalState, addToast, executeMacro }}>
           {children}
           {/* Toast Container */}
           <div className="fixed bottom-4 right-4 z-[9999] space-y-2">

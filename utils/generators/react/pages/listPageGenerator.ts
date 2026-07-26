@@ -90,7 +90,11 @@ export const ${listName} = () => {
   const loadItems = async () => {
     try {
       setLoading(true);
-      const res = await get<${pascalName}>('${camelName}', { search: searchTerm, page: page, pageSize: 10 });
+      const params: any = { page: page, pageSize: 20 };
+      if (searchTerm && searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+      const res = await get<${pascalName}>('${pascalName}', params);
       setData(res as any);
     } finally { setLoading(false); }
   };
@@ -101,7 +105,7 @@ export const ${listName} = () => {
 
   const confirmDelete = async () => {
     if (deleteId) {
-      await remove(\`${camelName}/\${deleteId}\`);
+      await remove(\`${pascalName}/\${deleteId}\`);
       setDeleteId(null);
       loadItems();
     }
@@ -129,7 +133,7 @@ export const ${listName} = () => {
   
   const confirmMassDelete = async () => {
       for(const id of selectedIds) {
-          await remove(\`${camelName}/\${id}\`);
+          await remove(\`${pascalName}/\${id}\`);
       }
       setSelectedIds([]);
       setMassDeleteOpen(false);

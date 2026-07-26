@@ -34,7 +34,8 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
       "tailwind-merge": "^2.3.0",
       "react-joyride": "^2.8.2",
       "react-big-calendar": "^1.13.0",
-      "date-fns": "^3.6.0"
+      "date-fns": "^3.6.0",
+      "xlsx": "^0.18.5"
   };
 
   const devDependencies: any = { 

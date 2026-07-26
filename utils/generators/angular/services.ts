@@ -79,9 +79,15 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
+  private getUrl(ep: string): string {
+    const base = this.baseUrl ? (this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/') : '/api/';
+    const cleanEp = (ep || '').replace(/^\\/+/g, '');
+    return base + cleanEp;
+  }
+
   // Generic Get for raw data (single objects or arrays without pagination wrapper)
   get<T>(endpoint: string, params: any = {}): Observable<T> {
-    return this.http.get<T>(this.baseUrl + '/' + endpoint, { params, withCredentials: true });
+    return this.http.get<T>(this.getUrl(endpoint), { params, withCredentials: true });
   }
 
   // List Get with Pagination normalization
@@ -102,7 +108,7 @@ export class ApiService {
         });
     }
 
-    return this.http.get<any>(this.baseUrl + '/' + endpoint, { params, withCredentials: true }).pipe(
+    return this.http.get<any>(this.getUrl(endpoint), { params, withCredentials: true }).pipe(
       map(response => {
           if (Array.isArray(response)) {
               return { data: response, total: response.length, page: 1, totalPages: 1 };
@@ -116,19 +122,19 @@ export class ApiService {
   }
 
   getById(endpoint: string, id: any): Observable<any> {
-    return this.http.get<any>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+    return this.http.get<any>(this.getUrl(endpoint) + '/' + id, { withCredentials: true });
   }
 
   create(endpoint: string, item: any): Observable<any> {
-    return this.http.post<any>(this.baseUrl + '/' + endpoint, item, { withCredentials: true });
+    return this.http.post<any>(this.getUrl(endpoint), item, { withCredentials: true });
   }
 
   update(endpoint: string, id: any, item: any): Observable<any> {
-    return this.http.put<any>(this.baseUrl + '/' + endpoint + '/' + id, item, { withCredentials: true });
+    return this.http.put<any>(this.getUrl(endpoint) + '/' + id, item, { withCredentials: true });
   }
 
   delete(endpoint: string, id: any): Observable<void> {
-    return this.http.delete<void>(this.baseUrl + '/' + endpoint + '/' + id, { withCredentials: true });
+    return this.http.delete<void>(this.getUrl(endpoint) + '/' + id, { withCredentials: true });
   }
 }`;
   files.push({ name: 'api.service.ts', path: `${appRoot}/services/api.service.ts`, content: apiService, language: 'typescript' });
@@ -284,6 +290,218 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 };`;
       files.push({ name: 'auth.interceptor.ts', path: `${appRoot}/interceptors/auth.interceptor.ts`, content: authInterceptor, language: 'typescript' });
   }
+
+  // Export Service
+  const exportServiceContent = `import { Injectable } from '@angular/core';
+import * as XLSX from 'xlsx';
+
+export type ExportFormat = 'PDF' | 'EXCEL' | 'XLSX' | 'CSV' | 'JSON' | 'HTML_PRINT';
+
+export interface ExportOptions {
+  title: string;
+  data: any[];
+  columns?: string[];
+  format: ExportFormat;
+}
+
+@Injectable({ providedIn: 'root' })
+export class ExportService {
+  downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  exportDataToFile(options: ExportOptions) {
+    const { title, data, format } = options;
+    if (!data || data.length === 0) {
+      alert('Keine Daten zum Exportieren vorhanden.');
+      return;
+    }
+
+    const columns = options.columns && options.columns.length > 0 
+      ? options.columns 
+      : Object.keys(data[0] || {});
+    const filename = (title || 'export').toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+    switch (format) {
+      case 'CSV': {
+        const header = columns.join(';');
+        const rows = data.map(row => columns.map(c => JSON.stringify(row[c] ?? '')).join(';'));
+        const csvContent = '\\uFEFF' + [header, ...rows].join('\\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        this.downloadBlob(blob, \`\${filename}.csv\`);
+        break;
+      }
+      case 'JSON': {
+        const jsonContent = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        this.downloadBlob(blob, \`\${filename}.json\`);
+        break;
+      }
+      case 'EXCEL':
+      case 'XLSX': {
+        try {
+          const worksheet = XLSX.utils.json_to_sheet(data);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+          const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+          const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          this.downloadBlob(blob, \`\${filename}.xlsx\`);
+        } catch (e) {
+          const header = columns.join(';');
+          const rows = data.map(row => columns.map(c => JSON.stringify(row[c] ?? '')).join(';'));
+          const csvContent = '\\uFEFF' + [header, ...rows].join('\\n');
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          this.downloadBlob(blob, \`\${filename}.csv\`);
+        }
+        break;
+      }
+      case 'PDF':
+      case 'HTML_PRINT': {
+        let printWindow = window.open('', '_blank');
+        if (!printWindow) {
+          const iframe = document.createElement('iframe');
+          iframe.style.position = 'fixed';
+          iframe.style.right = '0';
+          iframe.style.bottom = '0';
+          iframe.style.width = '0';
+          iframe.style.height = '0';
+          iframe.style.border = '0';
+          document.body.appendChild(iframe);
+          const doc = iframe.contentWindow?.document;
+          if (doc) {
+            doc.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+            doc.close();
+            setTimeout(() => {
+              iframe.contentWindow?.focus();
+              iframe.contentWindow?.print();
+              setTimeout(() => document.body.removeChild(iframe), 1000);
+            }, 250);
+          }
+          break;
+        }
+        printWindow.document.write(\`<html><head><title>\${title}</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}</style></head><body><h1>\${title}</h1><button onclick="window.print()">Drucken / Als PDF Speichern</button><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead><tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`);
+        printWindow.document.close();
+        setTimeout(() => {
+          try { printWindow.print(); } catch(e) {}
+        }, 500);
+        break;
+      }
+    }
+  }
+}`;
+  files.push({ name: 'export.service.ts', path: `${appRoot}/services/export.service.ts`, content: exportServiceContent, language: 'typescript' });
+
+  // Macro Service
+  const macroServiceContent = `import { Injectable } from '@angular/core';
+import { ExportService, ExportFormat } from './export.service';
+import { ApiService } from './api.service';
+
+export interface MacroStep {
+  id: string;
+  name?: string;
+  type: string;
+  exportConfig?: {
+    sourceType: 'table' | 'query' | 'report';
+    sourceId: string;
+    format: ExportFormat;
+    title?: string;
+  };
+  toastMessage?: string;
+  toastType?: 'success' | 'info' | 'warning' | 'error';
+  messageText?: string;
+  confirmPrompt?: string;
+}
+
+export interface Macro {
+  id: string;
+  name: string;
+  steps: MacroStep[];
+}
+
+@Injectable({ providedIn: 'root' })
+export class MacroService {
+  constructor(private exportService: ExportService, private api: ApiService) {}
+
+  async executeMacro(macroOrId: string | Macro, contextData?: any) {
+    let macro: Macro | null = null;
+    let savedMacros: Macro[] = [];
+    try {
+      savedMacros = JSON.parse(localStorage.getItem('db_studio_macros') || '[]');
+    } catch (e) {}
+
+    if (typeof macroOrId === 'string') {
+      macro = savedMacros.find(m => m.id === macroOrId || m.name === macroOrId || m.id?.toLowerCase() === macroOrId.toLowerCase() || m.name?.toLowerCase() === macroOrId.toLowerCase()) || null;
+    } else {
+      macro = macroOrId;
+    }
+
+    if (macro && macro.steps && macro.steps.length > 0) {
+      for (const step of macro.steps) {
+        if ((step.type === 'EXPORT_REPORT' || step.type === 'PRINT_REPORT') && step.exportConfig) {
+          const { sourceType, sourceId, format, title } = step.exportConfig;
+          let data: any[] = [];
+          if (sourceType === 'table' && sourceId) {
+            try {
+              const res = await this.api.get<any>(sourceId).toPromise();
+              data = Array.isArray(res) ? res : (res?.data || []);
+            } catch (e) {
+              console.error('Error fetching table data for macro export:', e);
+            }
+          } else if (sourceType === 'query' && sourceId) {
+            try {
+              const res = await this.api.get<any>('queries/' + sourceId).toPromise();
+              data = Array.isArray(res) ? res : (res?.data || []);
+            } catch (e) {
+              console.error('Error fetching query data for macro export:', e);
+            }
+          }
+          if (!data || data.length === 0) {
+            if (Array.isArray(contextData) && contextData.length > 0) {
+              data = contextData;
+            } else if (contextData && typeof contextData === 'object' && Object.keys(contextData).length > 0) {
+              data = [contextData];
+            }
+          }
+          this.exportService.exportDataToFile({
+            title: title || macro.name || 'Export',
+            data,
+            format: format || 'PDF'
+          });
+        } else if (step.type === 'MESSAGE_BOX') {
+          alert(step.messageText || step.name || 'Hinweis');
+        } else if (step.type === 'CONFIRM_DIALOG') {
+          confirm(step.confirmPrompt || 'Bestätigen?');
+        }
+      }
+      return;
+    }
+
+    // Fallback if macro object not found, or macroId is a direct format string
+    const macroStr = typeof macroOrId === 'string' ? macroOrId.toLowerCase() : '';
+    let exportFormat: ExportFormat | null = null;
+    if (macroStr.includes('pdf')) exportFormat = 'PDF';
+    else if (macroStr.includes('xlsx') || macroStr.includes('excel')) exportFormat = 'XLSX';
+    else if (macroStr.includes('csv')) exportFormat = 'CSV';
+    else if (macroStr.includes('json')) exportFormat = 'JSON';
+
+    if (exportFormat) {
+      let dataToExport = Array.isArray(contextData) ? contextData : (contextData && Object.keys(contextData).length > 0 ? [contextData] : []);
+      this.exportService.exportDataToFile({
+        title: 'Export_' + exportFormat,
+        data: dataToExport,
+        format: exportFormat
+      });
+    }
+  }
+}`;
+  files.push({ name: 'macro.service.ts', path: `${appRoot}/services/macro.service.ts`, content: macroServiceContent, language: 'typescript' });
 
   return files;
 };

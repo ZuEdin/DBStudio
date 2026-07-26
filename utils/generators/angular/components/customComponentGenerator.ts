@@ -92,6 +92,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../services/api.service';
+import { MacroService } from '../../services/macro.service';
 ${calendarImports}
 
 @Component({
@@ -103,10 +104,14 @@ ${calendarImports}
 export class ${pascalName}CustomComponent implements OnInit {
   ${states.join('\n  ')}
 
-  constructor(private api: ApiService, private router: Router, private route: ActivatedRoute) {}
+  constructor(private api: ApiService, private router: Router, private route: ActivatedRoute, private macroService: MacroService) {}
 
   ngOnInit() {
     ${initCalls.join('\n    ')}
+  }
+
+  executeMacro(macroId: string, contextData?: any) {
+    this.macroService.executeMacro(macroId, contextData);
   }
 
   ${methods.join('\n\n  ')}

@@ -757,8 +757,8 @@ const wl = ref({ appName: '${wl.appName}' });
   const apiContent = "import axios from 'axios';\n" +
                      "const API_URL = import.meta.env.VITE_API_URL || " +
                      "(typeof window !== 'undefined' ? " +
-                     "(window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:" + config.port + "/api' : window.location.origin + '/api') " +
-                     ": '/api');\n" +
+                     "(window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:" + config.port + "/api/' : window.location.origin + '/api/') " +
+                     ": '/api/');\n" +
                      "const api = axios.create({ baseURL: API_URL, withCredentials: true });\n" +
                      "export const get = async (e: string, p?: any) => (await api.get(e, { params: p })).data;\n" +
                      "export const post = async (e: string, d: any) => (await api.post(e, d)).data;\n" +

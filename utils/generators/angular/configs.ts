@@ -6,7 +6,7 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   const useAuth = config.authConfig?.useUserLogin;
   
   // Defaults
-  const devApiUrl = `http://localhost:${config.port}/api`;
+  const devApiUrl = `http://localhost:${config.port}/api/`;
   let prodApiUrl = devApiUrl;
   let stagingApiUrl = devApiUrl;
   
@@ -40,7 +40,8 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
       "@fullcalendar/interaction":"^6.1.11",
       "@fullcalendar/list":"^6.1.11",
       "tslib":"^2.3.0",
-      "zone.js":"~0.14.0"
+      "zone.js":"~0.14.0",
+      "xlsx":"^0.18.5"
   };
 
   const devDependencies: any = {
@@ -159,10 +160,12 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   
   // Environments
   const getApiUrlExpr = (url: string) => {
-      if (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
-          return `typeof window !== 'undefined' ? (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? '${url}' : window.location.origin + '/api') : '/api'`;
+      let norm = url;
+      if (!norm.endsWith('/')) norm += '/';
+      if (norm.startsWith('http://localhost') || norm.startsWith('http://127.0.0.1')) {
+          return `typeof window !== 'undefined' ? (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? '${norm}' : window.location.origin + '/api/') : '/api/'`;
       }
-      return `'${url}'`;
+      return `'${norm}'`;
   };
 
   files.push({

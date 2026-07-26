@@ -1,5 +1,5 @@
 import { NodeGeneratorContext } from './types';
-import { toCamelCase, toKebabCase } from '../../../common';
+import { toCamelCase, toKebabCase, toPascalCase } from '../../../common';
 
 export const generateTableViewNode = (node: any, context: NodeGeneratorContext, pages: any[]): string => {
     let classNameStr = node.props?.className || '';
@@ -33,7 +33,7 @@ export const generateTableViewNode = (node: any, context: NodeGeneratorContext, 
     const pkFieldName = tObj ? (tObj.fields.find(c => c.isPrimaryKey)?.name || 'id') : 'id';
 
     if (tObj) {
-        fetchUrl = `${toCamelCase(tObj.name)}`;
+        fetchUrl = `${toPascalCase(tObj.name)}`;
     } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
         const qObj = context.queries.find(q => q.id === node.props.dataSourceId);
         if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;

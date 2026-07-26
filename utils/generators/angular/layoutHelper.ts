@@ -298,6 +298,25 @@ export const generateHtmlForLayout = (
             <input type="${inputType}" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler} class="${inputClass}" />
         </div>`;
     }
+
+    if (element.type === 'button') {
+        let clickHandler = '';
+        if (element.actions && element.actions.length > 0) {
+            const runMacroAct = element.actions.find(a => a.actionType === 'RunMacro' && a.macroId);
+            if (runMacroAct) {
+                clickHandler = `(click)="executeMacro('${runMacroAct.macroId}', ${dataObjName})"`;
+            } else {
+                const toastAct = element.actions.find(a => a.actionType === 'ShowToast');
+                if (toastAct) {
+                    clickHandler = `(click)="showToast('${toastAct.toastMessage?.replace(/'/g, "\\'") || ''}')"`;
+                }
+            }
+        }
+        const btnClass = isBootstrap 
+            ? (element.className || 'btn btn-primary my-2') 
+            : (element.className || 'px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition my-2 font-bold cursor-pointer');
+        return `<button type="button" ${clickHandler} class="${btnClass}">${element.label || 'Aktion'}</button>`;
+    }
     
     // Subform Rendering...
     if (element.type === 'subform' && element.subform) {
