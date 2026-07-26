@@ -318,6 +318,7 @@ ${auditFields.createdBy ? `            item.${getPropName(auditFields.createdBy)
                           const paramName = `form_${formName}_${fieldName}`;
                           const opMatch = cr.match(/^(=|like |>|<|>=|<=)/i);
                           const op = opMatch ? opMatch[0].toUpperCase().trim() : '=';
+                          const csharpOp = (op === '=' || op === '==') ? '==' : (op === '<>' || op === '!=') ? '!=' : op;
                           let colName = toPascalCase(c.alias || c.fieldName);
                           if (colName === safeName) colName += 'Value';
                           
@@ -340,6 +341,8 @@ ${auditFields.createdBy ? `            item.${getPropName(auditFields.createdBy)
                                   whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.CompareTo(val) >= 0);`;
                               } else if (op === '<=') {
                                   whereClause = `q = q.Where(x => x.${colName} != null && x.${colName}.CompareTo(val) <= 0);`;
+                              } else if (op === '<>' || op === '!=') {
+                                  whereClause = `q = q.Where(x => x.${colName} != val);`;
                               } else {
                                   whereClause = `q = q.Where(x => x.${colName} == val);`;
                               }
@@ -347,15 +350,15 @@ ${auditFields.createdBy ? `            item.${getPropName(auditFields.createdBy)
                               let parseCode = `if (${fieldType}.TryParse(val, out var parsedVal)) { `;
                               if (op === 'LIKE') {
                                   whereClause = `${parseCode}q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}.ToString(), $"%{val}%")); }`;
-                                } else {
-                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${op} parsedVal); }`;
+                              } else {
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${csharpOp} parsedVal); }`;
                               }
                           } else if (fieldType === 'decimal' || fieldType === 'double') {
                               let parseCode = `if (${fieldType}.TryParse(val, out var parsedVal)) { `;
                               if (op === 'LIKE') {
                                   whereClause = `${parseCode}q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}.ToString(), $"%{val}%")); }`;
                               } else {
-                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${op} parsedVal); }`;
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${csharpOp} parsedVal); }`;
                               }
                           } else if (fieldType === 'bool') {
                               let parseCode = `if (bool.TryParse(val, out var parsedVal)) { `;
@@ -365,7 +368,7 @@ ${auditFields.createdBy ? `            item.${getPropName(auditFields.createdBy)
                               if (op === 'LIKE') {
                                   whereClause = `${parseCode}q = q.Where(x => x.${colName} != null && EF.Functions.Like(x.${colName}.ToString(), $"%{val}%")); }`;
                               } else {
-                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${op} parsedVal); }`;
+                                  whereClause = `${parseCode}q = q.Where(x => x.${colName} ${csharpOp} parsedVal); }`;
                               }
                           } else {
                               if (op === 'LIKE') {

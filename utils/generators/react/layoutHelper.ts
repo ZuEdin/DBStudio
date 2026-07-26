@@ -46,6 +46,9 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         let onClickContent = '';
         if (element.actions && element.actions.length > 0) {
             const clickActions = element.actions.filter(a => a.trigger === 'OnClick').map(action => {
+                if (action.actionType === 'RunMacro' && action.macroId) {
+                    return `executeMacro('${action.macroId}');`;
+                }
                 if (action.actionType === 'ShowToast') {
                     return `addToast('${action.toastMessage?.replace(/'/g, "\\'")}', '${action.toastType || 'info'}');`;
                 }
@@ -63,6 +66,29 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             onClickContent = `onClick={async () => {\n            ${clickActions}\n        }}`;
         }
         return `<button type="button" className="${element.className || 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors shadow-sm'}" ${onClickContent}>\n   ${element.label}\n</button>`;
+    }
+    else if (element.type === 'dropdown_button') {
+        const items = element.dropdownItems || [];
+        const itemsJsx = items.map(item => {
+            let itemActions = '';
+            if (item.actions && item.actions.length > 0) {
+                itemActions = item.actions.map(act => {
+                    if (act.actionType === 'RunMacro' && act.macroId) {
+                        return `executeMacro('${act.macroId}');`;
+                    }
+                    if (act.actionType === 'ShowToast') {
+                        return `addToast('${act.toastMessage?.replace(/'/g, "\\'")}', '${act.toastType || 'info'}');`;
+                    }
+                    if (act.actionType === 'Navigate' && act.routeUrl) {
+                        return `navigate('${act.routeUrl}');`;
+                    }
+                    return '';
+                }).filter(Boolean).join(' ');
+            }
+            return `<button key="${item.id}" type="button" onClick={() => { ${itemActions} }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2">\n        <span>${item.label}</span>\n      </button>`;
+        }).join('\n      ');
+
+        return `<div className="relative inline-block text-left group">\n  <button type="button" className="${element.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm inline-flex items-center gap-2'}">\n    <span>${element.label || 'Aktionen'}</span>\n    <ChevronDown size={14} />\n  </button>\n  <div className="hidden group-hover:block group-focus-within:block absolute left-0 mt-1 w-52 rounded-md shadow-lg bg-white border border-slate-200 z-50 py-1">\n      ${itemsJsx}\n  </div>\n</div>`;
     }
     else if (element.type === 'subform' && element.subform) {
         const subformDef = forms.find(f => f.id === element.subform!.formId);
