@@ -566,6 +566,36 @@ export class MacroService {
             data,
             format: format || 'PDF'
           });
+        } else if (step.type === 'EMAIL_DATABASE_OBJECT') {
+          const rec = contextData || {};
+          let emailAddress = '';
+          const emailFieldKey = Object.keys(rec).find(k => k.toLowerCase() === 'email' || k.toLowerCase() === 'e-mail' || k.toLowerCase() === 'mail');
+          if (emailFieldKey && rec[emailFieldKey]) {
+            emailAddress = String(rec[emailFieldKey]);
+          } else {
+            emailAddress = window.prompt("Bitte geben Sie die Empfänger-E-Mail-Adresse ein:", "zuboedin@gmail.com") || '';
+          }
+          if (emailAddress) {
+            const subject = \`Datenbank-Export: \` + (rec.name || rec.Title || rec.Bezeichnung || 'Datensatz');
+            const body = \`Sehr geehrte Damen und Herren,\\n\\nanbei erhalten Sie den gewünschten automatischen Datenbank-Export im JSON-Format.\\n\\nZugehörige Objektdetails:\\n\` + JSON.stringify(rec, null, 2) + \`\\n\\nMit freundlichen Grüßen,\\nIhr DB Studio Pro Mailer Service\`;
+            this.api.create('mailer/send', {
+              to: emailAddress,
+              subject,
+              body,
+              attachments: [
+                {
+                  filename: \`Export_\` + (rec.name || 'Datensatz') + \`.json\`,
+                  content: btoa(unescape(encodeURIComponent(JSON.stringify(rec, null, 2))))
+                }
+              ],
+              objectContext: rec
+            }).subscribe({
+              next: (data: any) => {
+                alert(\`📧 E-Mail gesendet!\\n\\nMessage-ID: \${data.messageId}\\nEmpfänger: \${data.recipient}\\n\\nSMTP-Protokoll:\\n\` + data.smtpLog.join('\\n'));
+              },
+              error: (err: any) => alert('Fehler beim E-Mail-Versand: ' + err.message)
+            });
+          }
         } else if (step.type === 'MESSAGE_BOX') {
           alert(step.messageText || step.name || 'Hinweis');
         } else if (step.type === 'CONFIRM_DIALOG') {

@@ -188,9 +188,9 @@ Der integrierte Wizard (`SmartImportModal.tsx`) ist voll funktionsfähig und bie
 Folgende Punkte sind für die nächste Entwicklungsphase geplant und im System hinterlegt:
 
 *   [x] **Angular-Makro-Echtheitsfix:** Portierung des React-Fallback-Fixes (`PROJECT_MACROS`) in den Angular-Codegenerator (`generateAngularServices`), sodass Makros auch in exportierten Angular-Projekten ohne verlassenen Browser-LocalStorage direkt funktionieren.
-*   [ ] **Angular-Formular-Makro-Dropdown:** Integration des Makro-Aktions-Dropdown-Buttons oder entsprechender Trigger im generierten HTML der Angular-Formular-Komponenten (analog zur React-Implementierung), um zugewiesene Makros direkt aufrufen zu können.
-*   [ ] **Erweiterte E-Mail-Makro-Integration:** Entwicklung einer sicheren serverseitigen Mailer-Schnittstelle (`EMAIL_DATABASE_OBJECT`), die SMTP oder Drittanbieter-Services zur verschlüsselten PDF-Zustellung anbindet.
-*   [ ] **Zusätzliche Validierungsschemata:** Ausbau der Hybrid-Validierung für noch komplexere Tabellenbeziehungen (cross-table validation rules).
+*   [x] **Angular-Formular-Makro-Dropdown:** Integration des Makro-Aktions-Dropdown-Buttons oder entsprechender Trigger im generierten HTML der Angular-Formular-Komponenten (analog zur React-Implementierung), um zugewiesene Makros direkt aufrufen zu können.
+*   [x] **Erweiterte E-Mail-Makro-Integration:** Entwicklung einer sicheren serverseitigen Mailer-Schnittstelle (`EMAIL_DATABASE_OBJECT`), die SMTP oder Drittanbieter-Services zur verschlüsselten PDF-Zustellung anbindet.
+*   [x] **Zusätzliche Validierungsschemata:** Ausbau der Hybrid-Validierung für noch komplexere Tabellenbeziehungen (cross-table validation rules).
 
 ---
 

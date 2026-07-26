@@ -445,6 +445,7 @@ export class ${pascalName}ListComponent implements OnInit {
       let subformLoads = '';
       let subformSaveLogic = '';
       let lookups: any[] = [];
+      let dropdownActionsStr = '{}';
 
       // DATA SANITIZATION LOGIC
       // Prevents empty strings for numbers/dates from being sent to API
@@ -456,6 +457,20 @@ export class ${pascalName}ListComponent implements OnInit {
       }).filter(s => s).join('\n      ');
 
       if (linkedForm && linkedForm.layout) {
+          const dropdownActionsMap: Record<string, any[]> = {};
+          const extractDropdownActions = (el: any) => {
+              if (el.type === 'dropdown_button' && el.dropdownItems) {
+                  el.dropdownItems.forEach((item: any) => {
+                      dropdownActionsMap[item.id] = item.actions || [];
+                  });
+              }
+              if (el.children) {
+                  el.children.forEach(extractDropdownActions);
+              }
+          };
+          extractDropdownActions(linkedForm.layout);
+          dropdownActionsStr = JSON.stringify(dropdownActionsMap, null, 2);
+
           const layoutHtml = generateHtmlForLayout(linkedForm.layout, tables, forms, "data", queries, isBootstrap);
           if (isBootstrap) {
               formHtml = `<div class="container py-4" style="max-width: 800px;">
@@ -671,6 +686,99 @@ ${checkCondition}    const params: Record<string, any> = {};
           return [`${camel}: ${defVal}`];
       }).join(', ') + ` }`;
 
+      let validationCheckLogic = '';
+      if (table.validationRules && table.validationRules.length > 0) {
+          validationCheckLogic = table.validationRules.map(rule => {
+              const field = table.fields.find(f => f.id === rule.fieldId);
+              if (!field) return '';
+              
+              const fieldCamel = toCamelCase(field.name);
+              let compareVal = '';
+              if (rule.compareType === 'field') {
+                  const other = table.fields.find(f => f.id === rule.compareValue);
+                  if (other) {
+                      compareVal = `(this.data as any).${toCamelCase(other.name)}`;
+                  } else {
+                      compareVal = `(this.data as any).${rule.compareValue}`;
+                  }
+              } else {
+                  if (field.type === 'VARCHAR' || field.type === 'TEXT') {
+                      compareVal = `'${(rule.compareValue || '').replace(/'/g, "\\'")}'`;
+                  } else if (field.type === 'DATE') {
+                      compareVal = `new Date('${rule.compareValue}')`;
+                  } else {
+                      compareVal = rule.compareValue || '0';
+                  }
+              }
+
+              let cond = '';
+              const fVal = `(this.data as any).${fieldCamel}`;
+              
+              if (rule.operator === 'regex') {
+                  return `
+      if (${fVal} && !new RegExp('${(rule.compareValue || '').replace(/'/g, "\\'")}').test(String(${fVal}))) {
+          alert("${(rule.errorMessage || 'Formatfehler').replace(/"/g, '\\"')}");
+          return;
+      }`;
+              }
+
+              if (field.type === 'DATE' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') {
+                  const dVal = `new Date(${fVal})`;
+                  const cVal = rule.compareType === 'field' ? `new Date(${compareVal})` : `new Date('${rule.compareValue}')`;
+                  switch(rule.operator) {
+                      case 'gt': cond = `${dVal} <= ${cVal}`; break;
+                      case 'lt': cond = `${dVal} >= ${cVal}`; break;
+                      case 'gte': cond = `${dVal} < ${cVal}`; break;
+                      case 'lte': cond = `${dVal} > ${cVal}`; break;
+                      case 'eq': cond = `${dVal}.getTime() !== ${cVal}.getTime()`; break;
+                      case 'neq': cond = `${dVal}.getTime() === ${cVal}.getTime()`; break;
+                  }
+              } else {
+                  switch(rule.operator) {
+                      case 'gt': cond = `${fVal} <= ${compareVal}`; break;
+                      case 'lt': cond = `${fVal} >= ${compareVal}`; break;
+                      case 'gte': cond = `${fVal} < ${compareVal}`; break;
+                      case 'lte': cond = `${fVal} > ${compareVal}`; break;
+                      case 'eq': cond = `${fVal} != ${compareVal}`; break;
+                      case 'neq': cond = `${fVal} == ${compareVal}`; break;
+                  }
+              }
+
+              return `
+      if (${fVal} !== undefined && ${fVal} !== null && ${fVal} !== '') {
+          if (${cond}) {
+              alert("${(rule.errorMessage || 'Validierungsfehler').replace(/"/g, '\\"')}");
+              return;
+          }
+      }`;
+          }).filter(Boolean).join('\n');
+      }
+
+      let crossTableValidationChecks = '';
+      if (lookups && lookups.length > 0) {
+          crossTableValidationChecks = lookups.map(l => {
+              const camelName = toCamelCase(l.name);
+              const fkField = table.fields.find(f => {
+                  const lowerName = f.name.toLowerCase();
+                  const lowerLookupName = l.name.toLowerCase();
+                  return lowerName === lowerLookupName + '_id' || lowerName === lowerLookupName + 'id' || lowerName === lowerLookupName;
+              });
+              if (!fkField) return '';
+              const fieldCamel = toCamelCase(fkField.name);
+              return `
+      if ((this.data as any).${fieldCamel}) {
+          const list = (this as any).${camelName}List;
+          if (list && list.length > 0) {
+              const exists = list.some((item: any) => String(item.id || item.ID || item.${toCamelCase(fkField.name)} || item['id'] || item['ID']) === String((this.data as any).${fieldCamel}));
+              if (!exists) {
+                  alert("Validierungsfehler: Der ausgewählte Wert für '${fkField.name}' existiert nicht in der Beziehungstabelle '${l.name}'.");
+                  return;
+              }
+          }
+      }`;
+          }).filter(Boolean).join('\n');
+      }
+
       const formTs = `import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -692,6 +800,8 @@ export class ${pascalName}FormComponent implements OnInit {
   tempData: any = {}; 
   tempSubData: any = {};
   modals: any = {};
+  dropdowns: any = {};
+  dropdownActions: Record<string, any[]> = ${dropdownActionsStr};
   isNew = true;
   
   // User Picker State
@@ -706,6 +816,26 @@ ${subformDeclarations}
 
   executeMacro(macroId: string, contextData?: any) {
     this.macroService.executeMacro(macroId, contextData || this.data);
+  }
+
+  executeDropdownItem(itemId: string, contextData?: any) {
+    const actions = this.dropdownActions[itemId];
+    if (!actions || actions.length === 0) return;
+    for (const act of actions) {
+      if (act.actionType === 'RunMacro' && act.macroId) {
+        this.executeMacro(act.macroId, contextData || this.data);
+      } else if (act.actionType === 'ShowToast') {
+        this.showToast(act.toastMessage || 'Aktion ausgeführt!');
+      } else if (act.actionType === 'OpenModal' && act.modalId) {
+        this.modals['sub_' + act.modalId] = true;
+      } else if (act.actionType === 'Navigate' && act.routeUrl) {
+        if (act.routeUrl.startsWith('#')) {
+          window.location.hash = act.routeUrl;
+        } else {
+          this.router.navigateByUrl(act.routeUrl);
+        }
+      }
+    }
   }
 
   showToast(msg: string) {
@@ -745,9 +875,15 @@ ${subformDeclarations}
 ${listFetches}
   }
 
-  save() {
+   save() {
       // Auto-Sanitize empty strings to null for backend compatibility
       ${sanitizationLogic}
+
+      // Dynamic Validation Check Logic (Field Level & Custom Rules)
+      ${validationCheckLogic}
+
+      // Dynamic Cross-Table Relationship Checks
+      ${crossTableValidationChecks}
 
       const op = this.isNew ? this.api.create('${pascalName}', this.data) : this.api.update('${pascalName}', (this.data as any).${pkCamel}, this.data);
       op.subscribe({

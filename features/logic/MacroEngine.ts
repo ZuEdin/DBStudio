@@ -327,6 +327,61 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
       break;
     }
 
+    case 'EMAIL_DATABASE_OBJECT': {
+      const rec = currentRecord || {};
+      let emailAddress = '';
+
+      // Try to detect email address automatically from the current record fields
+      const emailFieldKey = Object.keys(rec).find(k => k.toLowerCase() === 'email' || k.toLowerCase() === 'e-mail' || k.toLowerCase() === 'mail');
+      if (emailFieldKey && rec[emailFieldKey]) {
+        emailAddress = String(rec[emailFieldKey]);
+      } else {
+        // Fallback or user input
+        emailAddress = window.prompt("Bitte geben Sie die Empfänger-E-Mail-Adresse ein:", "zuboedin@gmail.com") || '';
+      }
+
+      if (!emailAddress) {
+        if (onShowToast) onShowToast("E-Mail-Versand abgebrochen: Keine Empfängeradresse angegeben.", "warning");
+        break;
+      }
+
+      const subject = `Datenbank-Export: ${rec.name || rec.Title || rec.Bezeichnung || 'Datensatz'}`;
+      const body = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie den gewünschten automatischen Datenbank-Export im JSON-Format.\n\nZugehörige Objektdetails:\n${JSON.stringify(rec, null, 2)}\n\nMit freundlichen Grüßen,\nIhr DB Studio Pro Mailer Service`;
+
+      fetch('/api/mailer/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailAddress,
+          subject,
+          body,
+          attachments: [
+            {
+              filename: `Export_${rec.name || 'Datensatz'}.json`,
+              content: btoa(unescape(encodeURIComponent(JSON.stringify(rec, null, 2))))
+            }
+          ],
+          objectContext: rec
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          if (onShowToast) onShowToast(`Fehler beim E-Mail-Versand: ${data.error}`, 'error');
+        } else {
+          if (onShowToast) onShowToast(`E-Mail erfolgreich versendet an ${emailAddress}!`, 'success');
+          // Output the full realistic SMTP transmission logs in console and optionally alert for full auditability
+          console.log("[SMTP Transfer Logs]", data.smtpLog);
+          alert(`📧 E-Mail gesendet!\n\nMessage-ID: ${data.messageId}\nEmpfänger: ${data.recipient}\n\nSMTP-Protokoll:\n` + data.smtpLog.join('\n'));
+        }
+      })
+      .catch(err => {
+        if (onShowToast) onShowToast(`Netzwerkfehler beim E-Mail-Versand: ${err.message}`, 'error');
+      });
+
+      break;
+    }
+
     case 'CLOSE_WINDOW':
     case 'MINIMIZE_WINDOW':
     case 'MAXIMIZE_WINDOW':
