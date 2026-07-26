@@ -328,10 +328,19 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             </div>`;
         }
 
+        let valExpr = `${dataVar}.${bindProp} !== undefined && ${dataVar}.${bindProp} !== null ? ${dataVar}.${bindProp} : ''`;
+        if (inputType === 'date') {
+            valExpr = `${dataVar}.${bindProp} ? String(${dataVar}.${bindProp}).split('T')[0].split(' ')[0] : ''`;
+        } else if (inputType === 'datetime-local') {
+            valExpr = `${dataVar}.${bindProp} ? (() => { try { return new Date(${dataVar}.${bindProp}).toISOString().slice(0, 16); } catch(e) { return ''; } })() : ''`;
+        } else if (inputType === 'time') {
+            valExpr = `${dataVar}.${bindProp} ? String(${dataVar}.${bindProp}).substring(0, 5) : ''`;
+        }
+
         return `
         <div className={\`${wrapperClass}\`}>
             <label className="${labelClass}">${element.label} {${uxRequired} && <span className="text-red-500">*</span>}</label>
-            <input type="${inputType}" disabled={${uxDisabled}} required={${uxRequired}} className={\`${inputClass}\`} value={${dataVar}.${bindProp} !== undefined ? ${dataVar}.${bindProp} : ''} onChange={e => setData({...${dataVar}, ${bindProp}: e.target.value})} />
+            <input type="${inputType}" disabled={${uxDisabled}} required={${uxRequired}} className={\`${inputClass}\`} value={${valExpr}} onChange={e => setData({...${dataVar}, ${bindProp}: e.target.value})} />
         </div>`;
     }
     return '';

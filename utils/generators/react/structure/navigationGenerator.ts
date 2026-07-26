@@ -91,6 +91,17 @@ export const generateSidebar = (
         return false;
       };
 
+      const isFormInNav = (f: Form, items: any[]): boolean => {
+        for (const item of items) {
+          if ((item.targetType === 'form' && item.targetId === f.id) ||
+              (item.route && item.route.includes(toPascalCase(f.name).toLowerCase()))) {
+            return true;
+          }
+          if (item.children && isFormInNav(f, item.children)) return true;
+        }
+        return false;
+      };
+
       const unmappedQueries = queries.filter(q => (q.type === 'SELECT' || q.type === 'UPDATE' || !q.type) && !isQueryInNav(q, config.navigationConfig || []));
       if (unmappedQueries.length > 0) {
         sidebarMainContent += `
@@ -102,6 +113,24 @@ export const generateSidebar = (
                     return `
                     <Link to="/queries/${toCamelCase(q.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
                         <${iconName} size={16}/> ${q.name}
+                    </Link>`;
+                }).join('\n')}
+                </div>
+            </div>
+        `;
+      }
+
+      const unmappedForms = forms.filter(f => !isFormInNav(f, config.navigationConfig || []));
+      if (unmappedForms.length > 0) {
+        sidebarMainContent += `
+            <div>
+                <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-4">Formulare</div>
+                <div className="space-y-1">
+                ${unmappedForms.map(f => {
+                    const formSlug = toPascalCase(f.name).toLowerCase();
+                    return `
+                    <Link to="/forms/${formSlug}Form/new" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/forms/${formSlug}Form')}\`}>
+                        <Layout size={16}/> ${f.name}
                     </Link>`;
                 }).join('\n')}
                 </div>
@@ -136,6 +165,22 @@ export const generateSidebar = (
                     return `
                     <Link to="/queries/${toCamelCase(q.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
                         <${iconName} size={16}/> ${q.name}
+                    </Link>`;
+                }).join('\n')}
+                </div>
+            </div>
+            ` : ''}
+
+            {/* Forms */}
+            ${forms.length > 0 ? `
+            <div>
+                <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Formulare</div>
+                <div className="space-y-1">
+                ${forms.map(f => {
+                    const formSlug = toPascalCase(f.name).toLowerCase();
+                    return `
+                    <Link to="/forms/${formSlug}Form/new" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/forms/${formSlug}Form')}\`}>
+                        <Layout size={16}/> ${f.name}
                     </Link>`;
                 }).join('\n')}
                 </div>

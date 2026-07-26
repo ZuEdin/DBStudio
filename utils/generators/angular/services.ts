@@ -81,7 +81,7 @@ export class ApiService {
 
   private getUrl(ep: string): string {
     const base = this.baseUrl ? (this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/') : '/api/';
-    const cleanEp = (ep || '').replace(/^\/+/g, '');
+    const cleanEp = (ep || '').replace(/^\\/+/g, '');
     return base + cleanEp;
   }
 
@@ -465,14 +465,18 @@ export class ExportService {
   const tableEndpointsMap = tables ? tables.reduce((acc, t) => {
     const routeName = toCamelCase(t.name);
     acc[t.id] = routeName;
+    acc[t.name] = routeName;
     acc[t.name.toLowerCase()] = routeName;
+    acc[routeName] = routeName;
     return acc;
   }, {} as Record<string, string>) : {};
 
   const queryEndpointsMap = queries ? queries.reduce((acc, q) => {
     const routeName = toCamelCase(q.name);
     acc[q.id] = routeName;
+    acc[q.name] = routeName;
     acc[q.name.toLowerCase()] = routeName;
+    acc[routeName] = routeName;
     return acc;
   }, {} as Record<string, string>) : {};
 
@@ -524,13 +528,13 @@ export class MacroService {
 
     if (macro && macro.steps && macro.steps.length > 0) {
       for (const step of macro.steps) {
-        if ((step.type === 'EXPORT_REPORT' || step.type === 'PRINT_REPORT') && step.exportConfig) {
+        if ((step.type === 'EXPORT_REPORT' || step.type === 'PRINT_REPORT' || step.type === 'EXPORT_QUERY' || step.type === 'EXPORT_TABLE' || step.type === 'EXPORT' || step.type?.startsWith('EXPORT_') || step.exportConfig) && step.exportConfig) {
           const { sourceType, sourceId, format, title } = step.exportConfig;
           let data: any[] = [];
           if (sourceType === 'table' && sourceId) {
             try {
               const mappedEndpoint = tableEndpointsMap[sourceId] || tableEndpointsMap[sourceId.toLowerCase()] || sourceId;
-              const res = await this.api.get<any>(mappedEndpoint).toPromise();
+              const res = await this.api.get<any>(mappedEndpoint, { pageSize: 100000 }).toPromise();
               data = Array.isArray(res) ? res : (res?.data || []);
             } catch (e) {
               console.error('Error fetching table data for macro export:', e);
@@ -538,7 +542,7 @@ export class MacroService {
           } else if (sourceType === 'query' && sourceId) {
             try {
               const mappedEndpoint = queryEndpointsMap[sourceId] || queryEndpointsMap[sourceId.toLowerCase()] || sourceId;
-              const res = await this.api.get<any>('queries/' + mappedEndpoint).toPromise();
+              const res = await this.api.get<any>('queries/' + mappedEndpoint, { pageSize: 100000 }).toPromise();
               data = Array.isArray(res) ? res : (res?.data || []);
             } catch (e) {
               console.error('Error fetching query data for macro export:', e);

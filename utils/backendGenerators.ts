@@ -25,7 +25,8 @@ export const generateBackendCode = (
     forms: Form[] = [], 
     reports: Report[] = [],
     pages: CustomPage[] = [],
-    customComponents: any[] = []
+    customComponents: any[] = [],
+    macros: any[] = []
 ): VirtualFile[] => {
   let files: VirtualFile[] = [];
 
@@ -77,7 +78,7 @@ export const generateBackendCode = (
     const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports, pages, customComponents);
     files = [...files, ...angularFiles];
   } else if (activeConfig.frontendFramework === 'react') {
-    const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents);
+    const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents, macros);
     files = [...files, ...reactFiles];
   } else if (activeConfig.frontendFramework === 'blazor') {
     const blazorFiles = generateBlazor(tables, relationships, queries, activeConfig, forms, reports);

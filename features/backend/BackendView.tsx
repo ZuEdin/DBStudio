@@ -8,6 +8,7 @@ import { generateDeploymentScripts } from '../../utils/generators/deploymentGene
 import JSZip from 'jszip';
 import { GitPushModal } from '../versioning/GitPushModal';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { getSavedMacros } from '../logic/MacroEngine';
 
 interface BackendViewProps {
   tables: Table[];
@@ -178,7 +179,8 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
 
   const handleGenerate = () => {
     try {
-        let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents);
+        const macros = getSavedMacros();
+        let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents, macros);
         
         if (localConfig.deploymentConfig) {
             const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);
@@ -206,7 +208,8 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
     let filesToZip = generatedFiles;
     if (filesToZip.length === 0) {
       try {
-        filesToZip = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents);
+        const macros = getSavedMacros();
+        filesToZip = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents, macros);
         if (localConfig.deploymentConfig) {
           const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);
           filesToZip = [...filesToZip, ...deployFiles];

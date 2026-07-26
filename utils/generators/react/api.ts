@@ -1,5 +1,5 @@
 
-import { Table, VirtualFile, BackendConfig, Query, SelectQuery } from '../../../types/index';
+import { Table, VirtualFile, BackendConfig, Query, SelectQuery, Report } from '../../../types/index';
 import { toCamelCase, toPascalCase, isNullable, resolveType } from '../common';
 
 const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSql: boolean): any => {
@@ -38,7 +38,7 @@ const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSq
     return newRow;
 };
 
-export const generateReactApi = (tables: Table[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
+export const generateReactApi = (tables: Table[], queries: Query[], config: BackendConfig, root: string, reports: Report[] = [], macros: any[] = []): VirtualFile[] => {
   const files: VirtualFile[] = [];
   const useAuth = config.authConfig?.useUserLogin;
 
@@ -78,7 +78,7 @@ const getApiUrl = () => {
     if (raw) {
         let u = raw.trim();
         if (!u.endsWith('/')) u += '/';
-        if (!u.includes('/api/')) u = u.replace(/\/+$/, '') + '/api/';
+        if (!u.includes('/api/')) u = u.replace(/\\/+$/, '') + '/api/';
         return u;
     }
     return typeof window !== 'undefined'
@@ -257,7 +257,7 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
         return null;
     }
 
-    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     const cleanParams: any = {};
     if (params) {
         Object.keys(params).forEach(k => {
@@ -368,7 +368,7 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
 };
 
 export const post = async <T>(endpoint: string, data: any): Promise<T> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     if (endpoint.startsWith('auth/')) {
         try {
             const response = await api.post(cleanEndpoint, data);
@@ -449,7 +449,7 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const put = async <T>(endpoint: string, data: any): Promise<T> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
@@ -487,7 +487,7 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const remove = async (endpoint: string): Promise<any> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\/+/g, '');
+    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     try {
         const token = localStorage.getItem('auth_token');
         const headers: any = {};
@@ -951,22 +951,67 @@ export function evaluateFormFormula(formula: string, record: Record<string, any>
   const tableEndpointsMap = tables ? tables.reduce((acc, t) => {
     const routeName = toCamelCase(t.name);
     acc[t.id] = routeName;
+    acc[t.name] = routeName;
     acc[t.name.toLowerCase()] = routeName;
+    acc[routeName] = routeName;
     return acc;
   }, {} as Record<string, string>) : {};
 
   const queryEndpointsMap = queries ? queries.reduce((acc, q) => {
     const routeName = toCamelCase(q.name);
     acc[q.id] = routeName;
+    acc[q.name] = routeName;
     acc[q.name.toLowerCase()] = routeName;
+    acc[routeName] = routeName;
     return acc;
   }, {} as Record<string, string>) : {};
+
+  const reportSourcesMap = reports ? reports.reduce((acc, r) => {
+    acc[r.id] = { sourceType: r.sourceType, sourceId: r.sourceId };
+    acc[r.name.toLowerCase()] = { sourceType: r.sourceType, sourceId: r.sourceId };
+    return acc;
+  }, {} as Record<string, { sourceType: string; sourceId: string }>) : {};
+
+  const queryParamRefs: Record<string, Array<{ formName: string; fieldName: string; paramName: string }>> = {};
+  if (queries) {
+    queries.forEach(q => {
+      const refs: Array<{ formName: string; fieldName: string; paramName: string }> = [];
+      const selectQ = q as SelectQuery;
+      if (selectQ.columns) {
+        selectQ.columns.forEach(c => {
+          if (c.criteria) {
+            c.criteria.forEach(cr => {
+              if (cr && /(?:\[?Forms\]?!)/i.test(cr)) {
+                const formMatch = cr.match(/(?:\[?Forms\]?!\s*\[?([^!\]]+)\]?!\s*\[?([^!\]\s]+)\]?)/i);
+                if (formMatch && formMatch.length >= 3) {
+                  const formName = formMatch[1].toLowerCase();
+                  const fieldName = formMatch[2].toLowerCase();
+                  refs.push({
+                    formName,
+                    fieldName,
+                    paramName: `form_${formName}_${fieldName}`
+                  });
+                }
+              }
+            });
+          }
+        });
+      }
+      if (refs.length > 0) {
+        queryParamRefs[q.id] = refs;
+        queryParamRefs[q.name.toLowerCase()] = refs;
+      }
+    });
+  }
 
   const macroServiceContent = `import { exportDataToFile, ExportFormat } from '../utils/exportHelper';
 import { get } from './api';
 
 const tableEndpointsMap: Record<string, string> = ${JSON.stringify(tableEndpointsMap, null, 2)};
 const queryEndpointsMap: Record<string, string> = ${JSON.stringify(queryEndpointsMap, null, 2)};
+const reportSourcesMap: Record<string, { sourceType: string; sourceId: string }> = ${JSON.stringify(reportSourcesMap, null, 2)};
+const queryParamRefs: Record<string, Array<{ formName: string; fieldName: string; paramName: string }>> = ${JSON.stringify(queryParamRefs, null, 2)};
+const PROJECT_MACROS: Macro[] = ${JSON.stringify(macros, null, 2)};
 
 export interface MacroStep {
   id: string;
@@ -1005,27 +1050,70 @@ export async function executeGeneratedMacro(
 
   if (typeof macroOrId === 'string') {
     macro = savedMacros.find(m => m.id === macroOrId || m.name === macroOrId || m.id?.toLowerCase() === macroOrId.toLowerCase() || m.name?.toLowerCase() === macroOrId.toLowerCase()) || null;
+    if (!macro) {
+      macro = PROJECT_MACROS.find(m => m.id === macroOrId || m.name === macroOrId || m.id?.toLowerCase() === macroOrId.toLowerCase() || m.name?.toLowerCase() === macroOrId.toLowerCase()) || null;
+    }
   } else {
     macro = macroOrId;
   }
 
   if (macro && macro.steps && macro.steps.length > 0) {
     for (const step of macro.steps) {
-      if ((step.type === 'EXPORT_REPORT' || step.type === 'PRINT_REPORT') && step.exportConfig) {
+      if ((step.type === 'EXPORT_REPORT' || step.type === 'PRINT_REPORT' || step.type === 'EXPORT_QUERY' || step.type === 'EXPORT_TABLE' || step.type === 'EXPORT' || step.type?.startsWith('EXPORT_') || step.exportConfig) && step.exportConfig) {
         const { sourceType, sourceId, format, title } = step.exportConfig;
+        
+        let currentSourceType = sourceType;
+        let currentSourceId = sourceId;
+
+        if (sourceType === 'report' && sourceId) {
+          const reportConfig = reportSourcesMap[sourceId] || reportSourcesMap[sourceId.toLowerCase()];
+          if (reportConfig) {
+            currentSourceType = reportConfig.sourceType as any;
+            currentSourceId = reportConfig.sourceId;
+          }
+        }
+
         let data: any[] = [];
-        if (sourceType === 'table' && sourceId) {
+        if (currentSourceType === 'table' && currentSourceId) {
           try {
-            const mappedEndpoint = tableEndpointsMap[sourceId] || tableEndpointsMap[sourceId.toLowerCase()] || sourceId;
-            const res = await get<any>(mappedEndpoint);
+            const mappedEndpoint = tableEndpointsMap[currentSourceId] || tableEndpointsMap[currentSourceId.toLowerCase()] || currentSourceId;
+            const res = await get<any>(mappedEndpoint, { pageSize: 100000 });
             data = Array.isArray(res) ? res : (res?.data || []);
           } catch (e) {
             console.error('Error fetching table data for macro export:', e);
           }
-        } else if (sourceType === 'query' && sourceId) {
+        } else if (currentSourceType === 'query' && currentSourceId) {
           try {
-            const mappedEndpoint = queryEndpointsMap[sourceId] || queryEndpointsMap[sourceId.toLowerCase()] || sourceId;
-            const res = await get<any>('queries/' + mappedEndpoint);
+            const mappedEndpoint = queryEndpointsMap[currentSourceId] || queryEndpointsMap[currentSourceId.toLowerCase()] || currentSourceId;
+            const queryParams: Record<string, any> = { pageSize: 100000 };
+            
+            // Extract and append referenced Form parameters from contextData
+            const refs = queryParamRefs[currentSourceId] || queryParamRefs[currentSourceId.toLowerCase()] || [];
+            if (refs.length > 0 && contextData) {
+              refs.forEach(ref => {
+                const foundKey = Object.keys(contextData).find(k => k.toLowerCase() === ref.fieldName.toLowerCase());
+                if (foundKey) {
+                  queryParams[ref.paramName] = contextData[foundKey];
+                }
+              });
+            }
+
+            // Fallback: Also try to infer form name from current URL path
+            try {
+              const pathParts = window.location.pathname.split('/').filter(Boolean);
+              const formPart = pathParts.find(p => p.toLowerCase().includes('form'));
+              if (formPart && contextData) {
+                const inferredFormName = formPart.toLowerCase().replace('form', '');
+                Object.keys(contextData).forEach(key => {
+                  const paramName = 'form_' + inferredFormName + '_' + key.toLowerCase();
+                  if (queryParams[paramName] === undefined) {
+                    queryParams[paramName] = contextData[key];
+                  }
+                });
+              }
+            } catch (e) {}
+
+            const res = await get<any>('queries/' + mappedEndpoint, queryParams);
             data = Array.isArray(res) ? res : (res?.data || []);
           } catch (e) {
             console.error('Error fetching query data for macro export:', e);

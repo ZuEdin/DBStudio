@@ -14,12 +14,13 @@ export const generateReact = (
   forms: Form[] = [], 
   reports: Report[] = [], 
   pages: CustomPage[] = [],
-  customComponents: any[] = []
+  customComponents: any[] = [],
+  macros: any[] = []
 ): VirtualFile[] => {
 
   const root = `Frontend`;
   const configFiles = generateReactConfigs(config, root);
-  const apiFiles = generateReactApi(tables, queries, config, root);
+  const apiFiles = generateReactApi(tables, queries, config, root, reports, macros);
   // Pass Queries and Custom Pages to Structure generator for Routes/Sidebar
   const structureFiles = generateReactStructure(tables, forms, reports, config, root, queries, pages);
   const pageFiles = generateReactPages(tables, forms, reports, root, queries, pages, customComponents);
