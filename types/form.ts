@@ -20,7 +20,8 @@ export interface Subform {
 export interface ActionFlow {
   id: string;
   trigger: 'OnClick' | 'OnChange' | 'OnPageLoad';
-  actionType: 'ShowToast' | 'OpenModal' | 'Navigate' | 'ExecuteAPI' | 'SetState';
+  actionType: 'RunMacro' | 'ShowToast' | 'OpenModal' | 'Navigate' | 'ExecuteAPI' | 'SetState';
+  macroId?: string;
   toastMessage?: string;
   toastType?: 'success' | 'error' | 'info';
   modalId?: string;
@@ -51,13 +52,22 @@ export interface FormEventHandler {
   targetId?: string;
 }
 
+export interface DropdownItem {
+  id: string;
+  label: string;
+  icon?: string;
+  className?: string;
+  actions?: ActionFlow[];
+}
+
 export interface FormElement {
   id: string;
-  type: 'container' | 'field' | 'label' | 'subform' | 'button';
+  type: 'container' | 'field' | 'label' | 'subform' | 'button' | 'dropdown_button';
   fieldId?: string;
   label?: string;
   className?: string;
   children?: FormElement[];
+  dropdownItems?: DropdownItem[];
   widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select' | 'ad-search' | 'current-user' | 'calculated';
   calculationFormula?: string;
   isCalculated?: boolean;

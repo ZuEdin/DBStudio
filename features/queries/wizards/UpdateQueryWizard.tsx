@@ -175,7 +175,7 @@ export const UpdateQueryWizard: React.FC<UpdateQueryWizardProps> = ({ tables, on
                                             {selectedTable.fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                         </select>
                                         <select 
-                                            className="border rounded p-1.5 text-sm w-24"
+                                            className="border rounded p-1.5 text-sm w-28"
                                             value={crit.operator}
                                             onChange={e => updateCriterion(crit.id, 'operator', e.target.value)}
                                         >
@@ -186,11 +186,12 @@ export const UpdateQueryWizard: React.FC<UpdateQueryWizardProps> = ({ tables, on
                                             <option value=">=">&ge;</option>
                                             <option value="<=">&le;</option>
                                             <option value="contains">enthält</option>
+                                            <option value="between">zwischen</option>
                                         </select>
                                         <input 
                                             type="text" 
                                             className="border rounded p-1.5 text-sm flex-1"
-                                            placeholder="Wert"
+                                            placeholder={crit.operator === 'between' ? '10 und 50' : 'Wert'}
                                             value={crit.value}
                                             onChange={e => updateCriterion(crit.id, 'value', e.target.value)}
                                         />

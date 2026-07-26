@@ -76,6 +76,15 @@ export const DeleteQueryWizard: React.FC<DeleteQueryWizardProps> = ({ tables, on
                   case '>=': return v1 >= v2;
                   case '<=': return v1 <= v2;
                   case 'contains': return String(v1).includes(String(v2));
+                  case 'between': {
+                      const parts = String(critVal).split(/\s+(?:und|and)\s+/i);
+                      if (parts.length === 2) {
+                          const min = isNaN(Number(parts[0])) ? parts[0].toLowerCase() : Number(parts[0]);
+                          const max = isNaN(Number(parts[1])) ? parts[1].toLowerCase() : Number(parts[1]);
+                          return v1 >= min && v1 <= max;
+                      }
+                      return false;
+                  }
                   default: return false;
               }
           });
@@ -143,7 +152,7 @@ export const DeleteQueryWizard: React.FC<DeleteQueryWizardProps> = ({ tables, on
                                         {selectedTable.fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                     </select>
                                     <select 
-                                        className="border rounded p-1.5 text-sm w-24"
+                                        className="border rounded p-1.5 text-sm w-28"
                                         value={crit.operator}
                                         onChange={e => updateCriterion(crit.id, 'operator', e.target.value)}
                                     >
@@ -154,11 +163,12 @@ export const DeleteQueryWizard: React.FC<DeleteQueryWizardProps> = ({ tables, on
                                         <option value=">=">&ge;</option>
                                         <option value="<=">&le;</option>
                                         <option value="contains">enthält</option>
+                                        <option value="between">zwischen</option>
                                     </select>
                                     <input 
                                         type="text" 
                                         className="border rounded p-1.5 text-sm flex-1"
-                                        placeholder="Wert"
+                                        placeholder={crit.operator === 'between' ? '10 und 50' : 'Wert'}
                                         value={crit.value}
                                         onChange={e => updateCriterion(crit.id, 'value', e.target.value)}
                                     />

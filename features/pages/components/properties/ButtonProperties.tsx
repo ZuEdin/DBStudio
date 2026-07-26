@@ -54,7 +54,7 @@ export const ButtonProperties: React.FC<ButtonPropertiesProps> = ({
           <option value="delete_record">Datensatz löschen (CRUD Delete)</option>
           <option value="set_parameter">Parameter setzen (Status / Filter)</option>
           <option value="navigate_to_page">Seite wechseln (Details / Navigation)</option>
-          <option value="run_macro">⚡ Makro Ausführen (MS Access Style)</option>
+          <option value="run_macro">⚡ Makro Ausführen</option>
           <option value="export_report">📊 Bericht / Tabelle Exportieren (PDF, Excel, XML, JSON, CSV)</option>
           <option value="smart_import">📥 Smart Upload & Import Wizard Starten</option>
         </select>
@@ -64,7 +64,7 @@ export const ButtonProperties: React.FC<ButtonPropertiesProps> = ({
       {selectedNode.props.actionType === 'run_macro' && (
         <div className="space-y-3 bg-purple-50/50 border border-purple-200 rounded p-2.5 text-xs font-mono">
           <p className="text-purple-900 font-bold">⚡ Makro-Steuerung</p>
-          <p className="text-[10px] text-purple-700 font-sans">Klick führt den MS Access Makro-Manager aus oder startet konfigurierte Makros.</p>
+          <p className="text-[10px] text-purple-700 font-sans">Klick führt den Makro-Manager aus oder startet konfigurierte Makros.</p>
         </div>
       )}
 

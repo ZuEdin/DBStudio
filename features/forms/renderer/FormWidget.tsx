@@ -12,6 +12,8 @@ interface FormWidgetProps {
   onChange: (fieldName: string, value: any) => void;
   getLookupOptions: (lookupConfig: any) => any[];
   onOpenLookupModal?: (tableId: string, fieldName: string, formId?: string) => void;
+  onContextMenu?: (e: React.MouseEvent, fieldName: string, value: any) => void;
+  onFocusField?: (fieldName: string) => void;
 }
 
 export const FormWidget: React.FC<FormWidgetProps> = ({
@@ -21,7 +23,9 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   isReadOnly,
   onChange,
   getLookupOptions,
-  onOpenLookupModal
+  onOpenLookupModal,
+  onContextMenu,
+  onFocusField
 }) => {
   const field = sourceTable?.fields.find(f => f.id === element.fieldId);
   const fieldName = field?.name || '';
@@ -68,6 +72,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                     type="text"
                     readOnly
                     value={value !== undefined && value !== null ? String(value) : ''}
+                    onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
                     className="w-full border border-amber-200 bg-amber-50/60 text-amber-950 font-bold rounded-lg p-2.5 text-sm font-mono cursor-default focus:outline-none shadow-inner"
                     placeholder="(Berechnung ausstehend)"
                   />
@@ -89,6 +94,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                         type="text"
                         readOnly
                         value={value || ''}
+                        onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
                         className="w-full border border-emerald-300 bg-emerald-50 text-emerald-900 rounded p-2 pl-8 text-sm font-mono cursor-default focus:outline-none"
                         placeholder="(Leer)"
                       />
@@ -128,6 +134,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                         readOnly={isReadOnly} // Editable manually? Maybe not if strict AD.
                         value={value || ''} 
                         onChange={(e) => onChange(fieldName, e.target.value)}
+                        onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
                         className="w-full border border-blue-200 bg-white rounded p-2 pl-8 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
                         placeholder="Benutzer auswählen..."
                       />
@@ -162,6 +169,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                       disabled={isReadOnly || field?.isAutoIncrement}
                       checked={!!value}
                       onChange={e => onChange(fieldName, e.target.checked)}
+                      onFocus={() => onFocusField && onFocusField(fieldName)}
+                      onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
                       className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
                   />
                   <label htmlFor={elementId} className="text-sm font-semibold text-slate-700 cursor-pointer">{label}</label>
@@ -181,7 +190,9 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                     disabled={isReadOnly || !element.lookup}
                     value={value || ''}
                     onChange={e => onChange(fieldName, e.target.value)}
-                    className="flex-1 shrink-0 appearance-none bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
+                    onFocus={() => onFocusField && onFocusField(fieldName)}
+                    onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
+                    className="flex-1 shrink-0 appearance-none bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
                 >
                     <option value="">Auswählen...</option>
                     {options.map((opt, idx) => (
@@ -211,7 +222,9 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                   readOnly={isReadOnly}
                   value={value || ''}
                   onChange={(e) => onChange(fieldName, e.target.value)}
-                  className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  onFocus={() => onFocusField && onFocusField(fieldName)}
+                  onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
+                  className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs"
                   rows={3}
               />
           </div>
@@ -239,14 +252,16 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
 
   return (
       <div className={element.className}>
-          <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+          <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700 mb-1">{label}</label>
           <input
             id={elementId}
             type={finalType}
             readOnly={isReadOnly || field?.isAutoIncrement}
             value={displayValue}
             onChange={(e) => onChange(fieldName, e.target.value)}
-            className={`w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none ${field?.isAutoIncrement ? 'bg-slate-100 text-slate-500 italic' : ''}`}
+            onFocus={() => onFocusField && onFocusField(fieldName)}
+            onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
+            className={`w-full bg-white text-slate-900 font-medium border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${field?.isAutoIncrement ? 'bg-slate-100 text-slate-500 italic' : ''}`}
           />
       </div>
   );

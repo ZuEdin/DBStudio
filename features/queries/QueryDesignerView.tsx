@@ -276,7 +276,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 font-bold transition ml-auto shrink-0 shadow-2xs"
          >
             <Code size={13} className="text-blue-600" />
-            <span>Access SQL Konverter</span>
+            <span>SQL Dialekt Konverter</span>
          </button>
 
          <button 

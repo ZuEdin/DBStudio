@@ -243,6 +243,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
                 executeQuery={executeQuery}
                 onTableChange={(t) => saveTable(t, 'edit')} 
                 showConfirmation={showConfirmation} 
+                formActionTrigger={formActionTrigger}
             />;
         }
         return null;

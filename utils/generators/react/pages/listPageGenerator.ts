@@ -53,6 +53,8 @@ export const ${listName} = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<any | null>(null);
+  const [massDeleteOpen, setMassDeleteOpen] = useState(false);
   ${table.enableMassUpdates ? `const [selectedIds, setSelectedIds] = useState<string[]>([]);` : ''}
 
   // Double-click Detail modal and single-select keyboard selection states
@@ -94,7 +96,15 @@ export const ${listName} = () => {
   };
 
   const handleDelete = async (id: any) => {
-    if (confirm('Löschen?')) { await remove(\`${camelName}/\${id}\`); loadItems(); }
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteId) {
+      await remove(\`${camelName}/\${deleteId}\`);
+      setDeleteId(null);
+      loadItems();
+    }
   };
 
   const getRowStyle = (item: any) => {
@@ -114,14 +124,16 @@ export const ${listName} = () => {
   ${table.enableMassUpdates ? `
   const handleMassDelete = async () => {
       if(selectedIds.length === 0) return;
-      if(confirm(\`Wirklich \${selectedIds.length} Einträge löschen?\`)) {
-          // Fallback to multiple requests for generator demo
-          for(const id of selectedIds) {
-              await remove(\`${camelName}/\${id}\`);
-          }
-          setSelectedIds([]);
-          loadItems();
+      setMassDeleteOpen(true);
+  };
+  
+  const confirmMassDelete = async () => {
+      for(const id of selectedIds) {
+          await remove(\`${camelName}/\${id}\`);
       }
+      setSelectedIds([]);
+      setMassDeleteOpen(false);
+      loadItems();
   };` : ''}
 
   const handleSort = (field: string) => {
@@ -404,6 +416,58 @@ export const ${listName} = () => {
                 className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800"
               >
                 Schließen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-[2px]">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Datensatz löschen</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Sind Sie sicher, dass Sie diesen Datensatz unwiderruflich löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden.</p>
+            </div>
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+              <button 
+                onClick={() => setDeleteId(null)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition text-sm font-semibold"
+              >
+                Abbrechen
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition text-sm font-semibold shadow-sm"
+              >
+                Ja, löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mass Delete Confirmation Modal */}
+      {massDeleteOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-[2px]">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Mehrere Datensätze löschen</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Sind Sie sicher, dass Sie {selectedIds.length} Datensätze unwiderruflich löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden.</p>
+            </div>
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+              <button 
+                onClick={() => setMassDeleteOpen(false)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition text-sm font-semibold"
+              >
+                Abbrechen
+              </button>
+              <button 
+                onClick={confirmMassDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition text-sm font-semibold shadow-sm"
+              >
+                Ausgewählte löschen
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Form, Table, Query, FormElement, Relationship } from '../../types/index';
-import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown } from 'lucide-react';
+import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown, Zap } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
@@ -142,8 +142,18 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
         if (actionTrigger.action === 'form_add_label') {
             newEl.type = 'label'; newEl.label = 'Neues Label'; newEl.className = 'font-bold text-lg mb-2';
         } else if (actionTrigger.action === 'form_add_button') {
-            newEl.type = 'button'; newEl.label = 'Aktion ausführen'; newEl.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded';
-            newEl.actions = [];
+            newEl.type = 'button'; 
+            newEl.label = '⚡ Makro ausführen'; 
+            newEl.className = 'bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2';
+            newEl.actions = [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }];
+        } else if (actionTrigger.action === 'form_add_dropdown_button') {
+            newEl.type = 'dropdown_button';
+            newEl.label = 'Aktionen';
+            newEl.className = 'bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4';
+            newEl.dropdownItems = [
+                { id: crypto.randomUUID(), label: '⚡ Makro 1 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] },
+                { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
+            ];
         } else if (actionTrigger.action === 'form_add_container') {
             newEl.type = 'container'; newEl.className = 'p-4 border border-dashed border-slate-300 rounded bg-slate-50 min-h-[60px]';
         } else if (actionTrigger.action === 'form_add_2col') {
@@ -208,6 +218,27 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
             } else if (data.type === 'field') {
                 // New Field
                 container.children.push({ id: crypto.randomUUID(), type: 'field', fieldId: data.fieldId, label: data.label, className: 'mb-4' });
+            } else if (data.type === 'button') {
+                // New Macro Button
+                container.children.push({ 
+                    id: crypto.randomUUID(), 
+                    type: 'button', 
+                    label: data.label || '⚡ Makro ausführen', 
+                    className: 'bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
+                    actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }]
+                });
+            } else if (data.type === 'dropdown_button') {
+                // New Dropdown Button
+                container.children.push({
+                    id: crypto.randomUUID(),
+                    type: 'dropdown_button',
+                    label: data.label || 'Aktionen',
+                    className: 'bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
+                    dropdownItems: [
+                        { id: crypto.randomUUID(), label: '⚡ Makro 1 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] },
+                        { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
+                    ]
+                });
             } else if (data.type === 'form') {
                 // New Subform
                 setLinkingSubform(allForms.find(f => f.id === data.formId) || null);
@@ -405,6 +436,24 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                           {el.actions.length}
                       </div>
                   )}
+              </div>
+          );
+      }
+
+      if (el.type === 'dropdown_button') {
+          const count = el.dropdownItems?.length || 0;
+          return (
+              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2`} {...commonProps}>
+                  <GripHandle />
+                  <div className="inline-flex items-center gap-2 pointer-events-none">
+                      <button className={`${el.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm'} opacity-90 transition-all flex items-center gap-2`}>
+                          <span>{el.label || 'Aktionen'}</span>
+                          <ChevronDown size={14} />
+                      </button>
+                      <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold border border-slate-300">
+                          {count} {count === 1 ? 'Sub-Button' : 'Sub-Buttons'}
+                      </span>
+                  </div>
               </div>
           );
       }
@@ -633,6 +682,59 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                      </div>
                  ))}
              </div>
+             <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Schaltflächen & Makros</h4>
+             <div className="space-y-1">
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'button', label: '⚡ Makro ausführen' })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: 'button',
+                                label: '⚡ Makro ausführen',
+                                className: 'bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
+                                actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }]
+                            });
+                        });
+                    }}
+                    className="bg-amber-50 border border-amber-300 p-2 rounded-lg cursor-grab text-xs flex items-center justify-between text-amber-950 hover:border-amber-400 hover:bg-amber-100/80 active:cursor-grabbing font-bold shadow-xs transition-colors"
+                    title="Klicken oder Ziehen, um eine Makro-Schaltfläche hinzuzufügen"
+                 >
+                     <span className="flex items-center gap-2"><Zap size={14} className="text-amber-500 fill-amber-400" /> Schaltfläche (Makro)</span>
+                     <Plus size={14} className="text-amber-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'dropdown_button', label: 'Aktionen' })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: 'dropdown_button',
+                                label: 'Aktionen',
+                                className: 'bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
+                                dropdownItems: [
+                                    { id: crypto.randomUUID(), label: '⚡ Makro 1 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] },
+                                    { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
+                                ]
+                            });
+                        });
+                    }}
+                    className="bg-indigo-50 border border-indigo-300 p-2 rounded-lg cursor-grab text-xs flex items-center justify-between text-indigo-950 hover:border-indigo-400 hover:bg-indigo-100/80 active:cursor-grabbing font-bold shadow-xs transition-colors"
+                    title="Klicken oder Ziehen, um einen Dropdown-Button mit Unterbefehlen hinzuzufügen"
+                 >
+                     <span className="flex items-center gap-2">
+                       <Zap size={14} className="text-indigo-600 fill-indigo-400" /> 
+                       Dropdown-Schaltfläche
+                     </span>
+                     <ChevronDown size={14} className="text-indigo-700" />
+                 </div>
+             </div>
+
              <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Unterformulare</h4>
              <div className="space-y-1">
                  {allForms.filter(f => f.id !== form.id).map(f => (

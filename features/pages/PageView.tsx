@@ -158,7 +158,7 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
                   <button
                     onClick={() => setIsMacroModalOpen(true)}
                     className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded text-[11px] font-bold transition-all"
-                    title="MS Access Makro Manager Öffnen"
+                    title="Makro Manager Öffnen"
                   >
                     <Cpu size={13} />
                     <span>Makros</span>

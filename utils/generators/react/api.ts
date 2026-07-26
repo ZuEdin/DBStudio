@@ -248,9 +248,49 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
         return null;
     }
 
+    try {
+        const token = localStorage.getItem('auth_token');
+        const headers: any = {};
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        const response = await api.get(endpoint, { params, headers });
+        if (response && response.data !== undefined && response.data !== null) {
+            return response.data;
+        }
+    } catch (apiErr) {
+        // Fallback to IndexedDB simulation if server API request fails or is offline
+    }
+
     const { type, target, id } = parseEndpoint(endpoint);
     
     if (type === 'query') {
+        const storeConfig = findStoreConfig(target);
+        if (storeConfig) {
+            const db = await openDB();
+            if (db.objectStoreNames.contains(storeConfig.name)) {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeConfig.name, 'readonly');
+                    const store = tx.objectStore(storeConfig.name);
+                    const request = store.getAll();
+                    request.onsuccess = () => {
+                        let rows = request.result || [];
+                        if (params?.search) {
+                            const term = String(params.search).toLowerCase();
+                            rows = rows.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(term)));
+                        }
+                        const page = Number(params?.page || 1);
+                        const pageSize = Number(params?.pageSize || 20);
+                        const total = rows.length;
+                        const totalPages = Math.ceil(total / pageSize) || 1;
+                        const startIdx = (page - 1) * pageSize;
+                        const pagedRows = rows.slice(startIdx, startIdx + pageSize).map(row => normalizeKeys(row, storeConfig));
+                        resolve({ data: pagedRows, total, page, pageSize, totalPages });
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+        }
         return { data: [], total: 0, page: 1, pageSize: 20, totalPages: 1 };
     }
 
@@ -309,6 +349,18 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
 
 export const post = async <T>(endpoint: string, data: any): Promise<T> => {
     if (endpoint.startsWith('auth/')) {
+        try {
+            const response = await api.post(endpoint, data);
+            if (response && response.data) {
+                if (response.data.token) {
+                    localStorage.setItem('auth_token', response.data.token);
+                    if (response.data.user) localStorage.setItem('auth_user', JSON.stringify(response.data.user));
+                }
+                return response.data;
+            }
+        } catch (err) {
+            // fallback
+        }
         if (endpoint === 'auth/login') {
             return loginUser(data) as any;
         }
@@ -323,6 +375,18 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
             return { token, user } as any;
         }
         throw new Error('Unsupported auth endpoint: ' + endpoint);
+    }
+
+    try {
+        const token = localStorage.getItem('auth_token');
+        const headers: any = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const response = await api.post(endpoint, data, { headers });
+        if (response && response.data !== undefined) {
+            return response.data;
+        }
+    } catch (apiErr) {
+        // Fallback to IndexedDB simulation
     }
 
     const { target } = parseEndpoint(endpoint);
@@ -364,6 +428,18 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const put = async <T>(endpoint: string, data: any): Promise<T> => {
+    try {
+        const token = localStorage.getItem('auth_token');
+        const headers: any = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const response = await api.put(endpoint, data, { headers });
+        if (response && response.data !== undefined) {
+            return response.data;
+        }
+    } catch (apiErr) {
+        // Fallback to IndexedDB simulation
+    }
+
     const { target, id } = parseEndpoint(endpoint);
     const storeConfig = findStoreConfig(target);
     const storeName = storeConfig ? storeConfig.name : target;
@@ -389,6 +465,18 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
 };
 
 export const remove = async (endpoint: string): Promise<any> => {
+    try {
+        const token = localStorage.getItem('auth_token');
+        const headers: any = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const response = await api.delete(endpoint, { headers });
+        if (response && response.data !== undefined) {
+            return response.data;
+        }
+    } catch (apiErr) {
+        // Fallback to IndexedDB simulation
+    }
+
     const { target, id } = parseEndpoint(endpoint);
     const storeConfig = findStoreConfig(target);
     const storeName = storeConfig ? storeConfig.name : target;
@@ -591,7 +679,9 @@ export const logoutUser = () => {
   files.push({ name: 'types.ts', path: `${root}/src/types/index.ts`, content: typesContent, language: 'typescript' });
 
   // Export Helpers & Macro Services for Generated Sites
-  const exportHelperContent = `export type ExportFormat = 'PDF' | 'XLSX' | 'XML' | 'JSON' | 'CSV' | 'HTML_PRINT';
+  const exportHelperContent = `import * as XLSX from 'xlsx';
+
+export type ExportFormat = 'PDF' | 'XLSX' | 'XML' | 'JSON' | 'CSV' | 'HTML_PRINT';
 
 export interface ExportDataOptions {
   title?: string;
@@ -629,12 +719,31 @@ export function exportDataToFile(options: ExportDataOptions) {
       break;
     }
     case 'XLSX': {
-      let htmlContent = \`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"></head>
-<body><h2>\${title}</h2><table><thead><tr>\${columns.map(c => \`<th>\${c}</th>\`).join('')}</tr></thead>
-<tbody>\${data.map(r => \`<tr>\${columns.map(c => \`<td>\${r[c] ?? ''}</td>\`).join('')}</tr>\`).join('')}</tbody></table></body></html>\`;
-      const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-      downloadBlob(blob, \`\${filename}.xlsx\`);
+      try {
+        const rowsToExport = data.map(row => {
+          const formattedRow: Record<string, any> = {};
+          columns.forEach(col => {
+            formattedRow[col] = row[col] !== undefined && row[col] !== null ? row[col] : '';
+          });
+          return formattedRow;
+        });
+        const worksheet = XLSX.utils.json_to_sheet(rowsToExport);
+        const workbook = XLSX.utils.book_new();
+        const sheetName = (title || 'Daten').replace(/[\\/*?:[\]]/g, '').substring(0, 31) || 'Daten';
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        downloadBlob(blob, \`\${filename}.xlsx\`);
+      } catch (err) {
+        let csvContent = '\\uFEFF';
+        csvContent += columns.map(c => \`"\${String(c).replace(/"/g, '""')}"\`).join(';') + '\\n';
+        data.forEach(row => {
+          const line = columns.map(c => \`"\${String(row[c] ?? '').replace(/"/g, '""')}"\`).join(';');
+          csvContent += line + '\\n';
+        });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        downloadBlob(blob, \`\${filename}.csv\`);
+      }
       break;
     }
     case 'PDF':

@@ -1,6 +1,7 @@
 
 import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
 import { quoteIdentifier, toPascalCase } from './generators/common';
+import { resolveFormValue } from '../features/queries/utils/queryExecution';
 
 export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType, useRawNames: boolean = false, context?: Record<string, any>): string => {
     if (nodes.length === 0) return '';
@@ -115,21 +116,19 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
             let criteria = crit.trim();
 
             if (/(?:\[?Forms\]?!)/i.test(criteria)) {
-                if (context) {
-                    const formMatch = criteria.match(/(?:\[?Forms\]?!\s*\[?([^!\]]+)\]?!\s*\[?([^!\]\s]+)\]?)/i);
-                    if (formMatch && formMatch.length >= 3) {
-                        const formName = formMatch[1].toLowerCase();
-                        const fieldName = formMatch[2].toLowerCase();
-                        const contextKey = `forms.${formName}.${fieldName}`;
-                        let resolvedValue = context[contextKey] !== undefined ? context[contextKey] : '';
-                        
-                        // preserve operator if it existed, otherwise default to '='
+                const formMatch = criteria.match(/(?:\[?Forms\]?!\s*\[?([^!\]]+)\]?!\s*\[?([^!\]\s]+)\]?)/i);
+                if (formMatch && formMatch.length >= 3) {
+                    const formName = formMatch[1];
+                    const fieldName = formMatch[2];
+                    const val = resolveFormValue(formName, fieldName, context);
+                    if (val !== undefined && val !== null && val !== '') {
                         const opMatch = criteria.match(/^(=|like |>|<|>=|<=)/i);
-                        const op = opMatch ? opMatch[0] : '=';
-                        criteria = `${op}'${String(resolvedValue).replace(/'/g, "''")}'`;
+                        const op = opMatch ? opMatch[0].trim() : '=';
+                        const escapedVal = String(val).replace(/'/g, "''");
+                        criteria = `${op} '${escapedVal}'`;
+                    } else {
+                        criteria = `= ''`;
                     }
-                } else {
-                    return null;
                 }
             }
 

@@ -69,9 +69,9 @@ export const AccessSqlConverterModal: React.FC<AccessSqlConverterModalProps> = (
             </div>
             <div>
               <h3 className="font-bold text-sm text-blue-400 flex items-center gap-1.5">
-                <Sparkles size={14} /> MS Access SQL Dialekt Konverter
+                <Sparkles size={14} /> SQL Dialekt Konverter
               </h3>
-              <p className="text-[11px] text-slate-400 font-mono">Wandelt Access-SQL (IIF, Nz, Format, &amp;) automatisch in Standard ANSI SQL / PostgreSQL um</p>
+              <p className="text-[11px] text-slate-400 font-mono">Wandelt spezielle Funktionen (IIF, Nz, Format, &amp;) automatisch in Standard ANSI SQL / PostgreSQL um</p>
             </div>
           </div>
           <button 
@@ -89,8 +89,8 @@ export const AccessSqlConverterModal: React.FC<AccessSqlConverterModalProps> = (
             {/* Input Access SQL */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Access SQL Dialekt:</span>
-                <span className="text-[10px] text-red-600 font-mono bg-red-50 px-1.5 py-0.5 rounded border border-red-200">MS Access</span>
+                <span>Quell SQL Dialekt:</span>
+                <span className="text-[10px] text-red-600 font-mono bg-red-50 px-1.5 py-0.5 rounded border border-red-200">Klassisch</span>
               </label>
               <textarea
                 value={accessSql}
@@ -100,7 +100,7 @@ export const AccessSqlConverterModal: React.FC<AccessSqlConverterModalProps> = (
                 }}
                 rows={8}
                 className="w-full text-xs font-mono p-3 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-blue-500 shadow-inner"
-                placeholder="Geben Sie hier Ihre MS Access SQL Abfrage ein..."
+                placeholder="Geben Sie hier Ihre SQL Abfrage ein..."
               />
             </div>
 

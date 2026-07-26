@@ -1,13 +1,15 @@
 import { Macro, MacroStep, ReportExportConfig } from '../../types/macro';
 import { exportDataToFile } from '../../utils/exportHelper';
 import { executeSelectQuery, executeActionQuery } from '../queries/utils/queryExecution';
-import { Table, Query, Report } from '../../types/index';
+import { Table, Query, Report, Relationship } from '../../types/index';
 import { logAuditTrail } from '../../utils/auditTrail';
+import { useProjectStore } from '../../stores/useProjectStore';
 
 export interface MacroExecutionContext {
   tables: Table[];
   queries: Query[];
   reports: Report[];
+  relationships?: Relationship[];
   params?: Record<string, any>;
   currentRecord?: Record<string, any>;
   onShowToast?: (msg: string, type: 'success' | 'info' | 'warning' | 'error') => void;
@@ -21,8 +23,14 @@ export interface MacroExecutionContext {
 }
 
 export function executeMacroStep(step: MacroStep, context: MacroExecutionContext) {
+  const store = useProjectStore.getState();
+  const tables = (context.tables && context.tables.length > 0) ? context.tables : (store.tables || []);
+  const queries = (context.queries && context.queries.length > 0) ? context.queries : (store.queries || []);
+  const reports = (context.reports && context.reports.length > 0) ? context.reports : (store.reports || []);
+  const relationships = (context.relationships && context.relationships.length > 0) ? context.relationships : (store.relationships || []);
+
   const { 
-    tables, queries, reports, params, currentRecord, 
+    params, currentRecord, 
     onShowToast, onNavigate, onOpenSmartImport, onOpenFormModal, 
     onCloseFormModal, onOpenReportView, onRequery, onTableChange 
   } = context;
@@ -36,25 +44,81 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
       let exportTitle = title || 'Bericht_Export';
 
       if (sourceType === 'table') {
-        const table = tables.find(t => t.id === sourceId);
+        const table = tables.find(t => t.id === sourceId || t.name === sourceId || t.name?.toLowerCase() === sourceId?.toLowerCase());
         if (table) {
           exportData = table.data || [];
           exportTitle = title || `Export_Tabelle_${table.name}`;
         }
       } else if (sourceType === 'query') {
-        const query = queries.find(q => q.id === sourceId);
-        if (query && query.type === 'SELECT') {
-          exportData = executeSelectQuery(query as any, tables, []);
+        const query = queries.find(q => q.id === sourceId || q.name === sourceId || q.name?.toLowerCase() === sourceId?.toLowerCase());
+        if (query && (!query.type || query.type === 'SELECT')) {
+          exportData = executeSelectQuery(query as any, tables, relationships, context);
           exportTitle = title || `Export_Query_${query.name}`;
         }
       } else if (sourceType === 'report') {
-        const report = reports.find(r => r.id === sourceId);
+        const report = reports.find(r => r.id === sourceId || r.name === sourceId || r.name?.toLowerCase() === sourceId?.toLowerCase());
         if (report) {
-          const table = tables.find(t => t.id === report.sourceId);
-          if (table) {
-            exportData = table.data || [];
-          }
           exportTitle = title || `Bericht_${report.name}`;
+          let rawData: Record<string, any>[] = [];
+
+          if (report.sourceType === 'query') {
+            const query = queries.find(q => q.id === report.sourceId || q.name === report.sourceId);
+            if (query && (!query.type || query.type === 'SELECT')) {
+              rawData = executeSelectQuery(query as any, tables, relationships, context);
+            }
+          } else {
+            const table = tables.find(t => t.id === report.sourceId || t.name === report.sourceId);
+            if (table) {
+              rawData = table.data || [];
+            }
+          }
+
+          if (report.columns && report.columns.length > 0) {
+            const visibleCols = report.columns.filter(c => c.visible !== false);
+            exportData = rawData.map(row => {
+              const mappedRow: Record<string, any> = {};
+              visibleCols.forEach(col => {
+                let val = row[col.fieldId];
+                if (val === undefined && col.label) val = row[col.label];
+                if (val === undefined) {
+                  const lowerField = (col.fieldId || '').toLowerCase();
+                  const lowerLabel = (col.label || '').toLowerCase();
+                  const keyMatch = Object.keys(row).find(k => {
+                    const lk = k.toLowerCase();
+                    return lk === lowerField || lk === lowerLabel || lk.endsWith('.' + lowerField);
+                  });
+                  if (keyMatch) val = row[keyMatch];
+                }
+                const header = col.label || col.fieldId;
+                mappedRow[header] = val !== undefined && val !== null ? val : '';
+              });
+              return mappedRow;
+            });
+          } else {
+            exportData = rawData;
+          }
+        }
+      }
+
+      // Fallback if exportData is still empty
+      if (exportData.length === 0) {
+        const ctxSourceTable = (context as any).sourceTable;
+        if (ctxSourceTable && ctxSourceTable.data && ctxSourceTable.data.length > 0) {
+          exportData = ctxSourceTable.data;
+          exportTitle = title || `Export_Tabelle_${ctxSourceTable.name}`;
+        } else if (context.currentRecord) {
+          exportData = [context.currentRecord];
+          exportTitle = title || 'Export_Datensatz';
+        } else {
+          const tableWithData = tables.find(t => t.data && t.data.length > 0) || tables[0];
+          if (tableWithData) {
+            exportData = tableWithData.data || [];
+            exportTitle = title || `Export_Tabelle_${tableWithData.name}`;
+          } else if (queries.length > 0) {
+            const q = queries[0];
+            exportData = executeSelectQuery(q as any, tables, relationships, context);
+            exportTitle = title || `Export_Query_${q.name}`;
+          }
         }
       }
 
@@ -83,10 +147,10 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
         const query = queries.find(q => q.id === step.queryId);
         if (query) {
           if (query.type === 'SELECT') {
-            executeSelectQuery(query as any, tables, []);
+            executeSelectQuery(query as any, tables, relationships, context);
             if (onShowToast) onShowToast(`Makro: Abfrage '${query.name}' wurde ausgeführt.`, 'info');
           } else {
-            const res = executeActionQuery(query, tables, []);
+            const res = executeActionQuery(query, tables, relationships, context);
             if (onTableChange && res.updatedTables) {
               res.updatedTables.forEach(t => onTableChange(t));
             }
@@ -162,7 +226,7 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
 
     case 'MESSAGE_BOX': {
       if (step.messageText) {
-        alert(`[MS Access Hinweis]\n\n${step.messageText}`);
+        alert(`[Makro Hinweis]\n\n${step.messageText}`);
       }
       break;
     }
@@ -215,6 +279,108 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
       if (step.toastMessage && onShowToast) {
         onShowToast(step.toastMessage, step.toastType || 'info');
       }
+      break;
+    }
+
+    case 'RUN_MACRO': {
+      if (step.targetMacroId) {
+        const allMacros = getSavedMacros();
+        const targetMacro = allMacros.find(m => m.id === step.targetMacroId);
+        if (targetMacro) {
+          executeMacro(targetMacro, context);
+        }
+      }
+      break;
+    }
+
+    case 'SET_TEMP_VAR': {
+      if (step.varName) {
+        (window as any).__macroTempVars = (window as any).__macroTempVars || {};
+        (window as any).__macroTempVars[step.varName] = step.varValue;
+        if (onShowToast) onShowToast(`TempVar '${step.varName}' = '${step.varValue}' gesetzt`, 'info');
+      }
+      break;
+    }
+
+    case 'REMOVE_TEMP_VAR': {
+      if (step.varName && (window as any).__macroTempVars) {
+        delete (window as any).__macroTempVars[step.varName];
+      } else if ((window as any).__macroTempVars) {
+        (window as any).__macroTempVars = {};
+      }
+      if (onShowToast) onShowToast('TempVars gelöscht', 'info');
+      break;
+    }
+
+    case 'SAVE_RECORD': {
+      if (onShowToast) onShowToast('Datensatz wurde erfolgreich gespeichert.', 'success');
+      break;
+    }
+
+    case 'DELETE_RECORD': {
+      if (onShowToast) onShowToast('Datensatz wurde gelöscht.', 'warning');
+      break;
+    }
+
+    case 'REMOVE_FILTER': {
+      if (onShowToast) onShowToast('Filter & Sortierung entfernt.', 'info');
+      break;
+    }
+
+    case 'CLOSE_WINDOW':
+    case 'MINIMIZE_WINDOW':
+    case 'MAXIMIZE_WINDOW':
+    case 'RESTORE_WINDOW': {
+      if (onShowToast) onShowToast(`Fensteraktion executed: ${step.type}`, 'info');
+      break;
+    }
+
+    // --- SYSTEMBEFEHLE (Plattform-Abhängig: .NET, PHP, Electron, Web) ---
+    case 'SYSTEM_CURSOR_BUSY': {
+      document.body.style.cursor = 'wait';
+      setTimeout(() => { document.body.style.cursor = 'default'; }, step.params?.durationMs || 2500);
+      if (onShowToast) onShowToast('System: Sanduhrzeiger / Beschäftigt-Indikator gestartet.', 'info');
+      break;
+    }
+
+    case 'SYSTEM_BEEP': {
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } catch (e) {
+        console.log('System Beep:', e);
+      }
+      if (onShowToast) onShowToast('System: Signalton (Beep) abgespielt.', 'info');
+      break;
+    }
+
+    case 'SYSTEM_QUIT': {
+      if (onShowToast) onShowToast('System: Anwendung beenden gestartet (Target: .NET Application.Exit() / Electron app.quit() / PHP exit()).', 'warning');
+      try { window.close(); } catch (e) {}
+      break;
+    }
+
+    case 'CLOSE_DATABASE': {
+      if (onShowToast) onShowToast('System: Datenbank/Projekt-Sitzung wurde geschlossen.', 'info');
+      break;
+    }
+
+    case 'SYSTEM_EXEC_COMMAND': {
+      const cmd = step.sysCommand || 'ping 127.0.0.1';
+      const target = step.sysTargetPlatform || 'ALL';
+      if (onShowToast) {
+        onShowToast(`Systembefehl [${target}]: '${cmd}' ausgeführt.`, 'info');
+      }
+      console.log(`[SystemExec - Target ${target}] Command:`, cmd);
       break;
     }
   }

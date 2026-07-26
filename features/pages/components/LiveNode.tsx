@@ -309,8 +309,8 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
                      if (tbl) {
                          dataToExport = tbl.data || [];
                          title = `Export_${tbl.name}`;
-                     } else if (qry && qry.type === 'SELECT') {
-                         dataToExport = executeSelectQuery(qry as any, tables, []);
+                     } else if (qry && (!qry.type || qry.type === 'SELECT')) {
+                         dataToExport = executeSelectQuery(qry as any, tables, relationships);
                          title = `Export_${qry.name}`;
                      }
 

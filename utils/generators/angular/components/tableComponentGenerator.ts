@@ -199,6 +199,25 @@ export const generateTableComponents = (
                 </div>
             </div>
         </div>
+
+        <!-- Delete Confirmation Modal (Bootstrap) -->
+        <div *ngIf="showDeleteConfirm" class="modal show d-block" style="background: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title">Datensatz löschen</h5>
+                        <button type="button" class="btn-close" (click)="cancelDelete()"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Sind Sie sicher, dass Sie diesen Datensatz unwiderruflich löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden.</p>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button (click)="cancelDelete()" class="btn btn-secondary">Abbrechen</button>
+                        <button (click)="confirmDelete()" class="btn btn-danger">Ja, löschen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
       </div>`;
       } else {
           listHtml = `
@@ -262,6 +281,20 @@ export const generateTableComponents = (
                 <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
                     <a [routerLink]="['/${camelName}', getFieldValue(selectedItem, '${pkField}')]" (click)="closeDetails()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm transition">Bearbeiten</a>
                     <button (click)="closeDetails()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-semibold transition">Schließen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal (Tailwind) -->
+        <div *ngIf="showDeleteConfirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden border border-slate-200" (click)="$event.stopPropagation()">
+                <div class="p-6">
+                    <h3 class="text-lg font-bold text-slate-800 mb-2">Datensatz löschen</h3>
+                    <p class="text-sm text-slate-600">Sind Sie sicher, dass Sie diesen Datensatz unwiderruflich löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden.</p>
+                </div>
+                <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                    <button (click)="cancelDelete()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-semibold transition">Abbrechen</button>
+                    <button (click)="confirmDelete()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm transition">Ja, löschen</button>
                 </div>
             </div>
         </div>
@@ -352,7 +385,27 @@ export class ${pascalName}ListComponent implements OnInit {
       }
   }
 
-  delete(id: any) { if(confirm('Löschen?')) this.api.delete('${camelName}', id).subscribe(() => this.load()); }
+  showDeleteConfirm = false;
+  deleteId: any = null;
+
+  delete(id: any) {
+      this.deleteId = id;
+      this.showDeleteConfirm = true;
+  }
+
+  cancelDelete() {
+      this.deleteId = null;
+      this.showDeleteConfirm = false;
+  }
+
+  confirmDelete() {
+      if (this.deleteId) {
+          this.api.delete('${camelName}', this.deleteId).subscribe(() => {
+              this.cancelDelete();
+              this.load();
+          });
+      }
+  }
 
   viewDetails(item: any) { this.selectedItem = item; }
   closeDetails() { this.selectedItem = null; }

@@ -14,13 +14,13 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
     <div className="flex gap-4 h-full">
       <RibbonGroup label="Lokaler Import">
         <RibbonButton icon={<FileSpreadsheet className="text-green-600" />} label="Excel Import" onClick={() => onAction('import_excel')} />
-        <RibbonButton icon={<Database className="text-red-700" />} label="Access (XML)" onClick={() => onAction('import_access')} />
+        <RibbonButton icon={<Database className="text-red-700" />} label="XML Import" onClick={() => onAction('import_access')} />
         <RibbonButton icon={<FileCode className="text-purple-600" />} label="Schema/SQL/JSON" onClick={() => onAction('import_schema')} />
       </RibbonGroup>
 
       <RibbonGroup label="Lokaler Export">
         <RibbonButton icon={<FileSpreadsheet className="text-emerald-700" />} label="Excel Export" onClick={() => onAction('export_excel')} />
-        <RibbonButton icon={<Database className="text-orange-700" />} label="Access (XML)" onClick={() => onAction('export_access')} />
+        <RibbonButton icon={<Database className="text-orange-700" />} label="XML Export" onClick={() => onAction('export_access')} />
         <RibbonButton icon={<FileCode className="text-indigo-600" />} label="SQL Dump / Schema" onClick={() => onAction('export_sql')} />
       </RibbonGroup>
 

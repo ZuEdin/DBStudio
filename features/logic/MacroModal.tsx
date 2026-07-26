@@ -36,7 +36,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
     const newM: Macro = {
       id: `macro_${Date.now()}`,
       name: 'Neues Makro',
-      description: 'Benutzerdefiniertes MS Access Makro',
+      description: 'Benutzerdefiniertes Makro',
       category: 'CUSTOM',
       steps: [
         {
@@ -105,7 +105,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>Makro-Manager (MS Access Style)</span>
+                <span>Makro-Manager</span>
                 <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-mono border border-indigo-500/30">Automation & Background Tasks</span>
               </h3>
               <p className="text-xs text-slate-400">Erstellen und verwalten Sie automatisierte Makros für Berichts-Exports (PDF, Excel, XML, JSON, CSV) und Daten-Imports.</p>
@@ -228,17 +228,106 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                             value={step.type}
                             onChange={(e) => {
                               const newType = e.target.value as any;
-                              const updatedSteps = selectedMacro.steps.map(s => s.id === step.id ? { ...s, type: newType } : s);
+                              const updatedSteps = selectedMacro.steps.map(s => s.id === step.id ? { 
+                                ...s, 
+                                type: newType,
+                                ...(newType === 'EXPORT_REPORT' && !s.exportConfig ? { exportConfig: { sourceType: 'report', sourceId: '', format: 'PDF', title: 'Bericht' } } : {})
+                              } : s);
                               setSelectedMacro({ ...selectedMacro, steps: updatedSteps });
                             }}
                             className="w-full bg-slate-900 text-white p-2 rounded-lg border border-slate-700 focus:outline-none"
                           >
-                            <option value="EXPORT_REPORT">📊 Bericht / Daten Exportieren (PDF, Excel, XML, JSON, CSV)</option>
-                            <option value="SMART_IMPORT">📥 Smart Upload & Import Starten</option>
-                            <option value="EXECUTE_QUERY">⚡ Abfrage Ausführen</option>
-                            <option value="SHOW_TOAST">🔔 Benachrichtigung Anzeigen</option>
+                            <optgroup label="📂 Benutzeroberflächenbefehle">
+                              <option value="SHOW_TOAST">🔔 Benachrichtigung (Toast)</option>
+                              <option value="MESSAGE_BOX">💬 Meldungsfeld (Alert)</option>
+                              <option value="CONFIRM_DIALOG">❓ Bestätigungsdialog</option>
+                              <option value="NAVIGATE">↗️ Navigieren Zu Seite</option>
+                            </optgroup>
+                            <optgroup label="🗄️ Datenbankobjekte">
+                              <option value="OPEN_REPORT">📊 Öffnen Bericht</option>
+                              <option value="PRINT_REPORT">🖨️ Drucken / Seitenansicht Bericht</option>
+                              <option value="OPEN_FORM">📋 Öffnen Formular</option>
+                              <option value="CLOSE_FORM">❌ Schließen Formular</option>
+                              <option value="OPEN_TABLE">📑 Öffnen Tabelle</option>
+                              <option value="REFRESH_OBJECT">🔄 Aktualisieren Objekt</option>
+                            </optgroup>
+                            <optgroup label="✍️ Dateneingabevorgänge">
+                              <option value="SAVE_RECORD">💾 Datensatz Speichern</option>
+                              <option value="DELETE_RECORD">🗑️ Datensatz Löschen</option>
+                              <option value="CALCULATE_FORMULA">🧮 Formel Berechnen</option>
+                            </optgroup>
+                            <optgroup label="📤 Datenimport/-export">
+                              <option value="EXPORT_REPORT">📊 Exportieren Mit Formatierung (Bericht / Tabelle)</option>
+                              <option value="SMART_IMPORT">📥 Smart Upload & Import Wizard</option>
+                              <option value="EMAIL_DATABASE_OBJECT">📧 E-Mail Datenbankobjekt</option>
+                            </optgroup>
+                            <optgroup label="🪟 Fensterverwaltung">
+                              <option value="CLOSE_WINDOW">❌ Fenster Schließen</option>
+                              <option value="MAXIMIZE_WINDOW">🔲 Maximieren Fenster</option>
+                              <option value="MINIMIZE_WINDOW">🛋️ Minimieren Fenster</option>
+                              <option value="RESTORE_WINDOW">↩️ Wiederherstellen Fenster</option>
+                            </optgroup>
+                            <optgroup label="🔍 Filter / Abfrage / Suche">
+                              <option value="EXECUTE_QUERY">⚡ Abfrage Ausführen / Öffnen</option>
+                              <option value="EXECUTE_ACTION">💥 Aktionsabfrage Ausführen</option>
+                              <option value="SET_FILTER">🎯 Anwenden / Festlegen Filter</option>
+                              <option value="REMOVE_FILTER">🧹 Filter & Sortierung Entfernen</option>
+                              <option value="REQUERY">🔄 Aktualisieren Daten (Requery)</option>
+                            </optgroup>
+                            <optgroup label="⚡ Makrobefehle">
+                              <option value="RUN_MACRO">▶️ Ausführen Makro</option>
+                              <option value="EXECUTE_JS_SCRIPT">💻 Ausführen Code (JS/TS Sandbox)</option>
+                              <option value="SET_TEMP_VAR">📌 Festlegen TempVar</option>
+                              <option value="REMOVE_TEMP_VAR">🗑️ Entfernen TempVar</option>
+                              <option value="STOP_ALL_MACROS">🛑 Stopp Alle Makros</option>
+                            </optgroup>
+                            <optgroup label="⚙️ Systembefehle (Target-Spezifisch)">
+                              <option value="SYSTEM_CURSOR_BUSY">⏳ Anzeigen Sanduhrzeiger (Busy)</option>
+                              <option value="SYSTEM_BEEP">🔔 Signalton (Beep)</option>
+                              <option value="SYSTEM_QUIT">🚪 Beenden Anwendung (Quit)</option>
+                              <option value="CLOSE_DATABASE">🔒 Schließen Datenbank</option>
+                              <option value="SYSTEM_EXEC_COMMAND">🖥️ Systembefehl Ausführen (Process.Start / Exec)</option>
+                            </optgroup>
                           </select>
                         </div>
+
+                        {/* SYSTEM_EXEC_COMMAND Controls */}
+                        {step.type === 'SYSTEM_EXEC_COMMAND' && (
+                          <div className="col-span-2 space-y-2 bg-slate-900 p-2.5 rounded-lg border border-slate-700">
+                            <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                              <span>Systembefehl / Kommandozeile:</span>
+                              <span className="text-[10px] text-indigo-400 font-mono">Process.Start / shell_exec</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <input 
+                                type="text" 
+                                value={step.sysCommand || ''} 
+                                onChange={e => {
+                                  const cmd = e.target.value;
+                                  const updatedSteps = selectedMacro.steps.map(s => s.id === step.id ? { ...s, sysCommand: cmd } : s);
+                                  setSelectedMacro({ ...selectedMacro, steps: updatedSteps });
+                                }}
+                                placeholder="z.B. dotnet run / php script.php / calc.exe"
+                                className="col-span-2 bg-slate-950 text-white border border-slate-700 rounded p-1.5 text-xs font-mono"
+                              />
+                              <select
+                                value={step.sysTargetPlatform || 'ALL'}
+                                onChange={e => {
+                                  const plat = e.target.value as any;
+                                  const updatedSteps = selectedMacro.steps.map(s => s.id === step.id ? { ...s, sysTargetPlatform: plat } : s);
+                                  setSelectedMacro({ ...selectedMacro, steps: updatedSteps });
+                                }}
+                                className="bg-slate-950 text-white border border-slate-700 rounded p-1.5 text-xs"
+                              >
+                                <option value="ALL">Alle Systeme</option>
+                                <option value="DOTNET">.NET (C#)</option>
+                                <option value="PHP">PHP Backend</option>
+                                <option value="ELECTRON">Electron App</option>
+                                <option value="BROWSER">Browser Sandbox</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
 
                         {/* EXPORT_REPORT Options */}
                         {step.type === 'EXPORT_REPORT' && (
@@ -280,6 +369,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                                 }}
                                 className="w-full bg-slate-900 text-white p-2 rounded-lg border border-slate-700 focus:outline-none"
                               >
+                                <option value="report">Erstellter Bericht</option>
                                 <option value="table">Tabelle</option>
                                 <option value="query">Abfrage (Query)</option>
                               </select>
@@ -300,7 +390,9 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                                 className="w-full bg-slate-900 text-white p-2 rounded-lg border border-slate-700 focus:outline-none"
                               >
                                 <option value="">-- Objekt wählen --</option>
-                                {step.exportConfig?.sourceType === 'table' ? (
+                                {step.exportConfig?.sourceType === 'report' ? (
+                                  reports.map(r => <option key={r.id} value={r.id}>Bericht: {r.name}</option>)
+                                ) : step.exportConfig?.sourceType === 'table' ? (
                                   tables.map(t => <option key={t.id} value={t.id}>Tabelle: {t.name}</option>)
                                 ) : (
                                   queries.map(q => <option key={q.id} value={q.id}>Abfrage: {q.name}</option>)

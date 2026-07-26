@@ -1373,8 +1373,8 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
                       <div className="p-4 rounded-full bg-orange-100 text-orange-700 group-hover:scale-110 transition-transform">
                         <Database size={24}/>
                       </div>
-                      <span className="text-xs font-bold text-slate-700">Access (XML) Export</span>
-                      <span className="text-[10px] text-slate-400">MS Access dataroot XML</span>
+                      <span className="text-xs font-bold text-slate-700">XML Data Export</span>
+                      <span className="text-[10px] text-slate-400">XML Schema &amp; Data</span>
                     </button>
 
                     {/* SQL Script Export Card */}

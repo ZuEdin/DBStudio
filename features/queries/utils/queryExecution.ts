@@ -21,6 +21,49 @@ export const extractQueryParameters = (query: SelectQuery): string[] => {
   return params;
 };
 
+// Helper to resolve form values from context or fallback structures
+export function resolveFormValue(formName: string, fieldName: string, context?: Record<string, any>): any {
+  if (!formName || !fieldName) return undefined;
+  const targetForm = formName.toLowerCase();
+  const targetField = fieldName.toLowerCase();
+
+  if (context) {
+    // 1. Direct forms.formName.fieldName key
+    const key1 = `forms.${targetForm}.${targetField}`;
+    if (context[key1] !== undefined) return context[key1];
+
+    // 2. Case-insensitive key scan in context
+    for (const k of Object.keys(context)) {
+      if (k.toLowerCase() === key1) return context[k];
+    }
+
+    // 3. Check currentRecord in context
+    if (context.currentRecord) {
+      const rec = context.currentRecord;
+      if (rec[fieldName] !== undefined) return rec[fieldName];
+      for (const k of Object.keys(rec)) {
+        if (k.toLowerCase() === targetField) return rec[k];
+      }
+    }
+
+    // 4. Check params in context
+    if (context.params) {
+      if (context.params[fieldName] !== undefined) return context.params[fieldName];
+      for (const k of Object.keys(context.params)) {
+        if (k.toLowerCase() === targetField) return context.params[k];
+      }
+    }
+
+    // 5. Check direct context keys
+    if (context[fieldName] !== undefined) return context[fieldName];
+    for (const k of Object.keys(context)) {
+      if (k.toLowerCase() === targetField) return context[k];
+    }
+  }
+
+  return undefined;
+}
+
 // Helper to evaluate criteria
 const matchesCriteria = (value: any, criteria: string, context?: Record<string, any>): boolean => {
   if (!criteria) return true; 
@@ -35,21 +78,38 @@ const matchesCriteria = (value: any, criteria: string, context?: Record<string, 
     }
   }
 
-  // Support for MS Access style form references e.g., [Forms]![FormName]![FieldName]
-  if (context && (crit.toLowerCase().startsWith('=[forms]!') || crit.toLowerCase().startsWith('[forms]!'))) {
-      let matchStr = crit.replace(/^=/, '');
-      // E.g., "[Forms]![MyForm]![MyField]"
-      const formMatch = matchStr.match(/\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/i) || matchStr.match(/\[Forms\]!([^!]+)!([^!]+)/i);
+  // Support for MS Access style form references e.g., [Forms]![FormName]![FieldName] or Forms!FormName!FieldName
+  if (/(?:\[?Forms\]?!)/i.test(crit)) {
+      const formMatch = crit.match(/(?:\[?Forms\]?!\s*\[?([^!\]]+)\]?!\s*\[?([^!\]\s]+)\]?)/i);
       if (formMatch && formMatch.length >= 3) {
-          const formName = formMatch[1].toLowerCase();
-          const fieldName = formMatch[2].toLowerCase();
-          // Replace criteria with the value from context
-          const contextKey = `forms.${formName}.${fieldName}`;
-          if (context[contextKey] !== undefined) {
-              crit = String(context[contextKey]);
+          const formName = formMatch[1];
+          const fieldName = formMatch[2];
+          const val = resolveFormValue(formName, fieldName, context);
+          
+          if (val !== undefined && val !== null) {
+              const strVal = String(val);
+              let opMatch = crit.match(/^(=|like |>|<|>=|<=)/i);
+              let op = opMatch ? opMatch[0].trim() : '=';
+              
+              const rowValStr = String(value !== null && value !== undefined ? value : '');
+
+              if (op === '=') {
+                  return rowValStr.toLowerCase() === strVal.toLowerCase();
+              } else if (op === '>') {
+                  return Number(value) > Number(strVal);
+              } else if (op === '<') {
+                  return Number(value) < Number(strVal);
+              } else if (op === '>=') {
+                  return Number(value) >= Number(strVal);
+              } else if (op === '<=') {
+                  return Number(value) <= Number(strVal);
+              } else if (op.toLowerCase() === 'like') {
+                  const pattern = strVal.replace(/\*/g, '.*').replace(/\?/g, '.');
+                  return new RegExp(`^${pattern}$`, 'i').test(rowValStr);
+              }
           } else {
-              // If form is not open or variable doesn't exist, we might treat it as empty
-              crit = '';
+              // Form parameter value is empty/not found: match only if row value is also empty
+              return value === null || value === undefined || String(value).trim() === '';
           }
       }
   }
@@ -121,13 +181,51 @@ const matchesCriteria = (value: any, criteria: string, context?: Record<string, 
       return value !== null && value !== undefined && value !== '' && String(value).trim() !== '';
   }
 
-  if (crit.startsWith('zwischen') || crit.includes(' and ')) {
-    const parts = crit.replace('zwischen', '').split('und');
+  // Compound criteria with UND / AND (e.g., ">= 10 und <= 50", "> 5 und < 20")
+  if ((crit.includes(' und ') || crit.includes(' and ')) && !crit.startsWith('zwischen') && !crit.startsWith('between')) {
+    const subCrits = crit.split(/\s+(?:und|and)\s+/i);
+    return subCrits.every(sc => matchesCriteria(value, sc.trim(), context));
+  }
+
+  // BETWEEN / ZWISCHEN syntax (e.g., "Zwischen 10 Und 50", "Between 2025-01-01 And 2025-12-31", "Zwischen 'A' Und 'M'")
+  if (crit.startsWith('zwischen') || crit.startsWith('between') || crit.includes(' und ') || crit.includes(' and ')) {
+    const clean = crit.replace(/^(zwischen|between)\s+/i, '');
+    const parts = clean.split(/\s+(?:und|and)\s+/i);
     if (parts.length === 2) {
-      const min = parseFloat(parts[0].trim());
-      const max = parseFloat(parts[1].trim());
+      const p1 = parts[0].trim().replace(/^["']|["']$/g, '');
+      const p2 = parts[1].trim().replace(/^["']|["']$/g, '');
+
+      // Check if both parts are dates
+      const isDate1 = p1.match(/^\d{4}-\d{2}-\d{2}$/) || p1.match(/^\d{2}\.\d{2}\.\d{4}$/) || p1.includes('heute') || p1.includes('today');
+      const isDate2 = p2.match(/^\d{4}-\d{2}-\d{2}$/) || p2.match(/^\d{2}\.\d{2}\.\d{4}$/) || p2.includes('heute') || p2.includes('today');
+
+      if (isDate1 || isDate2) {
+        let valDate = new Date(typeof value === 'number' ? (value > 10000000000 ? value : value * 1000) : value);
+        if (!isNaN(valDate.getTime())) {
+          valDate.setHours(0,0,0,0);
+          const parseD = (s: string) => {
+            if (s.includes('heute') || s.includes('today')) { const d = new Date(); d.setHours(0,0,0,0); return d; }
+            const iso = s.includes('.') ? s.split('.').reverse().join('-') : s;
+            const d = new Date(iso); d.setHours(0,0,0,0); return d;
+          };
+          const d1 = parseD(p1);
+          const d2 = parseD(p2);
+          if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+            const vt = valDate.getTime();
+            return vt >= Math.min(d1.getTime(), d2.getTime()) && vt <= Math.max(d1.getTime(), d2.getTime());
+          }
+        }
+      }
+
       const numVal = parseFloat(value);
-      return !isNaN(numVal) && !isNaN(min) && !isNaN(max) && numVal >= min && numVal <= max;
+      const minNum = parseFloat(p1);
+      const maxNum = parseFloat(p2);
+      if (!isNaN(numVal) && !isNaN(minNum) && !isNaN(maxNum)) {
+        return numVal >= Math.min(minNum, maxNum) && numVal <= Math.max(minNum, maxNum);
+      }
+
+      const strVal = String(value ?? '').toLowerCase();
+      return strVal >= p1.toLowerCase() && strVal <= p2.toLowerCase();
     }
   }
 
@@ -190,13 +288,13 @@ const resolveExpression = (row: Record<string, any>, expression: string): any =>
 };
 
 export const executeSelectQuery = (query: SelectQuery, tables: Table[], relationships: Relationship[], context?: Record<string, any>): Record<string, any>[] => {
-    if (query.nodes.length === 0 || query.columns.length === 0) return [];
+    if (!query || !query.nodes || query.nodes.length === 0) return [];
 
     // 1. Prepare Data (Cartesian Product / Join)
     let workingData: Record<string, any>[] = [];
     const queryTableIds = new Set(query.nodes.map(n => n.tableId));
     const initialTableId = query.nodes[0].tableId;
-    const initialTable = tables.find(t => t.id === initialTableId);
+    const initialTable = tables.find(t => t.id === initialTableId || t.name === initialTableId || t.name?.toLowerCase() === initialTableId?.toLowerCase());
     
     if (!initialTable || !initialTable.data) return [];
 

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork, LayoutTemplate, FileCode, RefreshCw } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork, LayoutTemplate, FileCode, RefreshCw, Cpu } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -84,6 +84,7 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
 
       {/* Logic/Workflow Group (NEW) */}
       <RibbonGroup label="Logik" isLast>
+        <RibbonButton icon={<Cpu className="text-indigo-600"/>} label="Makros" onClick={() => onAction('logic_designer')} />
         <RibbonButton icon={<GitFork className="text-purple-600"/>} label="Workflow" onClick={() => onAction('create_workflow')} />
       </RibbonGroup>
     </div>

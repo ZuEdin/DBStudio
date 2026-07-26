@@ -2,6 +2,7 @@ import { Table, Form, Report, VirtualFile, BackendConfig, Query, Relationship } 
 import { generateTableComponents } from './components/tableComponentGenerator';
 import { generateReportComponents } from './components/reportComponentGenerator';
 import { generateCustomPageComponents } from './components/customComponentGenerator';
+import { generateQueryComponents } from './components/queryComponentGenerator';
 
 interface RouteInfo {
   path: string;
@@ -42,6 +43,11 @@ export const generateAngularComponents = (
   const pagesRes = generateCustomPageComponents(pages, tables, queries, forms, appRoot, isBootstrap, customComponents);
   files.push(...pagesRes.files);
   routes.push(...pagesRes.routes);
+
+  // 4. Query Pages
+  const queriesRes = generateQueryComponents(queries, tables, appRoot);
+  files.push(...queriesRes.files);
+  routes.push(...queriesRes.routes);
 
   return { files, routes };
 };

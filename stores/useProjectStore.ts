@@ -546,7 +546,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const sql = generateSqlSelect(query.nodes, query.columns, get().tables, get().relationships, DbType.SQLite, true, context);
             if (!sql) return executeJsQuery(query, get().tables, get().relationships, context);
             const results = executeRawSql(sql);
-            if (results && results.length > 0) return results;
+            if (results && Array.isArray(results)) return results;
             return executeJsQuery(query, get().tables, get().relationships, context);
         } catch (e) {
             console.warn("SQL Engine failed, falling back to JS", e);

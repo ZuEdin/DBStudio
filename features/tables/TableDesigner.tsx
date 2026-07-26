@@ -543,7 +543,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                         <Database size={16} className="text-amber-400" />
                         <span>Feldeigenschaften — Feld: <span className="text-amber-300 font-mono font-semibold text-sm">{selectedField.name}</span> ({selectedField.type})</span>
                       </div>
-                      <span className="text-[11px] font-normal text-slate-300">MS Access Entwurfsmodus</span>
+                      <span className="text-[11px] font-normal text-slate-300">Tabellen-Entwurfsmodus</span>
                     </div>
 
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50">
