@@ -2,7 +2,7 @@
 import { Table, VirtualFile, BackendConfig, Query, SelectQuery } from '../../../types/index';
 import { toCamelCase, toPascalCase, isNullable, resolveType } from '../common';
 
-export const generateAngularServices = (tables: Table[], queries: Query[], config: BackendConfig, appRoot: string): VirtualFile[] => {
+export const generateAngularServices = (tables: Table[], queries: Query[], config: BackendConfig, appRoot: string, macros: any[] = []): VirtualFile[] => {
   const files: VirtualFile[] = [];
   const useAuth = config.authConfig?.useUserLogin;
 
@@ -486,6 +486,7 @@ import { ApiService } from './api.service';
 
 const tableEndpointsMap: Record<string, string> = ${JSON.stringify(tableEndpointsMap, null, 2)};
 const queryEndpointsMap: Record<string, string> = ${JSON.stringify(queryEndpointsMap, null, 2)};
+const PROJECT_MACROS: Macro[] = ${JSON.stringify(macros, null, 2)};
 
 export interface MacroStep {
   id: string;
@@ -501,12 +502,14 @@ export interface MacroStep {
   toastType?: 'success' | 'info' | 'warning' | 'error';
   messageText?: string;
   confirmPrompt?: string;
+  [key: string]: any;
 }
 
 export interface Macro {
   id: string;
   name: string;
   steps: MacroStep[];
+  [key: string]: any;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -522,6 +525,9 @@ export class MacroService {
 
     if (typeof macroOrId === 'string') {
       macro = savedMacros.find(m => m.id === macroOrId || m.name === macroOrId || m.id?.toLowerCase() === macroOrId.toLowerCase() || m.name?.toLowerCase() === macroOrId.toLowerCase()) || null;
+      if (!macro) {
+        macro = PROJECT_MACROS.find(m => m.id === macroOrId || m.name === macroOrId || m.id?.toLowerCase() === macroOrId.toLowerCase() || m.name?.toLowerCase() === macroOrId.toLowerCase()) || null;
+      }
     } else {
       macro = macroOrId;
     }

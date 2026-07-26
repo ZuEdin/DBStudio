@@ -13,7 +13,8 @@ export const generateAngular = (
   config: BackendConfig, 
   reports: Report[] = [], 
   pages: CustomPage[] = [],
-  customComponents: any[] = []
+  customComponents: any[] = [],
+  macros: any[] = []
 ): VirtualFile[] => {
 
   const root = `Frontend`;
@@ -84,7 +85,7 @@ ${routeDefs}
   };
   
   const configFiles = generateAngularConfigs(config, root);
-  const serviceFiles = generateAngularServices(tables, queries, config, appRoot);
+  const serviceFiles = generateAngularServices(tables, queries, config, appRoot, macros);
   const structureFiles = generateAngularStructure(config, tables, root, pages, reports, queries);
 
   const readmeContent = `# ${config.projectName} (Angular Client)

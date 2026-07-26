@@ -126,4 +126,72 @@ Um MS Access im Unternehmensumfeld abzulösen, konzentrieren wir uns auf diese 6
 
 ---
 
+## ⚙️ 4. Makro- & Automatisierungs-Roadmap (Fahrplan)
+
+Hier ist die detaillierte Aufteilung der Makro-Befehle zwischen **Client (Frontend)** und **Server (Backend)**, um eine sichere, skalierbare und robuste Ausführung zu gewährleisten.
+
+### 💻 A. Frontend-Makros (UI, Navigation & Lokales Dateisystem)
+Diese Makros laufen direkt im Browser des Benutzers und steuern die Benutzeroberfläche und clientseitigen Aktionen.
+
+*   **UI-Navigation & Formular-Steuerung:**
+    *   `OPEN_FORM` / `CLOSE_FORM`: Formulare mit Kontextparametern öffnen/schließen.
+    *   `OPEN_REPORT`: Berichte visualisieren.
+    *   `NAVIGATE`: Zu bestimmten Seiten springen.
+    *   `GO_TO_CONTROL`: Eingabefelder fokussieren.
+*   **Interaktionen & Dialoge:**
+    *   `MESSAGE_BOX`: Warn- und Informationsdialoge anzeigen (`alert`).
+    *   `CONFIRM_DIALOG`: Sicherheitsabfragen vor kritischen Aktionen durchführen (`confirm`).
+    *   `SHOW_TOAST`: Kurze, unaufdringliche Statusmeldungen anzeigen.
+*   **Client-seitiger Export & Vorbereitung:**
+    *   `EXPORT_REPORT` / `PRINT_REPORT`: Berichte, Tabellen oder Abfragen lokal im Browser zu PDF, Excel (XLSX) oder CSV rendern und herunterladen.
+*   **Lokale Hilfsbefehle:**
+    *   `SYSTEM_BEEP`: Signalton abspielen.
+    *   `SET_TEMP_VAR` / `REMOVE_TEMP_VAR`: Temporäre Variablen für die aktuelle Sitzung speichern.
+
+### ☁️ B. Backend-Makros (Datenintegrität, Sicherheit & Externe APIs)
+Diese Aktionen betreffen sensible Daten, vertrauliche Zugangsdaten (API-Keys) oder zeitintensive Hintergrundaufgaben. Sie dürfen **niemals** ungeschützt im Frontend ausgeführt werden, sondern werden vom Server verarbeitet.
+
+*   **📧 E-Mail-Versand (`EMAIL_DATABASE_OBJECT`):**
+    *   *Warum Backend?* Zum Versenden von E-Mails (z.B. über SMTP, SendGrid, Mailjet) werden Zugangsdaten benötigt. Würden diese im Frontend liegen, könnte jeder Nutzer sie auslesen. Der Server nimmt das Makro entgegen, lädt die Daten aus der DB, generiert die PDF-Beilage sicher im Hintergrund und versendet die E-Mail verschlüsselt.
+*   **Transaktionale Datenänderungen:**
+    *   `EXECUTE_ACTION` (UPDATE, INSERT, DELETE): Bulk-Aktionen direkt auf der Datenbank ausführen. Der Server stellt die Transaktions-Sicherheit sicher, damit bei Fehlern ein automatisches Rollback erfolgt.
+    *   `SAVE_RECORD` / `DELETE_RECORD`: Datenzeilen validieren und persistieren.
+*   **Sicherheitsrelevante Geschäftslogik:**
+    *   `EXECUTE_JS_SCRIPT` (VBA-Sandbox): Benutzerdefinierter JS/TS Code, der sensible Tabellenberechnungen durchführt. Die Ausführung auf dem Server verhindert Manipulationen im Client-Browser.
+*   **Integration externer Dienste:**
+    *   Synchronisierung mit Drittanbieter-APIs (CRMs, ERPs, Payment Gateways).
+
+### 🔄 C. Hybrid-Makros (Sowohl Frontend als auch Backend)
+*   **Daten-Validierungen (`BeforeUpdate` / `AfterUpdate` Triggers):**
+    *   *Frontend-Rolle:* Bietet dem Benutzer sofortige visuelle Rückmeldung bei Fehleingaben (z.B. "Ungültiges E-Mail-Format").
+    *   *Backend-Rolle:* Schützt die Datenbank vor manipulierten Anfragen. Der Server validiert die Daten ein zweites Mal, bevor sie final gespeichert werden.
+*   **Daten-Filterung & Suchen (`SET_FILTER`, `SEARCH_RECORD`):**
+    *   Große Abfragen werden serverseitig gefiltert (`LIMIT`/`OFFSET`), kleinere oder gecachte Listen können performant direkt im Frontend durchsucht werden.
+
+---
+
+## 📥 5. Smart Import Wizard & Upload-Prüfung
+
+### 🔍 Wie funktioniert der "Smart Upload & Import Wizard"?
+Der integrierte Wizard (`SmartImportModal.tsx`) ist voll funktionsfähig und bietet einen geführten 3-Schritte-Importprozess:
+
+1.  **Dateiupload & Auto-Typ-Erkennung:** Der Benutzer lädt eine **CSV-**, **JSON-** oder **Excel-** Datei hoch. Das System erkennt automatisch das Trennzeichen (z.B. `;` oder `,`) und liest die Spaltenköpfe aus.
+2.  **Auto-Field Matcher (Spalten-Mapping):** Das System führt ein intelligentes, fallunempfindliches Mapping durch. Wenn in der CSV-Spalte "E-Mail" steht und das Tabellenfeld "email" heißt, werden diese automatisch verknüpft. Der Benutzer kann Mappings manuell anpassen oder Spalten überspringen.
+3.  **Import-Strategie & Makro-Generierung:**
+    *   *Append:* Neue Zeilen werden angehängt.
+    *   *Update by PK:* Bestehende Einträge mit übereinstimmendem Primärschlüssel werden aktualisiert.
+    *   *Upsert:* Kombination aus Update und Insert.
+    *   *Makro-Profil speichern:* Das gesamte Mapping und die Einstellungen können als Makro-Aktion (`SMART_IMPORT`) gespeichert werden. So lässt sich derselbe Import zukünftig per Knopfdruck oder automatisiert wiederholen!
+
+## 📝 6. Zukünftige To-Dos & Nächste Schritte
+
+Folgende Punkte sind für die nächste Entwicklungsphase geplant und im System hinterlegt:
+
+*   [x] **Angular-Makro-Echtheitsfix:** Portierung des React-Fallback-Fixes (`PROJECT_MACROS`) in den Angular-Codegenerator (`generateAngularServices`), sodass Makros auch in exportierten Angular-Projekten ohne verlassenen Browser-LocalStorage direkt funktionieren.
+*   [ ] **Angular-Formular-Makro-Dropdown:** Integration des Makro-Aktions-Dropdown-Buttons oder entsprechender Trigger im generierten HTML der Angular-Formular-Komponenten (analog zur React-Implementierung), um zugewiesene Makros direkt aufrufen zu können.
+*   [ ] **Erweiterte E-Mail-Makro-Integration:** Entwicklung einer sicheren serverseitigen Mailer-Schnittstelle (`EMAIL_DATABASE_OBJECT`), die SMTP oder Drittanbieter-Services zur verschlüsselten PDF-Zustellung anbindet.
+*   [ ] **Zusätzliche Validierungsschemata:** Ausbau der Hybrid-Validierung für noch komplexere Tabellenbeziehungen (cross-table validation rules).
+
+---
+
 *Letzte Aktualisierung: Juli 2026 • DB Studio Pro Engineering Team*

@@ -75,7 +75,7 @@ export const generateBackendCode = (
 
   // 3. Generate Frontend Code
   if (activeConfig.frontendFramework === 'angular') {
-    const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports, pages, customComponents);
+    const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports, pages, customComponents, macros);
     files = [...files, ...angularFiles];
   } else if (activeConfig.frontendFramework === 'react') {
     const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents, macros);

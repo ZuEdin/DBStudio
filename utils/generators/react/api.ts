@@ -1029,12 +1029,14 @@ export interface MacroStep {
   confirmPrompt?: string;
   pageId?: string;
   jsCode?: string;
+  [key: string]: any;
 }
 
 export interface Macro {
   id: string;
   name: string;
   steps: MacroStep[];
+  [key: string]: any;
 }
 
 export async function executeGeneratedMacro(
