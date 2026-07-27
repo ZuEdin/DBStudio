@@ -51,9 +51,9 @@ export const useAppController = () => {
         chat.sendSystemMessage('c1', msg, 'system', 'System');
         
         setTimeout(() => {
-          const names = ['Sarah Lee', 'Tom H.'];
+          const names = ['Sarah Müller', 'Tom Schmidt'];
           const selectedName = names[Math.floor(Math.random() * names.length)];
-          const senderId = selectedName === 'Sarah Lee' ? 'u2' : 'u3';
+          const senderId = selectedName === 'Sarah Müller' ? 'u2' : 'u3';
           const replies = [
             `Sieht hervorragend aus! Ich passe mein Frontend direkt an die Tabelle '${t.name}' an.`,
             `Klasse, danke für das Schema von '${t.name}'. Ich werde direkt die API-Endpunkte dafür prüfen.`,
@@ -73,9 +73,9 @@ export const useAppController = () => {
         chat.sendSystemMessage('c1', msg, 'system', 'System');
         
         setTimeout(() => {
-          const names = ['Sarah Lee', 'Tom H.'];
+          const names = ['Sarah Müller', 'Tom Schmidt'];
           const selectedName = names[Math.floor(Math.random() * names.length)];
-          const senderId = selectedName === 'Sarah Lee' ? 'u2' : 'u3';
+          const senderId = selectedName === 'Sarah Müller' ? 'u2' : 'u3';
           const replies = [
             `Oh, wir haben '${t.name}' gelöscht? Stimmt, das alte Schema war obsolet.`,
             `Ok, ich entferne die entsprechenden Code-Referenzen für '${t.name}'.`,
@@ -98,7 +98,7 @@ export const useAppController = () => {
             chat.sendSystemMessage('c1', msg, 'system', 'System');
             
             setTimeout(() => {
-              chat.sendSystemMessage('c1', `Verstanden. Ich benenne das Modell in unserem Backend ebenfalls um.`, 'u3', 'Tom H.');
+              chat.sendSystemMessage('c1', `Verstanden. Ich benenne das Modell in unserem Backend ebenfalls um.`, 'u3', 'Tom Schmidt');
             }, 3000);
           }
           // Check for field added
@@ -109,7 +109,7 @@ export const useAppController = () => {
               chat.sendSystemMessage('c1', msg, 'system', 'System');
               
               setTimeout(() => {
-                chat.sendSystemMessage('c1', `Perfekt, '${f.name}' ist genau das, was wir für die Suche benötigt haben!`, 'u2', 'Sarah Lee');
+                chat.sendSystemMessage('c1', `Perfekt, '${f.name}' ist genau das, was wir für die Suche benötigt haben!`, 'u2', 'Sarah Müller');
               }, 3000);
             });
           }
@@ -145,7 +145,7 @@ export const useAppController = () => {
           chat.sendSystemMessage('c1', msg, 'system', 'System');
           
           setTimeout(() => {
-            chat.sendSystemMessage('c1', `Hervorragend, das sichert die referenzielle Integrität zwischen '${fromTab.name}' und '${toTab.name}'!`, 'u2', 'Sarah Lee');
+            chat.sendSystemMessage('c1', `Hervorragend, das sichert die referenzielle Integrität zwischen '${fromTab.name}' und '${toTab.name}'!`, 'u2', 'Sarah Müller');
           }, 3500);
         }
       });

@@ -1,5 +1,6 @@
 
 import { Table } from '../types/index';
+import initSqlJs from 'sql.js';
 
 // Declare global types for Electron & Tauri environments
 declare var window: any;
@@ -87,14 +88,15 @@ export const initSqlEngine = async () => {
 
     // Default Browser WASM Fallback
     activeDriver = 'wasm';
-    if (typeof window !== 'undefined' && window.initSqlJs) {
-      SQL = await window.initSqlJs({
+    const initializer = (typeof window !== 'undefined' && window.initSqlJs) ? window.initSqlJs : initSqlJs;
+    if (typeof initializer === 'function') {
+      SQL = await initializer({
         locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
       });
       db = new SQL.Database();
-      console.log("SQL Engine Initialized (WASM Browser Fallback)");
+      console.log("SQL Engine Initialized (WASM Engine Active)");
     } else {
-      console.error("SQL.js not loaded. Verify the script tag in index.html");
+      console.warn("SQL.js initializer pending or unavailable.");
     }
   } catch (e) {
     console.error("Failed to init SQL Engine", e);

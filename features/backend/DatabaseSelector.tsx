@@ -77,17 +77,17 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
     const detectBackend = async () => {
       try {
         const res = await fetch('/api/health');
-        if (res.ok) {
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           setBackendDetected(true);
           // Auto-configure Team-Cloud mode
           setActiveSource('cloud');
           
           // Get AD status from backend
           const ldapRes = await fetch('/api/auth/ldap-check');
-          if (ldapRes.ok) {
+          if (ldapRes.ok && ldapRes.headers.get('content-type')?.includes('application/json')) {
             const ldapData = await ldapRes.json();
-            setIsAdConfigured(ldapData.isAdConfigured);
-            setAdServerAddress(ldapData.serverAddress);
+            setIsAdConfigured(Boolean(ldapData.isAdConfigured));
+            if (ldapData.serverAddress) setAdServerAddress(ldapData.serverAddress);
           }
         }
       } catch (err) {
@@ -124,12 +124,19 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const loadProjects = async () => {
     setLoading(true);
     try {
-        const local = await getAllProjects();
+        const allProjects = await getAllProjects();
+        const local = allProjects.filter(p => !p.isCloud);
+        const cloudFromLocal = allProjects.filter(p => p.isCloud);
+
+        // Simulate/fetch cloud projects
+        const cloudRemote = await cloudService.getProjects();
+
+        const cloudMap = new Map<string, Project>();
+        cloudRemote.forEach(p => cloudMap.set(p.id, p));
+        cloudFromLocal.forEach(p => cloudMap.set(p.id, p));
+
         setLocalProjects(local);
-        
-        // Simulate fetching cloud projects
-        const cloud = await cloudService.getProjects();
-        setCloudProjects(cloud);
+        setCloudProjects(Array.from(cloudMap.values()));
     } finally {
         setLoading(false);
     }
@@ -193,7 +200,22 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
           } : undefined
       };
       const isCloud = newProjectType === 'cloud';
-      onCreateNew(newDbType, newProjectName, config, { isCloud, owner: user?.name || 'Zubeyr' });
+      const ownerName = user?.name || user?.email || 'Administrator';
+      if (isCloud) {
+        setActiveSource('cloud');
+        cloudService.createProject({
+          id: crypto.randomUUID(),
+          name: newProjectName,
+          lastModified: Date.now(),
+          isCloud: true,
+          owner: ownerName,
+          data: {
+            tables: [], queries: [], reports: [], forms: [], relationships: [], layout: [], tableGroups: [],
+            backendConfig: config
+          }
+        });
+      }
+      onCreateNew(newDbType, newProjectName, config, { isCloud, owner: ownerName });
     }
   };
 
@@ -431,8 +453,10 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                     {p.isCloud && <Cloud size={12} className="text-blue-400" />}
                                 </h3>
                                 <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-3">
-                                    <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-mono">{p.data.backendConfig.dbType} / {p.data.backendConfig.language}</span>
-                                    <span className="flex items-center gap-1"><Clock size={10}/> {new Date(p.lastModified).toLocaleDateString()}</span>
+                                    <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-mono">
+                                        {p.data?.backendConfig?.dbType || 'SQL'} / {p.data?.backendConfig?.language || '.NET 10'}
+                                    </span>
+                                    <span className="flex items-center gap-1"><Clock size={10}/> {new Date(p.lastModified || Date.now()).toLocaleDateString()}</span>
                                     {p.owner && <span className="flex items-center gap-1 text-blue-500"><Users size={10}/> {p.owner}</span>}
                                 </div>
                             </div>
@@ -629,7 +653,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                      {/* Optional Settings Accordion */}
                      <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-3">
                          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                            <span className="flex items-center gap-1.5"><Shield size={14} className="text-blue-600"/> Security & SSO Authentifizierung</span>
+                            <span className="flex items-center gap-1.5"><Shield size={14} className="text-blue-600"/> Security, Auth & Mandantenfähigkeit</span>
                             <span className="text-[10px] text-slate-400 uppercase">Optional</span>
                          </div>
                          <div className="grid grid-cols-2 gap-2 text-xs">
@@ -652,6 +676,36 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                   />
                                   <span>Active Directory / Windows Auth</span>
                                </label>
+                            )}
+                         </div>
+
+                         {/* Multi-Tenancy / SaaS Option */}
+                         <div className="border-t border-slate-200/60 pt-2 text-xs space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                               <input 
+                                  type="checkbox" 
+                                  checked={useMultiTenancy} 
+                                  onChange={e => setUseMultiTenancy(e.target.checked)}
+                                  className="rounded text-indigo-600 focus:ring-indigo-500"
+                               />
+                               <span className="flex items-center gap-1.5">
+                                  <Users size={13} className="text-indigo-600" />
+                                  Multi-Tenancy / Mandantenfähigkeit (SaaS / Vereins-CMS)
+                               </span>
+                            </label>
+                            
+                            {useMultiTenancy && (
+                               <div className="ml-6 space-y-1 animate-in fade-in">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase">Identifier-Feldname (Tenant Key)</label>
+                                  <input 
+                                     type="text" 
+                                     className="w-full max-w-xs border border-slate-300 rounded p-1.5 text-xs font-mono focus:ring-1 focus:ring-indigo-500 outline-none"
+                                     value={tenantField}
+                                     onChange={e => setTenantField(e.target.value)}
+                                     placeholder="z.B. TenantId, ClubId, OrganizationId"
+                                  />
+                                  <p className="text-[10px] text-slate-400">Trennstrikte Daten-Isolierung pro Mandant in allen generierten Tabellen & APIs.</p>
+                               </div>
                             )}
                          </div>
                      </div>

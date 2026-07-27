@@ -100,6 +100,8 @@ export const saveProjectToStorage = async (project: Project): Promise<void> => {
         id: project.id,
         name: project.name,
         lastModified: project.lastModified,
+        isCloud: project.isCloud,
+        owner: project.owner,
         dbType: project.data?.backendConfig?.dbType,
         language: project.data?.backendConfig?.language
     };
@@ -141,6 +143,8 @@ export const getAllProjects = async (): Promise<Project[]> => {
             id: m.id,
             name: m.name,
             lastModified: m.lastModified,
+            isCloud: m.isCloud,
+            owner: m.owner,
             isMetadataOnly: true,
             data: {
                 backendConfig: {
@@ -186,6 +190,8 @@ export const getProjectById = async (id: string): Promise<Project | undefined> =
             id: metaReq.result.id,
             name: metaReq.result.name,
             lastModified: metaReq.result.lastModified,
+            isCloud: metaReq.result.isCloud,
+            owner: metaReq.result.owner,
             data: dataReq.result?.data || {}
         };
         resolve(project);
@@ -199,9 +205,23 @@ export const deleteProjectFromStorage = async (id: string): Promise<void> => {
   
   if (storage === 'server') {
      try {
-       await fetch(getRemoteUrl(`/projects/${id}`), { method: 'DELETE' });
-       return;
-     } catch(e) {}
+       const res = await fetch(getRemoteUrl(`/projects/${id}`), { method: 'DELETE' });
+       if (!res.ok) {
+         console.warn(`Remote server delete failed with status ${res.status}`);
+       }
+     } catch(e) {
+       console.warn('Remote server delete failed', e);
+     }
+  }
+
+  // Also try deleting via team projects API in case it is a team cloud project
+  try {
+     const cloudRes = await fetch(`/api/team/projects/${id}`, { method: 'DELETE' });
+     if (!cloudRes.ok) {
+       console.warn(`Cloud team project delete status: ${cloudRes.status}`);
+     }
+  } catch (e) {
+     console.warn('Cloud team delete failed', e);
   }
 
   const db = await openDB();

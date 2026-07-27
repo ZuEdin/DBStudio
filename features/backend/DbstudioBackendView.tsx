@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import { Table, Query, Relationship } from '../../types/index';
+import { useConfigStore } from '../../stores/useConfigStore';
 import { 
   Laptop, Cloud, Server, Database, Key, Send, UploadCloud, 
   CheckCircle2, AlertCircle, RefreshCw, PlusCircle, ArrowRight, 
   Layers, Users, Play, Code, CheckSquare, MessageSquare, Terminal,
   AlertTriangle, ShieldAlert, Download, FolderPlus, Globe, Radio,
   PlayCircle, FileText, Share2, Sparkles, Copy, Sliders, Check,
-  Shield, Lock, Activity, Eye, Cpu, BarChart2, Clock, UserCheck, Zap, XCircle
+  Shield, Lock, Activity, Eye, Cpu, BarChart2, Clock, UserCheck, Zap, XCircle, Edit2, Trash2
 } from 'lucide-react';
 
 interface DbstudioBackendViewProps {
@@ -31,6 +32,7 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   showMessage, 
   onSetView 
 }) => {
+  const { config, updateConfig } = useConfigStore();
   // Mode selection: 'local' | 'cloud'
   const [activeMode, setActiveMode] = useState<'local' | 'cloud'>('local');
   
@@ -66,7 +68,12 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   const [isDeployingServer, setIsDeployingServer] = useState<boolean>(false);
 
   // --- PUNKT 1: Live Sync & Remote Backend Connection ---
-  const [remoteServerUrl, setRemoteServerUrl] = useState<string>('http://localhost:3000');
+  const [remoteServerUrl, setRemoteServerUrl] = useState<string>(() => {
+    if (typeof window !== 'undefined' && window.location && window.location.origin && !window.location.origin.startsWith('file://')) {
+      return window.location.origin;
+    }
+    return 'http://localhost:3000';
+  });
   const [serverHealth, setServerHealth] = useState<{ connected: boolean; service?: string; version?: string; latency?: number } | null>(null);
   const [isTestingServer, setIsTestingServer] = useState<boolean>(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(false);
@@ -166,6 +173,7 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   const [inviteEmail, setInviteEmail] = useState<string>('');
   const [inviteName, setInviteName] = useState<string>('');
   const [inviteRole, setInviteRole] = useState<string>('Developer');
+  const [editingMember, setEditingMember] = useState<any | null>(null);
 
   // New Project inputs
   const [newProjName, setNewProjName] = useState<string>('');
@@ -178,7 +186,8 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
       const detectUrl = window.location.origin;
       try {
         const res = await fetch(`${detectUrl}/api/health`);
-        if (res.ok) {
+        const isJsonRes = res.ok && res.headers.get('content-type')?.includes('application/json');
+        if (isJsonRes) {
           const data = await res.json();
           setBackendDetected(true);
           setRemoteServerUrl(detectUrl);
@@ -188,29 +197,34 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
             version: data.Version || "2.1.0",
             latency: 5
           });
-          setActiveMode('cloud'); // Auto-switch to API-coupled mode!
+          // Only auto-switch to cloud mode if the user actually activated the backend mode ('REGISTERED')!
+          if (config.mode === 'REGISTERED') {
+            setActiveMode('cloud');
+            showMessage("Schnittstelle Erkannt", "DB Studio Pro wurde automatisch mit dem laufenden Enterprise-Backend gekoppelt.", "success");
+          } else {
+            setActiveMode('local');
+            showMessage("Simulation Aktiv", "Lokaler Simulations-Modus aktiv. Enterprise-Backend wurde erkannt, ist aber in den Einstellungen nicht auf PRODUKTIV gesetzt.", "info");
+          }
           
           // Fetch team projects and members from live API
           try {
             const pRes = await fetch(`${detectUrl}/api/team/projects`);
-            if (pRes.ok) {
+            if (pRes.ok && pRes.headers.get('content-type')?.includes('application/json')) {
               const pData = await pRes.json();
-              setTeamProjects(pData);
+              if (Array.isArray(pData)) setTeamProjects(pData);
             }
             
             const mRes = await fetch(`${detectUrl}/api/auth/ldap-check`);
-            if (mRes.ok) {
+            if (mRes.ok && mRes.headers.get('content-type')?.includes('application/json')) {
               const mData = await mRes.json();
-              setAdConnected(mData.isAdConfigured);
-              setAdServerAddress(mData.serverAddress);
-              setAdBaseDn(mData.baseDn);
-              setTeamMembers(mData.users);
+              setAdConnected(Boolean(mData.isAdConfigured));
+              if (mData.serverAddress) setAdServerAddress(mData.serverAddress);
+              if (mData.baseDn) setAdBaseDn(mData.baseDn);
+              if (Array.isArray(mData.users)) setTeamMembers(mData.users);
             }
           } catch (e) {
             console.error("Fehler beim Laden der Live-Daten:", e);
           }
-          
-          showMessage("Schnittstelle Erkannt", "DB Studio Pro wurde automatisch mit dem laufenden Enterprise-Backend gekoppelt.", "success");
         }
       } catch (err) {
         console.log("Kein lokales Live-Backend detektiert. DB Studio läuft im Offline-Modus (Simulation aktiv).");
@@ -316,7 +330,7 @@ module.exports = app;`;
         const res = await fetch(`${remoteServerUrl}/api/team/members`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: inviteEmail, name: inviteName, role: inviteRole })
+          body: JSON.stringify({ email: inviteEmail, name: inviteName, role: inviteRole, source: "Lokal" })
         });
         if (res.ok) {
           const newMember = await res.json();
@@ -347,6 +361,86 @@ module.exports = app;`;
       setInviteEmail('');
       setInviteName('');
       showMessage("Mitglied hinzugefügt", "Teammitglied wurde lokal hinzugefügt.", "success");
+    }
+  };
+
+  // Update a team member
+  const handleUpdateTeamMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember) return;
+
+    if (backendDetected) {
+      try {
+        const res = await fetch(`${remoteServerUrl}/api/team/members/${encodeURIComponent(editingMember.email)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            name: inviteName, 
+            role: inviteRole,
+            source: editingMember.source
+          })
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setTeamMembers(prev => prev.map(m => m.email.toLowerCase() === editingMember.email.toLowerCase() ? updated : m));
+          setEditingMember(null);
+          setInviteEmail('');
+          setInviteName('');
+          showMessage("Mitglied aktualisiert", `${updated.name} wurde erfolgreich aktualisiert.`, "success");
+        } else {
+          const errData = await res.json();
+          showMessage("Fehler", errData.error || "Aktualisierung fehlgeschlagen.", "error");
+        }
+      } catch (e) {
+        showMessage("Fehler", "Verbindung zum Backend unterbrochen.", "error");
+      }
+    } else {
+      // Offline simulation
+      setTeamMembers(prev => prev.map(m => m.email.toLowerCase() === editingMember.email.toLowerCase() ? {
+        ...m,
+        name: inviteName,
+        role: inviteRole
+      } : m));
+      setEditingMember(null);
+      setInviteEmail('');
+      setInviteName('');
+      showMessage("Mitglied aktualisiert", "Teammitglied wurde lokal aktualisiert.", "success");
+    }
+  };
+
+  // Delete a team member
+  const handleDeleteTeamMember = async (email: string) => {
+    if (!window.confirm(`Möchten Sie das Mitglied ${email} wirklich entfernen?`)) return;
+
+    if (backendDetected) {
+      try {
+        const res = await fetch(`${remoteServerUrl}/api/team/members/${encodeURIComponent(email)}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          setTeamMembers(prev => prev.filter(m => m.email.toLowerCase() !== email.toLowerCase()));
+          if (editingMember && editingMember.email.toLowerCase() === email.toLowerCase()) {
+            setEditingMember(null);
+            setInviteEmail('');
+            setInviteName('');
+          }
+          showMessage("Mitglied gelöscht", "Teammitglied wurde erfolgreich entfernt.", "success");
+        } else {
+          const errData = await res.json();
+          showMessage("Fehler", errData.error || "Löschen fehlgeschlagen.", "error");
+        }
+      } catch (e) {
+        showMessage("Fehler", "Verbindung zum Backend unterbrochen.", "error");
+      }
+    } else {
+      // Offline simulation
+      setTeamMembers(prev => prev.filter(m => m.email.toLowerCase() !== email.toLowerCase()));
+      if (editingMember && editingMember.email.toLowerCase() === email.toLowerCase()) {
+        setEditingMember(null);
+        setInviteEmail('');
+        setInviteName('');
+      }
+      showMessage("Mitglied gelöscht", "Teammitglied wurde lokal entfernt.", "success");
     }
   };
 
@@ -1445,18 +1539,18 @@ db.exec(sql, (err) => {
         zip.file("start.sh", `#!/bin/bash\nnpm install\nnpm run initdb\nnpm start`);
 
       } else if (selfHostLang === 'csharp') {
-        // .NET 8 C# Web API Backend
+        // .NET 10 C# Web API Backend
         zip.file("DBStudioBackend.csproj", `<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.2" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.2" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.0" />
   </ItemGroup>
 </Project>`);
 
@@ -1537,7 +1631,7 @@ using (var scope = app.Services.CreateScope()) {
 
 app.MapGet("/api/health", () => new { 
     Status = "ok", 
-    Service = "DB Studio Self-Host (.NET 8 with SignalR & Auth)", 
+    Service = "DB Studio Self-Host (.NET 10 with SignalR & Auth)", 
     Version = "1.0.0",
     Time = DateTime.UtcNow 
 });
@@ -1962,22 +2056,95 @@ namespace DBStudioBackend.Controllers
         zip.file("Controllers/UsersController.cs", `using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DBStudioBackend.Data;
+using DBStudioBackend.Models;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace DBStudioBackend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/team/members")]
     public class UsersController : ControllerBase {
         private readonly MetaDbContext _db;
         public UsersController(MetaDbContext db) => _db = db;
 
         [HttpGet]
-        public async Task<IActionResult> GetUsers() {
+        public async Task<IActionResult> GetMembers() {
             var users = await _db.SysUsers
-                .Select(u => new { u.Id, u.Username, u.Email, u.Role, u.IsActive })
+                .Select(u => new { 
+                    email = u.Email, 
+                    role = u.Role, 
+                    name = u.Username, 
+                    source = !string.IsNullOrEmpty(u.AdSid) ? "AD / Active Directory" : "Lokal" 
+                })
                 .ToListAsync();
             return Ok(users);
         }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateMember([FromBody] MemberRequestDto dto) {
+            if (string.IsNullOrEmpty(dto.Email)) return BadRequest(new { error = "E-Mail-Adresse ist erforderlich." });
+            
+            var exists = await _db.SysUsers.AnyAsync(u => u.Email.ToLower() == dto.Email.ToLower());
+            if (exists) return BadRequest(new { error = "Ein Benutzer mit dieser E-Mail existiert bereits." });
+
+            var newUser = new SysUser {
+                Email = dto.Email,
+                Username = !string.IsNullOrEmpty(dto.Name) ? dto.Name : dto.Email.Split('@')[0],
+                Role = dto.Role ?? "Entwickler",
+                PasswordHash = "pbkdf2_placeholder",
+                AdSid = dto.Source == "Lokal" ? "" : "ad_imported_placeholder"
+            };
+
+            _db.SysUsers.Add(newUser);
+            await _db.SaveChangesAsync();
+
+            return StatusCode(201, new { 
+                email = newUser.Email, 
+                role = newUser.Role, 
+                name = newUser.Username, 
+                source = dto.Source ?? "Lokal" 
+            });
+        }
+
+        [HttpPut("{email}")]
+        public async Task<IActionResult> UpdateMember(string email, [FromBody] MemberRequestDto dto) {
+            var user = await _db.SysUsers.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+            if (user == null) return NotFound(new { error = "Benutzer nicht gefunden." });
+
+            if (!string.IsNullOrEmpty(dto.Name)) user.Username = dto.Name;
+            if (!string.IsNullOrEmpty(dto.Role)) user.Role = dto.Role;
+            if (dto.Source != null) {
+                user.AdSid = dto.Source == "Lokal" ? "" : "ad_imported_placeholder";
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { 
+                email = user.Email, 
+                role = user.Role, 
+                name = user.Username, 
+                source = string.IsNullOrEmpty(user.AdSid) ? "Lokal" : "AD / Active Directory" 
+            });
+        }
+
+        [HttpDelete("{email}")]
+        public async Task<IActionResult> DeleteMember(string email) {
+            var user = await _db.SysUsers.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+            if (user == null) return NotFound(new { error = "Benutzer nicht gefunden." });
+
+            _db.SysUsers.Remove(user);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Benutzer gelöscht." });
+        }
+    }
+
+    public class MemberRequestDto {
+        public string? Email { get; set; }
+        public string? Name { get; set; }
+        public string? Role { get; set; }
+        public string? Source { get; set; }
     }
 }
 `);
@@ -2652,6 +2819,94 @@ namespace DBStudioBackend.Hubs
 }
 `);
 
+        zip.file("Controllers/ChatController.cs", `using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using DBStudioBackend.Hubs;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+
+namespace DBStudioBackend.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ChatController : ControllerBase
+    {
+        private readonly IHubContext<ChatHub> _hubContext;
+        private static readonly List<ChatMessageDto> _chatHistory = new();
+
+        public ChatController(IHubContext<ChatHub> hubContext)
+        {
+            _hubContext = hubContext;
+        }
+
+        /// <summary>
+        /// Gibt den bisherigen Chat-Verlauf zurück.
+        /// </summary>
+        [HttpGet("history")]
+        public IActionResult GetHistory()
+        {
+            return Ok(_chatHistory);
+        }
+
+        /// <summary>
+        /// Sendet eine Nachricht per REST API und leitet sie per SignalR an alle verbundenen Clients weiter.
+        /// </summary>
+        [HttpPost("send")]
+        public async Task<IActionResult> SendMessage([FromBody] ChatMessageRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Message))
+                return BadRequest("Nachricht darf nicht leer sein.");
+
+            var msg = new ChatMessageDto
+            {
+                User = req.User ?? "System User",
+                Message = req.Message,
+                Timestamp = System.DateTime.UtcNow
+            };
+
+            _chatHistory.Add(msg);
+            if (_chatHistory.Count > 100) _chatHistory.RemoveAt(0);
+
+            // Leitet die Nachricht per SignalR an alle aktiven Web-Clients weiter
+            await _hubContext.Clients.All.SendAsync("ReceiveMessage", msg.User, msg.Message);
+
+            return Ok(new { success = true, sent = msg });
+        }
+
+        /// <summary>
+        /// Sendet ein Echtzeit-Ereignis an eine bestimmte Projektgruppe.
+        /// </summary>
+        [HttpPost("broadcast")]
+        public async Task<IActionResult> BroadcastEvent([FromBody] BroadcastRequest req)
+        {
+            await _hubContext.Clients.Group(req.ProjectId).SendAsync("ProjectChanged", req.User, req.EntityType, req.Action);
+            return Ok(new { success = true, message = $"Ereignis für Projekt '{req.ProjectId}' gesendet." });
+        }
+    }
+
+    public class ChatMessageRequest
+    {
+        public string? User { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class ChatMessageDto
+    {
+        public string User { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public System.DateTime Timestamp { get; set; }
+    }
+
+    public class BroadcastRequest
+    {
+        public string ProjectId { get; set; } = string.Empty;
+        public string User { get; set; } = string.Empty;
+        public string EntityType { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
+    }
+}
+`);
+
         zip.file("Services/WebhookDispatcher.cs", `using System;
 using System.Net.Http;
 using System.Text;
@@ -2900,7 +3155,7 @@ resource webApp 'Microsoft.Web/sites@2021-02-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
-      linuxFxVersion: 'DOTNET|8.0'
+      linuxFxVersion: 'DOTNET|10.0'
       appSettings: [
         {
           name: 'ASPNETCORE_ENVIRONMENT'
@@ -2940,7 +3195,7 @@ Resources:
         - FARGATE
       ContainerDefinitions:
         - Name: dbstudio-backend
-          Image: mcr.microsoft.com/dotnet/aspnet:8.0
+          Image: mcr.microsoft.com/dotnet/aspnet:10.0
           PortMappings:
             - ContainerPort: 80
           Environment:
@@ -2985,7 +3240,7 @@ resource "aws_ecs_task_definition" "backend" {
 }
 `);
 
-        zip.file(".github/workflows/ci-cd.yml", `name: DB Studio Pro - .NET 8 CI/CD
+        zip.file(".github/workflows/ci-cd.yml", `name: DB Studio Pro - .NET 10 CI/CD
 
 on:
   push:
@@ -3000,10 +3255,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Setup .NET SDK 8.0
+    - name: Setup .NET SDK 10.0
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Restore dependencies
       run: dotnet restore
@@ -3036,7 +3291,7 @@ cache:
 
 build-dotnet:
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:8.0
+  image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
     - dotnet restore
     - dotnet build --no-restore -c Release
@@ -3048,7 +3303,7 @@ build-dotnet:
 
         zip.file("deploy/ftp/ftp-deploy-instructions.md", `# FTP / SFTP Deployment fuer DB Studio Pro Backend
 
-Da .NET 8-Anwendungen eine ausfuehrbare Runtime auf dem Zielserver benoetigen, wird die Veroeffentlichung via FTP/SFTP typischerweise fuer voruebersetzte Dateien (Self-Contained) oder im Rahmen einer CI/CD-Pipeline verwendet.
+Da .NET 10-Anwendungen eine ausfuehrbare Runtime auf dem Zielserver benoetigen, wird die Veroeffentlichung via FTP/SFTP typischerweise fuer voruebersetzte Dateien (Self-Contained) oder im Rahmen einer CI/CD-Pipeline verwendet.
 
 ## Empfohlene Vorgehensweise:
 
@@ -3057,7 +3312,7 @@ Da .NET 8-Anwendungen eine ausfuehrbare Runtime auf dem Zielserver benoetigen, w
    \`\`\`bash
    dotnet publish -c Release -r win-x64 --self-contained true -o ./publish-win
    \`\`\`
-   Dies packt die .NET 8 Runtime direkt in die Exe-Dateien, sodass auf dem Server kein .NET 8 vorinstalliert sein muss.
+   Dies packt die .NET 10 Runtime direkt in die Exe-Dateien, sodass auf dem Server kein .NET 10 vorinstalliert sein muss.
 
 2. **FTP Upload**:
    Verbinden Sie sich mit einem FTP-Client (z. B. FileZilla, WinSCP) oder nutzen Sie ein GitHub Action FTP Deploy Plugin und laden Sie den gesamten Inhalt des Ordners \`./publish-win\` in das Zielverzeichnis hoch.
@@ -3081,14 +3336,14 @@ Da .NET 8-Anwendungen eine ausfuehrbare Runtime auf dem Zielserver benoetigen, w
           }
         }, null, 2));
 
-        zip.file("Dockerfile", `FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+        zip.file("Dockerfile", `FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["DBStudioBackend.csproj", "./"]
 RUN dotnet restore "DBStudioBackend.csproj"
 COPY . .
 RUN dotnet publish "DBStudioBackend.csproj" -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 80
@@ -3113,9 +3368,9 @@ volumes:
   sqlite_data:
 `);
 
-        zip.file("README.md", `# DB Studio Pro - .NET 8 C# Self-Host Backend
+        zip.file("README.md", `# DB Studio Pro - .NET 10 C# Self-Host Backend
 
-Dieses Enterprise-Starter-Kit bietet ein robustes, sicheres und vollstaendig vorkonfiguriertes Backend fuer **DB Studio Pro** auf Basis von **.NET 8 (C#)**.
+Dieses Enterprise-Starter-Kit bietet ein robustes, sicheres und vollstaendig vorkonfiguriertes Backend fuer **DB Studio Pro** auf Basis von **.NET 10 (C#)**.
 
 ## Premium Features:
 
@@ -3146,18 +3401,18 @@ Dieses Enterprise-Starter-Kit bietet ein robustes, sicheres und vollstaendig vor
 
 ## Starten des Backends:
 
-1. Installieren Sie das **.NET 8 SDK**.
+1. Installieren Sie das **.NET 10 SDK**.
 2. Starten Sie das Backend mit \`dotnet run\` oder \`docker-compose up --build\`.
 3. Rufen Sie die interaktive Swagger API-Dokumentation unter \`http://localhost:5000/swagger\` auf.
 `);
 
         zip.file("start.bat", `@echo off
-echo Starte DB Studio Pro .NET 8 Enterprise Backend...
+echo Starte DB Studio Pro .NET 10 Enterprise Backend...
 dotnet run
 pause`);
 
         zip.file("start.sh", `#!/bin/bash
-echo "Starte DB Studio Pro .NET 8 Enterprise Backend..."
+echo "Starte DB Studio Pro .NET 10 Enterprise Backend..."
 dotnet run`);
 
       } else if (selfHostLang === 'php') {
@@ -3678,6 +3933,29 @@ export function requireRole(allowedRoles: string[]) {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-slate-100 overflow-hidden font-sans">
+      {/* DEMO Mode Notice */}
+      {config.mode === 'DEMO' && (
+        <div className="bg-amber-600/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between text-xs text-amber-300 shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+            <span>
+              <strong>Offline-Simulationsmodus aktiv:</strong> Das Enterprise-Backend ist in den System-Einstellungen auf <strong>DEMO</strong> konfiguriert. Alle Änderungen sind lokal simuliert.
+            </span>
+          </div>
+          <button 
+            type="button"
+            onClick={() => {
+              updateConfig({ mode: 'REGISTERED' });
+              setActiveMode('cloud');
+              showMessage("Backend Aktiviert", "Das Enterprise-Backend wurde erfolgreich aktiviert und auf den Produktiv-Modus umgestellt.", "success");
+            }}
+            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded transition-colors shadow-sm"
+          >
+            Backend aktivieren
+          </button>
+        </div>
+      )}
+
       {/* Visual Top Bar / Dashboard Title */}
       <div className="px-6 py-4 bg-slate-800/90 border-b border-slate-700/80 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -3700,7 +3978,7 @@ export function requireRole(allowedRoles: string[]) {
               className="bg-slate-800 text-slate-100 text-xs font-bold px-2 py-0.5 rounded-md border border-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
               <option value="nodejs">Node.js (Express)</option>
-              <option value="csharp">.NET 8 (C# WebAPI)</option>
+              <option value="csharp">.NET 10 (C# Enterprise WebAPI)</option>
               <option value="php">PHP (Laravel API)</option>
               <option value="python">Python (FastAPI)</option>
             </select>
@@ -4944,19 +5222,20 @@ export function requireRole(allowedRoles: string[]) {
                   type="button"
                   onClick={async () => {
                     try {
-                      const res = await fetch('/api/auth/ldap-check');
+                      const res = await fetch(`${remoteServerUrl}/api/auth/ldap-toggle`, { method: 'POST' });
                       if (res.ok) {
                         const data = await res.json();
                         setAdConnected(data.isAdConfigured);
-                        showMessage("AD Check Live", data.isAdConfigured ? "AD Controller ist erreichbar." : "Kein AD Controller gefunden.", "info");
+                        showMessage("AD Controller Status", data.isAdConfigured ? "AD Controller gekoppelt (Schnittstelle aktiv)" : "AD Controller offline", "success");
                       }
                     } catch (e) {
                       console.error(e);
+                      showMessage("Fehler", "Konnte AD-Zustand nicht umschalten.", "error");
                     }
                   }}
                   className={`px-3 py-1 rounded font-mono text-[10px] font-bold border transition-colors ${adConnected ? 'bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/10 hover:bg-amber-500/25 text-amber-400 border-amber-500/30'}`}
                 >
-                  {adConnected ? 'AD CONNECTED' : 'AD OFFLINE'}
+                  {adConnected ? 'AD GEKOPPELT' : 'AD OFFLINE'}
                 </button>
               </div>
             </div>
@@ -5099,63 +5378,143 @@ export function requireRole(allowedRoles: string[]) {
                 {/* List of members */}
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {teamMembers.map((member, idx) => (
-                    <div key={idx} className="p-2.5 rounded-lg bg-slate-950/45 border border-slate-850 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-white">{member.name}</span>
+                    <div key={idx} className="p-2.5 rounded-lg bg-slate-950/45 border border-slate-850 flex items-center justify-between text-xs hover:border-slate-750 transition-colors group">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-white truncate">{member.name}</span>
                           <span className="text-[10px] text-slate-400">({member.role})</span>
                         </div>
-                        <span className="text-[10px] text-slate-500 font-mono block mt-0.5">{member.email}</span>
+                        <span className="text-[10px] text-slate-500 font-mono block mt-0.5 truncate">{member.email}</span>
                       </div>
-                      <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded border ${member.source === 'Lokal' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
-                        {member.source}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <span className={`text-[9px] font-bold font-mono px-1.5 py-0.5 rounded border ${member.source === 'Lokal' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                          {member.source}
+                        </span>
+                        <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingMember(member);
+                              setInviteEmail(member.email);
+                              setInviteName(member.name);
+                              setInviteRole(member.role);
+                            }}
+                            title="Mitglied bearbeiten"
+                            className="p-1 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded transition-colors"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTeamMember(member.email)}
+                            title="Mitglied entfernen"
+                            className="p-1 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition-colors"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Invite Member form */}
-                <form onSubmit={handleAddTeamMember} className="pt-3 border-t border-slate-800 space-y-3">
-                  <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Person hinzufügen / Einladen</span>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={inviteName}
-                      onChange={(e) => setInviteName(e.target.value)}
-                      placeholder="Name (z.B. Tim)"
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                      required
-                    />
-                    <select
-                      value={inviteRole}
-                      onChange={(e) => setInviteRole(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="Administrator">Administrator</option>
-                      <option value="Entwickler">Entwickler</option>
-                      <option value="Architekt">Architekt</option>
-                      <option value="Gast">Gast</option>
-                    </select>
-                  </div>
+                {/* Invite / Edit Member form */}
+                {editingMember ? (
+                  <form onSubmit={handleUpdateTeamMember} className="pt-3 border-t border-indigo-900 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">Mitglied bearbeiten</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingMember(null);
+                          setInviteEmail('');
+                          setInviteName('');
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-slate-200"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={inviteName}
+                        onChange={(e) => setInviteName(e.target.value)}
+                        placeholder="Name (z.B. Tim)"
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                        required
+                      />
+                      <select
+                        value={inviteRole}
+                        onChange={(e) => setInviteRole(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="Administrator">Administrator</option>
+                        <option value="Entwickler">Entwickler</option>
+                        <option value="Architekt">Architekt</option>
+                        <option value="Gast">Gast</option>
+                      </select>
+                    </div>
 
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="mitarbeiter@firma.de"
-                      className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                      required
-                    />
-                    <button
-                      type="submit"
-                      className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shrink-0"
-                    >
-                      Eintragen
-                    </button>
-                  </div>
-                </form>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        disabled
+                        className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-lg p-2 text-xs text-slate-500 cursor-not-allowed font-mono"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shrink-0 shadow-md shadow-indigo-600/20"
+                      >
+                        Speichern
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleAddTeamMember} className="pt-3 border-t border-slate-800 space-y-3">
+                    <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Person hinzufügen / Einladen</span>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={inviteName}
+                        onChange={(e) => setInviteName(e.target.value)}
+                        placeholder="Name (z.B. Tim)"
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                        required
+                      />
+                      <select
+                        value={inviteRole}
+                        onChange={(e) => setInviteRole(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="Administrator">Administrator</option>
+                        <option value="Entwickler">Entwickler</option>
+                        <option value="Architekt">Architekt</option>
+                        <option value="Gast">Gast</option>
+                      </select>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="mitarbeiter@firma.de"
+                        className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shrink-0"
+                      >
+                        Eintragen
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
 
             </div>

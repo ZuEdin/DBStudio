@@ -2,7 +2,7 @@ import React from 'react';
 
 export const SupportedTechSection: React.FC = () => {
   const technologies = [
-    '.NET 9 API',
+    '.NET 10 Enterprise API',
     'Node.js Express',
     'PHP Native',
     'Laravel',

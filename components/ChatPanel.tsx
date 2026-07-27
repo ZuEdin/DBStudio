@@ -8,6 +8,7 @@ import { AiSchemaAssistant } from './AiSchemaAssistant';
 import { LoginPrompt } from './auth/LoginPrompt';
 import { ToolSettings } from './settings/ToolSettings';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useConfigStore } from '../stores/useConfigStore';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeChat = chats.find(c => c.id === activeChatId);
   const { user, logout, isAdmin } = useAuthStore();
+  const { config } = useConfigStore();
 
   const ticketState = useTicketState();
   const [activeTab, setActiveTab] = useState<'chat' | 'tickets' | 'ai_assistant' | 'settings'>('chat');
@@ -170,6 +172,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             ) : !activeChatId ? (
                 // Chat List
                 <div className="flex-1 overflow-y-auto">
+                    {config.mode === 'DEMO' && (
+                        <div className="mx-4 my-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-700 dark:text-amber-300">
+                            <div className="font-bold flex items-center gap-1 mb-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                                Simulations-Modus (Lokal)
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
+                                Das Enterprise-Backend ist offline. Chats und Team-Ereignisse werden lokal simuliert.
+                            </p>
+                        </div>
+                    )}
+
                     {/* Groups Section */}
                     <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">Gruppen</div>
                     {chats.filter(c => c.type === 'group').map(chat => (
@@ -222,7 +236,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 <>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                         {activeChat?.messages.map((msg) => {
-                            const isMe = msg.senderId === 'u1'; // Hardcoded current user for demo
+                            const isMe = msg.senderId === user?.id || msg.senderId === 'u1';
                             return (
                                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[85%] rounded-lg p-3 shadow-sm text-sm ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-800 rounded-bl-none border border-slate-200'}`}>

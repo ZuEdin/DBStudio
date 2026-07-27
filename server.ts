@@ -320,6 +320,34 @@ async function startServer() {
     });
   });
 
+  // Active Directory / LDAP Status Check
+  app.get("/api/auth/ldap-check", (req, res) => {
+    res.json({
+      isAdConfigured,
+      serverAddress: "ldap://ads.firma.local:389",
+      baseDn: "DC=firma,DC=local",
+      users: teamMembers
+    });
+  });
+
+  // Toggle AD Simulation
+  app.post("/api/auth/ldap-toggle", (req, res) => {
+    isAdConfigured = !isAdConfigured;
+    res.json({
+      isAdConfigured,
+      message: isAdConfigured ? "Active Directory Controller gekoppelt" : "Active Directory Offline"
+    });
+  });
+
+  // Projects & Sync Endpoints
+  app.post("/api/projects", (req, res) => {
+    res.json({ success: true, project: req.body });
+  });
+
+  app.post("/api/sync", (req, res) => {
+    res.json({ success: true, timestamp: new Date().toISOString() });
+  });
+
   // Real Team Projects Management (Owner & Collaborators)
   app.get("/api/team/projects", (req, res) => {
     res.json(teamProjects);
@@ -359,6 +387,17 @@ async function startServer() {
     res.status(201).json(newProj);
   });
 
+  // Delete Team Cloud Project
+  app.delete("/api/team/projects/:id", (req, res) => {
+    const { id } = req.params;
+    const index = teamProjects.findIndex((p: any) => p.id === id);
+    if (index !== -1) {
+      teamProjects.splice(index, 1);
+      return res.json({ success: true, message: "Projekt erfolgreich aus Cloud-Datenbank gelöscht." });
+    }
+    return res.status(404).json({ error: "Projekt nicht gefunden." });
+  });
+
   // Invite / Add Team Member to Cloud Project
   app.post("/api/team/projects/:id/members", (req, res) => {
     const { id } = req.params;
@@ -393,6 +432,49 @@ async function startServer() {
   // Team Members Global List
   app.get("/api/team/members", (req, res) => {
     res.json(teamMembers);
+  });
+
+  // Create Team Member
+  app.post("/api/team/members", (req, res) => {
+    const { email, role, name, source } = req.body;
+    if (!email) return res.status(400).json({ error: "E-Mail-Adresse ist erforderlich." });
+
+    if (teamMembers.some((m: any) => m.email.toLowerCase() === email.toLowerCase())) {
+      return res.status(400).json({ error: "Ein Benutzer mit dieser E-Mail existiert bereits." });
+    }
+
+    const newMember = {
+      email,
+      role: role || "Entwickler",
+      name: name || email.split("@")[0],
+      source: source || "Lokal"
+    };
+    teamMembers.push(newMember);
+    res.status(201).json(newMember);
+  });
+
+  // Update Team Member
+  app.put("/api/team/members/:email", (req, res) => {
+    const { email } = req.params;
+    const { role, name, source } = req.body;
+    const member = teamMembers.find((m: any) => m.email.toLowerCase() === email.toLowerCase());
+    if (!member) return res.status(404).json({ error: "Benutzer nicht gefunden." });
+
+    if (role) member.role = role;
+    if (name) member.name = name;
+    if (source) member.source = source;
+
+    res.json(member);
+  });
+
+  // Delete Team Member
+  app.delete("/api/team/members/:email", (req, res) => {
+    const { email } = req.params;
+    const index = teamMembers.findIndex((m: any) => m.email.toLowerCase() === email.toLowerCase());
+    if (index === -1) return res.status(404).json({ error: "Benutzer nicht gefunden." });
+
+    const deleted = teamMembers.splice(index, 1);
+    res.json({ success: true, message: "Benutzer gelöscht.", member: deleted[0] });
   });
 
   // --- REAL SERVER DEPLOYMENT & EXECUTION ENGINE ---
@@ -965,6 +1047,15 @@ Gib NUR den kompletten, neuen Code zurück, ohne Markdown-Formatierung.`;
       console.error("AI SQL Explanation Error:", error);
       res.json({ explanation: `Fehler bei der Anfrage: ${error.message || error}` });
     }
+  });
+
+  // Fallback 404 handler for missing /api/ endpoints so Vite SPA fallback doesn't return 200 OK HTML
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      res.status(404).json({ error: `API endpoint ${req.originalUrl} nicht gefunden` });
+      return;
+    }
+    next();
   });
 
   // Vite middleware for development

@@ -8,6 +8,8 @@ export const useDatabase = () => {
   // Project State
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [currentProjectName, setCurrentProjectName] = useState<string>('');
+  const [isCloud, setIsCloud] = useState<boolean>(false);
+  const [owner, setOwner] = useState<string | undefined>(undefined);
 
   const [dbType, setDbType] = useState<DbType | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
@@ -110,14 +112,24 @@ export const useDatabase = () => {
       return { tables, relationships, queries, reports, forms, workflows };
   };
 
-  const createNewDatabase = (type: DbType, name: string, config?: BackendConfig, isDemo: boolean = false) => {
+  const createNewDatabase = (type: DbType, name: string, config?: BackendConfig, options?: any) => {
       const newProjectId = crypto.randomUUID();
       setCurrentProjectId(newProjectId);
       setCurrentProjectName(name);
       setDbType(type);
 
+      const isCloudVal = typeof options === 'object' ? Boolean(options?.isCloud) : false;
+      const ownerVal = typeof options === 'object' ? options?.owner : undefined;
+      const isDemo = typeof options === 'boolean' ? options : false;
+
+      setIsCloud(isCloudVal);
+      setOwner(ownerVal);
+
+      let initialTables: Table[] = [];
+
       if (isDemo) {
           const demoData = getDemoData();
+          initialTables = demoData.tables;
           setTables(demoData.tables);
           setRelationships(demoData.relationships);
           setQueries(demoData.queries);
@@ -125,11 +137,17 @@ export const useDatabase = () => {
           setReports(demoData.reports);
           setWorkflows(demoData.workflows);
           setLayout([]);
+      } else if (options && typeof options === 'object' && options.tables) {
+          initialTables = options.tables || [];
+          setTables(options.tables || []);
+          setRelationships(options.relationships || []);
+          setQueries(options.queries || []);
+          setForms(options.forms || []);
+          setReports(options.reports || []);
+          setWorkflows(options.workflows || []);
+          setLayout(options.layout || []);
       } else {
           // Initialize empty lists
-          let initialTables: Table[] = [];
-          
-          // Check for Auth Config to auto-create Users table
           if (config?.authConfig?.useUserLogin) {
               initialTables.push({
                   id: 'sys_users',
@@ -156,15 +174,46 @@ export const useDatabase = () => {
       
       // Store the config passed from Selector
       setLoadedBackendConfig(config || null);
+
+      // Save initial project metadata immediately
+      const initialProject: Project = {
+          id: newProjectId,
+          name: name,
+          lastModified: Date.now(),
+          isCloud: isCloudVal,
+          owner: ownerVal,
+          data: {
+              tables: initialTables,
+              queries: [],
+              reports: [],
+              forms: [],
+              workflows: [],
+              relationships: [],
+              layout: [],
+              tableGroups: [],
+              backendConfig: config || {
+                  language: 'dotnet',
+                  dbType: type,
+                  projectName: name.replace(/\s+/g, '') || 'MyProject',
+                  port: 5000,
+                  dbConnection: '',
+                  useSwagger: true,
+                  frontendFramework: 'react'
+              }
+          }
+      };
+      saveProjectToStorage(initialProject);
   };
   
   const loadProject = (project: Project) => {
       setCurrentProjectId(project.id);
       setCurrentProjectName(project.name);
       setDbType(project.data.backendConfig.dbType);
-      setTables(project.data.tables);
-      setQueries(project.data.queries);
-      setRelationships(project.data.relationships);
+      setIsCloud(Boolean(project.isCloud));
+      setOwner(project.owner);
+      setTables(project.data.tables || []);
+      setQueries(project.data.queries || []);
+      setRelationships(project.data.relationships || []);
       setForms(project.data.forms || []);
       setReports(project.data.reports || []);
       setWorkflows(project.data.workflows || []);
@@ -178,6 +227,8 @@ export const useDatabase = () => {
           id: currentProjectId,
           name: currentProjectName,
           lastModified: Date.now(),
+          isCloud,
+          owner,
           data: {
               tables,
               queries,
@@ -199,6 +250,8 @@ export const useDatabase = () => {
           id: currentProjectId,
           name: currentProjectName,
           lastModified: Date.now(),
+          isCloud,
+          owner,
           data: { tables, queries, reports, forms, workflows, relationships, layout, tableGroups: [], backendConfig }
       };
     const dataStr = JSON.stringify(project, null, 2);
