@@ -10,6 +10,7 @@ import { generateBlazor } from './generators/blazorGenerator';
 import { generateMaui } from './generators/maui/index';
 import { generateMauiNative } from './generators/mauiNative/index';
 import { generateElectron } from './generators/electronGenerator';
+import { generateTauri } from './generators/tauriGenerator';
 import { generateVue } from './generators/vueGenerator';
 import { generatePython } from './generators/pythonGenerator';
 import { generateMarkdownApiDocs } from "./generators/markdownApiGenerator";
@@ -95,6 +96,9 @@ export const generateBackendCode = (
   } else if (activeConfig.frontendFramework === 'electron' || activeConfig.language === 'electron') {
     const electronFiles = generateElectron(tables, relationships, queries, activeConfig, forms, reports);
     files = [...files, ...electronFiles];
+  } else if (activeConfig.frontendFramework === 'tauri' || activeConfig.language === 'tauri') {
+    const tauriFiles = generateTauri(tables, relationships, queries, activeConfig, forms, reports);
+    files = [...files, ...tauriFiles];
   }
 
   // --- SPECIAL POST-PROCESSING FOR BLAZOR & MAUI + .NET ---

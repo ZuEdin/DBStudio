@@ -22,13 +22,25 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const [loading, setLoading] = useState(false);
   
   const { t, i18n } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, login } = useAuthStore();
   const templates = useMemo(() => getTemplates(i18n.language), [i18n.language]);
+
+  // Backend & AD/LDAP configuration auto-detection state
+  const [backendDetected, setBackendDetected] = useState<boolean>(false);
+  const [isAdConfigured, setIsAdConfigured] = useState<boolean>(false);
+  const [adServerAddress, setAdServerAddress] = useState<string>('');
+
+  // Login form states
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   // New Project Form State
   const [newProjectName, setNewProjectName] = useState('');
   const [newDbType, setNewDbType] = useState<DbType>(DbType.SQL);
   const [newLanguage, setNewLanguage] = useState<BackendLanguage>('dotnet');
+  const [newProjectType, setNewProjectType] = useState<'cloud' | 'local'>('cloud');
   
   // Dialog State (to avoid native confirm/alert)
   const [dialog, setDialog] = useState<{ 
@@ -61,8 +73,53 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Auto-detect live backend on mount
+    const detectBackend = async () => {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          setBackendDetected(true);
+          // Auto-configure Team-Cloud mode
+          setActiveSource('cloud');
+          
+          // Get AD status from backend
+          const ldapRes = await fetch('/api/auth/ldap-check');
+          if (ldapRes.ok) {
+            const ldapData = await ldapRes.json();
+            setIsAdConfigured(ldapData.isAdConfigured);
+            setAdServerAddress(ldapData.serverAddress);
+          }
+        }
+      } catch (err) {
+        console.warn('Backend auto-detection failed:', err);
+      }
+    };
+    
+    detectBackend();
     loadProjects();
   }, []);
+
+  const handleLoginSubmit = async () => {
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setLoginError('Bitte füllen Sie alle Felder aus.');
+      return;
+    }
+    setLoginSubmitting(true);
+    setLoginError('');
+    try {
+      const success = await login(loginEmail, loginPassword);
+      if (success) {
+        // Logged in! Switch projects to cloud and reload
+        await loadProjects();
+      } else {
+        setLoginError('Ungültige Anmeldedaten. Versuchen Sie admin@demo.com / admin123 oder user@demo.com / user123.');
+      }
+    } catch (err) {
+      setLoginError('Fehler bei der Anmeldung.');
+    } finally {
+      setLoginSubmitting(false);
+    }
+  };
 
   const loadProjects = async () => {
     setLoading(true);
@@ -135,7 +192,8 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
               webhooks: []
           } : undefined
       };
-      onCreateNew(newDbType, newProjectName, config);
+      const isCloud = newProjectType === 'cloud';
+      onCreateNew(newDbType, newProjectName, config, { isCloud, owner: user?.name || 'Zubeyr' });
     }
   };
 
@@ -219,6 +277,48 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
         </h1>
         <p className="text-slate-500 mb-6 text-sm">{t('app.description')}</p>
 
+        {/* Auto-Configuration Notification */}
+        {backendDetected && (
+            <div className="mb-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-xs rounded-lg p-3 flex items-start gap-2.5 animate-in fade-in slide-in-from-top-1">
+                <span className="flex h-2 w-2 relative mt-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <div className="flex-1">
+                    <p className="font-bold text-[11px] uppercase tracking-wider text-emerald-800">Live-Backend Erkannt</p>
+                    <p className="text-slate-600 mt-0.5 leading-normal">
+                        DB Studio Pro hat automatisch ein aktives Backend erkannt, den **Team-Cloud-Modus** aktiviert und die API-Verbindung selbstständig eingerichtet.
+                    </p>
+                </div>
+            </div>
+        )}
+
+        {/* User Session Info / Logout */}
+        {user?.isAuthenticated && (
+            <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-between text-xs text-slate-700 animate-in fade-in">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-extrabold uppercase text-xs border border-blue-200 shadow-sm">
+                        {user.name ? user.name[0] : 'U'}
+                    </div>
+                    <div>
+                        <p className="font-bold text-slate-800">{user.name}</p>
+                        <p className="text-[10px] text-slate-500 leading-none mt-0.5 font-mono capitalize bg-slate-200/60 px-1 py-0.5 rounded inline-block">
+                            {user.role}
+                        </p>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => {
+                        useAuthStore.getState().logout();
+                        setActiveSource('local');
+                    }}
+                    className="text-red-500 hover:text-red-700 font-bold hover:underline transition-all"
+                >
+                    Abmelden
+                </button>
+            </div>
+        )}
+
         {/* Source Toggle */}
         <div className="flex bg-slate-100 p-1 rounded-lg mb-6 self-start">
             <button 
@@ -227,12 +327,15 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
             >
                 <HardDrive size={16}/> Lokal
             </button>
-            {user?.isAuthenticated && (
+            {(user?.isAuthenticated || backendDetected) && (
                 <button 
                     onClick={() => setActiveSource('cloud')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeSource === 'cloud' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Cloud size={16}/> Team Cloud
+                    {!user?.isAuthenticated && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    )}
                 </button>
             )}
         </div>
@@ -251,7 +354,65 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-            {projects.length === 0 ? (
+            {activeSource === 'cloud' && !user?.isAuthenticated ? (
+                /* Dynamic Interactive Login Form directly on Start Page */
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 animate-in fade-in">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2 mb-2">
+                        <div className="flex items-center gap-2 text-slate-800">
+                            <Shield className="text-blue-600" size={18} />
+                            <h3 className="font-bold text-sm">Team Cloud Anmeldung</h3>
+                        </div>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200">
+                            LIVE API ONLINE
+                        </span>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200/60 rounded-lg p-3 text-xs text-blue-900 space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold">
+                            <Cloud size={14} className="text-blue-600" />
+                            Echtes Team-Cloud-Konto
+                        </div>
+                        <p className="text-slate-600 leading-normal">
+                            Melden Sie sich mit Ihrer E-Mail-Adresse an, um als Owner eigene Cloud-Projekte zu erstellen und Ihr Entwickler-Team zusammenzustellen.
+                        </p>
+                    </div>
+
+                    <div className="space-y-3 pt-1">
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">E-Mail-Adresse</label>
+                            <input 
+                                type="email"
+                                className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
+                                placeholder="ihre.email@firma.de"
+                                value={loginEmail}
+                                onChange={e => setLoginEmail(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Passwort</label>
+                            <input 
+                                type="password"
+                                className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
+                                placeholder="Ihr Passwort"
+                                value={loginPassword}
+                                onChange={e => setLoginPassword(e.target.value)}
+                            />
+                        </div>
+
+                        {loginError && (
+                            <p className="text-[11px] text-red-500 font-semibold">{loginError}</p>
+                        )}
+
+                        <button 
+                            onClick={handleLoginSubmit}
+                            disabled={loginSubmitting}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                            {loginSubmitting ? 'Anmeldung läuft...' : 'In Team Cloud anmelden / Konto aktivieren'}
+                        </button>
+                    </div>
+                </div>
+            ) : projects.length === 0 ? (
                 <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
                     <FolderOpen size={48} className="mx-auto mb-2 opacity-20" />
                     <p>{t('start.no_projects')}</p>
@@ -326,199 +487,171 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
              </div>
 
              {activeTab === 'create' ? (
-                 <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                     <div className="text-center mb-4">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-2">
-                            <Plus size={24} />
+                 <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200/80 space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                     
+                     {/* Active Owner Banner */}
+                     <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 rounded-xl flex items-center justify-between shadow-md">
+                        <div className="flex items-center gap-3">
+                           <div className="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-black text-sm shadow">
+                              {user?.name ? user.name[0] : 'Z'}
+                           </div>
+                           <div>
+                              <div className="flex items-center gap-1.5">
+                                 <span className="font-bold text-xs">{user?.name || 'Zubeyr'}</span>
+                                 <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono font-bold px-1.5 py-0.2 rounded border border-emerald-500/30">ANGEMELDET</span>
+                              </div>
+                              <p className="text-[10px] text-slate-300">{user?.email || 'zuboedin@gmail.com'}</p>
+                           </div>
                         </div>
-                        <h2 className="text-xl font-bold text-slate-800">{t('start.title')}</h2>
+                        <span className="text-[10px] text-blue-300 font-mono bg-blue-900/60 border border-blue-700/50 px-2 py-0.5 rounded font-bold">
+                           PROJECT OWNER
+                        </span>
                      </div>
 
-                     {/* 1. Basic Info */}
-                     <div>
-                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('start.project_name')}</label>
+                     <div className="text-center">
+                        <h2 className="text-lg font-bold text-slate-800">Neues leeres Projekt konfigurieren</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">Wählen Sie den Projekt-Typ, Ihre Datenbank und das gewünschte Backend-Framework.</p>
+                     </div>
+
+                     {/* SCHRITT 1: Team Cloud vs. Normales Projekt */}
+                     <div className="space-y-2">
+                        <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                           <Users size={14} className="text-blue-600" />
+                           1. Projekt-Typ wählen
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                           <div 
+                              onClick={() => setNewProjectType('cloud')}
+                              className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${newProjectType === 'cloud' ? 'border-blue-600 bg-blue-50/70 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                           >
+                              <div className="flex items-center justify-between mb-1">
+                                 <div className="flex items-center gap-1.5 font-bold text-xs text-blue-900">
+                                    <Cloud size={16} className="text-blue-600" />
+                                    Team Cloud Projekt
+                                 </div>
+                                 {newProjectType === 'cloud' && <div className="w-2 h-2 rounded-full bg-blue-600"></div>}
+                              </div>
+                              <p className="text-[11px] text-slate-600 leading-tight">
+                                 Multi-User Cloud-Sync, AD Domain-Controller Anbindung & Team-Freigaben.
+                              </p>
+                              <span className="inline-block mt-2 text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                                 Empfohlen für Teams
+                              </span>
+                           </div>
+
+                           <div 
+                              onClick={() => setNewProjectType('local')}
+                              className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${newProjectType === 'local' ? 'border-indigo-600 bg-indigo-50/70 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                           >
+                              <div className="flex items-center justify-between mb-1">
+                                 <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
+                                    <HardDrive size={16} className="text-indigo-600" />
+                                    Normales / Lokales Projekt
+                                 </div>
+                                 {newProjectType === 'local' && <div className="w-2 h-2 rounded-full bg-indigo-600"></div>}
+                              </div>
+                              <p className="text-[11px] text-slate-600 leading-tight">
+                                 Speichert das Projekt lokal auf diesem Gerät. Ideal für isolated Demos & Tests.
+                              </p>
+                              <span className="inline-block mt-2 text-[9px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
+                                 Standalone / Offline
+                              </span>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* SCHRITT 2 & 3: Datenbank & Backend */}
+                     <div className="grid grid-cols-2 gap-4">
+                         {/* Database Selection */}
+                         <div>
+                             <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                <Database size={13} className="text-emerald-600" />
+                                2. Datenbank
+                             </label>
+                             <div className="space-y-1.5">
+                                 {[
+                                     { id: DbType.SQL, label: 'SQL Server (.NET)' },
+                                     { id: DbType.MySQL, label: 'MySQL / MariaDB' },
+                                     { id: DbType.SQLite, label: 'SQLite (Lokal)' },
+                                     { id: DbType.NoSQL, label: 'MongoDB / NoSQL' },
+                                 ].map((type) => (
+                                     <div 
+                                        key={type.id}
+                                        onClick={() => setNewDbType(type.id)}
+                                        className={`p-2.5 rounded-lg border cursor-pointer transition-all text-xs flex justify-between items-center ${newDbType === type.id ? 'border-emerald-500 bg-emerald-50/80 text-emerald-900 font-bold shadow-sm' : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'}`}
+                                     >
+                                         <span>{type.label}</span>
+                                         {newDbType === type.id && <div className="w-2 h-2 bg-emerald-600 rounded-full"></div>}
+                                     </div>
+                                 ))}
+                             </div>
+                         </div>
+
+                         {/* Backend Selection */}
+                         <div>
+                             <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                <Code size={13} className="text-indigo-600" />
+                                3. Backend-Framework
+                             </label>
+                             <div className="space-y-1.5">
+                                 {[
+                                     { id: 'dotnet', label: '.NET 10 (C# Enterprise)' },
+                                     { id: 'nodejs', label: 'Node.js (TypeScript)' },
+                                     { id: 'python', label: 'Python (FastAPI)' },
+                                     { id: 'php', label: 'PHP / Laravel' },
+                                 ].map((lang) => (
+                                     <div 
+                                        key={lang.id}
+                                        onClick={() => setNewLanguage(lang.id as BackendLanguage)}
+                                        className={`p-2.5 rounded-lg border cursor-pointer transition-all text-xs flex justify-between items-center ${newLanguage === lang.id ? 'border-indigo-500 bg-indigo-50/80 text-indigo-900 font-bold shadow-sm' : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'}`}
+                                     >
+                                         <span>{lang.label}</span>
+                                         {newLanguage === lang.id && <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>}
+                                     </div>
+                                 ))}
+                             </div>
+                         </div>
+                     </div>
+
+                     {/* SCHRITT 4: Projektname */}
+                     <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                         <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">4. Projektname</label>
                          <input 
                             type="text" 
-                            className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
-                            placeholder="MyProject"
+                            className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-slate-800 shadow-sm"
+                            placeholder="z.B. MeinKundenPortal"
                             value={newProjectName}
                             onChange={e => setNewProjectName(e.target.value)}
                             autoFocus
                          />
                      </div>
 
-                     <div className="grid grid-cols-2 gap-6">
-                         {/* 2. Database */}
-                         <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Database size={12}/> {t('start.database')}</label>
-                             <div className="space-y-2">
-                                 {[
-                                     { id: DbType.SQL, label: 'SQL Server' },
-                                     { id: DbType.MySQL, label: 'MySQL' },
-                                     { id: DbType.SQLite, label: 'SQLite (Lokal)' },
-                                     { id: DbType.NoSQL, label: 'NoSQL (Mongo)' },
-                                 ].map((type) => (
-                                     <div 
-                                        key={type.id}
-                                        onClick={() => setNewDbType(type.id)}
-                                        className={`p-2 rounded border cursor-pointer transition-all text-sm flex justify-between items-center ${newDbType === type.id ? 'border-blue-500 bg-blue-50 text-blue-800 font-semibold shadow-inner' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
-                                     >
-                                         {type.label}
-                                         {newDbType === type.id && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
-                                     </div>
-                                 ))}
-                             </div>
+                     {/* Optional Settings Accordion */}
+                     <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-3">
+                         <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <span className="flex items-center gap-1.5"><Shield size={14} className="text-blue-600"/> Security & SSO Authentifizierung</span>
+                            <span className="text-[10px] text-slate-400 uppercase">Optional</span>
                          </div>
-
-                         {/* 3. Backend */}
-                         <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Code size={12}/> {t('start.backend')}</label>
-                             <div className="space-y-2">
-                                 {[
-                                     { id: 'dotnet', label: '.NET (C#)' },
-                                     { id: 'nodejs', label: 'Node.js' },
-                                     { id: 'python', label: 'Python (FastAPI)' },
-                                     { id: 'php', label: 'PHP' },
-                                     { id: 'laravel', label: 'Laravel' },
-                                 ].map((lang) => (
-                                     <div 
-                                        key={lang.id}
-                                        onClick={() => setNewLanguage(lang.id as BackendLanguage)}
-                                        className={`p-2 rounded border cursor-pointer transition-all text-sm flex justify-between items-center ${newLanguage === lang.id ? 'border-indigo-500 bg-indigo-50 text-indigo-800 font-semibold shadow-inner' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
-                                     >
-                                         {lang.label}
-                                         {newLanguage === lang.id && <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>}
-                                     </div>
-                                 ))}
-                             </div>
-                         </div>
-                     </div>
-
-                     {/* 4. Security / Auth */}
-                     <div className="border-t border-slate-100 pt-4">
-                         <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield size={12}/> {t('start.security')}</label>
-                         
-                         <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-sm space-y-3">
-                            {newLanguage === 'dotnet' && (
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={authConfig.useWindowsAuth} 
-                                            onChange={e => setAuthConfig({...authConfig, useWindowsAuth: e.target.checked, useAdGroups: false})}
-                                            className="rounded text-indigo-600 focus:ring-indigo-500"
-                                        />
-                                        <span>{t('start.auth_windows')}</span>
-                                    </label>
-                                    
-                                    {authConfig.useWindowsAuth && (
-                                        <div className="ml-6 pl-3 border-l-2 border-slate-200 space-y-2 animate-in slide-in-from-top-1">
-                                            <p className="text-[10px] text-slate-500 mb-2">{t('start.auth_domain_hint')}</p>
-                                            
-                                            <label className="flex items-center gap-2 cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={authConfig.useAdGroups} 
-                                                    onChange={e => setAuthConfig({...authConfig, useAdGroups: e.target.checked})}
-                                                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                                                />
-                                                <span className="flex items-center gap-1 text-xs">
-                                                    <Users size={12}/> Zugriff auf AD-Gruppe beschränken
-                                                </span>
-                                            </label>
-
-                                            {authConfig.useAdGroups && (
-                                                <div className="animate-in fade-in">
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Erlaubte AD-Gruppe(n)</label>
-                                                    <input 
-                                                        type="text" 
-                                                        className="w-full border border-slate-300 rounded p-1.5 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
-                                                        placeholder="z.B. DOMAIN\Gruppe, DOMAIN\Admins"
-                                                        value={authConfig.adGroups || ''}
-                                                        onChange={e => setAuthConfig({...authConfig, adGroups: e.target.value})}
-                                                    />
-                                                    <p className="text-[10px] text-slate-400 mt-0.5">Kommagetrennt. Mappt diese Gruppen standardmäßig auf 'User'.</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={authConfig.useUserLogin} 
-                                        onChange={e => setAuthConfig({...authConfig, useUserLogin: e.target.checked})}
-                                        className="rounded text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    <span>{t('start.auth_user')}</span>
-                                </label>
-                                {authConfig.useUserLogin && (
-                                    <div className="ml-5 mt-2 space-y-2 animate-in slide-in-from-top-1">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={authConfig.isMobileReady} 
-                                                onChange={e => setAuthConfig({...authConfig, isMobileReady: e.target.checked})}
-                                                className="rounded text-indigo-600 focus:ring-indigo-500"
-                                            />
-                                            <span className="flex items-center gap-1"><Smartphone size={12}/> {t('start.auth_mobile')}</span>
-                                        </label>
-                                        
-                                        <div className="pt-2">
-                                            <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Single Sign-On (SSO)</span>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['google', 'microsoft', 'apple', 'github'].map(provider => (
-                                                    <label key={provider} className="flex items-center gap-1.5 cursor-pointer text-xs border border-slate-200 rounded px-2 py-1 hover:bg-slate-100 transition-colors">
-                                                        <input 
-                                                            type="checkbox"
-                                                            checked={ssoProviders.includes(provider)}
-                                                            onChange={e => {
-                                                                if (e.target.checked) setSsoProviders([...ssoProviders, provider]);
-                                                                else setSsoProviders(ssoProviders.filter(p => p !== provider));
-                                                            }}
-                                                            className="rounded text-indigo-600"
-                                                        />
-                                                        <span className="capitalize">{provider}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                         </div>
-                     </div>
-
-                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mt-4 mb-4">
-                         <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                            <Users size={16} className="text-blue-600" />
-                            Mandantenfähigkeit / SaaS (optional)
-                         </h3>
-                         <div className="space-y-3 text-sm">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input 
-                                    type="checkbox" 
-                                    checked={useMultiTenancy} 
-                                    onChange={e => setUseMultiTenancy(e.target.checked)}
-                                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span>Multi-Tenancy aktivieren (z.B. für Vereins-CMS, SaaS)</span>
+                         <div className="grid grid-cols-2 gap-2 text-xs">
+                            <label className="flex items-center gap-2 cursor-pointer bg-white p-2 rounded border border-slate-200 hover:bg-slate-50">
+                               <input 
+                                  type="checkbox" 
+                                  checked={authConfig.useUserLogin} 
+                                  onChange={e => setAuthConfig({...authConfig, useUserLogin: e.target.checked})}
+                                  className="rounded text-blue-600"
+                               />
+                               <span>Benutzer-Login (JWT)</span>
                             </label>
-                            
-                            {useMultiTenancy && (
-                                <div className="ml-5 mt-2 animate-in slide-in-from-top-1">
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Name des Identifier-Feldes (z.B. ClubId, TenantId)</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full max-w-[200px] border border-slate-300 rounded p-1.5 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
-                                        value={tenantField}
-                                        onChange={e => setTenantField(e.target.value)}
-                                    />
-                                    <p className="text-[10px] text-slate-400 mt-0.5">Wird automatisch in die Nutzer-Tabelle integriert.</p>
-                                </div>
+                            {newLanguage === 'dotnet' && (
+                               <label className="flex items-center gap-2 cursor-pointer bg-white p-2 rounded border border-slate-200 hover:bg-slate-50">
+                                  <input 
+                                     type="checkbox" 
+                                     checked={authConfig.useWindowsAuth} 
+                                     onChange={e => setAuthConfig({...authConfig, useWindowsAuth: e.target.checked})}
+                                     className="rounded text-blue-600"
+                                  />
+                                  <span>Active Directory / Windows Auth</span>
+                               </label>
                             )}
                          </div>
                      </div>
@@ -526,9 +659,10 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                      <button 
                         onClick={handleCreate}
                         disabled={!newProjectName.trim()}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                      >
-                         {t('start.create_btn')}
+                        <Plus size={16} />
+                        <span>Leeres Projekt Jetzt Erstellen</span>
                      </button>
                  </div>
              ) : (

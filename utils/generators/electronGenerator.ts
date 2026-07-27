@@ -344,6 +344,86 @@ goto MENU
 
   files.push({ name: 'run.bat', path: `${root}/run.bat`, content: batContent, language: 'text' });
 
+  // --- 6b. run.sh (Interactive Menu for macOS/Linux) ---
+  const shContent = `#!/bin/bash
+# ${config.projectName} Desktop App Manager (macOS/Linux)
+
+show_menu() {
+  clear
+  echo "================================================="
+  echo "  ${config.projectName} - App Manager"
+  echo "================================================="
+  echo ""
+  echo "  [1] Dependencies installieren (npm install)"
+  echo "  [2] Electron App starten (electron .)"
+  echo "  [3] Dev-Modus mit Live-Reload"
+  echo "  [4] Desktop App bauen (electron-builder)"
+  echo "  [5] Beenden"
+  echo ""
+  read -p "Auswahl (1-5): " choice
+  case $choice in
+    1) install_deps ;;
+    2) start_app ;;
+    3) start_dev ;;
+    4) build_app ;;
+    5) exit 0 ;;
+    *) show_menu ;;
+  esac
+}
+
+install_deps() {
+  clear
+  echo "Installiere Root Dependencies..."
+  npm install
+  echo ""
+  echo "Installiere Backend Dependencies..."
+  cd Backend && npm install && cd ..
+  echo ""
+  echo "Installiere Frontend Dependencies..."
+  cd Frontend && npm install && cd ..
+  echo ""
+  echo "Fertig! Beliebige Taste druecken zum Zurueckkehren..."
+  read -n 1 -s
+  show_menu
+}
+
+start_app() {
+  clear
+  echo "Starte Electron App..."
+  echo "Backend Port: ${bePort}"
+  npm start
+  read -n 1 -s
+  show_menu
+}
+
+start_dev() {
+  clear
+  echo "Starte Development Environment..."
+  echo "Backend Port: ${bePort}"
+  echo "Frontend Port: ${fePort}"
+  npm run dev
+  read -n 1 -s
+  show_menu
+}
+
+build_app() {
+  clear
+  echo "Baue Frontend..."
+  cd Frontend && npm run build && cd ..
+  echo ""
+  echo "Erstelle Desktop App (Electron Builder)..."
+  npm run dist
+  echo ""
+  echo "Build abgeschlossen! Siehe 'release' Ordner."
+  read -n 1 -s
+  show_menu
+}
+
+# Start the menu
+show_menu
+`;
+  files.push({ name: 'run.sh', path: `${root}/run.sh`, content: shContent, language: 'text' });
+
   // --- 7. Documentation - Localized ---
   const readmeContent = `# ${config.projectName} Desktop App
 
@@ -354,9 +434,21 @@ goto MENU
 - **main.js**: Electron Hauptprozess (startet internes Backend & laedt transpiliertes Frontend).
 - **release/**: Finale kompilierte Desktop Executables (.exe / .dmg / .AppImage).
 - **run.bat**: Interaktives Windows Startskript.
+- **run.sh**: Interaktives macOS/Linux Startskript.
 
 ## ${i18n.t('generator.quickstart')}
 
+### Windows:
+Doppelklicken Sie auf die \`run.bat\` im Hauptverzeichnis (oder führen Sie sie im Terminal aus).
+
+### macOS / Linux:
+Machen Sie die \`run.sh\` ausführbar und starten Sie sie im Terminal:
+\`\`\`bash
+chmod +x run.sh
+./run.sh
+\`\`\`
+
+Oder manuell starten:
 1. \`npm run install-all\`
 2. \`electron .\` (oder \`npm start\`) -> Transpiliert das Frontend bei Bedarf automatisch und startet die Anwendung ohne Dev-Server-Anzeige.
 

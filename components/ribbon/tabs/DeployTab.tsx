@@ -60,6 +60,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
       case 'php': return 'PHP';
       case 'laravel': return 'Laravel';
       case 'electron': return 'Electron';
+      case 'tauri': return 'Tauri (Rust)';
       default: return lang;
     }
   };
@@ -228,8 +229,13 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                                         ...(backendConfig.deploymentConfig || { target: 'electron' }),
                                         target: 'electron'
                                     };
-                                } else if (backendConfig.language === 'electron') {
-                                    if (backendConfig.deploymentConfig?.target === 'electron') {
+                                } else if (lang === 'tauri') {
+                                    updatedConfig.deploymentConfig = {
+                                        ...(backendConfig.deploymentConfig || { target: 'tauri' }),
+                                        target: 'tauri'
+                                    };
+                                } else if (backendConfig.language === 'electron' || backendConfig.language === 'tauri') {
+                                    if (backendConfig.deploymentConfig?.target === 'electron' || backendConfig.deploymentConfig?.target === 'tauri') {
                                         updatedConfig.deploymentConfig = {
                                             ...backendConfig.deploymentConfig,
                                             target: 'docker'
@@ -245,6 +251,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                             <option value="php">PHP</option>
                             <option value="laravel">Laravel</option>
                             <option value="electron">Electron</option>
+                            <option value="tauri">Tauri (Rust)</option>
                         </select>
                       </div>
                     </div>

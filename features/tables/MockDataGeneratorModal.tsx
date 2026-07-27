@@ -14,7 +14,10 @@ export const MockDataGeneratorModal: React.FC<MockDataGeneratorModalProps> = ({ 
   const [generatedData, setGeneratedData] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  const generateMockValue = (type: FieldType, name: string): any => {
+  const generateMockValue = (field: any): any => {
+    const type = field.type;
+    const name = field.name;
+    const len = field.length || 2;
     const n = name.toLowerCase();
     
     // Simple heuristics
@@ -28,7 +31,8 @@ export const MockDataGeneratorModal: React.FC<MockDataGeneratorModalProps> = ({ 
     if (n.includes('country')) {
         if (type === 'CHAR') {
             const codes = ['AT', 'DE', 'CH', 'US', 'GB', 'FR', 'ES', 'IT', 'NL', 'BE'];
-            return codes[Math.floor(Math.random() * codes.length)];
+            const code = codes[Math.floor(Math.random() * codes.length)];
+            return code.substring(0, len).padEnd(len, 'X');
         }
         return faker.location.country();
     }
@@ -52,7 +56,7 @@ export const MockDataGeneratorModal: React.FC<MockDataGeneratorModalProps> = ({ 
       case 'CHAR':
       case 'TEXT':
         if (type === 'CHAR') {
-            return faker.string?.alpha ? faker.string.alpha({ length: 2, casing: 'upper' }) : 'XY';
+            return faker.string?.alpha ? faker.string.alpha({ length: len, casing: 'upper' }) : 'XY'.substring(0, len).padEnd(len, 'X');
         }
         return faker.lorem.words({ min: 1, max: 3 });
       default:
@@ -67,7 +71,7 @@ export const MockDataGeneratorModal: React.FC<MockDataGeneratorModalProps> = ({ 
     for (let i = 0; i < rowCount; i++) {
         const row: any = {};
         fields.forEach(f => {
-            row[f.name] = generateMockValue(f.type, f.name);
+            row[f.name] = generateMockValue(f);
         });
         data.push(row);
     }
