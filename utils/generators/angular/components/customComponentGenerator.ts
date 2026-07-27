@@ -21,8 +21,8 @@ export const generateCustomPageComponents = (
       const folder = 'custom';
       const compName = `${pascalName}CustomComponent`;
 
-      const states: string[] = [];
-      const initCalls: string[] = [];
+      const states: string[] = ['queryParams: any = {};'];
+      const initCalls: string[] = ['this.route.queryParams.subscribe(params => { this.queryParams = params; });'];
       const methods: string[] = [];
 
       const context: NodeGeneratorContext = {
@@ -33,7 +33,9 @@ export const generateCustomPageComponents = (
           customComponents,
           states,
           initCalls,
-          methods
+          methods,
+          nodeNameCache: new Map<string, string>(),
+          usedSuffixes: new Set<string>()
       };
 
       const nodesHtml = generateNode(page.layout, context, pages);

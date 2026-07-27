@@ -1,24 +1,156 @@
 import { NodeGeneratorContext } from './types';
-import { generateContainerNode, generateTextNode, generateButtonNode, generateDividerNode, generateImageNode, generateHtmlNode } from './basicNodes';
+import { generateContainerNode, generateTextNode, generateButtonNode, generateDividerNode, generateImageNode, generateHtmlNode, compileAngularPlaceholders } from './basicNodes';
 import { generateDropdownNode } from './dropdownNode';
 import { generateTableViewNode } from './tableViewNode';
 import { generateCustomComponentNode } from './customComponentNode';
+import { toCamelCase, toPascalCase, toKebabCase } from '../../../common';
+
+const getCleanSuffix = (node: any, context: NodeGeneratorContext, defaultPrefix = 'node'): string => {
+    const nodeId = node.id || 'unknown';
+    const cache = context.nodeNameCache;
+    const used = context.usedSuffixes;
+
+    if (cache && cache.has(nodeId)) {
+        return cache.get(nodeId)!;
+    }
+
+    let cleanName = defaultPrefix;
+    if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+        const tObj = context.tables.find(t => t.id === node.props.dataSourceId);
+        if (tObj) cleanName = tObj.name;
+    } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+        const qObj = context.queries.find(q => q.id === node.props.dataSourceId);
+        if (qObj) cleanName = qObj.name;
+    }
+    cleanName = cleanName.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    let baseName = toCamelCase(cleanName);
+    if (!baseName) {
+        baseName = defaultPrefix;
+    }
+    
+    let finalSuffix = baseName;
+    let counter = 2;
+    if (used) {
+        while (used.has(finalSuffix)) {
+            finalSuffix = `${baseName}_${counter}`;
+            counter++;
+        }
+        used.add(finalSuffix);
+    }
+    
+    if (cache) {
+        cache.set(nodeId, finalSuffix);
+    }
+    return finalSuffix;
+};
 
 export const generateNode = (node: any, context: NodeGeneratorContext, pages: any[]): string => {
     if (!node) return '';
     
     switch(node.type) {
-                case 'row':
+        case 'row':
             return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' row' } }, context, (n, ctx) => generateNode(n, ctx, pages));
         case 'column':
             return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' col' } }, context, (n, ctx) => generateNode(n, ctx, pages));
-        case 'card':
-            return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' card p-3 shadow-sm border' } }, context, (n, ctx) => generateNode(n, ctx, pages));
+        case 'card': {
+            const childrenStr = (node.children || []).map((c: any) => generateNode(c, context, pages)).join('\n');
+            const titleText = node.props?.title ? compileAngularPlaceholders(node.props.title, context.currentContextVar) : '';
+            const titleHtml = titleText 
+                ? `<div class="card-header bg-light border-bottom font-weight-bold px-3 py-2 text-dark">${titleText}</div>`
+                : '';
+            return `
+            <div class="card shadow-sm border overflow-hidden ${node.props?.className || ''}">
+                ${titleHtml}
+                <div class="card-body p-3">
+                    ${childrenStr}
+                </div>
+            </div>`;
+        }
         case 'sub_page':
         case 'form_view':
             return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages));
-        case 'container':
-            return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages));
+        case 'container': {
+            const hasDataSource = !!node.props?.dataSourceId;
+            if (hasDataSource) {
+                const suffix = getCleanSuffix(node, context, 'container');
+                const stateName = `data_${suffix}`;
+                const loadingState = `loading_${suffix}`;
+                const paginatedName = `finalData_${suffix}`;
+                const containerContext = `containerContext_${suffix}`;
+
+                context.states.push(`${stateName}: any[] = [];`);
+                context.states.push(`${loadingState}: boolean = false;`);
+
+                let fetchUrl = '';
+                if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+                    const tObj = context.tables.find(t => t.id === node.props.dataSourceId);
+                    if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
+                } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+                    const qObj = context.queries.find(q => q.id === node.props.dataSourceId);
+                    if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                }
+
+                if (fetchUrl) {
+                    context.initCalls.push(`this.loadData_${suffix}();`);
+                    context.methods.push(`
+  loadData_${suffix}() {
+    this.${loadingState} = true;
+    this.api.getAll('${fetchUrl}', 1, 10000).subscribe({
+      next: (res: any) => {
+        this.${stateName} = res.data || res || [];
+        this.${loadingState} = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.${loadingState} = false;
+      }
+    });
+  }`);
+                }
+
+                const filterParamField = node.props?.filterParamField;
+                const filterParamName = node.props?.filterParamName;
+                let filterSnippet = '';
+                if (filterParamField && filterParamName) {
+                    filterSnippet = `
+    const filterVal = this.queryParams?.['${filterParamName}'];
+    if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+      items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
+    } else {
+      items = [];
+    }`;
+                }
+
+                context.methods.push(`
+  get ${paginatedName}(): any[] {
+    let items = this.${stateName} || [];
+    ${filterSnippet}
+    return items;
+  }`);
+
+                context.methods.push(`
+  get ${containerContext}(): any {
+    const items = this.${paginatedName};
+    return items && items.length > 0 ? items[0] : null;
+  }`);
+
+                const innerCtx = { ...context, currentContextVar: containerContext };
+                const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx, pages)).join('\n');
+                const classNameStr = node.props?.className || '';
+                const styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
+
+                return `
+                <div class="${classNameStr || 'p-3 border rounded bg-white'}" ${styleAttr}>
+                    <div *ngIf="${loadingState}" class="text-center p-3">Lade Daten...</div>
+                    <ng-container *ngIf="!${loadingState}">
+                        ${childrenStr}
+                    </ng-container>
+                </div>`;
+            } else {
+                return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages));
+            }
+        }
         case 'text':
             return generateTextNode(node, context);
         case 'button':
@@ -205,6 +337,92 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
                    </div>
                </div>
             `;
+        }
+
+        case 'list_repeater': {
+            const suffix = getCleanSuffix(node, context, 'repeater');
+            const stateName = `data_${suffix}`;
+            const loadingState = `loading_${suffix}`;
+            const paginatedName = `finalData_${suffix}`;
+
+            context.states.push(`${stateName}: any[] = [];`);
+            context.states.push(`${loadingState}: boolean = false;`);
+
+            let fetchUrl = '';
+            if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+                const tObj = context.tables.find(t => t.id === node.props.dataSourceId);
+                if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
+            } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+                const qObj = context.queries.find(q => q.id === node.props.dataSourceId);
+                if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+            }
+
+            if (fetchUrl) {
+                context.initCalls.push(`this.loadData_${suffix}();`);
+                context.methods.push(`
+  loadData_${suffix}() {
+    this.${loadingState} = true;
+    this.api.getAll('${fetchUrl}', 1, 10000).subscribe({
+      next: (res: any) => {
+        this.${stateName} = res.data || res || [];
+        this.${loadingState} = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.${loadingState} = false;
+      }
+    });
+  }`);
+            }
+
+            const filterParamField = node.props?.filterParamField;
+            const filterParamName = node.props?.filterParamName;
+            let filterSnippet = '';
+            if (filterParamField && filterParamName) {
+                filterSnippet = `
+    const filterVal = this.queryParams?.['${filterParamName}'];
+    if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+      items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
+    } else {
+      items = [];
+    }`;
+            }
+
+            context.methods.push(`
+  get ${paginatedName}(): any[] {
+    let items = this.${stateName} || [];
+    ${filterSnippet}
+    return items;
+  }`);
+
+            const rowVar = `row_${suffix}`;
+            const innerCtx = { ...context, currentContextVar: rowVar };
+            const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx, pages)).join('\n');
+            const classNameStr = node.props?.className || 'space-y-3';
+            const styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
+
+            return `
+            <div class="${classNameStr}" ${styleAttr}>
+                <div *ngIf="${loadingState}" class="text-center p-3">Lade Daten...</div>
+                <ng-container *ngIf="!${loadingState}">
+                    <div *ngFor="let ${rowVar} of ${paginatedName}; let idx_${suffix} = index" class="bg-light p-3 border rounded mb-3 position-relative">
+                        ${childrenStr}
+                    </div>
+                    <div *ngIf="${paginatedName}.length === 0" class="text-center p-3 text-muted italic">Keine Einträge für Repeater</div>
+                </ng-container>
+            </div>`;
+        }
+
+        case 'subpage_container': {
+            const subPage = pages?.find(p => p.id === node.props?.subPageId);
+            if (!subPage) {
+                return `<div class="p-3 border border-dashed border-danger rounded text-danger italic">Subpage nicht gefunden</div>`;
+            }
+            const subpageLayoutHtml = generateNode(subPage.layout, context, pages);
+            return `
+            <div class="w-100 bg-light border border-dashed rounded p-3 position-relative">
+                ${subpageLayoutHtml}
+            </div>`;
         }
 
         default:

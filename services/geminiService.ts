@@ -1,60 +1,70 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { Table } from "../types/index";
 
-// FIX: Initialize GoogleGenAI client with a named apiKey parameter.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const generateTableSchema = async (description: string): Promise<any> => {
-  if (!process.env.API_KEY) return null;
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `Erstelle ein JSON-Schema für eine Datenbanktabelle basierend auf dieser Beschreibung: "${description}". 
-      Gib ein Objekt zurück mit 'tableName' (string) und 'fields' (Array von Objekten mit 'name' und 'type' [INTEGER, VARCHAR, TEXT, DATE, BOOLEAN]).`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            tableName: { type: Type.STRING },
-            fields: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  type: { type: Type.STRING }
-                }
-              }
-            }
-          }
-        }
-      }
+    const response = await fetch('/api/gemini/generateTableSchema', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description })
     });
-    
-    // FIX: Access the text content from the response using the .text property instead of calling a method.
-    return JSON.parse(response.text || '{}');
+    if (!response.ok) {
+      throw new Error("HTTP error " + response.status);
+    }
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return null;
+    console.warn("Gemini Service client-side fallback used:", error);
+    return generateFallbackSchema(description);
   }
 };
 
 export const generateSqlExplanation = async (tables: Table[], queryGoal: string): Promise<string> => {
-  if (!process.env.API_KEY) return "API Key missing.";
-
-  const schemaContext = tables.map(t => `${t.name}(${t.fields.map(f => f.name).join(', ')})`).join('\n');
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `Hier ist das Datenbankschema:\n${schemaContext}\n\nErstelle eine SQL-Abfrage für folgendes Ziel: "${queryGoal}". Gib nur den SQL-Code und eine kurze Erklärung auf Deutsch zurück.`
+    const response = await fetch('/api/gemini/generateSqlExplanation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tables, queryGoal })
     });
-    // FIX: Access the text content from the response using the .text property instead of calling a method.
-    return response.text || "Keine Antwort erhalten.";
+    if (!response.ok) {
+      throw new Error("HTTP error " + response.status);
+    }
+    const data = await response.json();
+    return data.explanation || "Keine Erklärung erhalten.";
   } catch (error) {
-    console.error(error);
-    return "Fehler bei der Anfrage.";
+    console.warn("Gemini Service client-side explanation fallback used:", error);
+    return `Konnte Erklärung nicht live laden (offline/keine API-Verbindung). Ziel-SQL für: ${queryGoal}`;
   }
+};
+
+export const generateFallbackSchema = (description: string): any => {
+  const descLower = description.toLowerCase();
+  const fields: any[] = [{ name: 'id', type: 'INTEGER' }];
+  
+  if (descLower.includes('name')) fields.push({ name: 'name', type: 'VARCHAR' });
+  if (descLower.includes('email') || descLower.includes('e-mail') || descLower.includes('mail')) fields.push({ name: 'email', type: 'VARCHAR' });
+  if (descLower.includes('telefon') || descLower.includes('phone') || descLower.includes('tel')) fields.push({ name: 'phone', type: 'VARCHAR' });
+  if (descLower.includes('adresse') || descLower.includes('address') || descLower.includes('strasse')) fields.push({ name: 'address', type: 'TEXT' });
+  if (descLower.includes('datum') || descLower.includes('date') || descLower.includes('zeit')) fields.push({ name: 'created_at', type: 'DATE' });
+  if (descLower.includes('beschreibung') || descLower.includes('description') || descLower.includes('text')) fields.push({ name: 'description', type: 'TEXT' });
+  if (descLower.includes('preis') || descLower.includes('price') || descLower.includes('betrag')) fields.push({ name: 'price', type: 'INTEGER' });
+  if (descLower.includes('status')) fields.push({ name: 'status', type: 'VARCHAR' });
+  if (descLower.includes('aktiv') || descLower.includes('active')) fields.push({ name: 'is_active', type: 'BOOLEAN' });
+
+  // Default fields if nothing matched
+  if (fields.length === 1) {
+    fields.push({ name: 'title', type: 'VARCHAR' });
+    fields.push({ name: 'description', type: 'TEXT' });
+    fields.push({ name: 'created_at', type: 'DATE' });
+  }
+
+  let tableName = 'tabelle';
+  const words = description.split(/\s+/);
+  for (const word of words) {
+    if (word.length > 3 && !['eine', 'tabelle', 'liste', 'über', 'fuer', 'für', 'erstellen', 'datenbank', 'db'].includes(word.toLowerCase())) {
+      tableName = word.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      break;
+    }
+  }
+
+  return { tableName, fields };
 };

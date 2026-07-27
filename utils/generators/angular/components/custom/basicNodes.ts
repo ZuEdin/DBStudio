@@ -1,6 +1,28 @@
 import { NodeGeneratorContext } from './types';
 import { toKebabCase } from '../../../common';
 
+const toCamelCase = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase())
+    .replace(/^[A-Z]/, (chr) => chr.toLowerCase());
+};
+
+export const compileAngularPlaceholders = (text: string, contextVar?: string): string => {
+  if (!text) return '';
+  const normalized = text.replace(/\{\{/g, '{').replace(/\}\}/g, '}');
+  if (!normalized.includes('{')) return normalized;
+  
+  return normalized.replace(/\{([^{}]+)\}/g, (match, key) => {
+    const trimmedKey = key.trim();
+    if (contextVar) {
+      return `{{ ${contextVar}?.['${trimmedKey}'] || ${contextVar}?.['${toCamelCase(trimmedKey)}'] || ${contextVar}?.${trimmedKey} || ${contextVar}?.${toCamelCase(trimmedKey)} || queryParams?.['${trimmedKey}'] || '' }}`;
+    } else {
+      return `{{ queryParams?.['${trimmedKey}'] || '' }}`;
+    }
+  });
+};
+
 export const generateContainerNode = (node: any, context: NodeGeneratorContext, generateNode: (node: any, ctx: NodeGeneratorContext) => string): string => {
     let classNameStr = node.props?.className || '';
     let styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
@@ -13,7 +35,8 @@ export const generateTextNode = (node: any, context: NodeGeneratorContext): stri
     let classNameStr = node.props?.className || '';
     let styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
     const defaultClass = context.isBootstrap ? 'text-break' : 'break-words';
-    return `<div class="${defaultClass} ${classNameStr}" ${styleAttr}>${node.props?.text || ''}</div>`;
+    const compiledText = compileAngularPlaceholders(node.props?.text || '', context.currentContextVar);
+    return `<div class="${defaultClass} ${classNameStr}" ${styleAttr}>${compiledText}</div>`;
 };
 
 export const generateButtonNode = (node: any, context: NodeGeneratorContext): string => {

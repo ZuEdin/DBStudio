@@ -61,9 +61,23 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
   const columnsStr = node.props?.columns || '';
   const columns = columnsStr ? columnsStr.split(',').map((c: string) => c.trim()) : [];
   
+  const filterParamField = node.props?.filterParamField;
+  const filterParamName = node.props?.filterParamName;
+  let filterSnippet = '';
+  if (filterParamField && filterParamName) {
+      filterSnippet = `
+    const filterVal = searchParams.get('${filterParamName}');
+    if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+      items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
+    } else {
+      items = [];
+    }`;
+  }
+
   ctx.effects.push(`
   const ${processedName} = useMemo(() => {
     let items = [...${stateName}];
+    ${filterSnippet}
     const globalSearch = ${searchState}.toLowerCase().trim();
     if (globalSearch) {
       const searchTerms = globalSearch.split(/\\s+/).filter(Boolean);
@@ -109,7 +123,7 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
     }
 
     return items;
-  }, [${stateName}, ${searchState}, ${columnFiltersState}, ${sortFieldState}, ${sortDirState}]);`);
+  }, [${stateName}, ${searchState}, ${columnFiltersState}, ${sortFieldState}, ${sortDirState}, searchParams]);`);
 
   ctx.effects.push(`
   const ${paginatedName} = useMemo(() => {
@@ -146,6 +160,10 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
       if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
   } else if (formRoute) {
       const code = `navigate(\`${formRoute}/\${idVal}\`);`;
+      if (clickTrigger === 'click') clickActionCode = code;
+      if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
+  } else {
+      const code = `const searchParamsCopy = new URLSearchParams(window.location.search); searchParamsCopy.set('${paramKey}', String(idVal)); navigate({ search: '?' + searchParamsCopy.toString() });`;
       if (clickTrigger === 'click') clickActionCode = code;
       if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
   }

@@ -25,6 +25,18 @@ export const generateTableViewNode = (node: any, context: NodeGeneratorContext, 
     context.states.push(`${sortDirState}: 'asc' | 'desc' | null = null;`);
     context.states.push(`${pageState} = 1;`);
     context.states.push(`${selectedRowState}: any = null;`);
+
+    const filterParamField = node.props?.filterParamField;
+    const filterParamName = node.props?.filterParamName;
+    const paramStateName = `param_${suffix}`;
+
+    if (filterParamName) {
+        context.states.push(`${paramStateName}: string | null = null;`);
+        context.initCalls.push(`
+    this.route.queryParams.subscribe(params => {
+      this.${paramStateName} = params['${filterParamName}'] || null;
+    });`);
+    }
     
     let fetchUrl = '';
     const tObj = node.props?.dataSourceType === 'table' && node.props?.dataSourceId
@@ -72,9 +84,21 @@ export const generateTableViewNode = (node: any, context: NodeGeneratorContext, 
     const processedName = `processedTableData_${suffix}`;
     const paginatedName = `paginatedTableData_${suffix}`;
 
+    let filterSnippet = '';
+    if (filterParamField && filterParamName) {
+        filterSnippet = `
+    const filterVal = this.${paramStateName};
+    if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+      items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
+    } else {
+      items = [];
+    }`;
+    }
+
     context.methods.push(`
   get ${processedName}(): any[] {
     let items = [...this.${stateName}];
+    ${filterSnippet}
     const globalSearch = this.${searchState}.toLowerCase().trim();
     if (globalSearch) {
       const searchTerms = globalSearch.split(/\\s+/).filter(Boolean);
@@ -187,13 +211,17 @@ export const generateTableViewNode = (node: any, context: NodeGeneratorContext, 
         const code = `this.router.navigate(['${formRoute}', idVal]);`;
         if (clickTrigger === 'click') clickActionCode = code;
         if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
+    } else {
+        const code = `this.router.navigate([], { relativeTo: this.route, queryParams: { '${paramKey}': idVal }, queryParamsHandling: 'merge' });`;
+        if (clickTrigger === 'click') clickActionCode = code;
+        if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
     }
 
     context.methods.push(`
   onRowClick_${suffix}(row: any, idx: number) {
     const idVal = row['${pkFieldName}'] || row.id || row.ID || idx;
     this.${selectedRowState} = idVal;
-    ${clickActionCode ? `this.router.navigate(['${detailsPageRoute || formRoute}'], { queryParams: { '${paramKey}': idVal } });` : ''}
+    ${clickActionCode ? clickActionCode : ''}
   }`);
 
     if (dblclickActionCode) {

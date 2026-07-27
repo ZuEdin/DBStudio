@@ -1,7 +1,7 @@
 import { CustomPage, Table, Query, Form, VirtualFile } from '../../../../types/index';
 import { toCamelCase, toPascalCase } from '../../common';
 import { GeneratorContext } from './custom/types';
-import { generateSimpleNode } from './custom/simpleNodeGenerator';
+import { generateSimpleNode, compilePlaceholders } from './custom/simpleNodeGenerator';
 import { generateDropdownNode } from './custom/dropdownNodeGenerator';
 import { generateTableViewNode } from './custom/tableViewNodeGenerator';
 import { generateCustomComponentNode } from './custom/customComponentNodeGenerator';
@@ -17,6 +17,42 @@ export const generateCustomPage = (
 ): VirtualFile => {
   const compName = `${toPascalCase(page.name)}Page`;
   
+  const nodeNameCache = new Map<string, string>();
+  const usedSuffixes = new Set<string>();
+
+  const getCleanSuffix = (node: any, defaultPrefix = 'node'): string => {
+      const nodeId = node.id || 'unknown';
+      if (nodeNameCache.has(nodeId)) {
+          return nodeNameCache.get(nodeId)!;
+      }
+
+      let cleanName = defaultPrefix;
+      if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+          const tObj = tables.find(t => t.id === node.props.dataSourceId);
+          if (tObj) cleanName = tObj.name;
+      } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+          const qObj = queries.find(q => q.id === node.props.dataSourceId);
+          if (qObj) cleanName = qObj.name;
+      }
+      cleanName = cleanName.replace(/[^a-zA-Z0-9]/g, '_');
+      
+      let baseName = toCamelCase(cleanName);
+      if (!baseName) {
+          baseName = defaultPrefix;
+      }
+      
+      let finalSuffix = baseName;
+      let counter = 2;
+      while (usedSuffixes.has(finalSuffix)) {
+          finalSuffix = `${baseName}_${counter}`;
+          counter++;
+      }
+      
+      usedSuffixes.add(finalSuffix);
+      nodeNameCache.set(nodeId, finalSuffix);
+      return finalSuffix;
+  };
+  
   const states: string[] = [];
   const effects: string[] = [];
   const imports = new Set<string>(['React', 'useEffect', 'useState']);
@@ -25,7 +61,89 @@ export const generateCustomPage = (
       if (!node) return '';
       
       switch(node.type) {
-          case 'container':
+          case 'container': {
+              const hasDataSource = !!node.props?.dataSourceId;
+              if (hasDataSource) {
+                  const suffix = getCleanSuffix(node, 'container');
+                  const stateName = `data_${suffix}`;
+                  const loadingState = `loading_${suffix}`;
+                  const paginatedName = `finalData_${suffix}`;
+                  const containerContext = `containerContext_${suffix}`;
+
+                  states.push(`const [${stateName}, set_${stateName}] = useState<any[]>([]);`);
+                  states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
+
+                  let fetchUrl = '';
+                  if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+                      const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                      if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
+                  } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+                      const qObj = queries.find(q => q.id === node.props.dataSourceId);
+                      if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                  }
+
+                  if (fetchUrl) {
+                      imports.add('get');
+                      effects.push(`
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        set_${loadingState}(true);
+        const res = await get<any>('${fetchUrl}', { pageSize: 10000 });
+        const items = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
+        set_${stateName}(items);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set_${loadingState}(false);
+      }
+    };
+    fetchData();
+  }, []);`);
+                  }
+
+                  const filterParamField = node.props?.filterParamField;
+                  const filterParamName = node.props?.filterParamName;
+                  let filterSnippet = '';
+                  if (filterParamField && filterParamName) {
+                      filterSnippet = `
+    const filterVal = searchParams.get('${filterParamName}');
+    if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+      items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
+    } else {
+      items = [];
+    }`;
+                  }
+
+                  effects.push(`
+  const ${paginatedName} = useMemo(() => {
+    let items = ${stateName};
+    ${filterSnippet}
+    return items;
+  }, [${stateName}, searchParams]);`);
+
+                  effects.push(`
+  const ${containerContext} = useMemo(() => {
+    return ${paginatedName} && ${paginatedName}.length > 0 ? ${paginatedName}[0] : null;
+  }, [${paginatedName}]);`);
+
+                  const innerCtx = { ...ctx, currentContextVar: containerContext };
+                  const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx)).join('\n');
+                  const classNameStr = node.props?.className || '';
+                  const styleStr = JSON.stringify(node.props?.style || {});
+
+                  return `
+                  <div className="${classNameStr || 'p-4 border rounded'}" style={${styleStr}}>
+                      {${loadingState} ? (
+                          <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin text-indigo-500" /></div>
+                      ) : (
+                          ${childrenStr}
+                      )}
+                  </div>`;
+              } else {
+                  return generateSimpleNode(node, ctx);
+              }
+          }
           case 'text':
           case 'button':
           case 'divider':
@@ -52,24 +170,98 @@ export const generateCustomPage = (
           }
           case 'card': {
               const childrenStr = (node.children || []).map((c: any) => generateNode(c, ctx)).join('\n');
+              const titleHtml = node.props?.title 
+                ? `<div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-medium text-slate-800">{${compilePlaceholders(node.props.title, ctx.currentContextVar)}}</div>` 
+                : '';
               return `
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-                  ${node.props?.title ? `<div className="px-4 py-3 border-b border-slate-200 bg-slate-50 font-medium text-slate-800">${node.props.title}</div>` : ''}
+                  ${titleHtml}
                   <div className="p-4">
                       ${childrenStr}
                   </div>
               </div>`;
           }
           case 'list_repeater': {
-              const childrenStr = (node.children || []).map((c: any) => generateNode(c, ctx)).join('\n');
+              const suffix = getCleanSuffix(node, 'repeater');
+              const stateName = `data_${suffix}`;
+              const loadingState = `loading_${suffix}`;
+              const paginatedName = `finalData_${suffix}`;
+
+              states.push(`const [${stateName}, set_${stateName}] = useState<any[]>([]);`);
+              states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
+
+              let fetchUrl = '';
+              if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+                  const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                  if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
+              } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+                  const qObj = queries.find(q => q.id === node.props.dataSourceId);
+                  if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+              }
+
+              if (fetchUrl) {
+                  imports.add('get');
+                  effects.push(`
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        set_${loadingState}(true);
+        const res = await get<any>('${fetchUrl}', { pageSize: 10000 });
+        const items = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
+        set_${stateName}(items);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set_${loadingState}(false);
+      }
+    };
+    fetchData();
+  }, []);`);
+              }
+
+              const filterParamField = node.props?.filterParamField;
+              const filterParamName = node.props?.filterParamName;
+              let filterSnippet = '';
+              if (filterParamField && filterParamName) {
+                  filterSnippet = `
+    const filterVal = searchParams.get('${filterParamName}');
+    if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+      items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
+    } else {
+      items = [];
+    }`;
+              }
+
+              effects.push(`
+  const ${paginatedName} = useMemo(() => {
+    let items = ${stateName};
+    ${filterSnippet}
+    return items;
+  }, [${stateName}, searchParams]);`);
+
+              const rowVar = `row_${suffix}`;
+              const innerCtx = { ...ctx, currentContextVar: rowVar };
+              const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx)).join('\n');
+              const classNameStr = node.props?.className || 'space-y-4';
+              const styleStr = JSON.stringify(node.props?.style || {});
+
               return `
-              <div className="space-y-4">
-                  {/* List Repeater Placeholder */}
-                  ${childrenStr}
+              <div className="${classNameStr}" style={${styleStr}}>
+                  {${loadingState} ? (
+                      <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin text-indigo-500" /></div>
+                  ) : (
+                      <>
+                          {${paginatedName}.map((${rowVar}, idx_${suffix}) => (
+                              <div key={idx_${suffix}} className="bg-slate-50/50 p-4 rounded-lg border border-slate-200 relative hover:border-slate-300 hover:bg-slate-50 transition">
+                                  ${childrenStr}
+                              </div>
+                          ))}
+                          {!${loadingState} && ${paginatedName}.length === 0 && (
+                              <div className="text-center p-4 text-xs text-slate-400 italic">Keine Einträge für Repeater</div>
+                          )}
+                      </>
+                  )}
               </div>`;
-          }
-          case 'subpage_container': {
-              return `<div className="p-4 border border-dashed border-slate-200 rounded text-slate-400 italic">Subpage Container [${node.props?.subPageId || ''}]</div>`;
           }
           case 'form_view': {
               return `<div className="p-4 border border-dashed border-slate-200 rounded text-slate-400 italic">Form View Component</div>`;
@@ -196,6 +388,17 @@ export const generateCustomPage = (
                  </div>
               `;
           }
+          case 'subpage_container': {
+              const subPage = ctx.pages.find(p => p.id === node.props?.subPageId);
+              if (!subPage) {
+                  return `<div className="p-4 border border-dashed border-red-200 rounded text-red-500 italic">Subpage [${node.props?.subPageId || ''}] nicht gefunden</div>`;
+              }
+              const subpageLayoutHtml = ctx.generateNode(subPage.layout, ctx);
+              return `
+              <div className="w-full bg-slate-50/20 border border-dashed border-slate-200 hover:border-slate-300 rounded-lg p-3 transition relative">
+                  ${subpageLayoutHtml}
+              </div>`;
+          }
           default:
               return `<div className="p-4 bg-slate-50 rounded border text-sm text-slate-400">${node.type} Component</div>`;
       }
@@ -242,13 +445,14 @@ export const generateCustomPage = (
 
   
   const content = `import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { exportDataToFile } from '../../utils/exportHelper';
 ${importsStr}\n${rechartsImportsStr}
 
 export const ${compName} = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   ${states.join('\n  ')}
 
   ${effects.join('\n  ')}

@@ -1,5 +1,29 @@
 import { GeneratorContext } from './types';
 
+const toCamelCase = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase())
+    .replace(/^[A-Z]/, (chr) => chr.toLowerCase());
+};
+
+export const compilePlaceholders = (text: string, contextVar?: string): string => {
+  if (!text) return '""';
+  const normalized = text.replace(/\{\{/g, '{').replace(/\}\}/g, '}');
+  if (!normalized.includes('{')) return JSON.stringify(normalized);
+  
+  const replaced = normalized.replace(/\{([^{}]+)\}/g, (match, key) => {
+    const trimmedKey = key.trim();
+    if (contextVar) {
+      return `\${${contextVar}['${trimmedKey}'] || ${contextVar}['${toCamelCase(trimmedKey)}'] || searchParams.get('${trimmedKey}') || ''}`;
+    } else {
+      return `\${searchParams.get('${trimmedKey}') || ''}`;
+    }
+  });
+  
+  return `\`${replaced}\``;
+};
+
 export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => {
   if (!node) return '';
   
@@ -12,7 +36,8 @@ export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => 
           return `<div className="${classNameStr || 'p-4 border rounded'}" style={${styleStr}}>${childrenStr}</div>`;
       }
       case 'text': {
-          return `<div className="break-words ${classNameStr}" style={${styleStr}}>${node.props?.text || ''}</div>`;
+          const compiledText = compilePlaceholders(node.props?.text || '', ctx.currentContextVar);
+          return `<div className="break-words ${classNameStr}" style={${styleStr}}>{${compiledText}}</div>`;
       }
       case 'button': {
           const actType = node.props?.actionType;

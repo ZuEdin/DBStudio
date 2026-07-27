@@ -285,3 +285,34 @@ Im generierten React-Frontend (`src/services/api.ts`) ist eine hoch-performante,
    - Um maximale Kompatibilität mit verschiedenen Datenbanksystemen und Backend-Generatoren (wie Angular, Spring, Node) zu gewährleisten, ist die Schnittstelle vollkommen unempfindlich gegenüber unterschiedlichen Schreibweisen (`sys_users`, `sysUsers`, `sysusers`, `sys-users`). Ein zentraler Mapping-Algorithmus normalisiert und findet das passende IndexedDB-Store selbstständig.
    - **Automatisierte Daten-Seeding:** Beim ersten Anlegen der lokalen Datenbank werden alle initialen Datenbestände aus dem Projekt-Workspace automatisch eingepflegt. Dabei werden alle Feldnamen sowohl im Original-Format als auch im `camelCase`-Format abgelegt. Dies garantiert, dass Frontends, die auf unterschiedliche Casing-Varianten zugreifen, immer die korrekten Attributwerte erhalten.
 
+
+### 7.6 Dynamische Datenbindung & Parameter-Filterung in generierten Custom-Pages (React & Angular)
+
+Um die reaktive Datenanzeige und datenquellenübergreifende Filterung in den generierten Custom-Pages von **React** und **Angular** zu vereinheitlichen, nutzen beide Codegeneratoren ein standardisiertes, hierarchisches Context-Mapping. Dies stellt sicher, dass tief verschachtelte Layout-Strukturen (wie z. B. Cards innerhalb von Containers, die wiederum in List-Repeaters eingebettet sind) stets korrekte Datenbindungskontexte auflösen.
+
+#### A. React-seitiges Context- & State-Mapping
+Im generierten React-Code (`[PageName]Page.tsx`) werden für jeden Layout-Knoten mit Datenquellen-Anbindung (z. B. ein Datenquellen-gesteuerter Container oder ein List-Repeater) atomare States, Lade-Indikatoren und reaktive `useMemo`-Filter registriert:
+1. **Zustand & Datenabruf:**
+   - Ein primärer State `data_xxx` hält die ungefilterten Daten aus IndexedDB / API.
+   - Ein `useEffect`-Hook lädt die Daten asynchron über die `get`-Methode beim Mounten.
+2. **Reaktive URL-Filterung:**
+   - Eine `useMemo`-Funktion `finalData_xxx` lauscht auf Änderungen von `data_xxx` und den Browser-`searchParams`.
+   - Bei gesetzten Parametern (`filterParamField` und `filterParamName`) filtert der Code die Datensätze direkt im Client-Zustand.
+3. **Kontext-Weitergabe:**
+   - Ein Container-Knoten stellt das erste Element des gefilterten Arrays als Kontext-Zustand `containerContext_xxx` bereit.
+   - Verschachtelte Text- oder Titelknoten greifen über die `compilePlaceholders`-Pipeline auf diesen hierarchischen Kontext zu.
+
+#### B. Angular-seitiges Context- & State-Mapping
+Im generierten Angular-Code (`[kebab-name]-custom.component.ts` & `.html`) wird die Datenbindung unter Ausnutzung der Angular Change Detection und lokaler Template-Variablen gelöst:
+1. **Automatisierte Query-Parameter Erfassung:**
+   - Jede Custom-Page abonniert standardmäßig in `ngOnInit` die aktiven URL-Query-Parameter:
+     `this.route.queryParams.subscribe(params => { this.queryParams = params; });`
+2. **Datenabruf via ApiService:**
+   - Die Daten werden über die generische `api.getAll(url, page, limit)`-Methode des Service-Layers geladen und reaktiv im Klassenattribut abgelegt.
+3. **Change-Detection-gesteuerte Getters (Filterung & Kontext):**
+   - Ein Typ-sicherer Getter `get finalData_xxx(): any[]` wertet reaktiv die Query-Parameter-Filterung aus, sobald sich die URL ändert.
+   - Ein Getter `get containerContext_xxx(): any` stellt das aktive Detail-Objekt bereit.
+4. **HTML Template & Lokale Variablen:**
+   - Für Repeater wird das native `*ngFor="let row_xxx of finalData_xxx"` verwendet.
+   - Textknoten binden sich mittels Angular-Interpolation `{{ row_xxx?.['FeldName'] }}` direkt an die hierarchischen Kontexte oder fallen bei fehlendem Wert nahtlos auf die globalen `queryParams` zurück.
+

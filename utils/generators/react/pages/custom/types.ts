@@ -8,4 +8,5 @@ export interface GeneratorContext {
   pages: any[];
   customComponents: any[];
   generateNode: (node: any, ctx: GeneratorContext) => string;
+  currentContextVar?: string;
 }
