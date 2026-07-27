@@ -68,8 +68,211 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
             </div>`;
         }
         case 'sub_page':
-        case 'form_view':
             return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages));
+        case 'form_view': {
+            const formId = node.props?.formId;
+            const fObj = context.forms.find(f => f.id === formId);
+            if (!fObj) {
+                return `<div class="p-3 text-muted text-center border border-dashed rounded">Kein Formular ausgewählt</div>`;
+            }
+            const tObj = context.tables.find(t => t.id === fObj.sourceId);
+            if (!tObj) {
+                return `<div class="p-3 text-danger text-center border border-dashed rounded">Tabelle für Formular nicht gefunden</div>`;
+            }
+
+            const suffix = getCleanSuffix(node, context, 'form');
+            const stateName = `formData_${suffix}`;
+            const loadingState = `formLoading_${suffix}`;
+            const savingState = `formSaving_${suffix}`;
+            const statusState = `formStatus_${suffix}`; // { type: 'success' | 'error' | null, message: string }
+
+            context.states.push(`${stateName}: any = {};`);
+            context.states.push(`${loadingState}: boolean = false;`);
+            context.states.push(`${savingState}: boolean = false;`);
+            context.states.push(`${statusState}: { type: 'success' | 'error' | null, message: string } = { type: null, message: '' };`);
+
+            // Fields to render
+            const formFields = tObj.fields.filter(f => !f.isPrimaryKey && !f.isAutoIncrement);
+            
+            // Mode: 'create' or 'edit'
+            const formMode = node.props?.formMode || 'create';
+            const filterField = node.props?.filterParamField;
+            const filterParam = node.props?.filterParamName;
+
+            // Initial defaults & loading logic
+            const defaultFields: string[] = [];
+            tObj.fields.forEach(f => {
+                const fCamel = toCamelCase(f.name);
+                if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+                    if (f.type === 'BOOLEAN') {
+                        defaultFields.push(`${fCamel}: ${f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1'}`);
+                    } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                        defaultFields.push(`${fCamel}: ${f.defaultValue}`);
+                    } else {
+                        defaultFields.push(`'${fCamel}': "${f.defaultValue.replace(/"/g, '\\"')}"`);
+                    }
+                }
+            });
+
+            // Init call for loading
+            context.initCalls.push(`this.initForm_${suffix}();`);
+
+            context.methods.push(`
+  initForm_${suffix}() {
+    this.${statusState} = { type: null, message: '' };
+    let initialData: any = { ${defaultFields.join(', ')} };
+    
+    // Filter parameter pre-filling
+    ${filterField && filterParam ? `
+    const filterVal = this.queryParams['${filterParam}'];
+    if (filterVal) {
+      initialData['${toCamelCase(filterField)}'] = isNaN(Number(filterVal)) ? filterVal : Number(filterVal);
+    }
+    ` : ''}
+
+    // If in edit mode, fetch record
+    ${formMode === 'edit' ? `
+    const editId = this.queryParams['selectedId'] || this.queryParams['${filterParam || 'id'}'];
+    if (editId && editId !== 'new') {
+      this.${loadingState} = true;
+      this.api.getById('${toPascalCase(tObj.name)}', editId).subscribe({
+        next: (res: any) => {
+          this.${stateName} = { ...initialData, ...(res.data || res) };
+          this.${loadingState} = false;
+        },
+        error: (err: any) => {
+          console.error(err);
+          this.${statusState} = { type: 'error', message: 'Fehler beim Laden des Datensatzes' };
+          this.${loadingState} = false;
+        }
+      });
+      return;
+    }
+    ` : ''}
+
+    this.${stateName} = initialData;
+  }`);
+
+            // Submit logic
+            const tblPascal = toPascalCase(tObj.name);
+            context.methods.push(`
+  submitForm_${suffix}() {
+    this.${savingState} = true;
+    this.${statusState} = { type: null, message: '' };
+    const editId = this.queryParams['selectedId'] || this.queryParams['${filterParam || 'id'}'];
+    const isEdit = ${formMode === 'edit'} && editId && editId !== 'new';
+    
+    const payload = { ...this.${stateName} };
+    
+    if (isEdit) {
+      this.api.update('${tblPascal}', editId, payload).subscribe({
+        next: () => {
+          this.${statusState} = { type: 'success', message: 'Datensatz erfolgreich aktualisiert!' };
+          this.${savingState} = false;
+        },
+        error: (err: any) => {
+          console.error(err);
+          this.${statusState} = { type: 'error', message: 'Fehler beim Speichern' };
+          this.${savingState} = false;
+        }
+      });
+    } else {
+      this.api.create('${tblPascal}', payload).subscribe({
+        next: () => {
+          this.${statusState} = { type: 'success', message: 'Datensatz erfolgreich erstellt!' };
+          this.${stateName} = { ${defaultFields.join(', ')} };
+          this.${savingState} = false;
+        },
+        error: (err: any) => {
+          console.error(err);
+          this.${statusState} = { type: 'error', message: 'Fehler beim Erstellen' };
+          this.${savingState} = false;
+        }
+      });
+    }
+  }`);
+
+            // Fields HTML
+            let fieldsHtml = '';
+            // Generate simple template-driven inputs
+            fieldsHtml = formFields.map(f => {
+                const fCamel = toCamelCase(f.name);
+                const label = f.comment || f.name;
+                let input = '';
+                if (f.type === 'BOOLEAN') {
+                    input = `
+                    <div class="form-check mt-2">
+                        <input 
+                            type="checkbox" 
+                            id="${fCamel}_${suffix}"
+                            [(ngModel)]="${stateName}['${fCamel}']"
+                            name="${fCamel}_${suffix}"
+                            class="form-check-input" 
+                        />
+                        <label for="${fCamel}_${suffix}" class="form-check-label fw-semibold">${label}</label>
+                    </div>`;
+                } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                    input = `
+                    <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
+                    <input 
+                        type="number" 
+                        [(ngModel)]="${stateName}['${fCamel}']"
+                        name="${fCamel}_${suffix}"
+                        class="form-control" 
+                        step="${f.type === 'INTEGER' ? '1' : 'any'}"
+                    />`;
+                } else if (f.type === 'DATE') {
+                    input = `
+                    <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
+                    <input 
+                        type="date" 
+                        [(ngModel)]="${stateName}['${fCamel}']"
+                        name="${fCamel}_${suffix}"
+                        class="form-control" 
+                    />`;
+                } else {
+                    input = `
+                    <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
+                    <input 
+                        type="text" 
+                        [(ngModel)]="${stateName}['${fCamel}']"
+                        name="${fCamel}_${suffix}"
+                        class="form-control" 
+                    />`;
+                }
+                return `<div class="col-md-6 text-start mb-3">${input}</div>`;
+            }).join('\n');
+
+            return `
+            <div class="card p-4 mb-4 bg-white shadow-sm border rounded-3">
+                <div *ngIf="!${node.props?.hideHeader ? 'true' : 'false'}" class="border-bottom pb-2 mb-4 text-start">
+                    <h4 class="h5 mb-1 text-dark fw-bold">${fObj.name}</h4>
+                    <p class="text-muted small mb-0">${formMode === 'edit' ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen'}</p>
+                </div>
+
+                <div *ngIf="${statusState}.type" class="alert mb-4 text-start" [ngClass]="{'alert-success': ${statusState}.type === 'success', 'alert-danger': ${statusState}.type === 'error'}">
+                    {{ ${statusState}.message }}
+                </div>
+
+                <div *ngIf="${loadingState}" class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Lade...</span>
+                    </div>
+                </div>
+
+                <form *ngIf="!${loadingState}" (ngSubmit)="submitForm_${suffix}()" class="row">
+                    ${fieldsHtml}
+                    
+                    <div *ngIf="!${node.props?.hideActions ? 'true' : 'false'}" class="col-12 d-flex justify-content-end mt-4 pt-3 border-top">
+                        <button type="submit" [disabled]="${savingState}" class="btn btn-primary px-4 fw-bold cursor-pointer">
+                            <span *ngIf="${savingState}" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+            `;
+        }
         case 'container': {
             const hasDataSource = !!node.props?.dataSourceId;
             if (hasDataSource) {

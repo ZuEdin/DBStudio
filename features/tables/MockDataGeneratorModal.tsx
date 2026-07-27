@@ -25,7 +25,13 @@ export const MockDataGeneratorModal: React.FC<MockDataGeneratorModalProps> = ({ 
     if (n.includes('phone')) return faker.phone.number();
     if (n.includes('address') || n.includes('street')) return faker.location.streetAddress();
     if (n.includes('city')) return faker.location.city();
-    if (n.includes('country')) return faker.location.country();
+    if (n.includes('country')) {
+        if (type === 'CHAR') {
+            const codes = ['AT', 'DE', 'CH', 'US', 'GB', 'FR', 'ES', 'IT', 'NL', 'BE'];
+            return codes[Math.floor(Math.random() * codes.length)];
+        }
+        return faker.location.country();
+    }
     if (n.includes('zip') || n.includes('postal')) return faker.location.zipCode();
     if (n.includes('company')) return faker.company.name();
     if (n.includes('date') || type === 'DATE' || type === 'DATETIME' || type === 'TIMESTAMP') {
@@ -43,7 +49,11 @@ export const MockDataGeneratorModal: React.FC<MockDataGeneratorModalProps> = ({ 
       case 'BOOLEAN':
         return faker.datatype.boolean();
       case 'VARCHAR':
+      case 'CHAR':
       case 'TEXT':
+        if (type === 'CHAR') {
+            return faker.string?.alpha ? faker.string.alpha({ length: 2, casing: 'upper' }) : 'XY';
+        }
         return faker.lorem.words({ min: 1, max: 3 });
       default:
         return faker.lorem.word();

@@ -16,6 +16,7 @@ export interface NodeGeneratorContext {
   states: string[];
   initCalls: string[];
   methods: string[];
+  pages?: any[];
   currentContextVar?: string;
   nodeNameCache?: Map<string, string>;
   usedSuffixes?: Set<string>;

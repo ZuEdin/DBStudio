@@ -112,6 +112,22 @@ export const DATA_TYPES: Record<string, DataTypeDefinition> = {
       sql: { type: ({ length }) => `VARCHAR(${length || 255})` }
     }
   },
+  CHAR: {
+    label: "Feste Länge (Char)",
+    hasLength: true,
+    defaultLength: 2,
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: ({ length }) => length ? [`[MaxLength(${length})]`, `[Column(TypeName = "char(${length})")]`] : [`[Column(TypeName = "char(2)")]`]
+      },
+      sequelize: { 
+        type: ({ length }) => `DataTypes.CHAR(${length || 2})` 
+      },
+      typescript: "string",
+      sql: { type: ({ length }) => `CHAR(${length || 2})` }
+    }
+  },
   TEXT: {
     label: "Langer Text (Text)",
     mappings: {

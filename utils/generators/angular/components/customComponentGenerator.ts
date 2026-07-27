@@ -34,6 +34,7 @@ export const generateCustomPageComponents = (
           states,
           initCalls,
           methods,
+          pages,
           nodeNameCache: new Map<string, string>(),
           usedSuffixes: new Set<string>()
       };

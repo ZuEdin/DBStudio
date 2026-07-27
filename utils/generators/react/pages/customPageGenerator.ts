@@ -5,6 +5,7 @@ import { generateSimpleNode, compilePlaceholders } from './custom/simpleNodeGene
 import { generateDropdownNode } from './custom/dropdownNodeGenerator';
 import { generateTableViewNode } from './custom/tableViewNodeGenerator';
 import { generateCustomComponentNode } from './custom/customComponentNodeGenerator';
+import { collectLookups, generateJsxForLayout } from '../layoutHelper';
 
 export const generateCustomPage = (
   page: CustomPage,
@@ -264,7 +265,235 @@ export const generateCustomPage = (
               </div>`;
           }
           case 'form_view': {
-              return `<div className="p-4 border border-dashed border-slate-200 rounded text-slate-400 italic">Form View Component</div>`;
+              const formId = node.props?.formId;
+              const fObj = forms.find(f => f.id === formId);
+              if (!fObj) {
+                  return `<div className="p-4 border border-dashed border-slate-200 rounded text-slate-400 italic">Kein Formular ausgewählt</div>`;
+              }
+              const tObj = tables.find(t => t.id === fObj.sourceId);
+              if (!tObj) {
+                  return `<div className="p-4 border border-dashed border-red-200 rounded text-red-500 italic">Tabelle für Formular nicht gefunden</div>`;
+              }
+
+              const suffix = getCleanSuffix(node, 'form');
+              const stateName = `formData_${suffix}`;
+              const loadingState = `formLoading_${suffix}`;
+              const savingState = `formSaving_${suffix}`;
+              const statusState = `formStatus_${suffix}`; // 'idle' | 'success' | 'error'
+              
+              states.push(`const [${stateName}, set_${stateName}] = useState<any>({});`);
+              states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
+              states.push(`const [${savingState}, set_${savingState}] = useState(false);`);
+              states.push(`const [${statusState}, set_${statusState}] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });`);
+
+              // Fields to render
+              const formFields = tObj.fields.filter(f => !f.isPrimaryKey && !f.isAutoIncrement);
+              
+              // Mode: 'create' or 'edit'
+              const formMode = node.props?.formMode || 'create';
+              const filterField = node.props?.filterParamField;
+              const filterParam = node.props?.filterParamName;
+
+              // Register lookup states if layout is present
+              const requiredModals: any[] = [];
+              const lookups = fObj.layout ? collectLookups(fObj.layout, tables, queries) : [];
+              
+              lookups.forEach(l => {
+                  const varName = l.variableName;
+                  states.push(`const [${varName}, set${toPascalCase(varName)}] = useState<any[]>([]);`);
+                  effects.push(`
+  useEffect(() => {
+    const loadLookup = async () => {
+      try {
+        const res = await get<any>('${l.endpoint}', { pageSize: 10000 });
+        set${toPascalCase(varName)}(Array.isArray(res) ? res : (res?.data || []));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadLookup();
+  }, []);`);
+              });
+
+              // Initial defaults & loading logic
+              const defaultFields: string[] = [];
+              tObj.fields.forEach(f => {
+                  const fCamel = toCamelCase(f.name);
+                  if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+                      if (f.type === 'BOOLEAN') {
+                          defaultFields.push(`${fCamel}: ${f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1'}`);
+                      } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                          defaultFields.push(`${fCamel}: ${f.defaultValue}`);
+                      } else {
+                          defaultFields.push(`${fCamel}: "${f.defaultValue.replace(/"/g, '\\"')}"`);
+                      }
+                  }
+              });
+
+              // We also want to support pre-filling from parameters
+              effects.push(`
+  useEffect(() => {
+    const initForm = async () => {
+      set_${statusState}({ type: null, message: '' });
+      let initialData: any = { ${defaultFields.join(', ')} };
+      
+      // Filter parameter pre-filling
+      ${filterField && filterParam ? `
+      const filterVal = searchParams.get('${filterParam}');
+      if (filterVal) {
+        initialData.${toCamelCase(filterField)} = isNaN(Number(filterVal)) ? filterVal : Number(filterVal);
+      }
+      ` : ''}
+
+      // If in edit mode, fetch the record
+      ${formMode === 'edit' ? `
+      const editId = searchParams.get('selectedId') || searchParams.get('${filterParam || 'id'}');
+      if (editId && editId !== 'new') {
+        set_${loadingState}(true);
+        try {
+          const res = await get<any>('${toPascalCase(tObj.name)}/' + editId);
+          initialData = { ...initialData, ...(res.data || res) };
+        } catch (err) {
+          console.error(err);
+          set_${statusState}({ type: 'error', message: 'Fehler beim Laden des Datensatzes' });
+        } finally {
+          set_${loadingState}(false);
+        }
+      }
+      ` : ''}
+
+      set_${stateName}(initialData);
+    };
+    initForm();
+  }, [searchParams]);`);
+
+              // Form submission logic
+              const handleSubmitFunc = `handleSubmit_${suffix}`;
+              effects.push(`
+  const ${handleSubmitFunc} = async (e: React.FormEvent) => {
+    e.preventDefault();
+    set_${savingState}(true);
+    set_${statusState}({ type: null, message: '' });
+    try {
+      const editId = searchParams.get('selectedId') || searchParams.get('${filterParam || 'id'}');
+      const isEdit = ${formMode === 'edit'} && editId && editId !== 'new';
+      
+      let payload = { ...${stateName} };
+      
+      if (isEdit) {
+        await put('${toPascalCase(tObj.name)}/' + editId, payload);
+        set_${statusState}({ type: 'success', message: 'Datensatz erfolgreich aktualisiert!' });
+      } else {
+        await post('${toPascalCase(tObj.name)}', payload);
+        set_${statusState}({ type: 'success', message: 'Datensatz erfolgreich erstellt!' });
+        // Reset form to defaults in create mode
+        set_${stateName}({ ${defaultFields.join(', ')} });
+      }
+    } catch (err) {
+      console.error(err);
+      set_${statusState}({ type: 'error', message: 'Fehler beim Speichern des Datensatzes' });
+    } finally {
+      set_${savingState}(false);
+    }
+  };`);
+
+              // Let's generate the fields JSX
+              let fieldsJsx = '';
+              if (fObj.layout) {
+                  // Generate layout fields
+                  fieldsJsx = generateJsxForLayout(fObj.layout, tables, [fObj], stateName, requiredModals, queries);
+              } else {
+                  // Fallback to auto fields
+                  fieldsJsx = formFields.map(f => {
+                      const fCamel = toCamelCase(f.name);
+                      const label = f.comment || f.name;
+                      let input = '';
+                      if (f.type === 'BOOLEAN') {
+                          input = `
+                          <div className="flex items-center gap-2 mt-2">
+                              <input 
+                                  type="checkbox" 
+                                  id="${fCamel}_${suffix}"
+                                  checked={!!${stateName}.${fCamel}} 
+                                  onChange={e => set_${stateName}({ ...${stateName}, ${fCamel}: e.target.checked })}
+                                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700" 
+                              />
+                              <label htmlFor="${fCamel}_${suffix}" className="text-sm font-medium text-slate-700 dark:text-slate-300">${label}</label>
+                          </div>`;
+                      } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                          input = `
+                          <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                          <input 
+                              type="number" 
+                              value={${stateName}.${fCamel} ?? ''} 
+                              onChange={e => set_${stateName}({ ...${stateName}, ${fCamel}: e.target.value === '' ? null : Number(e.target.value) })}
+                              className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                              step="${f.type === 'INTEGER' ? '1' : 'any'}"
+                          />`;
+                      } else if (f.type === 'DATE') {
+                          input = `
+                          <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                          <input 
+                              type="date" 
+                              value={${stateName}.${fCamel} ? String(${stateName}.${fCamel}).split('T')[0] : ''} 
+                              onChange={e => set_${stateName}({ ...${stateName}, ${fCamel}: e.target.value })}
+                              className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                          />`;
+                      } else {
+                          input = `
+                          <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+                          <input 
+                              type="text" 
+                              value={${stateName}.${fCamel} ?? ''} 
+                              onChange={e => set_${stateName}({ ...${stateName}, ${fCamel}: e.target.value })}
+                              className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                          />`;
+                      }
+                      return `<div className="mb-4">${input}</div>`;
+                  }).join('\n');
+              }
+
+              imports.add('post');
+              imports.add('put');
+              imports.add('get');
+
+              return `
+              <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mb-6 text-start">
+                  ${node.props?.hideHeader ? '' : `
+                  <div className="mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                      <h3 className="text-xl font-bold text-slate-800 dark:text-white">${fObj.name}</h3>
+                      <p className="text-sm text-slate-500">{${formMode === 'edit'} ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen'}</p>
+                  </div>
+                  `}
+
+                  {${statusState}.type && (
+                      <div className={\`p-4 mb-6 rounded-lg text-sm font-medium \${${statusState}.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-rose-50 text-rose-800 border border-rose-100'}\`}>
+                          {${statusState}.message}
+                      </div>
+                  )}
+
+                  {${loadingState} ? (
+                      <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-indigo-500" /></div>
+                  ) : (
+                      <form onSubmit={${handleSubmitFunc}} className="space-y-4">
+                          ${fieldsJsx}
+                          
+                          ${node.props?.hideActions ? '' : `
+                          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                              <button 
+                                  type="submit" 
+                                  disabled={${savingState}}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                              >
+                                  {${savingState} && <Loader2 className="animate-spin w-4 h-4" />}
+                                  Speichern
+                              </button>
+                          </div>
+                          `}
+                      </form>
+                  )}
+              </div>
+              `;
           }
           case 'navbar': {
               return `
@@ -423,6 +652,7 @@ export const generateCustomPage = (
       if (imp === 'get') return "import { get } from '../../services/api';";
       if (imp === 'post') return "import { post } from '../../services/api';";
       if (imp === 'put') return "import { put } from '../../services/api';";
+      if (imp === 'remove') return "import { remove } from '../../services/api';";
       if (imp === 'Loader2') return "";
       if (imp === 'ResponsiveContainer' || imp === 'BarChart' || imp === 'Bar' || imp === 'LineChart' || imp === 'Line' || imp === 'AreaChart' || imp === 'Area' || imp === 'PieChart' || imp === 'Pie' || imp === 'XAxis' || imp === 'YAxis' || imp === 'CartesianGrid' || imp === 'Tooltip' || imp === 'Legend') {
         return ""; // Handled specially below

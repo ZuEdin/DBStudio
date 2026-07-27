@@ -6,7 +6,7 @@ export enum DbType {
   NoSQL = 'NoSQL'
 }
 
-export type FieldType = 'INTEGER' | 'VARCHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP' | 'ENUM' | 'UUID' | 'EMAIL' | 'PHONE' | 'URL';
+export type FieldType = 'INTEGER' | 'VARCHAR' | 'CHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP' | 'ENUM' | 'UUID' | 'EMAIL' | 'PHONE' | 'URL';
 
 export interface Field {
   id: string;
