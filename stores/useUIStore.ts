@@ -84,6 +84,8 @@ interface UIStore {
   setShowIntegrationsModal: (show: boolean) => void;
   showDeploymentModal: boolean;
   setShowDeploymentModal: (show: boolean) => void;
+  showButtonInfoModal: boolean;
+  setShowButtonInfoModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -176,6 +178,8 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowIntegrationsModal: (showIntegrationsModal) => set({ showIntegrationsModal }),
   showDeploymentModal: false,
   setShowDeploymentModal: (showDeploymentModal) => set({ showDeploymentModal }),
+  showButtonInfoModal: false,
+  setShowButtonInfoModal: (showButtonInfoModal) => set({ showButtonInfoModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

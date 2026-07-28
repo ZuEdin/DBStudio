@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { ConnectionSettingsModal } from './modals/ConnectionSettingsModal';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -169,9 +169,20 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
             )}
         </div>
         
-        <button onClick={toggleRibbon} className="text-slate-400 hover:text-white px-2 py-1" title={isOpen ? "Menüband minimieren" : "Menüband erweitern"}>
-            {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
+        <div className="flex items-center gap-1 pb-1">
+          <button 
+            onClick={() => ui.setShowButtonInfoModal(true)} 
+            className="text-slate-400 hover:text-white px-2 py-1 flex items-center gap-1.5 rounded hover:bg-slate-700/70 transition-colors text-xs font-medium" 
+            title="Informationen zu allen Schaltflächen / Buttons öffnen"
+          >
+            <HelpCircle size={15} className="text-amber-400 shrink-0" />
+            <span className="hidden md:inline text-slate-300">Schaltflächen-Info</span>
+          </button>
+
+          <button onClick={toggleRibbon} className="text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-700/70 transition-colors" title={isOpen ? "Menüband minimieren" : "Menüband erweitern"}>
+              {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
       </div>
 
       {/* Tab Content */}

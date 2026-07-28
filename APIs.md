@@ -316,3 +316,70 @@ Im generierten Angular-Code (`[kebab-name]-custom.component.ts` & `.html`) wird 
    - Für Repeater wird das native `*ngFor="let row_xxx of finalData_xxx"` verwendet.
    - Textknoten binden sich mittels Angular-Interpolation `{{ row_xxx?.['FeldName'] }}` direkt an die hierarchischen Kontexte oder fallen bei fehlendem Wert nahtlos auf die globalen `queryParams` zurück.
 
+
+## 8. Active Directory & Enterprise Identity APIs (C# Web API & Frontend Integration)
+
+Um Enterprise-Anwender nahtlos in Firmennetzwerken zu authentifizieren und Rollen basierend auf AD-Gruppen zuzuweisen, wurde eine strukturierte Active Directory (AD) Integration geschaffen.
+
+### 8.1 API-Schnittstellen (AD Controller)
+
+#### `GET /api/ad/me`
+Ruft die detaillierten AD-Benutzerinformationen des aktuell angemeldeten Domänen-Benutzers ab.
+- **Rückgabe:** `Promise<AdUserInfo>`
+- **Response-Schema:**
+  ```json
+  {
+    "username": "s.mueller",
+    "displayName": "Stefan Müller",
+    "email": "s.mueller@firma.local",
+    "department": "IT Infrastructure",
+    "groups": [
+      "firma\\Domain Users",
+      "firma\\digitaltool admin",
+      "firma\\administratoren"
+    ]
+  }
+  ```
+
+#### `GET /api/ad/whoami`
+Ermittelt einfache Claims-Informationen der aktuellen Web-Session.
+- **Rückgabe:**
+  ```json
+  {
+    "username": "firma\\s.mueller",
+    "userId": "S-1-5-21-3623811015-3361044348-30300820-1013",
+    "isAuthenticated": true,
+    "roles": ["Administrator"]
+  }
+  ```
+
+#### `GET /api/ad/search?q=:query` (bzw. `?search=:query`)
+Sucht Domänen-Benutzer nach Name, E-Mail oder SamAccountName im konfigurierten Verzeichnisdienst.
+- **Parameter:** `q` oder `search` (Mindestens 2 Zeichen)
+- **Rückgabe:** `Promise<AdUserInfo[]>` (Maximal 20 Ergebnisse)
+
+---
+
+### 8.2 Konfiguration (`appsettings.json`)
+Die Active Directory-Anbindung wird über die Konfigurationsdatei des Backends parametrisiert:
+```json
+{
+  "ActiveDirectory": {
+    "DomainName": "firma.local",
+    "Container": "DC=firma,DC=local",
+    "ServiceAccountUsername": "",
+    "ServiceAccountPassword": ""
+  }
+}
+```
+*Hinweis: Sind Username und Password leer, verbindet sich der Service mit den Rechten des Anwendungspool-Benutzers (IIS / Windows Service Context) zur Active Directory.*
+
+---
+
+### 8.3 Claims Transformation & Rollen-Mapping (`AdRoleTransformer`)
+Um AD-Sicherheitsgruppen auf Anwendungsrollen abzubilden, transformiert der `IClaimsTransformation`-Transformer eingehende Windows-Identitäten:
+- `firma\digitaltool admin` &rarr; Rolle `Administrator`
+- `firma\administratoren` &rarr; Rolle `Administrator`
+- `firma\manager` &rarr; Rolle `Manager`
+- `firma\coder` &rarr; Rolle `Manager`
+

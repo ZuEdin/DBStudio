@@ -65,7 +65,7 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ initialTab = '
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); 
 
-            const res = await fetch('http://localhost:5000/api/ad/me', { 
+            const res = await fetch('/api/ad/me', { 
                 signal: controller.signal,
                 headers: { 'Accept': 'application/json' },
                 credentials: 'include' 
@@ -107,7 +107,7 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ initialTab = '
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-            const res = await fetch(`http://localhost:5000/api/ad/search?q=${query}`, {
+            const res = await fetch(`/api/ad/search?q=${query}`, {
                 signal: controller.signal,
                 headers: { 'Accept': 'application/json' },
                 credentials: 'include'

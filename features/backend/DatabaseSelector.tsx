@@ -22,7 +22,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const [loading, setLoading] = useState(false);
   
   const { t, i18n } = useTranslation();
-  const { user, login } = useAuthStore();
+  const { user, login, register } = useAuthStore();
   const templates = useMemo(() => getTemplates(i18n.language), [i18n.language]);
 
   // Backend & AD/LDAP configuration auto-detection state
@@ -31,8 +31,10 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const [adServerAddress, setAdServerAddress] = useState<string>('');
 
   // Login form states
+  const [isRegistering, setIsRegistering] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginName, setLoginName] = useState('');
   const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [loginError, setLoginError] = useState('');
 
@@ -107,15 +109,25 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
     setLoginSubmitting(true);
     setLoginError('');
     try {
-      const success = await login(loginEmail, loginPassword);
-      if (success) {
-        // Logged in! Switch projects to cloud and reload
-        await loadProjects();
+      if (isRegistering) {
+        const success = await register(loginEmail, loginPassword, loginName);
+        if (success) {
+          await login(loginEmail, loginPassword);
+          await loadProjects();
+        } else {
+          setLoginError('Registrierung fehlgeschlagen. Möglicherweise existiert der Benutzer bereits.');
+        }
       } else {
-        setLoginError('Ungültige Anmeldedaten. Versuchen Sie admin@demo.com / admin123 oder user@demo.com / user123.');
+        const success = await login(loginEmail, loginPassword);
+        if (success) {
+          // Logged in! Switch projects to cloud and reload
+          await loadProjects();
+        } else {
+          setLoginError('Ungültige Anmeldedaten. Wenn Sie kein Domänenkonto haben, registrieren Sie sich bitte.');
+        }
       }
     } catch (err) {
-      setLoginError('Fehler bei der Anmeldung.');
+      setLoginError('Ein Fehler ist aufgetreten.');
     } finally {
       setLoginSubmitting(false);
     }
@@ -400,6 +412,18 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                     </div>
 
                     <div className="space-y-3 pt-1">
+                        {isRegistering && (
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Name</label>
+                                <input 
+                                    type="text"
+                                    className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
+                                    placeholder="Ihr Name"
+                                    value={loginName}
+                                    onChange={e => setLoginName(e.target.value)}
+                                />
+                            </div>
+                        )}
                         <div>
                             <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">E-Mail-Adresse</label>
                             <input 
@@ -430,7 +454,14 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                             disabled={loginSubmitting}
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
                         >
-                            {loginSubmitting ? 'Anmeldung läuft...' : 'In Team Cloud anmelden / Konto aktivieren'}
+                            {loginSubmitting ? 'Verarbeitung...' : (isRegistering ? 'Konto erstellen' : 'Anmelden')}
+                        </button>
+
+                        <button 
+                            onClick={() => setIsRegistering(!isRegistering)}
+                            className="w-full text-blue-600 hover:underline text-[11px]"
+                        >
+                            {isRegistering ? 'Bereits ein Konto? Hier anmelden' : 'Kein Konto? Hier registrieren'}
                         </button>
                     </div>
                 </div>

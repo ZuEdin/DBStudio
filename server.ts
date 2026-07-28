@@ -271,6 +271,8 @@ async function startServer() {
   ];
 
   let isAdConfigured = true; // Simulierter AD Controller aktiv im Backend
+  let registeredUsers: any[] = [];
+  let chatMessages: any[] = [];
 
   // --- API Routes for DB Studio Enterprise Backend Detector & Team Collaboration ---
 
@@ -304,20 +306,98 @@ async function startServer() {
       return res.status(400).json({ error: "E-Mail/Benutzername und Passwort sind erforderlich." });
     }
     const email = username.includes("@") ? username : `${username}@company.com`;
-    const name = email.split("@")[0].replace(/[._]/g, ' ');
-    const role = email.toLowerCase().includes("admin") ? "ADMIN" : "MEMBER";
+    
+    // 1. Check Active Directory (mock domain check)
+    const isDomainUser = email.endsWith('@firma.de') || email.endsWith('@firma.local');
+    if (isDomainUser && isAdConfigured) {
+      // AD Login successful
+      const name = email.split("@")[0].replace(/[._]/g, ' ');
+      const role = email.toLowerCase().includes("admin") ? "ADMIN" : "MEMBER";
+      return res.json({
+        success: true,
+        token: "jwt_ad_" + Buffer.from(email).toString("base64"),
+        user: {
+          id: "ad_" + Math.random().toString(36).substring(2, 9),
+          username: email,
+          name: name,
+          email: email,
+          role: role
+        }
+      });
+    }
 
-    res.json({
-      success: true,
-      token: "jwt_dbstudio_live_" + Buffer.from(email).toString("base64"),
-      user: {
-        id: "usr_" + Math.random().toString(36).substring(2, 9),
-        username: email,
-        name: name,
-        email: email,
-        role: role
-      }
-    });
+    // 2. Check Local Registered Users
+    const localUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+    if (localUser) {
+      return res.json({
+        success: true,
+        token: "jwt_local_" + Buffer.from(email).toString("base64"),
+        user: {
+          id: localUser.id,
+          username: localUser.email,
+          name: localUser.name,
+          email: localUser.email,
+          role: localUser.role
+        }
+      });
+    }
+
+    // 3. Fallback for the hardcoded admin if not registered (for demo resilience)
+    if (email === "zuboedin@gmail.com") {
+      return res.json({
+        success: true,
+        token: "jwt_admin",
+        user: {
+          id: "usr_admin",
+          username: email,
+          name: "Zubeyr",
+          email: email,
+          role: "ADMIN"
+        }
+      });
+    }
+
+    return res.status(401).json({ error: "Ungültige Anmeldedaten. Wenn Sie kein Domänenkonto haben, registrieren Sie sich bitte." });
+  });
+
+  app.post("/api/auth/register", (req, res) => {
+    const { email, password, name } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "E-Mail und Passwort sind erforderlich." });
+    }
+    if (registeredUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      return res.status(400).json({ error: "Benutzer existiert bereits." });
+    }
+
+    const newUser = {
+      id: "usr_" + Math.random().toString(36).substring(2, 9),
+      email,
+      password, // In a real app, hash this!
+      name: name || email.split('@')[0],
+      role: email.toLowerCase().includes("admin") ? "ADMIN" : "MEMBER"
+    };
+
+    registeredUsers.push(newUser);
+    
+    // Optionally add to team members if not AD
+    if (!teamMembers.some(m => m.email === email)) {
+       teamMembers.push({ email, role: newUser.role === "ADMIN" ? "Administrator" : "Entwickler", name: newUser.name, source: "Lokal" });
+    }
+
+    res.json({ success: true, user: { id: newUser.id, email: newUser.email, name: newUser.name } });
+  });
+
+  // Chat Endpoints
+  app.get("/api/chat/messages", (req, res) => {
+    res.json(chatMessages);
+  });
+
+  app.post("/api/chat/messages", (req, res) => {
+    const msg = req.body;
+    msg.timestamp = Date.now();
+    if (!msg.id) msg.id = Math.random().toString(36).substring(2, 9);
+    chatMessages.push(msg);
+    res.json(msg);
   });
 
   // Active Directory / LDAP Status Check
@@ -337,6 +417,57 @@ async function startServer() {
       isAdConfigured,
       message: isAdConfigured ? "Active Directory Controller gekoppelt" : "Active Directory Offline"
     });
+  });
+
+  // Active Directory / LDAP Query and Current User (whoami) Endpoints
+  const mockAdUsers = [
+    { username: "firma\\sarah.web", displayName: "Sarah Müller", email: "sarah.web@firma.de", department: "IT-Entwicklung", groups: ["firma\\entwickler", "firma\\mitarbeiter", "firma\\coder"] },
+    { username: "firma\\tom.db", displayName: "Tom Schmidt", email: "tom.db@firma.de", department: "Datenbanken", groups: ["firma\\architekten", "firma\\mitarbeiter"] },
+    { username: "firma\\zubeyr", displayName: "Zubeyr", email: "zuboedin@gmail.com", department: "Administration", groups: ["firma\\administratoren", "firma\\leitung"] },
+    { username: "firma\\frank.weber", displayName: "Frank Weber", email: "frank.weber@firma.de", department: "Geschäftsführung", groups: ["firma\\leitung"] },
+    { username: "firma\\julia.klein", displayName: "Julia Klein", email: "julia.klein@firma.de", department: "HR & Personal", groups: ["firma\\hr", "firma\\mitarbeiter"] }
+  ];
+
+  app.get("/api/ad/me", (req, res) => {
+    if (!isAdConfigured) {
+      return res.status(503).json({ error: "Active Directory Controller nicht aktiv." });
+    }
+    // Return a real AD user based on current context (defaulting to Zubeyr)
+    res.json(mockAdUsers[2]); 
+  });
+
+  app.get("/api/ad/whoami", (req, res) => {
+    if (!isAdConfigured) {
+      return res.json({
+        username: "local\\guest",
+        userId: "guest_123",
+        isAuthenticated: false,
+        roles: ["Guest"]
+      });
+    }
+    // Return whoami user details with Roles matching the Claims Transformation
+    res.json({
+      username: "firma\\zubeyr",
+      userId: "ad_zubeyr",
+      isAuthenticated: true,
+      roles: ["Administrator", "Manager"]
+    });
+  });
+
+  app.get("/api/ad/search", (req, res) => {
+    if (!isAdConfigured) {
+      return res.status(503).json({ error: "Active Directory Controller nicht aktiv." });
+    }
+    const query = (req.query.q || req.query.search || "").toString().toLowerCase();
+    if (!query) {
+      return res.json(mockAdUsers); // Return all mock users if query is empty or for easy listing
+    }
+    const filtered = mockAdUsers.filter(u => 
+      u.displayName.toLowerCase().includes(query) || 
+      u.username.toLowerCase().includes(query) || 
+      u.email.toLowerCase().includes(query)
+    );
+    res.json(filtered);
   });
 
   // Projects & Sync Endpoints

@@ -23,6 +23,7 @@ import { DummyDataWizard } from '../features/tools/DummyDataWizard';
 import { SharePointImportWizard } from '../features/tools/SharePointImportWizard'; 
 import { SchemaImportWizard } from '../features/tools/SchemaImportWizard'; 
 import { MessageModal } from './modals/MessageModal';
+import { ButtonInfoModal } from './modals/ButtonInfoModal';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 import { DbType } from '../types/index';
@@ -56,6 +57,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showIntegrationsModal, setShowIntegrationsModal, showExcelWizard, setShowExcelWizard,
     showAccessWizard, setShowAccessWizard, showDummyDataWizard, setShowDummyDataWizard,
     showSharePointWizard, setShowSharePointWizard, showSchemaWizard, setShowSchemaWizard,
+    showButtonInfoModal, setShowButtonInfoModal,
     messageModal, closeMessage: onCloseMessage, setCurrentView, addToast
   } = ui;
 
@@ -269,6 +271,18 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             confirmationModal.onAlternate?.();
             setConfirmationModal(null);
           } : undefined}
+        />
+      )}
+
+      {showButtonInfoModal && (
+        <ButtonInfoModal 
+          isOpen={showButtonInfoModal}
+          onClose={() => setShowButtonInfoModal(false)}
+          onExecuteAction={(actionKey) => {
+            if (props.onContextMenuAction) {
+              props.onContextMenuAction(actionKey);
+            }
+          }}
         />
       )}
 
