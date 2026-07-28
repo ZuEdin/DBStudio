@@ -3,6 +3,7 @@ import { TeamProject, TeamMember } from '../types';
 import { 
   Radio, RefreshCw, UserCheck, FolderPlus, PlusCircle, Cpu, Sliders, Users, Edit2, Trash2 
 } from 'lucide-react';
+import { useConfigStore } from '../../../../stores/useConfigStore';
 
 interface TeamCloudTabProps {
   backendDetected: boolean;
@@ -112,7 +113,8 @@ export const TeamCloudTab: React.FC<TeamCloudTabProps> = ({
   };
 
   const handleScanBackend = async () => {
-    const detectUrl = window.location.origin;
+    const configApiUrl = useConfigStore.getState().config.apiUrl;
+    const detectUrl = configApiUrl || 'http://localhost:5000';
     try {
       const res = await fetch(`${detectUrl}/api/health`);
       if (res.ok) {

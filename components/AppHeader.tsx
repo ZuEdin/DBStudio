@@ -22,7 +22,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
   const store = useProjectStore();
   const ui = useUIStore();
   const ticketState = useTicketState();
-  const { user, logout, isAdmin } = useAuthStore();
+  const { user, whoamiData, logout, isAdmin } = useAuthStore();
   const { config } = useConfigStore();
   
   const totalUnreadChatCount = chats ? chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0) : 0;
@@ -130,25 +130,53 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
                    <div className="flex items-center gap-1">
                      <button 
                         onClick={() => setUserMenuOpen(!userMenuOpen)}
-                        className="flex items-center gap-2 px-2 py-1 rounded-full bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 transition-colors text-left"
+                        className="flex items-center gap-2.5 px-3 py-1 rounded bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 transition-colors text-left"
                      >
-                        <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold">
-                            {user.name.charAt(0).toUpperCase()}
+                        <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-bold shrink-0">
+                            {(user.displayName || user.name || 'U').charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-slate-300 font-medium">{user.name}</span>
-                        {isAdmin() && <Shield size={10} className="text-amber-400" title="Administrator" />}
-                        <ChevronDown size={12} className={`text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                        <div className="flex flex-col justify-center leading-none max-w-[150px]">
+                            <span className="text-slate-200 font-bold text-[10px] truncate flex items-center gap-1">
+                              {user.displayName || user.name}
+                              {user.isAdUser && (
+                                <span className="text-[8px] bg-blue-900/60 text-blue-300 font-bold px-1 rounded border border-blue-500/30">
+                                  AD
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-slate-400 text-[9px] truncate mt-0.5">{user.email || user.role}</span>
+                        </div>
+                        {isAdmin() && <Shield size={10} className="text-amber-400 shrink-0" title="Administrator" />}
+                        <ChevronDown size={11} className={`text-slate-400 transition-transform shrink-0 ${userMenuOpen ? 'rotate-180' : ''}`} />
                      </button>
                      
                      {userMenuOpen && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                          <div className="absolute right-0 top-full mt-1.5 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 z-50 text-slate-200 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
+                          <div className="absolute right-0 top-full mt-1.5 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 z-50 text-slate-200 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
                               <div className="px-3 py-2 border-b border-slate-700">
-                                  <div className="font-bold text-white truncate">{user.name}</div>
+                                  <div className="font-bold text-white truncate">{user.displayName || user.name}</div>
                                   <div className="text-[10px] text-slate-400 truncate">{user.email}</div>
-                                  <div className="inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded bg-slate-700 font-semibold text-slate-300 uppercase tracking-wider">
-                                      {user.role}
+                                  
+                                  {/* User Roles */}
+                                  <div className="mt-2 space-y-1">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Rollen / Userlevels</div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {(user.roles || [user.role]).map((r, idx) => (
+                                        <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-500/30 font-semibold">
+                                          {r}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    {user.userLevels && user.userLevels.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {user.userLevels.map((lvl, idx) => (
+                                          <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-500/30 font-medium">
+                                            {lvl}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                               </div>
                               <button 
@@ -171,7 +199,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
                     className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-bold bg-slate-700/30 hover:bg-slate-700/50 border border-blue-500/20 px-3 py-1 rounded-full transition-all"
                    >
                      <User size={14} />
-                     <span>Anmelden</span>
+                     <span>
+                       {(whoamiData?.displayName || whoamiData?.username || user?.displayName || user?.name) 
+                         ? `Anmelden (${whoamiData?.displayName || whoamiData?.username || user?.displayName || user?.name})` 
+                         : 'Anmelden'}
+                     </span>
                    </button>
                 )}
             </div>

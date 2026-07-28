@@ -383,3 +383,90 @@ Um AD-Sicherheitsgruppen auf Anwendungsrollen abzubilden, transformiert der `ICl
 - `firma\manager` &rarr; Rolle `Manager`
 - `firma\coder` &rarr; Rolle `Manager`
 
+
+### 8.4 Frontend-seitige automatische Sitzungssynchronisation (Zustand & UI-Mapping)
+
+Um den Authentifizierungsprozess für Anwender in einer Domänenumgebung vollständig zu automatisieren, führt das React-Frontend beim Starten der Anwendung eine automatische Erkennung durch:
+
+1. **Automatischer Authentifizierungs-Check:**
+   - Beim Laden der Anwendung (`App.tsx`) wird über die `checkAdSession`-Aktion in `useAuthStore` der Status vom Endpoint `/api/ad/whoami` abgefragt.
+   - Liefert der Endpoint `isAuthenticated: true` zurück, wird direkt das vollständige Benutzerprofil über `/api/ad/me` geladen.
+
+2. **Automatisches Login-State Mapping:**
+   - Aus den Active Directory-Daten wird dynamisch ein `User`-Objekt generiert, welches als aktiv im Store registriert wird:
+     ```typescript
+     {
+       id: whoami.userId,
+       name: adMe.displayName || adMe.username,
+       email: adMe.email,
+       role: whoami.roles?.includes('Administrator') ? 'admin' : 'user',
+       isAuthenticated: true,
+       isAdUser: true
+     }
+     ```
+
+3. **Reaktives UI-Mapping:**
+   - **Titelzeile (`AppHeader.tsx`):** Der traditionelle "Anmelden"-Button wird ausgeblendet. Stattdessen wird direkt der Benutzername und die E-Mail-Adresse des Domänen-Benutzers in einer gestapelten Ansicht mit einem markanten **AD**-Badge dargestellt.
+   - **Team-Cloud Startseite (`DatabaseSelector.tsx`):** Das manuelle Anmeldeformular wird durch eine übersichtliche, benutzerfreundliche Status-Card ersetzt, die die aktive Verbindung zum Active Directory visualisiert. Der Benutzer hat sofort Zugriff auf seine Cloud-Projekte, ohne Anmeldeinformationen eingeben zu müssen.
+
+
+## 9. Dynamische API-Umleitung (Selbstgehostetes Backend & Localhost)
+
+Um eine nahtlose Kopplung mit einem externen, selbstgehosteten Backend (z. B. auf `http://localhost:5000`) zu ermöglichen und die Anzeige simulierter Dummy-Daten (z. B. `zuboedin@gmail.com`) zu umgehen, wurde ein intelligentes, globales API-Routing implementiert.
+
+### 9.1 Die `getApiUrl`-Schnittstelle
+Alle Frontend-Schnittstellen (Authentifizierung, Team-Mitglieder, Active Directory-Suche und Synchronisation) nutzen den globalen URL-Mapper `getApiUrl(path: string)`.
+
+- **Funktionsweise:**
+  - Der Mapper prüft den Zustand von `config.apiUrl` im persistenten `useConfigStore`.
+  - Ist eine benutzerdefinierte Server-URL hinterlegt (z. B. `http://localhost:5000`), leitet das Frontend alle Anfragen direkt dorthin um, statt das lokale Mock-Backend auf Port `3000` aufzurufen.
+  - Falls keine URL eingetragen ist, fällt das System automatisch auf das lokale Origin `/api` zurück.
+
+- **Automatische Normalisierung:**
+  - Verhindert doppelte Pfadsegmente (z. B. `/api/api/health` bei gesetztem `/api`-Suffix).
+  - Ergänzt fehlende Protokoll-Deklarationen (`http://` oder `https://`) automatisch.
+
+### 9.2 Verwendung im Code
+```typescript
+import { getApiUrl } from '../stores/useConfigStore';
+
+// Beispiel für dynamische Umleitung
+const res = await fetch(getApiUrl('/api/ad/whoami'));
+```
+
+### 9.3 Konfiguration & Live-Kopplung
+1. Öffnen Sie die **Einstellungen & Synchronisation** (Sync-Reiter im Backend-Bereich).
+2. Geben Sie unter **API Endpoint / Server URL** Ihre gewünschte Adresse ein (z. B. `http://localhost:5000`).
+3. Nach dem Speichern lädt die Applikation alle AD-Profile, Berechtigungen und Team-Projekte direkt live von Ihrem angegebenen Server. Die lokalen Dummy-Daten (Zubeyr) werden vollständig ausgeblendet.
+
+### 9.4 Cross-Origin Resource Sharing (CORS) & Credentials
+Um eine reibungslose Entwicklung und Kopplung zu ermöglichen, unterstützt das generierte C#/.NET 10 Backend eine flexible CORS-Richtlinie:
+- **Dynamisches Origin-Mapping (`SetIsOriginAllowed`):** Ermöglicht Anfragen von `http://localhost:3000` (Frontend-Port) sowie beliebigen Hostumgebungen.
+- **Credential-Support (`AllowCredentials`):** Ermöglicht die sichere Übertragung von Cookies und Windows-Authentifizierungs-Metadaten (NTLM/Negotiate/Kerberos) bei Cross-Origin-Anfragen.
+- **Sicherheits-Header:** Kompatibel mit der `strict-origin-when-cross-origin` Referrer-Richtlinie des Browsers.
+
+```csharp
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowAll", p => p
+        .SetIsOriginAllowed(origin => true)
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
+});
+```
+
+### 9.5 Neue C#/.NET 10 Backend-Schnittstellen für Team & LDAP-Kopplung
+Um das selbstgehostete C#-Backend voll kompatibel mit den kollaborativen Funktionen des DB Studio Frontends zu machen, wurden folgende Schnittstellen nativ in den Code-Generator integriert:
+
+1. **LDAP / Active Directory Status-Check (`api/auth/ldap-check`):**
+   - **Method:** `GET`
+   - **Controller:** `AuthController`
+   - **Rückgabe:** Bestätigt die Erreichbarkeit und den Status der AD/LDAP-Konfiguration, um die nahtlose Windows-Authentifizierung im Client zu aktivieren.
+
+2. **Team Cloud Projekt-Verwaltung (`api/team/projects`):**
+   - **Methoden:** `GET`, `POST`, `DELETE`
+   - **Controller:** `ProjectsController` (jetzt gemappt auf beide Routen `/api/Projects` und `/api/team/projects`)
+   - **Mitgliederverwaltung:** Unterstützt das Hinzufügen (`POST /api/team/projects/{id}/members`) und Entfernen (`DELETE /api/team/projects/{id}/members/{memberId}`) von Projektbeteiligten sowie dynamische Owner-Zuweisung.
+
+
+

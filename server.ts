@@ -488,6 +488,12 @@ async function startServer() {
     const { name, description, ownerEmail, ownerName } = req.body;
     if (!name) return res.status(400).json({ error: "Projektname ist erforderlich." });
     
+    // Check role from header or body
+    const requesterRole = req.headers["x-user-role"] || req.body.ownerRole;
+    if (isAdConfigured && requesterRole && requesterRole !== "admin") {
+      return res.status(403).json({ error: "Aktion verweigert: Nur Administratoren dürfen neue Projekte anlegen." });
+    }
+
     const owner = {
       email: ownerEmail || "owner@company.com",
       name: ownerName || (ownerEmail ? ownerEmail.split("@")[0] : "Projekt Owner"),
@@ -558,6 +564,23 @@ async function startServer() {
     project.memberCount = project.teamMembers.length;
 
     res.status(201).json({ success: true, member: newMember, project });
+  });
+
+  // Remove Team Member from Cloud Project
+  app.delete("/api/team/projects/:id/members/:memberId", (req, res) => {
+    const { id, memberId } = req.params;
+    const project = teamProjects.find((p: any) => p.id === id);
+    if (!project) return res.status(404).json({ error: "Projekt nicht gefunden." });
+
+    if (!project.teamMembers) return res.status(400).json({ error: "Keine Mitglieder in diesem Projekt." });
+
+    const index = project.teamMembers.findIndex((m: any) => m.id === memberId);
+    if (index === -1) return res.status(404).json({ error: "Mitglied nicht gefunden." });
+
+    const removedMember = project.teamMembers.splice(index, 1)[0];
+    project.memberCount = project.teamMembers.length;
+
+    res.json({ success: true, message: "Mitglied erfolgreich entfernt.", removedMember, project });
   });
 
   // Team Members Global List

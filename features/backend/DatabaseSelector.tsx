@@ -8,6 +8,7 @@ import { getTemplates } from '../../data/templates/index';
 import { LanguageSelector } from '../../components/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { getApiUrl } from '../../stores/useConfigStore';
 
 interface ProjectSelectionViewProps {
   onSelectProject: (project: Project) => void;
@@ -22,7 +23,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const [loading, setLoading] = useState(false);
   
   const { t, i18n } = useTranslation();
-  const { user, login, register } = useAuthStore();
+  const { user, whoamiData, login, register } = useAuthStore();
   const templates = useMemo(() => getTemplates(i18n.language), [i18n.language]);
 
   // Backend & AD/LDAP configuration auto-detection state
@@ -72,25 +73,43 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   
   const [ssoProviders, setSsoProviders] = useState<string[]>([]);
 
+  // Manage Project Members State
+  const [managingMembersProject, setManagingMembersProject] = useState<Project | null>(null);
+  const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [adUsers, setAdUsers] = useState<any[]>([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [addingMemberRole, setAddingMemberRole] = useState('Entwickler');
+
+  const filteredAdUsers = useMemo(() => {
+    if (!memberSearchQuery) return adUsers;
+    return adUsers.filter(u => 
+      u.displayName?.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+      u.username?.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(memberSearchQuery.toLowerCase())
+    );
+  }, [memberSearchQuery, adUsers]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Auto-detect live backend on mount
     const detectBackend = async () => {
       try {
-        const res = await fetch('/api/health');
+        const res = await fetch(getApiUrl('/api/health'), { credentials: 'include' });
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           setBackendDetected(true);
           // Auto-configure Team-Cloud mode
           setActiveSource('cloud');
           
           // Get AD status from backend
-          const ldapRes = await fetch('/api/auth/ldap-check');
+          const ldapRes = await fetch(getApiUrl('/api/auth/ldap-check'), { credentials: 'include' });
           if (ldapRes.ok && ldapRes.headers.get('content-type')?.includes('application/json')) {
             const ldapData = await ldapRes.json();
-            setIsAdConfigured(Boolean(ldapData.isAdConfigured));
+            const adActive = Boolean(ldapData.isAdConfigured);
+            setIsAdConfigured(adActive);
             if (ldapData.serverAddress) setAdServerAddress(ldapData.serverAddress);
           }
+          await useAuthStore.getState().checkAdSession();
         }
       } catch (err) {
         console.warn('Backend auto-detection failed:', err);
@@ -181,6 +200,106 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
     e.stopPropagation();
     setRenamingProject(p);
     setRenameValue(p.name);
+  };
+
+  const handleManageMembers = async (p: Project) => {
+    setManagingMembersProject(p);
+    setMemberSearchQuery('');
+    setProjectMembers(p.teamMembers || []);
+    setAdUsers([]);
+    
+    try {
+      const adResponse = await fetch(getApiUrl('/api/ad/users'), { credentials: 'include' });
+      if (adResponse.ok) {
+        const adData = await adResponse.json();
+        setAdUsers(adData || []);
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der AD-Benutzer:', err);
+    }
+  };
+
+  const addProjectMember = async (adUser: any) => {
+    if (!managingMembersProject) return;
+    try {
+      const response = await fetch(getApiUrl(`/api/team/projects/${managingMembersProject.id}/members`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': user?.role || 'user'
+        },
+        body: JSON.stringify({
+          userId: adUser.username,
+          name: adUser.displayName || adUser.username,
+          email: adUser.email,
+          role: addingMemberRole
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.project) {
+          setProjectMembers(data.project.teamMembers || []);
+          setCloudProjects(cloudProjects.map(item => item.id === data.project.id ? data.project : item));
+        } else {
+          setDialog({
+            isOpen: true,
+            type: 'alert',
+            title: 'Fehler beim Hinzufügen',
+            message: data.error || 'Mitglied konnte nicht hinzugefügt werden.'
+          });
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setDialog({
+          isOpen: true,
+          type: 'alert',
+          title: 'Fehler beim Hinzufügen',
+          message: errorData.error || 'Der Server hat den Zugriff verweigert.'
+        });
+      }
+    } catch (err) {
+      console.error('Fehler beim Hinzufügen des Mitglieds:', err);
+    }
+  };
+
+  const removeProjectMember = async (memberId: string) => {
+    if (!managingMembersProject) return;
+    try {
+      const response = await fetch(getApiUrl(`/api/team/projects/${managingMembersProject.id}/members/${memberId}`), {
+        method: 'DELETE',
+        headers: {
+          'x-user-role': user?.role || 'user'
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.project) {
+          setProjectMembers(data.project.teamMembers || []);
+          setCloudProjects(cloudProjects.map(item => item.id === data.project.id ? data.project : item));
+        } else {
+          setDialog({
+            isOpen: true,
+            type: 'alert',
+            title: 'Fehler beim Entfernen',
+            message: data.error || 'Mitglied konnte nicht entfernt werden.'
+          });
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setDialog({
+          isOpen: true,
+          type: 'alert',
+          title: 'Fehler beim Entfernen',
+          message: errorData.error || 'Der Server hat den Zugriff verweigert.'
+        });
+      }
+    } catch (err) {
+      console.error('Fehler beim Entfernen des Mitglieds:', err);
+    }
   };
 
   const handleCreate = () => {
@@ -327,16 +446,78 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
             </div>
         )}
 
+        {/* WhoAmI API Startup Status Display Card */}
+        {(whoamiData || user) && (
+            <div className="mb-4 bg-slate-900 text-slate-100 rounded-xl p-3.5 border border-slate-700 shadow-sm animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+                    <div className="flex items-center gap-2">
+                        <Shield size={16} className="text-blue-400" />
+                        <span className="font-bold text-xs tracking-wide text-slate-200">WhoAmI Startup Status</span>
+                    </div>
+                    <span className="text-[9px] bg-blue-500/20 text-blue-300 font-mono px-2 py-0.5 rounded border border-blue-400/30">
+                        GET /api/ad/whoami
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs mb-2.5">
+                    <div className="bg-slate-800/80 p-2 rounded border border-slate-700/60">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">DisplayName / Name</div>
+                        <div className="font-extrabold text-blue-300 text-xs truncate mt-0.5">
+                            {whoamiData?.displayName || whoamiData?.username || user?.displayName || user?.name || 'Zubeyr'}
+                        </div>
+                    </div>
+                    <div className="bg-slate-800/80 p-2 rounded border border-slate-700/60">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Benutzer-ID</div>
+                        <div className="font-mono text-slate-300 text-[11px] truncate mt-0.5">
+                            {whoamiData?.userId || user?.id || 'usr_001'}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <div>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">User Rollen</div>
+                        <div className="flex flex-wrap gap-1">
+                            {(whoamiData?.roles || user?.roles || [user?.role || 'User']).map((role: string, i: number) => (
+                                <span key={i} className="text-[9px] font-bold bg-blue-600/30 text-blue-200 border border-blue-500/40 px-2 py-0.5 rounded">
+                                    {role}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
+                    {(whoamiData?.userLevels || user?.userLevels) && (
+                        <div>
+                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">User Levels / Berechtigungen</div>
+                            <div className="flex flex-wrap gap-1">
+                                {(whoamiData?.userLevels || user?.userLevels || []).map((lvl: string, i: number) => (
+                                    <span key={i} className="text-[9px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
+                                        {lvl}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
         {/* User Session Info / Logout */}
         {user?.isAuthenticated && (
             <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center justify-between text-xs text-slate-700 animate-in fade-in">
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-extrabold uppercase text-xs border border-blue-200 shadow-sm">
-                        {user.name ? user.name[0] : 'U'}
+                        {(user.displayName || user.name || 'U')[0]}
                     </div>
                     <div>
-                        <p className="font-bold text-slate-800">{user.name}</p>
-                        <p className="text-[10px] text-slate-500 leading-none mt-0.5 font-mono capitalize bg-slate-200/60 px-1 py-0.5 rounded inline-block">
+                        <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-slate-800">{user.displayName || user.name}</p>
+                            {user.isAdUser && (
+                                <span className="text-[8px] bg-blue-100 text-blue-700 font-extrabold px-1 rounded border border-blue-200">AD</span>
+                            )}
+                        </div>
+                        {user.email && <p className="text-[10px] text-slate-500 mb-0.5 leading-tight">{user.email}</p>}
+                        <p className="text-[9px] text-slate-400 leading-none font-mono capitalize bg-slate-200/40 px-1.5 py-0.5 rounded inline-block">
                             {user.role}
                         </p>
                     </div>
@@ -388,83 +569,123 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-            {activeSource === 'cloud' && !user?.isAuthenticated ? (
-                /* Dynamic Interactive Login Form directly on Start Page */
-                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 animate-in fade-in">
-                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2 mb-2">
-                        <div className="flex items-center gap-2 text-slate-800">
-                            <Shield className="text-blue-600" size={18} />
-                            <h3 className="font-bold text-sm">Team Cloud Anmeldung</h3>
+            {activeSource === 'cloud' && user?.isAuthenticated && user?.isAdUser && (
+                <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 text-xs flex items-center justify-between text-blue-800 animate-in fade-in">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-blue-600/10 text-blue-600 flex items-center justify-center font-bold">
+                            <Cloud size={14} />
                         </div>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200">
-                            LIVE API ONLINE
-                        </span>
-                    </div>
-
-                    <div className="bg-blue-50 border border-blue-200/60 rounded-lg p-3 text-xs text-blue-900 space-y-1">
-                        <div className="flex items-center gap-1.5 font-bold">
-                            <Cloud size={14} className="text-blue-600" />
-                            Echtes Team-Cloud-Konto
-                        </div>
-                        <p className="text-slate-600 leading-normal">
-                            Melden Sie sich mit Ihrer E-Mail-Adresse an, um als Owner eigene Cloud-Projekte zu erstellen und Ihr Entwickler-Team zusammenzustellen.
-                        </p>
-                    </div>
-
-                    <div className="space-y-3 pt-1">
-                        {isRegistering && (
-                            <div>
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Name</label>
-                                <input 
-                                    type="text"
-                                    className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
-                                    placeholder="Ihr Name"
-                                    value={loginName}
-                                    onChange={e => setLoginName(e.target.value)}
-                                />
+                        <div>
+                            <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-slate-800">{user.name}</span>
+                                <span className="text-[8px] bg-blue-600 text-white font-black px-1.5 py-0.2 rounded shadow-sm">ACTIVE DIRECTORY</span>
                             </div>
-                        )}
-                        <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">E-Mail-Adresse</label>
-                            <input 
-                                type="email"
-                                className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
-                                placeholder="ihre.email@firma.de"
-                                value={loginEmail}
-                                onChange={e => setLoginEmail(e.target.value)}
-                            />
+                            <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{user.email}</p>
                         </div>
-                        <div>
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Passwort</label>
-                            <input 
-                                type="password"
-                                className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
-                                placeholder="Ihr Passwort"
-                                value={loginPassword}
-                                onChange={e => setLoginPassword(e.target.value)}
-                            />
-                        </div>
-
-                        {loginError && (
-                            <p className="text-[11px] text-red-500 font-semibold">{loginError}</p>
-                        )}
-
-                        <button 
-                            onClick={handleLoginSubmit}
-                            disabled={loginSubmitting}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
-                        >
-                            {loginSubmitting ? 'Verarbeitung...' : (isRegistering ? 'Konto erstellen' : 'Anmelden')}
-                        </button>
-
-                        <button 
-                            onClick={() => setIsRegistering(!isRegistering)}
-                            className="w-full text-blue-600 hover:underline text-[11px]"
-                        >
-                            {isRegistering ? 'Bereits ein Konto? Hier anmelden' : 'Kein Konto? Hier registrieren'}
-                        </button>
+                    </div>
+                    <div className="text-right">
+                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase">Verbunden</span>
                     </div>
                 </div>
+            )}
+            {activeSource === 'cloud' && !user?.isAuthenticated && !whoamiData?.username ? (
+                isAdConfigured ? (
+                    <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 animate-in fade-in">
+                        <div className="flex items-center gap-2 text-slate-800 border-b border-slate-200/60 pb-2 mb-2">
+                            <Shield className="text-blue-600 animate-pulse" size={18} />
+                            <h3 className="font-bold text-sm">Windows-Domänencontroller Anmeldung</h3>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200/60 rounded-lg p-3 text-xs text-blue-900 space-y-1">
+                            <div className="font-bold">Automatisches Login aktiv</div>
+                            <p className="text-slate-600 leading-normal">
+                                Sie befinden sich im Firmennetzwerk. Die Authentifizierung erfolgt direkt über Ihren **Active Directory Controller**.
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => useAuthStore.getState().checkAdSession()}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-xs transition-colors shadow-sm"
+                        >
+                            Verbindung erneut prüfen
+                        </button>
+                    </div>
+                ) : (
+                    /* Dynamic Interactive Login Form directly on Start Page */
+                    <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 animate-in fade-in">
+                        <div className="flex items-center justify-between border-b border-slate-200/60 pb-2 mb-2">
+                            <div className="flex items-center gap-2 text-slate-800">
+                                <Shield className="text-blue-600" size={18} />
+                                <h3 className="font-bold text-sm">Team Cloud Anmeldung</h3>
+                            </div>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200">
+                                LIVE API ONLINE
+                            </span>
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200/60 rounded-lg p-3 text-xs text-blue-900 space-y-1">
+                            <div className="flex items-center gap-1.5 font-bold">
+                                <Cloud size={14} className="text-blue-600" />
+                                Echtes Team-Cloud-Konto
+                            </div>
+                            <p className="text-slate-600 leading-normal">
+                                Melden Sie sich mit Ihrer E-Mail-Adresse an, um als Owner eigene Cloud-Projekte zu erstellen und Ihr Entwickler-Team zusammenzustellen.
+                            </p>
+                        </div>
+
+                        <div className="space-y-3 pt-1">
+                            {isRegistering && (
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Name</label>
+                                    <input 
+                                        type="text"
+                                        className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
+                                        placeholder="Ihr Name"
+                                        value={loginName}
+                                        onChange={e => setLoginName(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">E-Mail-Adresse</label>
+                                <input 
+                                    type="email"
+                                    className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
+                                    placeholder="ihre.email@firma.de"
+                                    value={loginEmail}
+                                    onChange={e => setLoginEmail(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Passwort</label>
+                                <input 
+                                    type="password"
+                                    className="w-full border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-blue-500 outline-none font-medium text-slate-800"
+                                    placeholder="Ihr Passwort"
+                                    value={loginPassword}
+                                    onChange={e => setLoginPassword(e.target.value)}
+                                />
+                            </div>
+
+                            {loginError && (
+                                <p className="text-[11px] text-red-500 font-semibold">{loginError}</p>
+                            )}
+
+                            <button 
+                                onClick={handleLoginSubmit}
+                                disabled={loginSubmitting}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                                {loginSubmitting ? 'Verarbeitung...' : (isRegistering ? 'Konto erstellen' : 'Anmelden')}
+                            </button>
+
+                            <button 
+                                onClick={() => setIsRegistering(!isRegistering)}
+                                className="w-full text-blue-600 hover:underline text-[11px]"
+                            >
+                                {isRegistering ? 'Bereits ein Konto? Hier anmelden' : 'Kein Konto? Hier registrieren'}
+                            </button>
+                        </div>
+                    </div>
+                )
             ) : projects.length === 0 ? (
                 <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
                     <FolderOpen size={48} className="mx-auto mb-2 opacity-20" />
@@ -492,6 +713,18 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                                 </div>
                             </div>
                             <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                {p.isCloud && (user?.role === 'admin' || user?.role === 'manager') && (
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleManageMembers(p);
+                                        }}
+                                        className="text-slate-400 hover:text-emerald-500 p-1.5 rounded-full hover:bg-emerald-50 transition-colors"
+                                        title="Mitglieder verwalten"
+                                    >
+                                        <Users size={13} />
+                                    </button>
+                                )}
                                 <button 
                                     onClick={(e) => handleRenameClick(e, p)}
                                     className="text-slate-400 hover:text-blue-500 p-1.5 rounded-full hover:bg-blue-50 transition-colors"
@@ -524,22 +757,47 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
       {/* Right Panel: Create New */}
       <div className="w-7/12 p-8 bg-slate-50 flex flex-col items-center relative overflow-y-auto">
          <div className="max-w-xl w-full z-10">
-             
-             {/* Tabs */}
-             <div className="flex gap-4 mb-6 justify-center">
-                 <button 
-                    onClick={() => setActiveTab('create')}
-                    className={`pb-2 px-4 font-bold text-sm ${activeTab === 'create' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                 >
-                     {t('start.empty_project')}
-                 </button>
-                 <button 
-                    onClick={() => setActiveTab('templates')}
-                    className={`pb-2 px-4 font-bold text-sm ${activeTab === 'templates' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                 >
-                     {t('start.templates')}
-                 </button>
-             </div>
+             {!( !isAdConfigured || user?.role === 'admin' ) ? (
+                  <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200/80 text-center space-y-6 animate-in fade-in">
+                      <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-sm animate-pulse">
+                          <Shield size={32} />
+                      </div>
+                      <div className="space-y-2">
+                          <h2 className="text-xl font-extrabold text-slate-800">Projekt-Erstellung gesperrt</h2>
+                          <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+                              Laut Active Directory Richtlinien dürfen **nur Administratoren** neue Projekte (lokal oder Cloud) anlegen.
+                          </p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 max-w-md mx-auto text-left space-y-2 text-xs text-slate-600">
+                          <div className="font-bold text-slate-700 flex items-center gap-1.5 border-b border-slate-200/40 pb-1.5">
+                              <Users size={14} className="text-blue-500" />
+                              Ihre aktuellen AD-Benutzerdetails:
+                          </div>
+                          <p>• <strong>Name:</strong> {user?.name || 'Gast'}</p>
+                          <p>• <strong>E-Mail:</strong> {user?.email || 'Keine E-Mail'}</p>
+                          <p>• <strong>Rolle:</strong> <span className="capitalize bg-slate-200/60 px-1.5 py-0.5 rounded text-[10px] font-mono">{user?.role || 'user'}</span></p>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                          Bitte kontaktieren Sie Ihren IT-Administrator, um Berechtigungen anzupassen oder ein neues Projekt erstellen zu lassen.
+                      </p>
+                  </div>
+             ) : (
+                 <>
+                     {/* Tabs */}
+                     <div className="flex gap-4 mb-6 justify-center">
+                         <button 
+                            onClick={() => setActiveTab('create')}
+                            className={`pb-2 px-4 font-bold text-sm ${activeTab === 'create' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                         >
+                             {t('start.empty_project')}
+                         </button>
+                         <button 
+                            onClick={() => setActiveTab('templates')}
+                            className={`pb-2 px-4 font-bold text-sm ${activeTab === 'templates' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                         >
+                             {t('start.templates')}
+                         </button>
+                     </div>
 
              {activeTab === 'create' ? (
                  <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200/80 space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -783,6 +1041,8 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                      </div>
                  </div>
              )}
+                 </>
+             )}
          </div>
              </div>
 
@@ -922,6 +1182,138 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
                       >
                           Umbenennen
                       </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Modal for Managing Project Members */}
+      {managingMembersProject && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] animate-in fade-in-25 backdrop-blur-sm">
+              <div className="bg-white p-6 rounded-2xl shadow-2xl border border-slate-300 max-w-lg w-full mx-4 flex flex-col max-h-[85vh]">
+                  
+                  {/* Header */}
+                  <div className="flex justify-between items-start border-b border-slate-100 pb-4 mb-4">
+                      <div>
+                          <h3 className="font-extrabold text-lg text-slate-800 flex items-center gap-2">
+                              <Users className="text-blue-600" size={20} />
+                              Mitglieder verwalten
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-1">
+                              Projekt: <span className="font-semibold text-slate-700">{managingMembersProject.name}</span>
+                          </p>
+                      </div>
+                      <button 
+                          onClick={() => setManagingMembersProject(null)}
+                          className="text-slate-400 hover:text-slate-600 text-sm font-bold bg-slate-50 hover:bg-slate-100 px-2.5 py-1 rounded-lg transition-colors"
+                      >
+                          Schließen
+                      </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+                      
+                      {/* Section 1: Current Members */}
+                      <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Aktuelle Projekt-Mitglieder</h4>
+                          <div className="space-y-2">
+                              {projectMembers.length === 0 ? (
+                                  <p className="text-xs text-slate-400 italic">Keine expliziten Mitglieder eingetragen. (Nur der Owner hat Zugriff)</p>
+                              ) : (
+                                  projectMembers.map(m => (
+                                      <div key={m.id} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-xs">
+                                          <div className="flex items-center gap-2.5">
+                                              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold font-mono">
+                                                  {m.name ? m.name[0].toUpperCase() : 'U'}
+                                              </div>
+                                              <div>
+                                                  <p className="font-bold text-slate-800">{m.name}</p>
+                                                  <p className="text-[10px] text-slate-500">{m.email}</p>
+                                              </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                              <span className="text-[10px] bg-slate-200/70 text-slate-600 font-medium px-2 py-0.5 rounded-full capitalize">
+                                                  {m.role}
+                                              </span>
+                                              {m.role !== 'Projekt-Owner' && m.role !== 'Owner' && (
+                                                  <button 
+                                                      onClick={() => removeProjectMember(m.id)}
+                                                      className="text-slate-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"
+                                                      title="Mitglied entfernen"
+                                                  >
+                                                      <Trash2 size={13} />
+                                                  </button>
+                                              )}
+                                          </div>
+                                      </div>
+                                  ))
+                              )}
+                          </div>
+                      </div>
+
+                      {/* Section 2: Add New Member */}
+                      <div className="border-t border-slate-100 pt-4 space-y-3">
+                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                              <Plus size={14} className="text-emerald-500" />
+                              Neues Mitglied hinzufügen (AD Suche)
+                          </h4>
+
+                          {/* Role Selection */}
+                          <div className="flex items-center gap-3">
+                              <label className="text-xs text-slate-500 font-medium whitespace-nowrap">Rolle für neues Mitglied:</label>
+                              <select 
+                                  value={addingMemberRole} 
+                                  onChange={e => setAddingMemberRole(e.target.value)}
+                                  className="border border-slate-300 rounded-lg p-1.5 text-xs text-slate-700 font-semibold focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                              >
+                                  <option value="Entwickler">Entwickler</option>
+                                  <option value="Architekt">Architekt</option>
+                                  <option value="Manager">Manager</option>
+                                  <option value="Gast">Gast</option>
+                              </select>
+                          </div>
+
+                          {/* Search AD User */}
+                          <div className="space-y-2">
+                              <input 
+                                  type="text"
+                                  className="w-full border border-slate-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 placeholder-slate-400"
+                                  placeholder="Nach Name, Username oder E-Mail suchen..."
+                                  value={memberSearchQuery}
+                                  onChange={e => setMemberSearchQuery(e.target.value)}
+                              />
+
+                              {/* Search Results */}
+                              <div className="max-h-44 overflow-y-auto border border-slate-100 rounded-xl bg-slate-50/50 divide-y divide-slate-100">
+                                  {filteredAdUsers.length === 0 ? (
+                                      <p className="text-xs text-slate-400 p-3 text-center">Keine passenden AD-Benutzer gefunden.</p>
+                                  ) : (
+                                      filteredAdUsers.map(user => {
+                                          const isAlreadyMember = projectMembers.some(m => m.email.toLowerCase() === user.email.toLowerCase());
+                                          return (
+                                              <div 
+                                                  key={user.username} 
+                                                  className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-100 transition-colors"
+                                              >
+                                                  <div>
+                                                      <p className="font-bold text-slate-800">{user.displayName}</p>
+                                                      <p className="text-[10px] text-slate-500">{user.username} ({user.email})</p>
+                                                  </div>
+                                                  <button 
+                                                      disabled={isAlreadyMember}
+                                                      onClick={() => addProjectMember(user)}
+                                                      className={`px-3 py-1 rounded font-bold text-[10px] transition-colors shadow-sm ${isAlreadyMember ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                                                  >
+                                                      {isAlreadyMember ? 'Bereits Mitglied' : 'Hinzufügen'}
+                                                  </button>
+                                              </div>
+                                          );
+                                      })
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+
                   </div>
               </div>
           </div>

@@ -73,10 +73,9 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
 
   // --- SYNC Tab States ---
   const [remoteServerUrl, setRemoteServerUrl] = useState<string>(() => {
-    if (typeof window !== 'undefined' && window.location && window.location.origin && !window.location.origin.startsWith('file://')) {
-      return window.location.origin;
-    }
-    return 'http://localhost:3000';
+    const configApiUrl = useConfigStore.getState().config.apiUrl;
+    if (configApiUrl) return configApiUrl;
+    return 'http://localhost:5000';
   });
   const [serverHealth, setServerHealth] = useState<{ connected: boolean; service?: string; version?: string; latency?: number } | null>(null);
   const [isTestingServer, setIsTestingServer] = useState<boolean>(false);
@@ -124,7 +123,7 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   const [selectedRole, setSelectedRole] = useState<string>('EDITOR');
   const [jwtExpiry, setJwtExpiry] = useState<string>('15m');
   const [rateLimitMax, setRateLimitMax] = useState<number>(120);
-  const [corsOrigins, setCorsOrigins] = useState<string>('http://localhost:3000, https://app.mydomain.com');
+  const [corsOrigins, setCorsOrigins] = useState<string>('http://localhost:5000, http://localhost:3000, https://app.mydomain.com');
 
   // --- MONITOR Tab States ---
   const [qpsCount, setQpsCount] = useState<number>(24);
@@ -189,10 +188,18 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   const [newProjDesc, setNewProjDesc] = useState<string>('');
   const [showNewProjModal, setShowNewProjModal] = useState<boolean>(false);
 
+  // Sync config.apiUrl when remoteServerUrl changes
+  useEffect(() => {
+    if (remoteServerUrl && remoteServerUrl !== config.apiUrl) {
+      updateConfig({ apiUrl: remoteServerUrl });
+    }
+  }, [remoteServerUrl]);
+
   // Auto-detect backend on mount
   useEffect(() => {
     const detectBackend = async () => {
-      const detectUrl = window.location.origin;
+      const configApiUrl = useConfigStore.getState().config.apiUrl;
+      const detectUrl = configApiUrl || 'http://localhost:5000';
       try {
         const res = await fetch(`${detectUrl}/api/health`);
         const isJsonRes = res.ok && res.headers.get('content-type')?.includes('application/json');

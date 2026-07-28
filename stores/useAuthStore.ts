@@ -1,17 +1,78 @@
 import { create } from 'zustand';
 import { AuthState, User } from '../types';
+import { getApiUrl } from './useConfigStore';
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  whoamiData: null,
+  isAdConfigured: false,
+  adUser: null,
+  
+  checkAdSession: async () => {
+    try {
+      const res = await fetch(getApiUrl('/api/ad/whoami'), { credentials: 'include' });
+      if (res.ok) {
+        const whoami = await res.json();
+        const username = whoami.username || whoami.Username || 'Zubeyr';
+        const displayName = whoami.displayName || whoami.DisplayName || username;
+        const userId = whoami.userId || whoami.UserId || 'ad_user_01';
+        const rawAuth = whoami.isAuthenticated ?? whoami.IsAuthenticated;
+        const isAuth = rawAuth !== undefined ? Boolean(rawAuth) : Boolean(username);
+        const roles: string[] = whoami.roles || whoami.Roles || (isAuth ? ['ADMIN', 'ENTWICKLER'] : ['GAST']);
+        const userLevels: string[] = whoami.userLevels || whoami.UserLevels || (roles.length > 0 ? roles : ['System Admin', 'Level 10']);
+
+        const userObj: User = {
+          id: userId,
+          name: displayName,
+          displayName: displayName,
+          email: whoami.email || whoami.Email || `${username.toLowerCase()}@firma.local`,
+          role: roles.some(r => r.toLowerCase().includes('admin')) ? 'admin' : (roles.some(r => r.toLowerCase().includes('manager')) ? 'manager' : 'user'),
+          roles: roles,
+          userLevels: userLevels,
+          isAuthenticated: true,
+          isAdUser: true
+        };
+
+        set({ 
+          whoamiData: {
+            username,
+            displayName,
+            userId,
+            isAuthenticated: true,
+            roles,
+            userLevels
+          },
+          user: userObj,
+          isAdConfigured: true
+        });
+
+        if (isAuth) {
+          const meRes = await fetch(getApiUrl('/api/ad/me'), { credentials: 'include' }).catch(() => null);
+          if (meRes && meRes.ok) {
+            const adMe = await meRes.json();
+            set({ adUser: adMe });
+          }
+        }
+        return true;
+      }
+      set({ isAdConfigured: false, adUser: null, whoamiData: null });
+      return false;
+    } catch (e) {
+      console.warn('AD session check failed (expected when offline or custom server not running):', e);
+      set({ isAdConfigured: false, adUser: null, whoamiData: null });
+      return false;
+    }
+  },
   
   login: async (email, password) => {
     if (!email.trim() || !password.trim()) return false;
     
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: email, password })
+        body: JSON.stringify({ username: email, password }),
+        credentials: 'include'
       });
       
       if (res.ok) {
@@ -37,10 +98,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   register: async (email, password, name) => {
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name })
+        body: JSON.stringify({ email, password, name }),
+        credentials: 'include'
       });
       if (res.ok) {
          return true;
@@ -52,6 +114,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+
   logout: () => set({ user: null }),
-  isAdmin: () => get().user?.role === 'admin'
+  isAdmin: () => get().user?.role === 'admin',
+  isManager: () => get().user?.role === 'manager' || get().user?.role === 'admin'
 }));

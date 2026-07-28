@@ -1,6 +1,7 @@
 
 import { Project, Collaborator, LockInfo } from '../types/index';
 import { DbType } from '../types/index';
+import { getApiUrl } from '../stores/useConfigStore';
 
 // SERVICE: Interaction with DB Studio Pro Server & Team Cloud API
 
@@ -12,7 +13,7 @@ let mockLocks: Record<string, LockInfo> = {
 export const cloudService = {
     async getProjects(): Promise<Project[]> {
         try {
-            const res = await fetch('/api/team/projects');
+            const res = await fetch(getApiUrl('/api/team/projects'), { credentials: 'include' });
             if (res.ok) {
                 const teamProjs = await res.json();
                 if (Array.isArray(teamProjs) && teamProjs.length > 0) {
@@ -41,7 +42,7 @@ export const cloudService = {
 
     async createProject(project: Project): Promise<Project> {
         try {
-            const res = await fetch('/api/team/projects', {
+            const res = await fetch(getApiUrl('/api/team/projects'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -49,7 +50,8 @@ export const cloudService = {
                     description: 'Echtes Team Cloud Projekt',
                     ownerEmail: project.owner || 'admin@company.com',
                     ownerName: project.owner || 'Project Owner'
-                })
+                }),
+                credentials: 'include'
             });
             if (res.ok) {
                 const created = await res.json();

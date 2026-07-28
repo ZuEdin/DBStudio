@@ -11,10 +11,18 @@ import { ToastContainer } from './components/Toast';
 import { ChatPanel } from './components/ChatPanel';
 import { ThemeInjector } from './components/ThemeInjector';
 import { useAppController } from './hooks/useAppController';
+import { useAuthStore } from './stores/useAuthStore';
 
 export default function App() {
   const app = useAppController();
   const { db } = app;
+  const { checkAdSession } = useAuthStore();
+
+  React.useEffect(() => {
+    if (checkAdSession) {
+      checkAdSession();
+    }
+  }, [checkAdSession]);
 
   if (!db.projectId) {
     return <DatabaseSelector 
