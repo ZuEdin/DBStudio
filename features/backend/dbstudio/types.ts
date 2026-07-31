@@ -1,4 +1,4 @@
-import { Table, Query, Relationship } from '../../types/index';
+import { Table, Query, Relationship } from '../../../types/index';
 
 export interface SystemTable {
   name: string;

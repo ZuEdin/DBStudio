@@ -128,10 +128,13 @@ export const UpdateQueryWizard: React.FC<UpdateQueryWizardProps> = ({ tables, on
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {selectedTable.fields.map(f => {
-                                            if (f.isAutoIncrement) return null;
+                                            const isPK = f.isPrimaryKey || f.isAutoIncrement;
                                             return (
                                                 <tr key={f.id}>
-                                                    <td className="py-2 pr-4 font-medium text-slate-700">{f.name}</td>
+                                                    <td className="py-2 pr-4 font-medium text-slate-700 flex items-center gap-1.5">
+                                                        {isPK && <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-200">🔑 PK</span>}
+                                                        {f.name}
+                                                    </td>
                                                     <td className="py-2">
                                                         <input 
                                                             type="text" 

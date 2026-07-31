@@ -7,7 +7,8 @@ export const generateDrizzleSchema = (tables: Table[], relationships: Relationsh
     const getColumnDef = (field: Field) => {
         const nameStr = `"${field.name}"`;
         let def = '';
-        switch(field.type.toUpperCase()) {
+        const fieldType = (field.type || 'VARCHAR').toUpperCase();
+        switch(fieldType) {
             case 'INTEGER': case 'TINYINT': case 'SMALLINT': case 'BIGINT':
                 imports.add('integer'); def = `integer(${nameStr})`; break;
             case 'DECIMAL': case 'FLOAT': case 'DOUBLE':

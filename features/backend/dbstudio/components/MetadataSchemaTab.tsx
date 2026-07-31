@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Query } from '../../types/index';
+import { Table, Query } from '../../../../types/index';
 import { 
   Database, Layers, Key, UploadCloud, RefreshCw, Code, Users, Terminal 
 } from 'lucide-react';

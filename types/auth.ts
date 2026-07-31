@@ -3,6 +3,7 @@ export interface WhoAmIData {
   username?: string;
   displayName?: string;
   userId?: string;
+  email?: string;
   isAuthenticated?: boolean;
   roles?: string[];
   userLevels?: string[];

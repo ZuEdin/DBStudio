@@ -10,6 +10,7 @@ import md5 from 'md5';
 import { VirtualTable } from '../../components/VirtualTable';
 import { Table, Field, ApiQueryParam, BackendConfig, Relationship } from '../../types/index';
 import { fetchApiData, inferFieldType } from '../../utils/apiImportHelper';
+import { getApiUrl } from '../../stores/useConfigStore';
 import { ArrayExtractionModal } from './ArrayExtractionModal';
 import { 
   generateSqlServerMigration, generateDotNetCode, generateNodeCode, generatePhpCode 
@@ -131,7 +132,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
   const loadBackendApis = async () => {
     setLoadingBackendApis(true);
     try {
-      const response = await fetch('/api/backend-apis');
+      const response = await fetch(getApiUrl('/api/backend-apis'));
       if (response.ok) {
         const list = await response.json();
         setBackendApis(list);
@@ -555,7 +556,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
     setSelectedBackendApi(api);
     setIsEditingCache(false);
     try {
-      const response = await fetch(`/api/backend-apis/${encodeURIComponent(api.name)}/data`);
+      const response = await fetch(getApiUrl(`/api/backend-apis/${encodeURIComponent(api.name)}/data`));
       if (response.ok) {
         const rows = await response.json();
         setBackendApiCacheData(rows);
@@ -570,7 +571,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
   const handleRefreshBackendApi = async (apiName: string) => {
     ui.addToast("Server-Synchronisierung läuft...", 'info');
     try {
-      const response = await fetch(`/api/backend-apis/${encodeURIComponent(apiName)}/refresh`, {
+      const response = await fetch(getApiUrl(`/api/backend-apis/${encodeURIComponent(apiName)}/refresh`), {
         method: 'POST'
       });
       if (response.ok) {
@@ -597,7 +598,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
       data: backendApiCacheData,
       isApiImport: true,
       apiConfig: {
-        url: `/api/backend-apis/${api.name}/data`,
+        url: getApiUrl(`/api/backend-apis/${api.name}/data`),
         method: 'GET',
         headers: '{}',
         queryParams: [],
@@ -611,7 +612,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
   const handleDeleteBackendApiConfig = async (apiName: string) => {
     if (!confirm(`Möchten Sie die Backend-Schnittstelle "${apiName}" wirklich löschen?`)) return;
     try {
-      const response = await fetch(`/api/backend-apis/${encodeURIComponent(apiName)}`, {
+      const response = await fetch(getApiUrl(`/api/backend-apis/${encodeURIComponent(apiName)}`), {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -627,7 +628,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
   const handleUpdateServerCache = async () => {
     if (!selectedBackendApi) return;
     try {
-      const response = await fetch(`/api/backend-apis/${encodeURIComponent(selectedBackendApi.name)}/data`, {
+      const response = await fetch(getApiUrl(`/api/backend-apis/${encodeURIComponent(selectedBackendApi.name)}/data`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(backendApiCacheData)
@@ -650,7 +651,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
     }
     setRegisteringLocalTable(true);
     try {
-      const response = await fetch('/api/backend-apis', {
+      const response = await fetch(getApiUrl('/api/backend-apis'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -820,7 +821,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
       const cleanData = mapAndCleanData(data, needsAutoId, schemaOverrides);
       const savedUrl = getEffectiveUrl();
 
-      const response = await fetch('/api/backend-apis', {
+      const response = await fetch(getApiUrl('/api/backend-apis'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -857,7 +858,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
       }
 
       if (backendApiOption === 'B') {
-        const refreshResponse = await fetch(`/api/backend-apis/${encodeURIComponent(backendApiName)}/refresh`, {
+        const refreshResponse = await fetch(getApiUrl(`/api/backend-apis/${encodeURIComponent(backendApiName)}/refresh`), {
           method: 'POST'
         });
         if (!refreshResponse.ok) {
@@ -872,7 +873,7 @@ export const ApiImportView: React.FC<ApiImportViewProps> = ({
         data: cleanData,
         isApiImport: true,
         apiConfig: {
-          url: `/api/backend-apis/${backendApiName}/data`,
+          url: getApiUrl(`/api/backend-apis/${backendApiName}/data`),
           method: 'GET',
           headers: '{}',
           queryParams: [],

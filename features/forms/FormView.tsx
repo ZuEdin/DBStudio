@@ -8,6 +8,8 @@ import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 import { logAuditTrail } from '../../utils/auditTrail';
 import { executeMacro, getSavedMacros } from '../logic/MacroEngine';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { AdvancedFilterModal } from '../tables/components/AdvancedFilterModal';
+import { CascadeDeleteModal } from '../tables/components/CascadeDeleteModal';
 
 interface FormViewProps {
   form: Form;
@@ -137,6 +139,7 @@ const DropdownButtonWidget: React.FC<{
 export const FormView: React.FC<FormViewProps> = ({ 
   form, allForms, allTables, queries, executeQuery, onTableChange, showConfirmation, isSubform, filteredData, parentRecord, linkConfig, onClose, initialMode, hideNavigation, hideActions, hideHeader, embedded, defaultValues, formActionTrigger 
 }) => {
+  const { relationships, updateTable } = useProjectStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [tempRecord, setTempRecord] = useState<Record<string, any>>({});
@@ -151,6 +154,7 @@ export const FormView: React.FC<FormViewProps> = ({
 
   // Advanced Filter Modal state
   const [filterModalOpen, setFilterModalOpen] = useState<boolean>(false);
+  const [showCascadeDeleteModal, setShowCascadeDeleteModal] = useState<boolean>(false);
   const [newFilterField, setNewFilterField] = useState<string>('');
   const [newFilterOperator, setNewFilterOperator] = useState<'equals' | 'not_equals' | 'contains' | 'starts_with' | 'greater_than' | 'less_than' | 'between'>('equals');
   const [newFilterValue, setNewFilterValue] = useState<string>('');
@@ -273,7 +277,17 @@ export const FormView: React.FC<FormViewProps> = ({
         break;
       case 'form_delete_record':
         if (!isReadOnly && !isCreating) {
-          deleteCurrentRecord();
+          const rels = relationships.filter(r => r.fromTableId === sourceTable?.id);
+          if (rels.length > 0) {
+            setShowCascadeDeleteModal(true);
+          } else {
+            deleteCurrentRecord();
+          }
+        }
+        break;
+      case 'form_delete_cascade':
+        if (!isReadOnly && !isCreating && sourceTable) {
+          setShowCascadeDeleteModal(true);
         }
         break;
       case 'form_sort_asc': {
@@ -562,6 +576,14 @@ export const FormView: React.FC<FormViewProps> = ({
 
   const deleteCurrentRecord = () => {
      if (isReadOnly || data.length === 0 || !sourceTable || isCreating) return;
+     
+     // Check if relationships exist
+     const rels = relationships.filter(r => r.fromTableId === sourceTable.id);
+     if (rels.length > 0) {
+       setShowCascadeDeleteModal(true);
+       return;
+     }
+
      showConfirmation(
       'Datensatz löschen',
       'Möchten Sie diesen Datensatz wirklich löschen?',
@@ -586,6 +608,80 @@ export const FormView: React.FC<FormViewProps> = ({
         });
       }
      );
+  };
+
+  const handleCascadeDeleteConfirm = (mode: 'cascade' | 'set_null' | 'restrict') => {
+    if (!sourceTable || !currentRecord) return;
+
+    if (mode === 'restrict') {
+      const rels = relationships.filter(r => r.fromTableId === sourceTable.id);
+      let hasDeps = false;
+      rels.forEach(rel => {
+        const parentField = sourceTable.fields.find(f => f.id === rel.fromFieldId);
+        const childTable = allTables.find(t => t.id === rel.toTableId);
+        const childField = childTable?.fields.find(f => f.id === rel.toFieldId);
+        const parentVal = parentField ? currentRecord[parentField.name] : null;
+        if (childTable && childField && parentVal !== undefined && parentVal !== null) {
+          const matchCount = (childTable.data || []).filter(cRow => String(cRow[childField.name]) === String(parentVal)).length;
+          if (matchCount > 0) hasDeps = true;
+        }
+      });
+
+      if (hasDeps) {
+        alert('Löschen abgebrochen: Es existieren noch abhängige Datensätze in verknüpften Tabellen (RESTRICT / Sperre aktiv).');
+        setShowCascadeDeleteModal(false);
+        return;
+      }
+    }
+
+    let childTablesUpdatedCount = 0;
+    let childRowsAffectedCount = 0;
+
+    const rels = relationships.filter(r => r.fromTableId === sourceTable.id);
+    rels.forEach(rel => {
+      const parentField = sourceTable.fields.find(f => f.id === rel.fromFieldId);
+      const childTable = allTables.find(t => t.id === rel.toTableId);
+      const childField = childTable?.fields.find(f => f.id === rel.toFieldId);
+      const parentVal = parentField ? currentRecord[parentField.name] : null;
+
+      if (childTable && childField && parentVal !== undefined && parentVal !== null) {
+        if (mode === 'cascade') {
+          const oldLen = childTable.data?.length || 0;
+          const newChildData = (childTable.data || []).filter(cRow => String(cRow[childField.name]) !== String(parentVal));
+          const removed = oldLen - newChildData.length;
+          if (removed > 0) {
+            childTablesUpdatedCount++;
+            childRowsAffectedCount += removed;
+            updateTable({ ...childTable, data: newChildData });
+          }
+        } else if (mode === 'set_null') {
+          let updatedCount = 0;
+          const newChildData = (childTable.data || []).map(cRow => {
+            if (String(cRow[childField.name]) === String(parentVal)) {
+              updatedCount++;
+              return { ...cRow, [childField.name]: '' };
+            }
+            return cRow;
+          });
+          if (updatedCount > 0) {
+            childTablesUpdatedCount++;
+            childRowsAffectedCount += updatedCount;
+            updateTable({ ...childTable, data: newChildData });
+          }
+        }
+      }
+    });
+
+    const newFullData = (sourceTable.data || []).filter(r => r !== currentRecord);
+    onTableChange({ ...sourceTable, data: newFullData });
+
+    setShowCascadeDeleteModal(false);
+
+    if (childRowsAffectedCount > 0) {
+      alert(`Erfolgreich gelöscht! ${childRowsAffectedCount} abhängige Datensätze in ${childTablesUpdatedCount} verknüpften Tabellen wurden (${mode === 'cascade' ? 'kaskadierend gelöscht' : 'Fremdschlüssel geleert'}).`);
+    } else {
+      alert('Datensatz erfolgreich gelöscht.');
+    }
   };
 
   const getLookupOptions = (config: any) => {
@@ -1595,6 +1691,16 @@ export const FormView: React.FC<FormViewProps> = ({
         {renderSubformModal()}
         {renderContextMenu()}
         {renderAdvancedFilterModal()}
+        {showCascadeDeleteModal && sourceTable && currentRecord && (
+          <CascadeDeleteModal
+            parentTable={sourceTable}
+            recordToDelete={currentRecord}
+            allTables={allTables}
+            relationships={relationships}
+            onConfirmDelete={handleCascadeDeleteConfirm}
+            onClose={() => setShowCascadeDeleteModal(false)}
+          />
+        )}
     </div>
   );
 };

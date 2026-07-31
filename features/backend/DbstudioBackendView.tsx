@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Query, Relationship } from '../../types/index';
-import { useConfigStore } from '../../stores/useConfigStore';
+import { useConfigStore, getApiUrl } from '../../stores/useConfigStore';
+import { useProjectStore } from '../../stores/useProjectStore';
 import { 
-  Laptop, Cloud, Server, Download, Radio, FileText, PlayCircle, Shield, Activity, Layers, Users, Zap, ShieldAlert, ArrowRight
+  Laptop, Cloud, Server, Download, Radio, FileText, PlayCircle, Shield, Activity, Layers, Users, Zap, ShieldAlert, ArrowRight, MessageSquare
 } from 'lucide-react';
 
 // Subcomponents imports
@@ -14,6 +15,7 @@ import { LiveMonitorTab } from './dbstudio/components/LiveMonitorTab';
 import { MetadataSchemaTab } from './dbstudio/components/MetadataSchemaTab';
 import { TeamCloudTab } from './dbstudio/components/TeamCloudTab';
 import { LiveServerRunnerTab } from './dbstudio/components/LiveServerRunnerTab';
+import { TeamChatModal } from './components/TeamChatModal';
 
 // Utilities imports
 import { handleDownloadSelfHostZip } from './dbstudio/utils/zipGenerator';
@@ -40,6 +42,7 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   onSetView 
 }) => {
   const { config, updateConfig } = useConfigStore();
+  const backendConfig = useProjectStore(state => state.backendConfig);
   const [activeMode, setActiveMode] = useState<'local' | 'cloud'>('local');
   
   const [selectedTables, setSelectedTables] = useState<Record<string, boolean>>(() => {
@@ -61,6 +64,9 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   const [backendTemplate, setBackendTemplate] = useState<'express' | 'nestjs'>('express');
   const [authProvider, setAuthProvider] = useState<'jwt' | 'google' | 'github'>('jwt');
   const [selfHostLang, setSelfHostLang] = useState<'nodejs' | 'csharp' | 'php' | 'python'>('nodejs');
+  const [subfolderPath, setSubfolderPath] = useState<string>('');
+  const [includeWwwroot, setIncludeWwwroot] = useState<boolean>(true);
+  const [showSelfHostConfigModal, setShowSelfHostConfigModal] = useState<boolean>(false);
   
   const [mainSectionTab, setMainSectionTab] = useState<'sync' | 'migrations' | 'api_playground' | 'security' | 'monitor' | 'self_host' | 'team' | 'deploy'>('sync');
 
@@ -85,6 +91,166 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [liveSyncStatus, setLiveSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [liveSyncStatusMsg, setLiveSyncStatusMsg] = useState<string>('');
+
+  // SQL Server background states
+  const [externalSqlConnected, setExternalSqlConnected] = useState<boolean>(true);
+  const [externalSqlLogs, setExternalSqlLogs] = useState<any[]>([]);
+  const [isSyncingSql, setIsSyncingSql] = useState<boolean>(false);
+
+  // Background Auto-Sync Effect
+  useEffect(() => {
+    const targetUrl = remoteServerUrl ? (remoteServerUrl.endsWith('/') ? remoteServerUrl.slice(0, -1) : remoteServerUrl) : getApiUrl('');
+    
+    // 1. Initial fetch
+    const fetchStatusAndLogs = async () => {
+      try {
+        const connQuery = `connectionString=${encodeURIComponent(backendConfig?.dbConnection || '')}&dbType=${encodeURIComponent(backendConfig?.dbType || '')}`;
+        const res = await fetch(`${targetUrl}/api/db/connection-status?${connQuery}`);
+        if (res.ok) {
+          const data = await res.json();
+          setExternalSqlConnected(data.connected);
+        }
+        const logsRes = await fetch(`${targetUrl}/api/db/sync-logs`);
+        if (logsRes.ok) {
+          const logsData = await logsRes.json();
+          setExternalSqlLogs(logsData);
+        }
+      } catch (e) {
+        console.warn('Fehler beim Abrufen des SQL Hintergrund-Status:', e);
+      }
+    };
+    fetchStatusAndLogs();
+
+    // 2. Continuous interval
+    const interval = setInterval(async () => {
+      // Poll connection status
+      try {
+        const connQuery = `connectionString=${encodeURIComponent(backendConfig?.dbConnection || '')}&dbType=${encodeURIComponent(backendConfig?.dbType || '')}`;
+        const res = await fetch(`${targetUrl}/api/db/connection-status?${connQuery}`);
+        if (res.ok) {
+          const data = await res.json();
+          setExternalSqlConnected(data.connected);
+        }
+        const logsRes = await fetch(`${targetUrl}/api/db/sync-logs`);
+        if (logsRes.ok) {
+          const logsData = await logsRes.json();
+          setExternalSqlLogs(logsData);
+        }
+      } catch (e) {
+        console.warn('Fehler beim Hintergrund-Poll:', e);
+      }
+
+      // If autoSync is enabled, run high-performance schema synchronization
+      if (autoSyncEnabled) {
+        setIsSyncingSql(true);
+        try {
+          let host = 'localhost';
+          let database = 'production_db';
+          let type = 'mssql';
+
+          const connStr = backendConfig?.dbConnection || '';
+          if (connStr) {
+            if (connStr.includes('://')) {
+              try {
+                const url = new URL(connStr);
+                host = url.hostname;
+                database = url.pathname.replace(/^\//, '');
+                type = url.protocol.replace(':', '');
+              } catch (e) {
+                // ignore
+              }
+            } else {
+              const parts = connStr.split(';');
+              for (const part of parts) {
+                const eqIndex = part.indexOf('=');
+                if (eqIndex > 0) {
+                  const key = part.substring(0, eqIndex).trim().toLowerCase();
+                  const val = part.substring(eqIndex + 1).trim();
+                  if (key === 'server' || key === 'host' || key === 'data source' || key === 'datasource') {
+                    host = val;
+                  } else if (key === 'database' || key === 'initial catalog' || key === 'db') {
+                    database = val;
+                  }
+                }
+              }
+              if (connStr.toLowerCase().includes('sqlite') || connStr.toLowerCase().includes('.db')) {
+                type = 'sqlite';
+              } else if (connStr.toLowerCase().includes('port=') || connStr.toLowerCase().includes('postgresql')) {
+                type = 'postgresql';
+              }
+            }
+          }
+
+          const activeTables = tables.filter(t => selectedTables[t.id]);
+          const syncPayload: any = {
+            tables: activeTables,
+            queries,
+            relationships
+          };
+          if (backendConfig?.dbConnection) {
+            syncPayload.connection = {
+              host,
+              database,
+              type
+            };
+          }
+          const syncRes = await fetch(`${targetUrl}/api/db/sync-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(syncPayload)
+          });
+
+          if (syncRes.ok) {
+            const syncData = await syncRes.json();
+            if (syncData.externalConnected === false) {
+              setLiveSyncStatus('error');
+              setLiveSyncStatusMsg("SQL-Server offline. Lokale IndexedDB dient als sichere Backupdatei.");
+            } else {
+              setLiveSyncStatus('success');
+              setLiveSyncStatusMsg(`Hintergrund Auto-Sync erfolgreich durchgeführt um ${new Date().toLocaleTimeString()}!`);
+            }
+          }
+        } catch (e) {
+          console.warn('Fehler im Auto-Sync Push:', e);
+          setLiveSyncStatus('error');
+          setLiveSyncStatusMsg("Server-Schnittstelle nicht erreichbar. Lokale Offline-Kopie aktiv.");
+        } finally {
+          setIsSyncingSql(false);
+        }
+      }
+    }, 7000);
+
+    return () => clearInterval(interval);
+  }, [autoSyncEnabled, tables, queries, relationships, remoteServerUrl, selectedTables, backendConfig]);
+
+  const handleToggleExternalConnection = async (connected: boolean) => {
+    try {
+      const targetUrl = remoteServerUrl ? (remoteServerUrl.endsWith('/') ? remoteServerUrl.slice(0, -1) : remoteServerUrl) : getApiUrl('');
+      const res = await fetch(`${targetUrl}/api/db/connection-toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connected })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setExternalSqlConnected(data.connected);
+        if (connected) {
+          showMessage("SQL Server Online", "Verbindung zum externen SQL Server wurde erfolgreich aktiviert.", "success");
+        } else {
+          showMessage("Offline Modus aktiv", "SQL Server getrennt. Die lokale IndexedDB wird als Sicherungskopie verwendet.", "warning");
+        }
+        
+        // Refresh logs immediately
+        const logsRes = await fetch(`${targetUrl}/api/db/sync-logs`);
+        if (logsRes.ok) {
+          const logsData = await logsRes.json();
+          setExternalSqlLogs(logsData);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to toggle connection:', e);
+    }
+  };
 
   // --- MIGRATIONS Tab States ---
   const [migrationDialect, setMigrationDialect] = useState<'sql' | 'drizzle' | 'knex' | 'prisma'>('sql');
@@ -187,6 +353,7 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
   const [newProjName, setNewProjName] = useState<string>('');
   const [newProjDesc, setNewProjDesc] = useState<string>('');
   const [showNewProjModal, setShowNewProjModal] = useState<boolean>(false);
+  const [showTeamChatModal, setShowTeamChatModal] = useState<boolean>(false);
 
   // Sync config.apiUrl when remoteServerUrl changes
   useEffect(() => {
@@ -291,7 +458,7 @@ module.exports = app;`;
     setIsDeployingServer(true);
     try {
       const codeToDeploy = generateFullProjectCode();
-      const res = await fetch('/api/deploy/run', {
+      const res = await fetch(getApiUrl('/api/deploy/run'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -322,7 +489,7 @@ module.exports = app;`;
   const handleStopDeployedServer = async () => {
     if (!deployedPort) return;
     try {
-      const res = await fetch(`/api/deploy/stop/${deployedPort}`, { method: 'POST' });
+      const res = await fetch(getApiUrl(`/api/deploy/stop/${deployedPort}`), { method: 'POST' });
       if (res.ok) {
         setRunnerStatus('STOPPED');
         setRunnerLogs(prev => [...prev, `[SYSTEM] Process on port ${deployedPort} stopped by user.`]);
@@ -830,21 +997,161 @@ module.exports = app;`;
     setIsDownloading(true);
     setLiveSyncStatus('idle');
     try {
-      const res = await fetch(`${remoteServerUrl}/api/projects`, { method: 'GET' });
+      const targetUrl = remoteServerUrl ? (remoteServerUrl.endsWith('/') ? remoteServerUrl.slice(0, -1) : remoteServerUrl) : getApiUrl('');
+      const res = await fetch(`${targetUrl}/api/projects`, { method: 'GET' });
       if (res.ok) {
-        setLiveSyncStatus('success');
-        setLiveSyncStatusMsg('Server-Metadaten erfolgreich in die lokale IndexedDB importiert.');
-        showMessage("Live Sync Erfolgreich", "Server-Metadaten wurden erfolgreich lokal importiert.", "success");
+        const data = await res.json();
+        let projectToLoad: any = null;
+
+        if (Array.isArray(data) && data.length > 0) {
+          projectToLoad = data[0];
+        } else if (data && typeof data === 'object') {
+          projectToLoad = data.project || data;
+        }
+
+        // If project entry exists but has no .data or .Data, try fetching detail via GET /api/projects/:id
+        const projId = projectToLoad?.id || projectToLoad?.Id;
+        if (projectToLoad && !projectToLoad.data && !projectToLoad.Data && projId) {
+          try {
+            const detailRes = await fetch(`${targetUrl}/api/projects/${projId}`);
+            if (detailRes.ok) {
+              const detailData = await detailRes.json();
+              if (detailData) {
+                projectToLoad = detailData.project || detailData;
+              }
+            }
+          } catch (e) {
+            console.warn('Fehler beim Abrufen der Projekt-Details:', e);
+          }
+        }
+
+        // Parse JSON strings if dataJson/DataJson present
+        if (projectToLoad && typeof projectToLoad.dataJson === 'string') {
+          try { projectToLoad.data = JSON.parse(projectToLoad.dataJson); } catch (e) {}
+        }
+        if (projectToLoad && typeof projectToLoad.DataJson === 'string') {
+          try { projectToLoad.data = JSON.parse(projectToLoad.DataJson); } catch (e) {}
+        }
+
+        // Extract schema data (supporting various naming conventions)
+        const schemaData = projectToLoad?.data || projectToLoad?.Data || (
+          projectToLoad?.tables || projectToLoad?.Tables ? {
+            tables: projectToLoad.tables || projectToLoad.Tables,
+            queries: projectToLoad.queries || projectToLoad.Queries || [],
+            relationships: projectToLoad.relationships || projectToLoad.Relationships || []
+          } : null
+        );
+
+        if (projectToLoad && schemaData) {
+          const store = useProjectStore.getState();
+          const targetTables = schemaData.tables || schemaData.Tables || [];
+          const targetQueries = schemaData.queries || schemaData.Queries || [];
+          
+          store.loadProject({
+            id: store.projectId || projectToLoad.id || projectToLoad.Id || 'proj_default',
+            name: store.projectName || projectToLoad.name || projectToLoad.Name || 'Server Master Database',
+            lastModified: Date.now(),
+            data: {
+              tables: targetTables,
+              queries: targetQueries,
+              relationships: schemaData.relationships || schemaData.Relationships || [],
+              forms: store.forms && store.forms.length > 0 ? store.forms : (schemaData.forms || schemaData.Forms || []),
+              reports: store.reports && store.reports.length > 0 ? store.reports : (schemaData.reports || schemaData.Reports || []),
+              charts: store.charts && store.charts.length > 0 ? store.charts : (schemaData.charts || schemaData.Charts || []),
+              pages: store.pages && store.pages.length > 0 ? store.pages : (schemaData.pages || schemaData.Pages || []),
+              customComponents: store.customComponents && store.customComponents.length > 0 ? store.customComponents : (schemaData.customComponents || schemaData.CustomComponents || []),
+              workflows: store.workflows && store.workflows.length > 0 ? store.workflows : (schemaData.workflows || schemaData.Workflows || []),
+              layout: store.layout && store.layout.length > 0 ? store.layout : (schemaData.layout || schemaData.Layout || []),
+              tableGroups: store.tableGroups && store.tableGroups.length > 0 ? store.tableGroups : (schemaData.tableGroups || schemaData.TableGroups || []),
+              backendConfig: store.backendConfig ? { ...store.backendConfig, ...(schemaData.backendConfig || schemaData.BackendConfig || {}) } : (schemaData.backendConfig || schemaData.BackendConfig || { type: 'sqlite', name: 'MasterDB', language: 'csharp', auth: { enabled: true, provider: 'windows_ad' } })
+            }
+          });
+          await store.saveProject();
+
+          const tablesCount = targetTables.length;
+          const queriesCount = targetQueries.length;
+          const statusMsg = `Server-Metadaten (${tablesCount} Tabellen, ${queriesCount} Abfragen) erfolgreich in lokale IndexedDB importiert.`;
+          
+          setLiveSyncStatus('success');
+          setLiveSyncStatusMsg(statusMsg);
+          showMessage("Live Sync Erfolgreich", statusMsg, "success");
+        } else if (Array.isArray(data) && data.length === 0) {
+          // If no saved projects exist on server yet, trigger live SQL server introspection on the server!
+          try {
+            const introspectRes = await fetch(`${targetUrl}/api/db/introspect`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'mssql', host: 'localhost', port: 1433, database: 'production_db' })
+            });
+
+            if (introspectRes.ok) {
+              const introspectData = await introspectRes.json();
+              const introspectedProj = introspectData.project;
+              if (introspectedProj && introspectedProj.data) {
+                const store = useProjectStore.getState();
+                const targetTables = introspectedProj.data.tables || [];
+                const targetQueries = introspectedProj.data.queries || [];
+                const targetRelationships = introspectedProj.data.relationships || [];
+
+                store.loadProject({
+                  id: store.projectId || introspectedProj.id || 'proj_default',
+                  name: store.projectName || introspectedProj.name || 'Server Master Database',
+                  lastModified: Date.now(),
+                  data: {
+                    tables: targetTables,
+                    queries: targetQueries,
+                    relationships: targetRelationships,
+                    forms: store.forms && store.forms.length > 0 ? store.forms : (introspectedProj.data.forms || []),
+                    reports: store.reports && store.reports.length > 0 ? store.reports : (introspectedProj.data.reports || []),
+                    charts: store.charts && store.charts.length > 0 ? store.charts : (introspectedProj.data.charts || []),
+                    pages: store.pages && store.pages.length > 0 ? store.pages : (introspectedProj.data.pages || []),
+                    customComponents: store.customComponents && store.customComponents.length > 0 ? store.customComponents : (introspectedProj.data.customComponents || []),
+                    workflows: store.workflows && store.workflows.length > 0 ? store.workflows : (introspectedProj.data.workflows || []),
+                    layout: store.layout && store.layout.length > 0 ? store.layout : (introspectedProj.data.layout || []),
+                    tableGroups: store.tableGroups && store.tableGroups.length > 0 ? store.tableGroups : (introspectedProj.data.tableGroups || []),
+                    backendConfig: store.backendConfig ? { ...store.backendConfig, ...(introspectedProj.data.backendConfig || {}) } : (introspectedProj.data.backendConfig || { type: 'sqlite', name: 'MasterDB', language: 'csharp', auth: { enabled: true, provider: 'windows_ad' } })
+                  }
+                });
+                await store.saveProject();
+
+                const tCount = introspectedProj.data.tables?.length || 0;
+                const statusMsg = `SQL-Server Introspection erfolgreich! ${tCount} Tabellen & Live-Datensätze von ${targetUrl} heruntergeladen und in IndexedDB gespeichert.`;
+                setLiveSyncStatus('success');
+                setLiveSyncStatusMsg(statusMsg);
+                showMessage("SQL Server Introspection Erfolgreich", statusMsg, "success");
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('Introspection Versuch fehlgeschlagen:', e);
+          }
+
+          const emptyInfo = `Der Server (${targetUrl}) ist online und antwortet, hat aber aktuell noch keine Projekte/Schemas gespeichert (Antwort: []).\n\nTipp: Nutzen Sie "Schema auf Server hochladen (Push)", um Ihr lokales DB-Studio Schema auf den Server zu pushen oder führen Sie eine Live Introspection durch.`;
+          setLiveSyncStatus('error');
+          setLiveSyncStatusMsg(emptyInfo);
+          showMessage("Keine Daten auf Server", emptyInfo, "info");
+        } else {
+          // Construct informative error details with raw JSON response preview
+          const rawPreview = JSON.stringify(data, null, 2);
+          const truncatedPreview = rawPreview.length > 600 ? rawPreview.slice(0, 600) + '\n...' : rawPreview;
+          const detailedMsg = `Keine gültigen Metadaten auf dem Server (${targetUrl}) gefunden.\n\nEmpfangene Server-Antwort:\n${truncatedPreview}`;
+
+          setLiveSyncStatus('error');
+          setLiveSyncStatusMsg(detailedMsg);
+          showMessage("Sync Fehler", detailedMsg, "error");
+        }
       } else {
+        const errText = await res.text().catch(() => '');
+        const detailedMsg = `Download fehlgeschlagen. Server HTTP-Status: ${res.status} ${res.statusText}\n${errText ? 'Server-Antwort: ' + errText.slice(0, 300) : ''}`;
         setLiveSyncStatus('error');
-        setLiveSyncStatusMsg(`Download fehlgeschlagen. Server-Status: ${res.status}`);
-        showMessage("Sync Fehler", "Konnte Metadaten nicht herunterladen.", "error");
+        setLiveSyncStatusMsg(detailedMsg);
+        showMessage("Sync Fehler", detailedMsg, "error");
       }
     } catch (err: any) {
-      // Offline/simulation fallback
-      setLiveSyncStatus('success');
-      setLiveSyncStatusMsg('Metadaten im Simulationsmodus erfolgreich synchronisiert.');
-      showMessage("Live Sync Erfolgreich", "Metadaten im Simulationsmodus lokal importiert.", "success");
+      const detailedMsg = `Verbindung zu ${remoteServerUrl} fehlgeschlagen: ${err?.message || err}`;
+      setLiveSyncStatus('error');
+      setLiveSyncStatusMsg(detailedMsg);
+      showMessage("Sync Fehler", detailedMsg, "error");
     } finally {
       setIsDownloading(false);
     }
@@ -888,7 +1195,9 @@ module.exports = app;`;
       adBaseDn,
       adGroupMappings,
       adServiceAccountUsername,
-      adServiceAccountPassword
+      adServiceAccountPassword,
+      subfolderPath,
+      includeWwwroot
     );
   };
 
@@ -930,13 +1239,13 @@ module.exports = app;`;
 
         <div className="flex items-center gap-3 shrink-0 flex-wrap">
           {/* Tech Stack Selection Dropdown */}
-          <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-700">
+          <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 shadow-inner">
             <span className="text-[11px] font-semibold text-slate-400 font-mono">Stack:</span>
             <select
               id="select_selfhost_lang"
               value={selfHostLang}
               onChange={(e) => setSelfHostLang(e.target.value as any)}
-              className="bg-slate-800 text-slate-100 text-xs font-bold px-2 py-0.5 rounded-md border border-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold px-2 py-1 rounded-lg border border-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer transition-colors duration-150"
             >
               <option value="nodejs">Node.js (Express)</option>
               <option value="csharp">.NET 10 (C# Enterprise WebAPI)</option>
@@ -944,6 +1253,33 @@ module.exports = app;`;
               <option value="python">Python (FastAPI)</option>
             </select>
           </div>
+
+          {/* Action Button: Team Chat Modal */}
+          <button
+            id="btn_open_team_chat"
+            onClick={() => setShowTeamChatModal(true)}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all border border-indigo-500/30 cursor-pointer"
+            title="Öffnet den Team Chat & Realtime Log (/api/chat/messages)"
+          >
+            <MessageSquare size={14} />
+            <span>Team Chat</span>
+          </button>
+
+          {/* Action Button: Self-Host Backend Config Modal */}
+          <button
+            id="btn_open_selfhost_config"
+            onClick={() => setShowSelfHostConfigModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-all cursor-pointer"
+            title="Unterordner & wwwroot Web-Config Einstellungen anpassen"
+          >
+            <Server size={14} className="text-indigo-400" />
+            <span>Unterordner & wwwroot</span>
+            {subfolderPath && (
+              <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-mono">
+                {subfolderPath}
+              </span>
+            )}
+          </button>
 
           {/* Action Button: Self-Host Backend ZIP Download */}
           <button
@@ -1103,6 +1439,10 @@ module.exports = app;`;
             onToggleQuery={handleToggleQuery}
             syncStatus={liveSyncStatus}
             syncStatusMsg={liveSyncStatusMsg}
+            externalSqlConnected={externalSqlConnected}
+            externalSqlLogs={externalSqlLogs}
+            isSyncingSql={isSyncingSql}
+            onToggleConnection={handleToggleExternalConnection}
           />
         )}
 
@@ -1384,6 +1724,115 @@ module.exports = app;`;
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Team Chat & Realtime Modal */}
+      <TeamChatModal 
+        isOpen={showTeamChatModal} 
+        onClose={() => setShowTeamChatModal(false)} 
+      />
+
+      {/* Self-Host Subfolder & wwwroot Configuration Modal */}
+      {showSelfHostConfigModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-800/80 border-b border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <Server className="text-indigo-400" size={18} />
+                <h3 className="text-sm font-bold text-white">Self-Host Unterordner & wwwroot Konfiguration</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSelfHostConfigModal(false)}
+                className="text-slate-400 hover:text-white text-lg leading-none p-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                <p className="font-semibold text-indigo-300 mb-1">Vermeidung von 404-Fehlern beim Server-Upload:</p>
+                Wenn Sie das Backend in einem Unterordner (z.B. <code>/api</code> oder <code>/dbstudio</code>) hosten, generieren wir automatisch passende <code>BASE_PATH</code> Routen, IIS <code>web.config</code> Rewrite-Regeln und Apache <code>.htaccess</code>.
+              </div>
+
+              {/* Tech Stack Select */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Backend Tech-Stack:</label>
+                <select
+                  value={selfHostLang}
+                  onChange={(e) => setSelfHostLang(e.target.value as any)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-medium cursor-pointer"
+                >
+                  <option value="nodejs">Node.js (Express + CORS + IIS web.config / .htaccess)</option>
+                  <option value="csharp">.NET 10 (C# ASP.NET Core Web API + Swagger)</option>
+                  <option value="php">PHP (Laravel API + Mod_Rewrite rules)</option>
+                  <option value="python">Python (FastAPI + Static Files Router)</option>
+                </select>
+              </div>
+
+              {/* Subfolder Path Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Unterordner Pfad (z.B. <code>/subfolder</code> oder <code>/my-app</code>):
+                </label>
+                <input
+                  type="text"
+                  value={subfolderPath}
+                  onChange={(e) => setSubfolderPath(e.target.value)}
+                  placeholder="/mein-unterordner"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Leer lassen für Hauptverzeichnis (Root). Falls gesetzt, werden alle API-Endpunkte unter <code>{subfolderPath || '/'}/api/*</code> erreichbar sein.
+                </p>
+              </div>
+
+              {/* wwwroot Toggle */}
+              <div className="flex items-start gap-3 p-3 bg-slate-950/50 rounded-lg border border-slate-800">
+                <input
+                  type="checkbox"
+                  id="chk_include_wwwroot"
+                  checked={includeWwwroot}
+                  onChange={(e) => setIncludeWwwroot(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 bg-slate-900 cursor-pointer"
+                />
+                <label htmlFor="chk_include_wwwroot" className="text-xs text-slate-300 cursor-pointer">
+                  <span className="font-semibold text-white block"><code>wwwroot</code>-Ordner mit Webserver-Routing generieren</span>
+                  Erstellt den <code>wwwroot/</code>-Ordner mit <code>index.html</code> Statusseite, <code>web.config</code> (IIS) und <code>.htaccess</code> (Apache) für nahtloses Subfolder-Routing.
+                </label>
+              </div>
+
+              {/* Live Route Preview */}
+              <div className="bg-slate-950 p-3 rounded-lg border border-indigo-500/20 text-xs font-mono">
+                <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">Routen-Vorschau:</div>
+                <div className="text-emerald-400">GET https://ihr-server.de{subfolderPath.startsWith('/') ? subfolderPath : subfolderPath ? '/' + subfolderPath : ''}/api/health</div>
+                <div className="text-indigo-300 mt-1">GET https://ihr-server.de{subfolderPath.startsWith('/') ? subfolderPath : subfolderPath ? '/' + subfolderPath : ''}/api/projects</div>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowSelfHostConfigModal(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                >
+                  Schließen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    executeDownloadZip();
+                    setShowSelfHostConfigModal(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                >
+                  <Download size={14} />
+                  <span>Jetzt Self-Host ZIP herunterladen</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

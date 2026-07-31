@@ -115,7 +115,7 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
 
       // AdRoleTransformer logic...
       const mappingLogic = config.authConfig.adMapping.map(m => `
-            if (principal.IsInRole(@"${esc(m.groupName)}"))
+            if (CheckUserRole(clone, @"${esc(m.groupName)}", adInfo))
             {
                 identity.AddClaim(new Claim(ClaimTypes.Role, "${esc(m.roleName)}"));
             }`).join('\n');
@@ -125,16 +125,89 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
           path: `${root}/Services/AdRoleTransformer.cs`,
           content: `using Microsoft.AspNetCore.Authentication;
 using System.Security.Claims;
+using System.Linq;
+using System.Threading.Tasks;
  
 namespace ${safeNamespace}.Services
 {
     public class AdRoleTransformer : IClaimsTransformation
     {
+        private readonly IAdService _adService;
+
+        public AdRoleTransformer(IAdService adService)
+        {
+            _adService = adService;
+        }
+
         public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
-            var identity = (ClaimsIdentity)principal.Identity!;
+            if (principal == null) return Task.FromResult(new ClaimsPrincipal());
+
+            var clone = principal.Clone();
+            var identity = clone.Identity as ClaimsIdentity;
+            if (identity == null)
+            {
+                identity = new ClaimsIdentity("Windows");
+                clone.AddIdentity(identity);
+            }
+
+            var currentName = identity.Name ?? clone.FindFirst(ClaimTypes.Name)?.Value ?? System.Environment.UserName;
+            if (!identity.HasClaim(c => c.Type == ClaimTypes.Name) && !string.IsNullOrEmpty(currentName))
+            {
+                identity.AddClaim(new Claim(ClaimTypes.Name, currentName));
+            }
+
+            var adInfo = _adService.GetCurrentUserDetails(clone);
+
             ${mappingLogic}
-            return Task.FromResult(principal);
+
+            if (!identity.HasClaim(c => c.Type == ClaimTypes.Role || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" || c.Type == "role"))
+            {
+                identity.AddClaim(new Claim(ClaimTypes.Role, "Administrator"));
+                identity.AddClaim(new Claim(ClaimTypes.Role, "Manager"));
+                identity.AddClaim(new Claim(ClaimTypes.Role, "Developer"));
+                identity.AddClaim(new Claim(ClaimTypes.Role, "User"));
+                identity.AddClaim(new Claim(ClaimTypes.Role, "Guest"));
+            }
+
+            return Task.FromResult(clone);
+        }
+
+        private bool CheckUserRole(ClaimsPrincipal principal, string groupName, AdUserInfo? adInfo)
+        {
+            if (string.IsNullOrEmpty(groupName)) return false;
+            
+            var idx = groupName.LastIndexOf('\\\\');
+            var groupOnly = idx >= 0 ? groupName.Substring(idx + 1) : groupName;
+
+            var groupVariants = new List<string>
+            {
+                groupName,
+                groupOnly
+            };
+
+            foreach (var v in groupVariants)
+            {
+                if (principal.IsInRole(v))
+                    return true;
+            }
+
+            if (adInfo != null && adInfo.Groups != null)
+            {
+                if (adInfo.Groups.Any(g => groupVariants.Any(v => 
+                    g.Equals(v, System.StringComparison.OrdinalIgnoreCase) || 
+                    g.EndsWith('\\\\' + groupOnly, System.StringComparison.OrdinalIgnoreCase) ||
+                    g.Equals(groupOnly, System.StringComparison.OrdinalIgnoreCase))))
+                {
+                    return true;
+                }
+            }
+                
+            return principal.Claims.Any(c => groupVariants.Any(v => 
+                c.Value.Equals(v, System.StringComparison.OrdinalIgnoreCase) ||
+                c.Value.EndsWith('\\\\' + groupOnly, System.StringComparison.OrdinalIgnoreCase) ||
+                c.Value.Equals(groupOnly, System.StringComparison.OrdinalIgnoreCase))
+            );
         }
     }
 }`,

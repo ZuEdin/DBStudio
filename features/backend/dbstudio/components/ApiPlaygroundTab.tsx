@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table } from '../../types/index';
+import { Table } from '../../../../types/index';
 import { 
   PlayCircle, Play, Copy, Check 
 } from 'lucide-react';

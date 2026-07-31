@@ -26,13 +26,18 @@ const matchesCriteria = (value: any, criteria: string): boolean => {
   if (crit.startsWith('!=')) return String(value) != crit.substring(2).trim();
   if (crit.startsWith('=')) return String(value) == crit.substring(1).trim();
 
-  // Like
-  if (crit.startsWith('wie') || crit.includes('*') || crit.includes('%')) {
-    const pattern = crit.replace('wie', '').trim().replace(/\*/g, '.*').replace(/%/g, '.*');
+  // Like / Wildcards
+  if (crit.startsWith('wie') || crit.includes('*') || crit.includes('%') || crit.includes('?')) {
+    const rawPattern = crit.replace(/^wie\s+/i, '').replace(/^wie/i, '').trim();
+    const escaped = rawPattern
+      .replace(/[-\/\\^$+.()|[\]{}]/g, '\\$&')
+      .replace(/\*/g, '.*')
+      .replace(/%/g, '.*')
+      .replace(/\?/g, '.');
     try {
-      const regex = new RegExp(`^${pattern}$`, 'i');
+      const regex = new RegExp(`^${escaped}$`, 'i');
       return regex.test(strValue);
-    } catch (e) { return false; } // Invalid regex
+    } catch (e) { return false; }
   }
 
   // Exact match (default)

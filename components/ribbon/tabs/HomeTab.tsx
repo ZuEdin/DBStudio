@@ -12,6 +12,8 @@ interface HomeTabProps {
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
+  const [showDeleteMenu, setShowDeleteMenu] = React.useState(false);
+
   return (
     <div className="flex gap-4 h-full items-stretch">
       <RibbonGroup label="Design">
@@ -23,7 +25,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
         <RibbonButton 
           icon={<Filter className="text-slate-700" />} 
           label="Filtern" 
-          onClick={() => onAction('form_toggle_filter')} 
+          onClick={() => onAction('form_filter_advanced')} 
           size="large" 
         />
         
@@ -56,26 +58,27 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[110px]">
           <button 
             onClick={() => onAction('form_filter_selection')}
+            title="Filtert nach dem aktuell markierten Zellwert (Access 'Filter nach Auswahl')"
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
           >
             <Zap size={13} className="text-amber-500 shrink-0" />
             <span className="truncate">Auswahl</span>
-            <ChevronDown size={10} className="text-slate-400 shrink-0 ml-auto" />
           </button>
           <button 
             onClick={() => onAction('form_filter_advanced')}
+            title="Öffnet das erweiterte Filter-Modalfenster mit Mehrfach-Kriterien"
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
           >
             <SlidersHorizontal size={13} className="text-blue-500 shrink-0" />
             <span className="truncate">Erweitert</span>
-            <ChevronDown size={10} className="text-slate-400 shrink-0 ml-auto" />
           </button>
           <button 
             onClick={() => onAction('form_toggle_filter')}
+            title="Blendet die Schnell-Suchzeile direkt über den Tabellenspalten ein/aus"
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
           >
             <CheckSquare size={13} className="text-emerald-600 shrink-0" />
-            <span className="truncate">Filter ein/aus</span>
+            <span className="truncate">Filter Zeile</span>
           </button>
         </div>
       </RibbonGroup>
@@ -109,14 +112,32 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
             <Save size={13} className="text-indigo-600 shrink-0" />
             <span className="truncate">Speichern</span>
           </button>
-          <button 
-            onClick={() => onAction('form_delete_record')}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
-          >
-            <Trash2 size={13} className="text-rose-600 shrink-0" />
-            <span className="truncate">Löschen</span>
-            <ChevronDown size={10} className="text-slate-400 shrink-0 ml-auto" />
-          </button>
+          <div className="relative" onMouseLeave={() => setShowDeleteMenu(false)}>
+            <button 
+              onClick={() => setShowDeleteMenu(p => !p)}
+              className="flex items-center gap-1 w-full px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            >
+              <Trash2 size={13} className="text-rose-600 shrink-0" />
+              <span className="truncate">Löschen</span>
+              <ChevronDown size={10} className="text-slate-400 shrink-0 ml-auto" />
+            </button>
+            {showDeleteMenu && (
+              <div className="absolute top-full left-0 bg-white shadow-xl border border-slate-200 rounded z-50 text-xs w-56 py-1 animate-in fade-in-25">
+                <button 
+                  onClick={() => { onAction('form_delete_record'); setShowDeleteMenu(false); }} 
+                  className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-left font-medium text-slate-800"
+                >
+                  <Trash2 size={13} className="text-rose-600"/> Datensatz löschen
+                </button>
+                <button 
+                  onClick={() => { onAction('form_delete_cascade'); setShowDeleteMenu(false); }} 
+                  className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-amber-50 text-left font-semibold text-amber-900 border-t border-slate-100"
+                >
+                  <ShieldCheck size={13} className="text-amber-600"/> Erweitertes Löschen (Cascade & Ref. Integrität)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Column 2: Other Operations */}

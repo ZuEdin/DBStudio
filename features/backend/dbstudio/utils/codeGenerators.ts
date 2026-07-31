@@ -1,4 +1,4 @@
-import { Table } from '../../../types/index';
+import { Table } from '../../../../types/index';
 import { RbacRole } from '../types';
 
 // Central Dynamic Template Generator for Cloud Hub

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table } from '../../types/index';
+import { Table } from '../../../../types/index';
 import { FileText, Copy, Check } from 'lucide-react';
 import { generateMigrationScripts } from '../utils/codeGenerators';
 

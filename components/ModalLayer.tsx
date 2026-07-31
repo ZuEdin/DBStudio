@@ -17,6 +17,7 @@ import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizard
 import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
 import { DeleteQueryWizard } from '../features/queries/wizards/DeleteQueryWizard'; 
 import { UpdateQueryWizard } from '../features/queries/wizards/UpdateQueryWizard';
+import { MakeTableWizard } from '../features/queries/wizards/MakeTableWizard';
 import { ExcelImportWizard } from '../features/tools/ExcelImportWizard';
 import { AccessImportWizard } from '../features/tools/AccessImportWizard';
 import { DummyDataWizard } from '../features/tools/DummyDataWizard';
@@ -247,6 +248,13 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <UpdateQueryWizard 
           tables={tables} 
           onSave={onSaveWizardQuery}
+          onClose={() => setActiveWizard(null)} 
+        />
+      )}
+      {(activeWizard === 'maketable' || activeWizard === 'make_table') && (
+        <MakeTableWizard 
+          tables={tables} 
+          queries={queries} 
           onClose={() => setActiveWizard(null)} 
         />
       )}

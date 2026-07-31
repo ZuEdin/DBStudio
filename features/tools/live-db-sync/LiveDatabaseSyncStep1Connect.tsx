@@ -4,6 +4,8 @@ import { Server, HelpCircle, Play } from 'lucide-react';
 interface LiveDatabaseSyncStep1ConnectProps {
   dbType: 'postgresql' | 'mysql' | 'mssql' | 'sqlite';
   setDbType: (type: 'postgresql' | 'mysql' | 'mssql' | 'sqlite') => void;
+  syncDirection: 'bidirectional' | 'download' | 'upload';
+  setSyncDirection: (dir: 'bidirectional' | 'download' | 'upload') => void;
   host: string;
   setHost: (h: string) => void;
   port: string;
@@ -22,6 +24,8 @@ interface LiveDatabaseSyncStep1ConnectProps {
 export const LiveDatabaseSyncStep1Connect: React.FC<LiveDatabaseSyncStep1ConnectProps> = ({
   dbType,
   setDbType,
+  syncDirection,
+  setSyncDirection,
   host,
   setHost,
   port,
@@ -41,6 +45,32 @@ export const LiveDatabaseSyncStep1Connect: React.FC<LiveDatabaseSyncStep1Connect
       <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-850">
         <Server className="w-5 h-5 text-indigo-500" />
         <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Verbindungsdaten für Live-Datenbank</h2>
+      </div>
+
+      {/* Sync Direction Mode */}
+      <div>
+        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Synchronisations-Richtung (Zweibahnstraße)</label>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: 'bidirectional', label: '🔄 2-Wege-Sync', desc: 'Beidseitiger Abgleich (IndexedDB ↔ Live SQL)' },
+            { id: 'download', label: '📥 Download (Live ➔ IndexedDB)', desc: 'Live SQL-Tabellen lokal importieren' },
+            { id: 'upload', label: '📤 Upload (IndexedDB ➔ Live)', desc: 'Lokale Tabellen auf SQL Server anlegen' }
+          ].map((mode) => (
+            <button
+              type="button"
+              key={mode.id}
+              onClick={() => setSyncDirection(mode.id as any)}
+              className={`p-2 text-left rounded-lg border text-xs transition-all ${
+                syncDirection === mode.id
+                  ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold border-2 ring-1 ring-indigo-500/20'
+                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              <div className="font-bold">{mode.label}</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">{mode.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* DB Type Selection */}
@@ -124,7 +154,7 @@ export const LiveDatabaseSyncStep1Connect: React.FC<LiveDatabaseSyncStep1Connect
                 onChange={(e) => setSsl(e.target.checked)}
                 className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500"
               />
-              <span className="font-semibold">SSL-Verschlüsselung erzwingen</span>
+              <span className="font-semibold">SSL-Verschlüsselung (standardmäßig Aus für lokale Server)</span>
             </label>
           </div>
         </div>

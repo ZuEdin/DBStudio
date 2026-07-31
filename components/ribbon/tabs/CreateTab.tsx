@@ -43,10 +43,11 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
         <div className="relative" onMouseLeave={() => setShowActionQueryDropdown(false)}>
             <RibbonButton icon={<ChevronDown/>} label={t('ribbon.actions.action_queries')} onClick={() => setShowActionQueryDropdown(p => !p)} />
             {showActionQueryDropdown && (
-            <div className="absolute top-full left-0 bg-white shadow-lg border rounded z-50 text-sm w-48">
+            <div className="absolute top-full left-0 bg-white shadow-lg border rounded z-50 text-sm w-56">
                 <button onClick={() => { onAction('wizard_append'); setShowActionQueryDropdown(false); }} className="flex items-center gap-2 w-full p-2 hover:bg-slate-100 text-left"><PlusSquare size={14} className="text-green-600"/> {t('ribbon.actions.query_append')}</button>
                 <button onClick={() => { onAction('wizard_delete'); setShowActionQueryDropdown(false); }} className="flex items-center gap-2 w-full p-2 hover:bg-slate-100 text-left text-red-600"><Trash size={14} /> {t('ribbon.actions.query_delete')}</button>
                 <button onClick={() => { onAction('wizard_update'); setShowActionQueryDropdown(false); }} className="flex items-center gap-2 w-full p-2 hover:bg-slate-100 text-left text-blue-600"><RefreshCw size={14} /> {t('ribbon.actions.query_update')}</button>
+                <button onClick={() => { onAction('wizard_maketable'); setShowActionQueryDropdown(false); }} className="flex items-center gap-2 w-full p-2 hover:bg-slate-100 text-left text-teal-600 border-t border-slate-100"><TableIcon size={14} /> Tabellenerstellungsabfrage</button>
             </div>
             )}
         </div>

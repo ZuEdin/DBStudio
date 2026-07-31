@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Chat, ChatMessage } from '../types/index';
 import { useUIStore } from '../stores/useUIStore';
 import { useAuthStore } from '../stores/useAuthStore';
+import { getApiUrl } from '../stores/useConfigStore';
 
 export const useChatState = () => {
   const ui = useUIStore();
@@ -16,7 +17,7 @@ export const useChatState = () => {
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        const res = await fetch('/api/team/members');
+        const res = await fetch(getApiUrl('/api/team/members'));
         if (res.ok) {
           const data = await res.json();
           setTeamMembers(data);
@@ -44,7 +45,7 @@ export const useChatState = () => {
     const syncChatsWithTeam = async () => {
       let backendMessages: any[] = [];
       try {
-         const res = await fetch('/api/chat/messages');
+         const res = await fetch(getApiUrl('/api/chat/messages'));
          if (res.ok) {
            backendMessages = await res.json();
          }
@@ -133,7 +134,7 @@ export const useChatState = () => {
     }));
 
     try {
-      await fetch('/api/chat/messages', {
+      await fetch(getApiUrl('/api/chat/messages'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMessage)
@@ -161,7 +162,7 @@ export const useChatState = () => {
     }));
 
     try {
-      await fetch('/api/chat/messages', {
+      await fetch(getApiUrl('/api/chat/messages'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMessage)

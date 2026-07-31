@@ -27,19 +27,35 @@ export const useConfigStore = create<ConfigStore>()(
 
 export function getApiUrl(path: string): string {
   const config = useConfigStore.getState().config;
-  let baseUrl = (config.apiUrl || 'http://localhost:5000').trim();
-  if (baseUrl) {
-    if (!/^https?:\/\//i.test(baseUrl)) {
-      baseUrl = `http://${baseUrl}`;
-    }
+  let baseUrl = (config.apiUrl || '').trim();
+
+  const cleanPath = path.startsWith('/') ? path : '/' + path;
+  const envBase = ((import.meta as any).env?.BASE_URL || '/').replace(/\/$/, '');
+  const relativeFallback = envBase ? `${envBase}${cleanPath}` : cleanPath;
+
+  // If not explicitly configured as SELF_HOST, or if using default http://localhost:5000,
+  // use relative path (respecting subfolder base if deployed under a subfolder)
+  if ((config.mode as string) !== 'SELF_HOST' || !baseUrl || baseUrl === 'http://localhost:5000' || baseUrl === 'http://localhost:5000/') {
+    return relativeFallback;
+  }
+
+  // If baseUrl is a relative path (e.g. /dbstudio or /subfolder/api)
+  if (baseUrl.startsWith('/')) {
     const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const cleanPath = path.startsWith('/') ? path : '/' + path;
-    
     if (cleanBase.endsWith('/api') && cleanPath.startsWith('/api/')) {
       return `${cleanBase}${cleanPath.slice(4)}`;
     }
     return `${cleanBase}${cleanPath}`;
   }
-  return path;
+
+  if (!/^https?:\/\//i.test(baseUrl)) {
+    baseUrl = `http://${baseUrl}`;
+  }
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  
+  if (cleanBase.endsWith('/api') && cleanPath.startsWith('/api/')) {
+    return `${cleanBase}${cleanPath.slice(4)}`;
+  }
+  return `${cleanBase}${cleanPath}`;
 }
 

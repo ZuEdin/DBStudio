@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { Table, Query, Relationship } from '../../../types/index';
+import { Table, Query, Relationship } from '../../../../types/index';
 import { generateNodejsBackend } from './generators/nodejs';
 import { generateCsharpBackend } from './generators/csharp';
 import { generatePhpBackend } from './generators/php';
@@ -17,7 +17,9 @@ export const handleDownloadSelfHostZip = async (
   adBaseDn?: string,
   adGroupMappings?: { id: string; adGroup: string; appRole: string }[],
   adServiceAccountUsername?: string,
-  adServiceAccountPassword?: string
+  adServiceAccountPassword?: string,
+  subfolderPath: string = '',
+  includeWwwroot: boolean = true
 ) => {
   try {
     const zip = new JSZip();
@@ -237,13 +239,13 @@ VALUES ('proj_default', 'Hauptprojekt', 'PostgreSQL', 1, 'admin');
 
     // Dynamic modular dispatching of backend generator packages
     if (selfHostLang === 'nodejs') {
-      generateNodejsBackend(zip, schemaSql);
+      generateNodejsBackend(zip, schemaSql, subfolderPath, includeWwwroot);
     } else if (selfHostLang === 'csharp') {
-      generateCsharpBackend(zip, schemaSql, adServerAddress, adBaseDn, adGroupMappings, adServiceAccountUsername, adServiceAccountPassword);
+      generateCsharpBackend(zip, schemaSql, adServerAddress, adBaseDn, adGroupMappings, adServiceAccountUsername, adServiceAccountPassword, subfolderPath, includeWwwroot);
     } else if (selfHostLang === 'php') {
-      generatePhpBackend(zip, schemaSql);
+      generatePhpBackend(zip, schemaSql, subfolderPath, includeWwwroot);
     } else if (selfHostLang === 'python') {
-      generatePythonBackend(zip, schemaSql);
+      generatePythonBackend(zip, schemaSql, subfolderPath, includeWwwroot);
     }
 
     const content = await zip.generateAsync({ type: 'blob' });

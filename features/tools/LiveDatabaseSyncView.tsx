@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, ShieldAlert } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { Table, Field } from '../../types/index';
+import { getApiUrl } from '../../stores/useConfigStore';
 
 // Modular Subcomponents
 import { LiveDatabaseSyncStep1Connect } from './live-db-sync/LiveDatabaseSyncStep1Connect';
@@ -18,15 +19,18 @@ interface LiveDatabaseSyncViewProps {
 export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ showMessage, onSaveTable }) => {
   const projectTables = useProjectStore(state => state.tables);
   const addTable = useProjectStore(state => state.addTable);
+  const backendConfig = useProjectStore(state => state.backendConfig);
+  const setBackendConfig = useProjectStore(state => state.setBackendConfig);
 
   // Connection config states
   const [dbType, setDbType] = useState<'postgresql' | 'mysql' | 'mssql' | 'sqlite'>('postgresql');
+  const [syncDirection, setSyncDirection] = useState<'bidirectional' | 'download' | 'upload'>('bidirectional');
   const [host, setHost] = useState('localhost');
   const [port, setPort] = useState('5432');
   const [database, setDatabase] = useState('production_db');
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('••••••••••••');
-  const [ssl, setSsl] = useState(true);
+  const [ssl, setSsl] = useState(false);
   
   // App state
   const [syncStep, setSyncStep] = useState<'connect' | 'scanning' | 'diff' | 'completed'>('connect');
@@ -36,13 +40,88 @@ export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ show
   // Mock Introspected differences
   const [mockDiffs, setMockDiffs] = useState<MockDiff[]>([]);
 
+  // Parse stored connection string and prepopulate form on mount
   useEffect(() => {
-    // Port updates based on DB Type
-    if (dbType === 'postgresql') setPort('5432');
-    else if (dbType === 'mysql') setPort('3306');
-    else if (dbType === 'mssql') setPort('1433');
-    else if (dbType === 'sqlite') setPort('file:data.db');
-  }, [dbType]);
+    const connStr = backendConfig?.dbConnection;
+    if (connStr) {
+      if (connStr.startsWith('postgresql://') || connStr.startsWith('postgres://')) {
+        setDbType('postgresql');
+        try {
+          const url = new URL(connStr);
+          setHost(url.hostname);
+          setPort(url.port || '5432');
+          setDatabase(url.pathname.replace(/^\//, ''));
+          setUsername(decodeURIComponent(url.username) || 'postgres');
+          setPassword(decodeURIComponent(url.password) || '');
+          setSsl(url.searchParams.get('ssl') === 'true' || url.searchParams.get('sslmode') === 'require');
+        } catch (e) {}
+      } else if (connStr.startsWith('mysql://')) {
+        setDbType('mysql');
+        try {
+          const url = new URL(connStr);
+          setHost(url.hostname);
+          setPort(url.port || '3306');
+          setDatabase(url.pathname.replace(/^\//, ''));
+          setUsername(decodeURIComponent(url.username) || 'root');
+          setPassword(decodeURIComponent(url.password) || '');
+        } catch (e) {}
+      } else if (connStr.startsWith('sqlserver://') || connStr.startsWith('mssql://')) {
+        setDbType('mssql');
+        try {
+          const url = new URL(connStr);
+          setHost(url.hostname);
+          setPort(url.port || '1433');
+          setDatabase(url.pathname.replace(/^\//, ''));
+          setUsername(decodeURIComponent(url.username) || 'sa');
+          setPassword(decodeURIComponent(url.password) || '');
+        } catch (e) {}
+      } else {
+        // ADO.NET Key-Value Connection String parsing
+        const parts = connStr.split(';').reduce((acc, part) => {
+          const index = part.indexOf('=');
+          if (index !== -1) {
+            const key = part.substring(0, index).trim().toLowerCase();
+            const value = part.substring(index + 1).trim();
+            acc[key] = value;
+          }
+          return acc;
+        }, {} as Record<string, string>);
+
+        const serverVal = parts['server'] || parts['data source'] || parts['host'] || 'localhost';
+        if (serverVal.includes(',')) {
+          const [h, p] = serverVal.split(',');
+          setHost(h.trim());
+          setPort(p.trim());
+        } else if (serverVal.includes(':')) {
+          const [h, p] = serverVal.split(':');
+          setHost(h.trim());
+          setPort(p.trim());
+        } else {
+          setHost(serverVal);
+        }
+
+        setDatabase(parts['database'] || parts['initial catalog'] || 'production_db');
+        setUsername(parts['user id'] || parts['uid'] || parts['user'] || 'sa');
+        setPassword(parts['password'] || parts['pwd'] || '');
+        if (parts['port']) setPort(parts['port']);
+        setSsl(parts['ssl'] === 'true' || parts['encrypt'] === 'true');
+
+        if (backendConfig?.dbType === 'PostgreSQL') setDbType('postgresql');
+        else if (backendConfig?.dbType === 'MySQL') setDbType('mysql');
+        else setDbType('mssql');
+      }
+    }
+  }, [backendConfig]);
+
+  useEffect(() => {
+    // Port updates based on DB Type if no stored connection is present
+    if (!backendConfig?.dbConnection) {
+      if (dbType === 'postgresql') setPort('5432');
+      else if (dbType === 'mysql') setPort('3306');
+      else if (dbType === 'mssql') setPort('1433');
+      else if (dbType === 'sqlite') setPort('file:data.db');
+    }
+  }, [dbType, backendConfig]);
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -51,73 +130,148 @@ export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ show
   const handleConnect = async () => {
     setSyncStep('scanning');
     setLogs([]);
-    addLog(`Stelle Verbindung zu ${dbType.toUpperCase()}://@${host}:${port}/${database} her...`);
+    addLog(`Stelle Live-Verbindung zu ${dbType.toUpperCase()}://${host}:${port}/${database} her...`);
+    addLog(`⚙️ Modus: ${syncDirection === 'bidirectional' ? '🔄 2-Wege-Sync (Bidirektional)' : syncDirection === 'download' ? '📥 Download' : '📤 Upload'}`);
     
     // Step-by-step scanning logs
-    await new Promise(r => setTimeout(r, 800));
-    addLog(`🔐 SSL/TLS Verbindung erfolgreich etabliert (Version TLS 1.3, Cipher AES256-GCM)...`);
+    await new Promise(r => setTimeout(r, 250));
+    addLog(`🔐 SSL: ${ssl ? 'Aktiviert' : 'Deaktiviert (Standard für lokale SQL-Server)'}...`);
     
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 250));
     addLog(`🔍 Lese Systemtabellen ('information_schema.tables' & 'information_schema.columns') aus...`);
-    
-    await new Promise(r => setTimeout(r, 1000));
-    addLog(`📦 Gefunden: 4 Tabellen im Live-System.`);
-    addLog(`📊 Vergleiche Struktur mit lokalem Datenmodell (${projectTables.length} lokale Tabellen)...`);
 
-    // Generate smart mock diffs depending on what local tables exist
-    const hasUsersTable = projectTables.some(t => t.name.toLowerCase() === 'users');
+    let introspectedTablesFromApi: Table[] = [];
+    let introspectedProjectFromApi: any = null;
 
-    const generatedDiffs: MockDiff[] = [
-      {
-        id: 'diff_1',
-        type: 'new_table',
-        tableName: 'Invoices',
-        description: 'Tabelle existiert im Live-System, fehlt aber lokal.',
-        liveDetail: 'Columns: Id (UUID, PK), InvoiceNumber (VARCHAR), IssueDate (DATE), TotalAmount (DECIMAL), IsPaid (BOOLEAN), CustomerId (UUID)',
-        sql: `CREATE TABLE "Invoices" (\n  "Id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  "InvoiceNumber" VARCHAR(255) NOT NULL,\n  "IssueDate" DATE NOT NULL DEFAULT CURRENT_DATE,\n  "TotalAmount" DECIMAL(10,2) NOT NULL,\n  "IsPaid" BOOLEAN DEFAULT false,\n  "CustomerId" UUID REFERENCES "Customers"("Id")\n);`,
-        suggestedTable: {
-          id: 'introspected_invoices',
-          name: 'Invoices',
-          fields: [
-            { id: 'inv_id', name: 'Id', type: 'UUID', isPrimaryKey: true, allowNull: false, isUnique: true, defaultValue: 'gen_random_uuid()' },
-            { id: 'inv_nr', name: 'InvoiceNumber', type: 'VARCHAR', isPrimaryKey: false, allowNull: false, isUnique: false, length: 255 },
-            { id: 'inv_date', name: 'IssueDate', type: 'DATE', isPrimaryKey: false, allowNull: false, isUnique: false },
-            { id: 'inv_tot', name: 'TotalAmount', type: 'DECIMAL', isPrimaryKey: false, allowNull: false, isUnique: false },
-            { id: 'inv_paid', name: 'IsPaid', type: 'BOOLEAN', isPrimaryKey: false, allowNull: true, isUnique: false, defaultValue: 'false' },
-            { id: 'inv_cust', name: 'CustomerId', type: 'UUID', isPrimaryKey: false, allowNull: true, isUnique: false }
-          ],
-          description: 'Introspected live database invoice table'
+    // Build connection string to save in backendConfig
+    let generatedConnString = '';
+    if (dbType === 'postgresql') {
+      generatedConnString = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${database}${ssl ? '?ssl=true' : ''}`;
+    } else if (dbType === 'mysql') {
+      generatedConnString = `mysql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+    } else if (dbType === 'mssql') {
+      generatedConnString = `Server=${host},${port};Database=${database};User Id=${username};Password=${password};Encrypt=${ssl ? 'true' : 'false'};TrustServerCertificate=true;`;
+    } else {
+      generatedConnString = `Data Source=${port || 'app.db'}`;
+    }
+
+    // Save connection configuration to project store backendConfig
+    if (setBackendConfig && backendConfig) {
+      setBackendConfig({
+        ...backendConfig,
+        dbType: dbType === 'postgresql' ? 'PostgreSQL' as any : dbType === 'mysql' ? 'MySQL' as any : 'SQL' as any,
+        dbConnection: generatedConnString
+      });
+    }
+
+    try {
+      const res = await fetch(getApiUrl('/api/db/introspect'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: dbType, host, port, database, username, password, ssl, connectionString: generatedConnString })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.project && data.project.data) {
+          introspectedProjectFromApi = data.project;
+          introspectedTablesFromApi = data.project.data.tables || [];
+          addLog(`✅ Server-Introspection erfolgreich! ${introspectedTablesFromApi.length} Tabellen mit Live-Datensätzen empfangen.`);
         }
-      },
-      {
-        id: 'diff_2',
-        type: 'missing_column',
-        tableName: projectTables[0]?.name || 'Customers',
-        description: `Spalte 'PhoneNumber' existiert im Live-System unter '${projectTables[0]?.name || 'Customers'}', fehlt aber lokal.`,
-        liveDetail: 'PhoneNumber VARCHAR(50)',
-        localDetail: 'Keine Spalte gefunden',
-        sql: `ALTER TABLE "${projectTables[0]?.name || 'Customers'}" ADD COLUMN "PhoneNumber" VARCHAR(50) NULL;`,
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.message || 'Unbekannter Serverfehler';
+        addLog(`❌ Server-Introspection fehlgeschlagen: ${errMsg}`);
+        showMessage("Verbindungsfehler", errMsg, "error");
+        setSyncStep('connect');
+        return;
       }
-    ];
+    } catch (e: any) {
+      addLog(`⚠️ Server-API Call nicht erreichbar: ${e.message || e}`);
+      showMessage("Verbindungsfehler", `Verbindung zum Server-API fehlgeschlagen: ${e.message || e}`, "error");
+      setSyncStep('connect');
+      return;
+    }
+    
+    await new Promise(r => setTimeout(r, 250));
+    addLog(`📦 Gefunden: ${introspectedTablesFromApi.length} Tabellen im Live SQL-Server.`);
+    addLog(`📊 Vergleiche Struktur mit lokaler IndexedDB (${projectTables.length} lokale Tabellen)...`);
 
-    if (!hasUsersTable) {
-      generatedDiffs.push({
-        id: 'diff_3',
-        type: 'new_table',
-        tableName: 'LiveAuditLog',
-        description: 'Tabelle existiert im Live-System, fehlt aber lokal.',
-        liveDetail: 'Columns: Id (INT, PK), Action (VARCHAR), TableName (VARCHAR), Timestamp (DATETIME)',
-        sql: `CREATE TABLE "LiveAuditLog" (\n  "Id" SERIAL PRIMARY KEY,\n  "Action" VARCHAR(100) NOT NULL,\n  "TableName" VARCHAR(100) NOT NULL,\n  "Timestamp" TIMESTAMP DEFAULT NOW()\n);`,
-        suggestedTable: {
-          id: 'introspected_audit',
-          name: 'LiveAuditLog',
-          fields: [
-            { id: 'aud_id', name: 'Id', type: 'INTEGER', isPrimaryKey: true, allowNull: false, isUnique: true },
-            { id: 'aud_act', name: 'Action', type: 'VARCHAR', isPrimaryKey: false, allowNull: false, isUnique: false, length: 100 },
-            { id: 'aud_tbl', name: 'TableName', type: 'VARCHAR', isPrimaryKey: false, allowNull: false, isUnique: false, length: 100 },
-            { id: 'aud_time', name: 'Timestamp', type: 'DATETIME', isPrimaryKey: false, allowNull: true, isUnique: false, defaultValue: 'NOW()' }
-          ],
-          description: 'Sicherheits-Audit-Logs aus dem Live-System'
+    // Generate 2-Way Diffs (Download & Upload)
+    const generatedDiffs: MockDiff[] = [];
+
+    // 1. Download Diffs (Live SQL -> IndexedDB)
+    if (syncDirection === 'bidirectional' || syncDirection === 'download') {
+      introspectedTablesFromApi.forEach((tbl, idx) => {
+        const existsLocally = projectTables.some(t => t.name.toLowerCase() === tbl.name.toLowerCase());
+        if (!existsLocally) {
+          generatedDiffs.push({
+            id: `diff_down_${idx}_${tbl.name}`,
+            type: 'new_table',
+            direction: 'download',
+            tableName: tbl.name,
+            description: `Tabelle '${tbl.name}' existiert auf dem SQL-Server ➔ In lokale IndexedDB importieren.`,
+            localDetail: 'Fehlt in IndexedDB',
+            liveDetail: `Columns: ${tbl.fields.map(f => `${f.name} (${f.type})`).join(', ')} | Zeilen: ${tbl.data?.length || 0}`,
+            sql: `-- Live SQL -> IndexedDB Import:\nCREATE TABLE "${tbl.name}" (\n  ${tbl.fields.map(f => `"${f.name}" ${f.type}${f.isPrimaryKey ? ' PRIMARY KEY' : ''}`).join(',\n  ')}\n);`,
+            suggestedTable: tbl
+          });
+        }
+      });
+    }
+
+    // 2. Upload Diffs (IndexedDB -> Live SQL)
+    if (syncDirection === 'bidirectional' || syncDirection === 'upload') {
+      projectTables.forEach((localTbl, idx) => {
+        const existsOnServer = introspectedTablesFromApi.some(t => t.name.toLowerCase() === localTbl.name.toLowerCase());
+        if (!existsOnServer) {
+          // Generate DDL for SQL Server
+          const colDefs = localTbl.fields.map(f => {
+            let colType = f.type || 'VARCHAR(255)';
+            if (colType === 'INTEGER' || colType === 'INT') colType = 'INT';
+            else if (colType === 'VARCHAR') colType = `NVARCHAR(${f.length || 255})`;
+            else if (colType === 'DATETIME') colType = 'DATETIME';
+            else if (colType === 'DECIMAL') colType = 'DECIMAL(18,2)';
+            else if (colType === 'BOOLEAN') colType = 'BIT';
+            return `[${f.name}] ${colType}${f.isPrimaryKey ? ' PRIMARY KEY' : ''}${f.allowNull === false ? ' NOT NULL' : ''}`;
+          }).join(',\n    ');
+
+          let createTableSql = '';
+          if (dbType === 'mssql') {
+            createTableSql = `IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '${localTbl.name}')\nBEGIN\n  CREATE TABLE [dbo].[${localTbl.name}] (\n    ${colDefs}\n  );\nEND;`;
+          } else if (dbType === 'mysql') {
+            createTableSql = `CREATE TABLE IF NOT EXISTS \`${localTbl.name}\` (\n    ${colDefs}\n);`;
+          } else {
+            createTableSql = `CREATE TABLE IF NOT EXISTS "${localTbl.name}" (\n    ${colDefs}\n);`;
+          }
+
+          // Generate sample DML inserts if local table has rows
+          let insertSql = '';
+          if (localTbl.data && localTbl.data.length > 0) {
+            const rowsSql = localTbl.data.slice(0, 10).map(row => {
+              const keys = Object.keys(row);
+              const vals = keys.map(k => {
+                const val = row[k];
+                if (val === null || val === undefined) return 'NULL';
+                if (typeof val === 'number') return val;
+                return `'${String(val).replace(/'/g, "''")}'`;
+              });
+              return `INSERT INTO ${dbType === 'mssql' ? `[dbo].[${localTbl.name}]` : `"${localTbl.name}"`} ([${keys.join('], [')}]) VALUES (${vals.join(', ')});`;
+            }).join('\n');
+            insertSql = `\n\n-- Data Records Sync:\n${rowsSql}`;
+          }
+
+          generatedDiffs.push({
+            id: `diff_up_${idx}_${localTbl.name}`,
+            type: 'new_table',
+            direction: 'upload',
+            tableName: localTbl.name,
+            description: `Lokale Tabelle '${localTbl.name}' aus IndexedDB ➔ Auf Live SQL-Server anlegen & synchronisieren.`,
+            localDetail: `Columns: ${localTbl.fields.map(f => f.name).join(', ')} | Zeilen: ${localTbl.data?.length || 0}`,
+            liveDetail: 'Fehlt im SQL Server',
+            sql: createTableSql + insertSql,
+            suggestedTable: localTbl
+          });
         }
       });
     }
@@ -125,52 +279,87 @@ export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ show
     setMockDiffs(generatedDiffs);
     setSelectedDiffs(generatedDiffs.map(d => d.id));
     
-    await new Promise(r => setTimeout(r, 600));
-    addLog(`✅ Analyse abgeschlossen. ${generatedDiffs.length} Unterschiede identifiziert.`);
+    await new Promise(r => setTimeout(r, 250));
+
+    addLog(`✅ 2-Wege-Analyse abgeschlossen: ${generatedDiffs.length} Unterschiede identifiziert.`);
+    if (generatedDiffs.length > 0) {
+      const downCount = generatedDiffs.filter(d => d.direction === 'download').length;
+      const upCount = generatedDiffs.filter(d => d.direction === 'upload').length;
+      addLog(`📊 Detail: ${downCount} Downloads (Server ➔ IndexedDB), ${upCount} Uploads (IndexedDB ➔ Server).`);
+    } else {
+      addLog(`🎉 Perfekt! Deine IndexedDB und der Live SQL Server sind 100% synchron.`);
+    }
+
     setSyncStep('diff');
+
+    if (introspectedProjectFromApi) {
+      (window as any).__lastIntrospectedProject = introspectedProjectFromApi;
+    }
   };
 
-  const handleApplySync = () => {
-    let appliedCount = 0;
+  const handleApplySync = async () => {
+    let downloadApplied = 0;
+    let uploadApplied = 0;
     
-    mockDiffs.forEach(diff => {
-      if (!selectedDiffs.includes(diff.id)) return;
-      
-      if (diff.type === 'new_table' && diff.suggestedTable) {
-        if (!projectTables.some(t => t.name.toLowerCase() === diff.tableName.toLowerCase())) {
-          addTable(diff.suggestedTable);
-          appliedCount++;
-        }
-      } else if (diff.type === 'missing_column') {
-        const targetTable = projectTables.find(t => t.name === diff.tableName);
-        if (targetTable) {
-          const newField: Field = {
-            id: `f_sync_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-            name: 'PhoneNumber',
-            type: 'VARCHAR',
-            isPrimaryKey: false,
-            allowNull: true,
-            isUnique: false,
-            length: 50
-          };
-          
-          if (!targetTable.fields.some(f => f.name.toLowerCase() === 'phonenumber')) {
-            const updatedFields = [...targetTable.fields, newField];
-            onSaveTable({
-              ...targetTable,
-              fields: updatedFields
-            });
-            appliedCount++;
+    const selectedMockDiffs = mockDiffs.filter(d => selectedDiffs.includes(d.id));
+    const downloadDiffs = selectedMockDiffs.filter(d => d.direction === 'download');
+    const uploadDiffs = selectedMockDiffs.filter(d => d.direction === 'upload');
+
+    // 1. Process Download Diffs (SQL Server -> IndexedDB)
+    if (downloadDiffs.length > 0) {
+      downloadDiffs.forEach(diff => {
+        if (diff.suggestedTable) {
+          if (!projectTables.some(t => t.name.toLowerCase() === diff.tableName.toLowerCase())) {
+            addTable(diff.suggestedTable);
+            downloadApplied++;
           }
         }
+      });
+      addLog(`📥 ${downloadApplied} Live-Tabellen wurden in die lokale IndexedDB importiert.`);
+    }
+
+    // 2. Process Upload Diffs (IndexedDB -> SQL Server)
+    if (uploadDiffs.length > 0) {
+      addLog(`📤 Sende ${uploadDiffs.length} DDL/DML Anweisungen an den Live SQL-Server (${host}:${port}/${database})...`);
+      const combinedDdl = uploadDiffs.map(d => d.sql).join('\n\n');
+
+      try {
+        const res = await fetch(getApiUrl('/api/db/execute-ddl'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ddl: combinedDdl,
+            type: dbType,
+            host,
+            port,
+            database,
+            username,
+            password,
+            ssl
+          })
+        });
+
+        if (res.ok) {
+          const resData = await res.json();
+          uploadApplied = uploadDiffs.length;
+          addLog(`✅ Server-Antwort: ${resData.message || 'DDL/DML Befehle erfolgreich auf dem SQL-Server ausgeführt!'}`);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          addLog(`⚠️ Warnung beim Upload auf Server: ${errData.message || 'DDL/DML konnte nicht ausgeführt werden'}`);
+        }
+      } catch (err: any) {
+        addLog(`❌ Server Upload Fehler: ${err.message || err}`);
       }
-    });
+    }
+
+    await useProjectStore.getState().saveProject();
 
     showMessage(
-      `${appliedCount} Änderungen importiert`, 
-      `Die ausgewählten Tabellen und Spalten wurden erfolgreich in dein lokales Schema übernommen.`, 
-      'success'
+      "2-Wege-Sync Abgeschlossen",
+      `Erfolgreich synchronisiert! ${downloadApplied} Tabellen aus SQL importiert, ${uploadApplied} Tabellen auf Live SQL erstellt.`,
+      "success"
     );
+
     setSyncStep('completed');
   };
 
@@ -246,6 +435,8 @@ export const LiveDatabaseSyncView: React.FC<LiveDatabaseSyncViewProps> = ({ show
             <LiveDatabaseSyncStep1Connect
               dbType={dbType}
               setDbType={setDbType}
+              syncDirection={syncDirection}
+              setSyncDirection={setSyncDirection}
               host={host}
               setHost={setHost}
               port={port}

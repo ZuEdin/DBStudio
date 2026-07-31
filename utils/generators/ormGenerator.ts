@@ -36,7 +36,7 @@ export const generatePrismaSchema = (tables: Table[], rawRelationships: Relation
     // Normal Fields
     table.fields.forEach(field => {
       let type = 'String';
-      const fTypeUpper = field.type.toUpperCase();
+      const fTypeUpper = (field.type || 'VARCHAR').toUpperCase();
 
       if (fTypeUpper.includes('INT')) {
         type = 'Int';
@@ -67,7 +67,7 @@ export const generatePrismaSchema = (tables: Table[], rawRelationships: Relation
           decorators += ` @default(${defVal})`;
         } else if (type === 'Boolean') {
           decorators += ` @default(${defVal === 'true' || defVal === '1'})`;
-        } else if (type === 'DateTime' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase())) {
+        } else if (type === 'DateTime' && typeof defVal === 'string' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase())) {
           decorators += ' @default(now())';
         } else {
           decorators += ` @default("${defVal.replace(/"/g, '\\"')}")`;
@@ -188,7 +188,7 @@ export const generateDrizzleSchema = (tables: Table[], rawRelationships: Relatio
 
     table.fields.forEach(field => {
       let colDef = '';
-      const fTypeUpper = field.type.toUpperCase();
+      const fTypeUpper = (field.type || 'VARCHAR').toUpperCase();
 
       if (field.isPrimaryKey && field.isAutoIncrement) {
         if (isPg) colDef = `serial('${field.name}').primaryKey()`;
@@ -225,7 +225,7 @@ export const generateDrizzleSchema = (tables: Table[], rawRelationships: Relatio
             colDef += `.default(${defVal})`;
           } else if (defVal === 'true' || defVal === 'false') {
             colDef += `.default(${defVal})`;
-          } else if (['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase())) {
+          } else if (defVal && typeof defVal === 'string' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase())) {
             colDef += `.defaultNow()`;
           } else {
             colDef += `.default('${defVal.replace(/'/g, "\\'")}')`;
@@ -339,7 +339,7 @@ export const generateTypeOrmEntities = (tables: Table[], rawRelationships: Relat
 
     // Fields
     table.fields.forEach(field => {
-      const fTypeUpper = field.type.toUpperCase();
+      const fTypeUpper = (field.type || 'VARCHAR').toUpperCase();
       let tsType = 'string';
       let typeDecoratorOpts = '';
 

@@ -1,13 +1,16 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Table, ApiQueryParam, Field, Relationship } from '../../types/index';
-import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink, Layout, List, GripVertical, ArrowUpDown, Shuffle, Settings2, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink, Layout, List, GripVertical, ArrowUpDown, Shuffle, Settings2, HelpCircle, Zap, SlidersHorizontal, ShieldAlert } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
 import { RecordDetailModal } from '../../components/modals/RecordDetailModal';
 import { KanbanBoard } from './components/KanbanBoard';
 import { evaluateFormFormula } from '../../utils/formulaEvaluator';
+import { AdvancedFilterModal } from './components/AdvancedFilterModal';
+import { CascadeDeleteModal } from './components/CascadeDeleteModal';
+import { useProjectStore } from '../../stores/useProjectStore';
 
 interface TableViewProps {
   table: Table;
@@ -15,6 +18,7 @@ interface TableViewProps {
   relationships: Relationship[];
   onTableChange: (table: Table) => void;
   showConfirmation: (title: string, message: string, onConfirm: () => void, confirmText?: string, confirmClass?: string) => void;
+  formActionTrigger?: { action: string; timestamp: number } | null;
 }
 
 const formatDateValue = (val: any, format?: string, type?: string) => {
@@ -54,7 +58,7 @@ const formatDateValue = (val: any, format?: string, type?: string) => {
     return format.replace('dd', d).replace('MM', m).replace('yyyy', String(y)).replace('HH', H).replace('mm', M).replace('ss', S);
 };
 
-export const TableView: React.FC<TableViewProps> = ({ table, allTables, relationships, onTableChange, showConfirmation }) => {
+export const TableView: React.FC<TableViewProps> = ({ table, allTables, relationships, onTableChange, showConfirmation, formActionTrigger }) => {
   const headers = table.fields.map(field => field.name);
   const headerTooltips = table.fields.reduce((acc, field) => {
     if (field.comment) acc[field.name] = field.comment;
@@ -62,12 +66,25 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   }, {} as Record<string, string>);
   const rawData = table.data || [];
   
-  const { filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats } = useDataFilter(rawData);
+  const { updateTable } = useProjectStore();
+
+  const { 
+    filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats,
+    sortColumn, sortDirection, handleSort, setSort, clearSort,
+    advancedRules, setAdvancedRules, matchMode, setMatchMode
+  } = useDataFilter(rawData, table.fields);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showParams, setShowParams] = useState(false);
   const [detailView, setDetailView] = useState<{ targetTableId: string, recordId: any } | null>(null);
+  const [activeColumn, setActiveColumn] = useState<string | null>(null);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+
+  // Modals state
+  const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
+  const [showCascadeDeleteModal, setShowCascadeDeleteModal] = useState(false);
+  const [recordForDelete, setRecordForDelete] = useState<Record<string, any> | null>(null);
   
   // View Mode: List or Kanban
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
@@ -188,6 +205,96 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
     };
   }, [setShowFilters]);
 
+  // Handle ribbon action triggers (from Home Tab / Start Registerkarte)
+  useEffect(() => {
+    if (!formActionTrigger) return;
+    const { action } = formActionTrigger;
+    switch (action) {
+      case 'form_new_record':
+        addRow();
+        break;
+      case 'form_delete_record': {
+        const targetRow = (selectedRowIndex !== null && rawData[selectedRowIndex]) 
+          ? rawData[selectedRowIndex] 
+          : rawData[rawData.length - 1];
+        if (targetRow) {
+          // Check if there are foreign key relationships for this table
+          const rels = relationships.filter(r => r.fromTableId === table.id);
+          if (rels.length > 0) {
+            setRecordForDelete(targetRow);
+            setShowCascadeDeleteModal(true);
+          } else {
+            deleteRow(targetRow);
+          }
+        } else {
+          alert('Kein Datensatz zum Löschen vorhanden.');
+        }
+        break;
+      }
+      case 'form_delete_cascade': {
+        const targetRow = (selectedRowIndex !== null && rawData[selectedRowIndex]) 
+          ? rawData[selectedRowIndex] 
+          : rawData[rawData.length - 1];
+        if (targetRow) {
+          setRecordForDelete(targetRow);
+          setShowCascadeDeleteModal(true);
+        } else {
+          alert('Kein Datensatz zum erweiterten Löschen ausgewählt.');
+        }
+        break;
+      }
+      case 'form_filter_selection': {
+        if (activeColumn && selectedRowIndex !== null && rawData[selectedRowIndex]) {
+          const cellVal = String(rawData[selectedRowIndex][activeColumn] ?? '');
+          setFilter(activeColumn, cellVal);
+        } else if (activeColumn && rawData.length > 0) {
+          const cellVal = String(rawData[0][activeColumn] ?? '');
+          if (cellVal) {
+            setFilter(activeColumn, cellVal);
+          } else {
+            alert(`Klicken Sie auf eine konkrete Zelle in Spalte "${activeColumn}", um nach deren Inhalt zu filtern.`);
+          }
+        } else {
+          alert('Bitte klicken Sie in der Tabelle auf eine Zelle, um nach diesem Wert zu filtern ("Filter nach Auswahl").');
+        }
+        break;
+      }
+      case 'form_filter_advanced': {
+        setShowAdvancedFilterModal(true);
+        break;
+      }
+      case 'form_toggle_filter':
+        setShowFilters(prev => !prev);
+        break;
+      case 'form_sort_asc': {
+        const targetCol = activeColumn || sortColumn || headers[0];
+        if (targetCol) {
+          setSort(targetCol, 'asc');
+        }
+        break;
+      }
+      case 'form_sort_desc': {
+        const targetCol = activeColumn || sortColumn || headers[0];
+        if (targetCol) {
+          setSort(targetCol, 'desc');
+        }
+        break;
+      }
+      case 'form_clear_sort':
+        clearSort();
+        break;
+      case 'form_refresh':
+        clearFilters();
+        if (table.apiConfig) handleApiRefresh();
+        break;
+      case 'form_save_record':
+        onTableChange({ ...table });
+        break;
+      default:
+        break;
+    }
+  }, [formActionTrigger]);
+
   const updateParamValue = (id: string, newVal: string) => {
       if (!table.apiConfig || !table.apiConfig.queryParams) return;
       const newParams = table.apiConfig.queryParams.map(p => p.id === id ? { ...p, value: newVal } : p);
@@ -230,10 +337,94 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   };
 
   const deleteRow = (rowToDelete: any) => {
+    // If relationships exist, offer cascade delete modal
+    const rels = relationships.filter(r => r.fromTableId === table.id);
+    if (rels.length > 0) {
+      setRecordForDelete(rowToDelete);
+      setShowCascadeDeleteModal(true);
+      return;
+    }
+
     showConfirmation('Zeile löschen', 'Möchten Sie diese Zeile wirklich löschen?', () => {
         const newData = rawData.filter(r => r !== rowToDelete);
         onTableChange({ ...table, data: newData });
     });
+  };
+
+  const handleCascadeDeleteConfirm = (mode: 'cascade' | 'set_null' | 'restrict') => {
+    if (!recordForDelete) return;
+
+    if (mode === 'restrict') {
+      const rels = relationships.filter(r => r.fromTableId === table.id);
+      let hasDeps = false;
+      rels.forEach(rel => {
+        const parentField = table.fields.find(f => f.id === rel.fromFieldId);
+        const childTable = allTables.find(t => t.id === rel.toTableId);
+        const childField = childTable?.fields.find(f => f.id === rel.toFieldId);
+        const parentVal = parentField ? recordForDelete[parentField.name] : null;
+        if (childTable && childField && parentVal !== undefined && parentVal !== null) {
+          const matchCount = (childTable.data || []).filter(cRow => String(cRow[childField.name]) === String(parentVal)).length;
+          if (matchCount > 0) hasDeps = true;
+        }
+      });
+
+      if (hasDeps) {
+        alert('Löschen abgebrochen: Es existieren noch abhängige Datensätze in verknüpften Tabellen (RESTRICT / Sperre aktiv).');
+        setShowCascadeDeleteModal(false);
+        setRecordForDelete(null);
+        return;
+      }
+    }
+
+    let childTablesUpdatedCount = 0;
+    let childRowsAffectedCount = 0;
+
+    const rels = relationships.filter(r => r.fromTableId === table.id);
+    rels.forEach(rel => {
+      const parentField = table.fields.find(f => f.id === rel.fromFieldId);
+      const childTable = allTables.find(t => t.id === rel.toTableId);
+      const childField = childTable?.fields.find(f => f.id === rel.toFieldId);
+      const parentVal = parentField ? recordForDelete[parentField.name] : null;
+
+      if (childTable && childField && parentVal !== undefined && parentVal !== null) {
+        if (mode === 'cascade') {
+          const oldLen = childTable.data?.length || 0;
+          const newChildData = (childTable.data || []).filter(cRow => String(cRow[childField.name]) !== String(parentVal));
+          const removed = oldLen - newChildData.length;
+          if (removed > 0) {
+            childTablesUpdatedCount++;
+            childRowsAffectedCount += removed;
+            updateTable({ ...childTable, data: newChildData });
+          }
+        } else if (mode === 'set_null') {
+          let updatedCount = 0;
+          const newChildData = (childTable.data || []).map(cRow => {
+            if (String(cRow[childField.name]) === String(parentVal)) {
+              updatedCount++;
+              return { ...cRow, [childField.name]: '' };
+            }
+            return cRow;
+          });
+          if (updatedCount > 0) {
+            childTablesUpdatedCount++;
+            childRowsAffectedCount += updatedCount;
+            updateTable({ ...childTable, data: newChildData });
+          }
+        }
+      }
+    });
+
+    const newData = rawData.filter(r => r !== recordForDelete);
+    onTableChange({ ...table, data: newData });
+
+    setShowCascadeDeleteModal(false);
+    setRecordForDelete(null);
+
+    if (childRowsAffectedCount > 0) {
+      alert(`Löschaktion erfolgreich! ${childRowsAffectedCount} abhängige Datensätze in ${childTablesUpdatedCount} verknüpften Tabellen wurden (${mode === 'cascade' ? 'kaskadierend gelöscht' : 'Fremdschlüssel geleert'}).`);
+    } else {
+      alert('Hauptdatensatz erfolgreich gelöscht.');
+    }
   };
 
   const handleApiRefresh = async () => {
@@ -374,6 +565,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                                 type="checkbox"
                                 checked={inputValue as boolean}
                                 onChange={(e) => { handleDataChange(row, header, e.target.checked) }}
+                                onFocus={() => setActiveColumn(header)}
                                 disabled={isAutoInc || isCalculated}
                                 className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                             />
@@ -384,6 +576,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                             value={inputValue as string} 
                             title={isCalculated ? `⚡ Berechnet: ${field?.calculationFormula} = ${String(rawVal)}` : String(rawVal)} 
                             onChange={(e) => { handleDataChange(row, header, e.target.value) }}
+                            onFocus={() => setActiveColumn(header)}
                             readOnly={isAutoInc || isCalculated}
                             className={`flex-1 h-full px-2 w-full bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : isCalculated ? 'cursor-default font-semibold text-amber-900 font-mono text-xs' : ''} ${showLink ? 'pr-8' : ''}`}
                         />
@@ -429,12 +622,32 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                 {viewMode === 'list' && (
                     <div className="flex items-center gap-1 ml-4">
                         <button 
-                          onClick={() => setShowFilters(!showFilters)}
-                          className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
-                          title="Filter anzeigen"
+                          onClick={() => setShowAdvancedFilterModal(true)}
+                          className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${advancedRules.length > 0 || Object.keys(filters).length > 0 ? 'bg-indigo-600 border-indigo-400 text-white font-bold shadow-xs' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
+                          title="Erweiterten Filter & Kriterien-Dialog öffnen"
                         >
-                            <Filter size={14} /> Filter {Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : ''}
+                            <SlidersHorizontal size={14} /> Filtern & Kriterien {advancedRules.length > 0 ? `(${advancedRules.length})` : Object.keys(filters).length > 0 ? `(${Object.keys(filters).length})` : ''}
                         </button>
+
+                        {advancedRules.length > 0 && (
+                            <div className="flex items-center gap-1.5 bg-indigo-700 text-white text-xs px-2.5 py-1 rounded border border-indigo-400 font-semibold animate-in fade-in-25">
+                                <SlidersHorizontal size={13} />
+                                <span>Erweitert ({advancedRules.length} Regeln - {matchMode})</span>
+                                <button onClick={() => setAdvancedRules([])} className="ml-1 hover:text-indigo-200 transition-colors" title="Erweiterten Filter zurücksetzen">
+                                    <X size={12}/>
+                                </button>
+                            </div>
+                        )}
+
+                        {sortColumn && sortDirection && (
+                            <div className="flex items-center gap-1.5 bg-indigo-600/90 text-white text-xs px-2.5 py-1 rounded border border-indigo-400 font-semibold animate-in fade-in-25">
+                                <ArrowUpDown size={13} />
+                                <span>{sortColumn} ({sortDirection === 'asc' ? '▲ Aufsteigend' : '▼ Absteigend'})</span>
+                                <button onClick={clearSort} className="ml-1 hover:text-indigo-200 transition-colors" title="Sortierung zurücksetzen">
+                                    <X size={12}/>
+                                </button>
+                            </div>
+                        )}
 
                         {table.apiConfig && (
                           <div className="flex items-center bg-slate-700 rounded ml-2 p-1">
@@ -541,7 +754,19 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
               <KanbanBoard table={table} onUpdateRow={handleDataChange} />
           ) : (
               headers.length > 0 ? (
-                  <VirtualTable data={filteredData} headers={headers} headerTooltips={headerTooltips} renderRow={renderRow} rowHeight={35} enableRowReorder={true} />
+                  <VirtualTable 
+                      data={filteredData} 
+                      headers={headers} 
+                      headerTooltips={headerTooltips} 
+                      renderRow={renderRow} 
+                      rowHeight={35} 
+                      enableRowReorder={true}
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                      activeColumn={activeColumn}
+                      onSelectColumn={setActiveColumn}
+                  />
               ) : (
                  <div className="p-6 text-center text-slate-500"><p>Die Tabelle "{table.name}" enthält keine Daten.</p></div>
               )
@@ -724,6 +949,40 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                   </div>
               </div>
           </div>
+      )}
+
+      {showAdvancedFilterModal && (
+        <AdvancedFilterModal
+          fields={table.fields}
+          totalRecordsCount={rawData.length}
+          filteredRecordsCount={filteredData.length}
+          rules={advancedRules}
+          matchMode={matchMode}
+          onApply={(rules, mode) => {
+            setAdvancedRules(rules);
+            setMatchMode(mode);
+            setShowAdvancedFilterModal(false);
+          }}
+          onClose={() => setShowAdvancedFilterModal(false)}
+          onReset={() => {
+            setAdvancedRules([]);
+            setMatchMode('AND');
+          }}
+        />
+      )}
+
+      {showCascadeDeleteModal && recordForDelete && (
+        <CascadeDeleteModal
+          parentTable={table}
+          recordToDelete={recordForDelete}
+          allTables={allTables}
+          relationships={relationships}
+          onConfirmDelete={handleCascadeDeleteConfirm}
+          onClose={() => {
+            setShowCascadeDeleteModal(false);
+            setRecordForDelete(null);
+          }}
+        />
       )}
     </div>
   );

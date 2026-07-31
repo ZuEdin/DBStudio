@@ -1,8 +1,9 @@
 import { Table } from "../types/index";
+import { getApiUrl } from "../stores/useConfigStore";
 
 export const generateTableSchema = async (description: string): Promise<any> => {
   try {
-    const response = await fetch('/api/gemini/generateTableSchema', {
+    const response = await fetch(getApiUrl('/api/gemini/generateTableSchema'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ description })
@@ -20,7 +21,7 @@ export const generateTableSchema = async (description: string): Promise<any> => 
 
 export const generateSqlExplanation = async (tables: Table[], queryGoal: string): Promise<string> => {
   try {
-    const response = await fetch('/api/gemini/generateSqlExplanation', {
+    const response = await fetch(getApiUrl('/api/gemini/generateSqlExplanation'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tables, queryGoal })

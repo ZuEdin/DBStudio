@@ -214,6 +214,91 @@ The following endpoints manage schema deployment, live synchronization, and runt
 }
 ```
 
+### 3.6. Database Synchronisation Controller (Auto-Sync)
+Endpoints exposed on the `.NET C#` and `.NET Core` self-host setups to provide connection management, synchronization logging, and offline backup state simulation.
+
+#### 3.6.1. Connection Status
+* **Endpoint:** `GET /api/db/connection-status`
+* **Description:** Checks the current state of the backend's external database server connection.
+* **Response (200 OK):**
+```json
+{
+  "connected": true,
+  "config": {
+    "host": "localhost",
+    "database": "production_db",
+    "type": "mssql"
+  },
+  "logsCount": 2,
+  "lastSync": "2026-07-28T07:35:00Z",
+  "message": "Verbindung zum externen SQL Server ist über .NET WebAPI AKTIV."
+}
+```
+
+#### 3.6.2. Toggle Connection State (Offline Simulation)
+* **Endpoint:** `POST /api/db/connection-toggle`
+* **Description:** Forcefully simulate a transition into offline backup mode or restore connectivity.
+* **Payload:**
+```json
+{
+  "connected": false
+}
+```
+* **Response (200 OK):**
+```json
+{
+  "success": true,
+  "connected": false
+}
+```
+
+#### 3.6.3. Retrieve Sync Logs
+* **Endpoint:** `GET /api/db/sync-logs`
+* **Description:** Fetch the full chronological logs detailing DDL attempts, connection changes, and backup checkpoints.
+* **Response (200 OK):**
+```json
+[
+  {
+    "timestamp": "2026-07-28T07:20:00Z",
+    "action": "CONNECT",
+    "details": "Erfolgreich mit SQL Server über .NET WebAPI verbunden",
+    "status": "SUCCESS"
+  },
+  {
+    "timestamp": "2026-07-28T07:25:00Z",
+    "action": "SCHEMA_SCAN",
+    "details": "Dapper/EF Core DB-Kontext initialisiert.",
+    "status": "SUCCESS"
+  }
+]
+```
+
+#### 3.6.4. Schema Sync Trigger
+* **Endpoint:** `POST /api/db/sync-all`
+* **Description:** Submits the fully generated DB design schema to the database. Falls back to safe offline buffering if the SQL connection is toggled off.
+* **Payload:**
+```json
+{}
+```
+* **Response (200 OK - Connected):**
+```json
+{
+  "success": true,
+  "externalConnected": true,
+  "timestamp": "2026-07-28T07:35:00Z",
+  "message": ".NET WebAPI Synchronisation erfolgreich!"
+}
+```
+* **Response (200 OK - Offline Mode):**
+```json
+{
+  "success": true,
+  "externalConnected": false,
+  "timestamp": "2026-07-28T07:35:00Z",
+  "message": "SQL Server ist offline. .NET WebAPI puffert lokale Daten."
+}
+```
+
 ---
 
 ## 4. Dynamic Live Server Runner API (Port Ingress)
@@ -302,4 +387,61 @@ These endpoints provide live integration with Windows Active Directory / LDAP se
     "groups": ["firma\\entwickler", "firma\\mitarbeiter", "firma\\coder"]
   }
 ]
+```
+
+---
+
+## 6. Live Database 2-Way Sync & DDL Execution APIs
+
+These endpoints provide live bidirectional synchronization between the local browser **IndexedDB** database and remote SQL servers (MSSQL, PostgreSQL, MySQL, SQLite).
+
+### 6.1. Execute DDL / DML Statements on Live Server
+* **Endpoint:** `POST /api/db/execute-ddl`
+* **Description:** Executes raw schema definition (CREATE TABLE, ALTER) or data inserts on the remote SQL server during Upload synchronization.
+* **Payload:**
+```json
+{
+  "ddl": "CREATE TABLE [dbo].[Customers] ([Id] INT PRIMARY KEY, [Name] NVARCHAR(255));",
+  "type": "mssql",
+  "host": "localhost",
+  "port": "1433",
+  "database": "production_db",
+  "username": "sa",
+  "password": "Password123!",
+  "ssl": false
+}
+```
+* **Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "DDL/DML Befehle erfolgreich auf dem SQL-Server ausgeführt!"
+}
+```
+
+### 6.2. Server Introspection & Schema Extraction
+* **Endpoint:** `POST /api/db/introspect`
+* **Description:** Reads `information_schema.tables` and `information_schema.columns` to build live table schema representations for Download synchronization into IndexedDB.
+* **Payload:**
+```json
+{
+  "type": "postgresql",
+  "connectionString": "postgresql://user:pass@localhost:5432/production_db"
+}
+```
+* **Response (200 OK):**
+```json
+{
+  "tables": [
+    {
+      "id": "tbl_customers",
+      "name": "Customers",
+      "fields": [
+        { "name": "Id", "type": "INTEGER", "isPrimaryKey": true },
+        { "name": "Name", "type": "VARCHAR", "length": 255 }
+      ],
+      "data": []
+    }
+  ]
+}
 ```

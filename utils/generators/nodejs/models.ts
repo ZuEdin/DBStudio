@@ -40,8 +40,8 @@ export const generateSequelizeModels = (tables: Table[], relationships: Relation
       if (!isNullable(f)) props.push('        allowNull: false');
       
       // Default Value
-      if (f.defaultValue !== undefined && f.defaultValue !== '') {
-          let val = f.defaultValue;
+      if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+          let val = String(f.defaultValue);
           if (['NOW', 'CURRENT_TIMESTAMP'].includes(val.toUpperCase())) {
               val = 'DataTypes.NOW';
           } else if (!['INTEGER', 'BOOLEAN', 'DECIMAL', 'DOUBLE'].includes(f.type) && val !== 'true' && val !== 'false') {

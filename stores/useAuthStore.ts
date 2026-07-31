@@ -21,11 +21,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const roles: string[] = whoami.roles || whoami.Roles || (isAuth ? ['ADMIN', 'ENTWICKLER'] : ['GAST']);
         const userLevels: string[] = whoami.userLevels || whoami.UserLevels || (roles.length > 0 ? roles : ['System Admin', 'Level 10']);
 
+        const userEmail = whoami.email || whoami.Email || (username.includes('@') ? username : `${username.toLowerCase().replace(/[^a-z0-9.]/g, '')}@firma.de`);
+
         const userObj: User = {
           id: userId,
           name: displayName,
           displayName: displayName,
-          email: whoami.email || whoami.Email || `${username.toLowerCase()}@firma.local`,
+          email: userEmail,
           role: roles.some(r => r.toLowerCase().includes('admin')) ? 'admin' : (roles.some(r => r.toLowerCase().includes('manager')) ? 'manager' : 'user'),
           roles: roles,
           userLevels: userLevels,
@@ -38,6 +40,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             username,
             displayName,
             userId,
+            email: userEmail,
             isAuthenticated: true,
             roles,
             userLevels

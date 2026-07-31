@@ -15,7 +15,7 @@ datasource db {
 `;
 
   const getPrismaType = (type: string) => {
-    switch (type.toUpperCase()) {
+    switch ((type || 'VARCHAR').toUpperCase()) {
       case 'VARCHAR':
       case 'TEXT':
       case 'CHAR':

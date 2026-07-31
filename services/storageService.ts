@@ -216,10 +216,7 @@ export const deleteProjectFromStorage = async (id: string): Promise<void> => {
 
   // Also try deleting via team projects API in case it is a team cloud project
   try {
-     const cloudRes = await fetch(`/api/team/projects/${id}`, { method: 'DELETE' });
-     if (!cloudRes.ok) {
-       console.warn(`Cloud team project delete status: ${cloudRes.status}`);
-     }
+     await (window as any).cloudService?.deleteProject(id);
   } catch (e) {
      console.warn('Cloud team delete failed', e);
   }

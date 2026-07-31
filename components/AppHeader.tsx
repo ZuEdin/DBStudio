@@ -37,7 +37,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // Mock Data: In a real app, this would come from a Context/Store connected to Websockets
-  const collaborators = cloudService.getCollaborators('mock-id');
+  const collaborators = cloudService.getCollaborators(store.projectId || 'main', user);
 
   const onExport = () => {
       if (onAction) {
@@ -194,17 +194,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
                      )}
                    </div>
                 ) : (
-                   <button 
-                    onClick={() => setIsChatOpen(true)}
-                    className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-bold bg-slate-700/30 hover:bg-slate-700/50 border border-blue-500/20 px-3 py-1 rounded-full transition-all"
-                   >
-                     <User size={14} />
-                     <span>
-                       {(whoamiData?.displayName || whoamiData?.username || user?.displayName || user?.name) 
-                         ? `Anmelden (${whoamiData?.displayName || whoamiData?.username || user?.displayName || user?.name})` 
-                         : 'Anmelden'}
-                     </span>
-                   </button>
+                   (() => {
+                     const uname = whoamiData?.displayName || whoamiData?.username || user?.displayName || user?.name;
+                     return uname ? (
+                       <div 
+                         className="flex items-center gap-1.5 text-blue-300 font-bold bg-slate-700/40 border border-blue-500/30 px-3 py-1 rounded-full cursor-default select-none text-xs"
+                         title={uname}
+                       >
+                         <User size={14} className="text-blue-400" />
+                         <span>{uname}</span>
+                       </div>
+                     ) : (
+                       <button 
+                         onClick={() => setIsChatOpen(true)}
+                         className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-bold bg-slate-700/30 hover:bg-slate-700/50 border border-blue-500/20 px-3 py-1 rounded-full transition-all"
+                       >
+                         <User size={14} />
+                         <span>Anmelden</span>
+                       </button>
+                     );
+                   })()
                 )}
             </div>
 

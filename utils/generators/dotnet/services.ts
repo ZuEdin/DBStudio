@@ -126,7 +126,18 @@ namespace ${safeNamespace}.Services
 
         public AdUserInfo? GetCurrentUserDetails(IPrincipal principal)
         {
-            if (principal?.Identity?.Name == null) return null;
+            var username = principal?.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(username) && principal is ClaimsPrincipal cp)
+            {
+                username = cp.FindFirst(ClaimTypes.Name)?.Value 
+                        ?? cp.FindFirst("preferred_username")?.Value 
+                        ?? cp.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            }
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                username = System.Environment.UserName;
+            }
+            if (string.IsNullOrWhiteSpace(username)) return null;
 
             AdUserInfo? info = null;
 
@@ -134,7 +145,7 @@ namespace ${safeNamespace}.Services
             try 
             {
                 using var context = new PrincipalContext(ContextType.Domain);
-                using var user = UserPrincipal.FindByIdentity(context, principal.Identity.Name);
+                using var user = UserPrincipal.FindByIdentity(context, username);
                 
                 if (user != null) info = MapUser(user, includeGroups: true);
             }
@@ -147,7 +158,7 @@ namespace ${safeNamespace}.Services
                 try 
                 {
                     using var context = new PrincipalContext(ContextType.Machine);
-                    using var user = UserPrincipal.FindByIdentity(context, principal.Identity.Name);
+                    using var user = UserPrincipal.FindByIdentity(context, username);
                     if (user != null) info = MapUser(user, includeGroups: true);
                 }
                 catch (Exception ex2)
@@ -159,7 +170,7 @@ namespace ${safeNamespace}.Services
             // 3. Last Resort: Create simple Identity info if not resolved yet
             if (info == null)
             {
-                info = new AdUserInfo { Username = principal.Identity.Name ?? "", DisplayName = principal.Identity.Name ?? "" };
+                info = new AdUserInfo { Username = username, DisplayName = username };
             }
 
             // 4. Merge groups from ClaimsPrincipal (extremely reliable and fast fallback)

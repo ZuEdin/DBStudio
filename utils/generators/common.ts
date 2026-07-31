@@ -3,13 +3,25 @@
 import { Field, DbType } from '../../types/index';
 import { DATA_TYPES } from '../../config/dataTypes';
 
-export const isNullable = (field: Field) => field.allowNull !== false && !field.isPrimaryKey;
+export const isNullable = (field: Field | undefined | null) => field ? (field.allowNull !== false && !field.isPrimaryKey) : true;
 
-export const resolveType = (field: Field, language: 'csharp' | 'sequelize' | 'typescript' | 'sql', dbType?: DbType) => {
+export const resolveType = (field: Field | undefined | null, language: 'csharp' | 'sequelize' | 'typescript' | 'sql', dbType?: DbType) => {
+    if (!field || !field.type) {
+        if (language === 'csharp') return 'int';
+        if (language === 'typescript') return 'number';
+        if (language === 'sequelize') return 'DataTypes.INTEGER';
+        return 'INT';
+    }
     const config = DATA_TYPES[field.type];
-    if (!config) return 'string'; 
+    if (!config) {
+        if (language === 'csharp') return 'string';
+        if (language === 'typescript') return 'string';
+        if (language === 'sequelize') return 'DataTypes.STRING';
+        return 'VARCHAR(255)';
+    }
 
     const mapping = config.mappings[language];
+    if (!mapping) return 'string';
     if (typeof mapping === 'string') return mapping;
     
     const typeGen = (mapping as any).type;
@@ -17,7 +29,7 @@ export const resolveType = (field: Field, language: 'csharp' | 'sequelize' | 'ty
     if (typeof typeGen === 'function') {
         return typeGen({ length: field.length, precision: field.precision, scale: field.scale, enumValues: field.enumValues, field, dbType });
     }
-    return typeGen;
+    return typeGen || 'string';
 };
 
 // String Helpers

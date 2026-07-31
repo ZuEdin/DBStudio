@@ -5,7 +5,8 @@ export const generateTypeOrmModels = (tables: Table[], relationships: Relationsh
   let output = `import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn } from "typeorm";\n\n`;
 
   const mapType = (field: Field) => {
-    switch(field.type.toUpperCase()) {
+    const fType = (field.type || 'VARCHAR').toUpperCase();
+    switch(fType) {
         case 'INTEGER': case 'TINYINT': case 'SMALLINT': case 'BIGINT':
             return { type: 'int', ts: 'number' };
         case 'DECIMAL': case 'FLOAT': case 'DOUBLE':

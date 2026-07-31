@@ -156,31 +156,50 @@ export const AppendQueryWizard: React.FC<AppendQueryWizardProps> = ({ tables, on
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {targetTable.fields.map(targetField => {
-                                    if (targetField.isAutoIncrement) return null; // Skip AutoInc
-                                    
                                     const selectedSourceId = fieldMapping[targetField.id] || '';
                                     const isMapped = !!selectedSourceId;
+                                    const isPK = targetField.isPrimaryKey || targetField.isAutoIncrement;
 
                                     return (
                                         <tr key={targetField.id} className={isMapped ? 'bg-green-50/30' : 'bg-white'}>
                                             <td className="p-3 border-r border-slate-100 font-medium text-slate-700 flex items-center gap-2">
+                                                {isPK && <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-200">🔑 PK</span>}
                                                 {targetField.name}
                                                 <span className="text-[10px] text-slate-400 font-normal border px-1 rounded bg-slate-50">{targetField.type}</span>
                                                 {targetField.allowNull === false && <span className="text-red-500 text-[10px] ml-auto">*Pflicht</span>}
                                             </td>
                                             <td className="p-3">
-                                                <select 
-                                                    className={`w-full border rounded p-1.5 outline-none transition-colors ${isMapped ? 'border-green-300 bg-white text-green-900 font-medium' : 'border-slate-300 text-slate-500'}`}
-                                                    value={selectedSourceId}
-                                                    onChange={e => setFieldMapping({...fieldMapping, [targetField.id]: e.target.value})}
-                                                >
-                                                    <option value="">(Ignorieren)</option>
-                                                    {sourceTable.fields.map(sf => (
-                                                        <option key={sf.id} value={sf.id}>
-                                                            {sf.name} ({sf.type})
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                <div className="flex gap-2">
+                                                    <select 
+                                                        className={`flex-1 border rounded p-1.5 outline-none transition-colors ${isMapped ? 'border-green-300 bg-white text-green-900 font-medium' : 'border-slate-300 text-slate-500'}`}
+                                                        value={selectedSourceId.startsWith('CONST:') ? 'CUSTOM' : selectedSourceId}
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            if (val === 'CUSTOM') {
+                                                                setFieldMapping({...fieldMapping, [targetField.id]: 'CONST:'});
+                                                            } else {
+                                                                setFieldMapping({...fieldMapping, [targetField.id]: val});
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="">(Ignorieren / Auto)</option>
+                                                        <option value="CUSTOM">⚡ Manuelle Konstante / Wert</option>
+                                                        {sourceTable.fields.map(sf => (
+                                                            <option key={sf.id} value={sf.id}>
+                                                                {sf.name} ({sf.type})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {selectedSourceId.startsWith('CONST:') && (
+                                                        <input 
+                                                            type="text"
+                                                            placeholder="Konstanter Wert..."
+                                                            value={selectedSourceId.substring(6)}
+                                                            onChange={e => setFieldMapping({...fieldMapping, [targetField.id]: `CONST:${e.target.value}`})}
+                                                            className="w-40 border border-blue-300 bg-blue-50/50 rounded px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                        />
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );

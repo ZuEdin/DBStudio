@@ -346,10 +346,12 @@ Ermittelt einfache Claims-Informationen der aktuellen Web-Session.
 - **Rückgabe:**
   ```json
   {
-    "username": "firma\\s.mueller",
-    "userId": "S-1-5-21-3623811015-3361044348-30300820-1013",
+    "username": "Zubovic.Edin",
+    "displayName": "Zubovic.Edin",
+    "email": "zubovic.edin@firma.local",
+    "userId": "zubovic.edin@firma.local",
     "isAuthenticated": true,
-    "roles": ["Administrator"]
+    "roles": ["Administrator", "Manager", "Developer", "User", "Guest"]
   }
   ```
 
@@ -361,18 +363,20 @@ Sucht Domänen-Benutzer nach Name, E-Mail oder SamAccountName im konfigurierten 
 ---
 
 ### 8.2 Konfiguration (`appsettings.json`)
-Die Active Directory-Anbindung wird über die Konfigurationsdatei des Backends parametrisiert:
+Die Active Directory-Anbindung, Standard-Domänen sowie Fallback-Rollen werden dynamisch über die `appsettings.json` parametrisiert:
 ```json
 {
   "ActiveDirectory": {
     "DomainName": "firma.local",
+    "DefaultEmailDomain": "firma.local",
     "Container": "DC=firma,DC=local",
     "ServiceAccountUsername": "",
-    "ServiceAccountPassword": ""
+    "ServiceAccountPassword": "",
+    "DefaultRoles": ["Administrator", "Manager", "Developer", "User", "Guest"]
   }
 }
 ```
-*Hinweis: Sind Username und Password leer, verbindet sich der Service mit den Rechten des Anwendungspool-Benutzers (IIS / Windows Service Context) zur Active Directory.*
+*Hinweis: Domänen-Defaults (`DomainName`, `DefaultEmailDomain`) und Rollen (`DefaultRoles`) werden in `ActiveDirectoryController.cs`, `AdController.cs`, `ProjectsController.cs` und `AdRoleTransformer.cs` direkt aus der Configuration geladen.*
 
 ---
 
@@ -467,6 +471,140 @@ Um das selbstgehostete C#-Backend voll kompatibel mit den kollaborativen Funktio
    - **Methoden:** `GET`, `POST`, `DELETE`
    - **Controller:** `ProjectsController` (jetzt gemappt auf beide Routen `/api/Projects` und `/api/team/projects`)
    - **Mitgliederverwaltung:** Unterstützt das Hinzufügen (`POST /api/team/projects/{id}/members`) und Entfernen (`DELETE /api/team/projects/{id}/members/{memberId}`) von Projektbeteiligten sowie dynamische Owner-Zuweisung.
+
+
+## 10. Realtime Team-Chat & SignalR Hub Schnittstellen
+
+Um die kollaborative Entwicklung und Echtzeit-Synchronisation im Entwicklerteam zu unterstützen, beinhaltet das gehostete .NET 10 / C# Backend native REST- & SignalR-Schnittstellen.
+
+### 10.1 REST API Endpoints (`ChatController`)
+
+#### `GET /api/chat/messages` (Aliased as `/api/chats/messages`)
+Ruft den vollständigen Chatverlauf ab. Der Verlaufs-Speicher kombiniert In-Memory Caching und Datenbank-Persistenz (`sys_chats`).
+Das Feld `chatId` unterscheidet dabei zwischen öffentlichen **Team-Kanälen** (z.B. `default_chat`, `schema_updates`) und **Einzelchats (1:1 Direktnachrichten)** (z.B. `dm_sarah`, `dm_tom`).
+- **Response-Schema:**
+  ```json
+  [
+    {
+      "id": "a1b2c3d4",
+      "chatId": "default_chat",
+      "senderId": "u1",
+      "senderName": "Zubovic.Edin",
+      "text": "Schema-Update für sys_tables erfolgreich eingespielt.",
+      "timestamp": 1700000000000
+    }
+  ]
+  ```
+
+#### `POST /api/chat/messages` (Aliased as `/api/chats/messages`)
+Sendet eine neue Nachricht an den Chatverlauf, speichert sie in der Datenbank `sys_chats` und sendet simultan ein SignalR-Broadcast an alle verbundenen Entwickler-Clients.
+- **Request Body:**
+  ```json
+  {
+    "chatId": "default_chat",
+    "senderId": "u1",
+    "senderName": "Zubovic.Edin",
+    "text": "Hallo Team, die neue Version läuft!",
+    "timestamp": 1700000000000
+  }
+  ```
+
+#### `GET /api/chat` & `POST /api/chat`
+Ermöglicht das Abrufen und Speichern von spezifischen Chat-Sitzungen (`SysChat` Entitäten) inkl. JSON-Nachrichten-Payloads.
+
+#### `POST /api/chat/broadcast`
+Sendet gezielte Schema- oder Projekt-Änderungsbenachrichtigungen an eine SignalR-Projektgruppe:
+- **Request Body:**
+  ```json
+  {
+    "projectId": "proj_billing",
+    "user": "Zubovic.Edin",
+    "entityType": "Table",
+    "action": "Updated sys_tables"
+  }
+  ```
+
+---
+
+### 10.2 SignalR Realtime Hub (`/hubs/chat`)
+
+Der SignalR WebSockets Hub ist unter der Route `/hubs/chat` registriert und ermöglicht bidirektionale Echtzeit-Events:
+- **Server Event:** `ReceiveMessage(msg)` &ndash; Wird bei jedem neuen Chat-Eintrag getriggert.
+- **Server Event:** `ProjectChanged(user, entityType, action)` &ndash; Benachrichtigt alle Gruppenmitglieder über simultane Schema-Veränderungen.
+
+## 11. SQL Server Background Auto-Sync API Specification
+
+Um eine kontinuierliche Live-Synchronisation zwischen der lokalen IndexedDB-Datenbank des Browsers und einem externen SQL-Server (z.B. MS SQL Server, PostgreSQL, MySQL) zu gewähren, stellt das DB Studio-Backend dedizierte Synchronisations- und Statusschnittstellen bereit.
+
+### 11.1 Connection Status & Configuration
+#### `GET /api/db/connection-status`
+Gibt den aktuellen Verbindungsstatus und die geladenen Parameter des externen SQL-Servers zurück.
+- **Rückgabe:**
+  ```json
+  {
+    "connected": true,
+    "config": {
+      "host": "localhost",
+      "database": "production_db",
+      "type": "mssql"
+    }
+  }
+  ```
+
+### 11.2 Toggle Connection & Simulation Mode
+#### `POST /api/db/connection-toggle`
+Erlaubt das Ändern des externen Verbindungsstatus. Dies dient der Simulation von Netzwerkausfällen und dem sicheren Zurückfallen auf die lokale IndexedDB-Instanz (Offline-Fallback).
+- **Request-Body:**
+  ```json
+  {
+    "connected": false
+  }
+  ```
+- **Rückgabe:**
+  ```json
+  {
+    "success": true,
+    "connected": false
+  }
+  ```
+
+### 11.3 Sync DDL Execution Log
+#### `GET /api/db/sync-logs`
+Liefert das fortlaufende Protokoll aller automatischen oder manuellen Synchronisations-Vorgänge (Push- & Pull-Operationen).
+- **Rückgabe:**
+  ```json
+  [
+    {
+      "timestamp": "2026-07-30T14:52:10.000Z",
+      "action": "AUTO_SYNC",
+      "details": "Führe DDL-Checks für Tabelle [sys_projects] aus...",
+      "status": "SUCCESS"
+    }
+  ]
+  ```
+
+### 11.4 High-Performance Bidirectional Sync
+#### `POST /api/db/sync-all`
+Gleicht das gesamte lokale Schema (Tabellen, Spalten, Datentypen, Relationen und Abfragen) asynchron mit dem SQL-Server ab. Wenn eine neue Tabelle lokal erstellt wird, wird sie parallel auf dem SQL Server angelegt. Besteht keine Verbindung, wird dies im Log als `OFFLINE_FALLBACK` festgehalten.
+- **Request-Body:**
+  ```json
+  {
+    "tables": [...],
+    "queries": [...],
+    "relationships": [...],
+    "connection": { ... }
+  }
+  ```
+- **Rückgabe:**
+  ```json
+  {
+    "success": true,
+    "externalConnected": true,
+    "pushedTablesCount": 5,
+    "timestamp": "2026-07-30T14:55:00.000Z"
+  }
+  ```
+
 
 
 

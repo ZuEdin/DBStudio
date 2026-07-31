@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table } from '../../types/index';
+import { Table } from '../../../../types/index';
 import { RbacRole } from '../types';
 import { Shield, Database } from 'lucide-react';
 import { generateRlsPolicies, generateRbacMiddlewareCode } from '../utils/codeGenerators';

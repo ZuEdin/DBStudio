@@ -9,6 +9,7 @@ import JSZip from 'jszip';
 import { GitPushModal } from '../versioning/GitPushModal';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { getSavedMacros } from '../logic/MacroEngine';
+import { getApiUrl } from '../../stores/useConfigStore';
 
 interface BackendViewProps {
   tables: Table[];
@@ -263,7 +264,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
       setIsAiProcessing(true);
       
       try {
-          const response = await fetch('/api/refactor', {
+          const response = await fetch(getApiUrl('/api/refactor'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

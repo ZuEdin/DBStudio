@@ -159,12 +159,16 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
         const local = allProjects.filter(p => !p.isCloud);
         const cloudFromLocal = allProjects.filter(p => p.isCloud);
 
-        // Simulate/fetch cloud projects
+        // Fetch cloud projects from server
         const cloudRemote = await cloudService.getProjects();
 
         const cloudMap = new Map<string, Project>();
-        cloudRemote.forEach(p => cloudMap.set(p.id, p));
         cloudFromLocal.forEach(p => cloudMap.set(p.id, p));
+        // Server takes priority for cloud projects
+        if (cloudRemote && cloudRemote.length > 0) {
+            cloudMap.clear();
+            cloudRemote.forEach(p => cloudMap.set(p.id, p));
+        }
 
         setLocalProjects(local);
         setCloudProjects(Array.from(cloudMap.values()));
@@ -205,7 +209,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const handleManageMembers = async (p: Project) => {
     setManagingMembersProject(p);
     setMemberSearchQuery('');
-    setProjectMembers(p.teamMembers || []);
+    setProjectMembers((p as any).teamMembers || []);
     setAdUsers([]);
     
     try {
@@ -331,7 +335,12 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
           } : undefined
       };
       const isCloud = newProjectType === 'cloud';
-      const ownerName = user?.name || user?.email || 'Administrator';
+      const ownerName = user?.displayName || user?.name || whoamiData?.displayName || whoamiData?.username || user?.email || 'Administrator';
+      const rawEmail = user?.email || whoamiData?.email;
+      const ownerEmail = (rawEmail && rawEmail.includes('@') && rawEmail.includes('.'))
+        ? rawEmail
+        : `${ownerName.toLowerCase().replace(/[^a-z0-9.]/g, '')}@firma.de`;
+
       if (isCloud) {
         setActiveSource('cloud');
         cloudService.createProject({
@@ -340,11 +349,12 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
           lastModified: Date.now(),
           isCloud: true,
           owner: ownerName,
+          ownerEmail: ownerEmail,
           data: {
             tables: [], queries: [], reports: [], forms: [], relationships: [], layout: [], tableGroups: [],
             backendConfig: config
           }
-        });
+        } as any);
       }
       onCreateNew(newDbType, newProjectName, config, { isCloud, owner: ownerName });
     }

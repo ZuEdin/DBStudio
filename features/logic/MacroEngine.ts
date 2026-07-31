@@ -4,6 +4,7 @@ import { executeSelectQuery, executeActionQuery } from '../queries/utils/queryEx
 import { Table, Query, Report, Relationship } from '../../types/index';
 import { logAuditTrail } from '../../utils/auditTrail';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { getApiUrl } from '../../stores/useConfigStore';
 
 export interface MacroExecutionContext {
   tables: Table[];
@@ -348,7 +349,7 @@ export function executeMacroStep(step: MacroStep, context: MacroExecutionContext
       const subject = `Datenbank-Export: ${rec.name || rec.Title || rec.Bezeichnung || 'Datensatz'}`;
       const body = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie den gewünschten automatischen Datenbank-Export im JSON-Format.\n\nZugehörige Objektdetails:\n${JSON.stringify(rec, null, 2)}\n\nMit freundlichen Grüßen,\nIhr DB Studio Pro Mailer Service`;
 
-      fetch('/api/mailer/send', {
+      fetch(getApiUrl('/api/mailer/send'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

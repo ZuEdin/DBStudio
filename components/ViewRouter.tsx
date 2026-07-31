@@ -180,7 +180,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         return null;
       case 'table_data':
         if (activeObject && 'fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
-          return <TableView table={activeObject as Table} allTables={tables} relationships={relationships} onTableChange={onActiveObjectChange as any} showConfirmation={showConfirmation} />;
+          return <TableView table={activeObject as Table} allTables={tables} relationships={relationships} onTableChange={onActiveObjectChange as any} showConfirmation={showConfirmation} formActionTrigger={formActionTrigger} />;
         }
         return null;
       case 'query_results':

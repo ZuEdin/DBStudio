@@ -42,14 +42,25 @@ export const cloudService = {
 
     async createProject(project: Project): Promise<Project> {
         try {
+            const ownerName = project.owner || 'Project Owner';
+            const rawEmail = (project as any).ownerEmail || (project.owner?.includes('@') ? project.owner : undefined);
+            const ownerEmail = (rawEmail && rawEmail.includes('@') && rawEmail.includes('.'))
+                ? rawEmail
+                : `${ownerName.toLowerCase().replace(/[^a-z0-9.]/g, '')}@firma.de`;
             const res = await fetch(getApiUrl('/api/team/projects'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    id: project.id,
                     name: project.name,
                     description: 'Echtes Team Cloud Projekt',
-                    ownerEmail: project.owner || 'admin@company.com',
-                    ownerName: project.owner || 'Project Owner'
+                    dbType: project.data?.backendConfig?.dbType || 'SQLite',
+                    language: project.data?.backendConfig?.language || 'csharp',
+                    isCloud: project.isCloud ? 1 : 0,
+                    ownerId: ownerName,
+                    ownerName: ownerName,
+                    ownerEmail: ownerEmail,
+                    data: project.data
                 }),
                 credentials: 'include'
             });
@@ -57,7 +68,8 @@ export const cloudService = {
                 const created = await res.json();
                 return {
                     ...project,
-                    id: created.id || project.id
+                    id: created.id || project.id,
+                    owner: created.owner || ownerName
                 };
             }
         } catch (e) {
@@ -66,17 +78,30 @@ export const cloudService = {
         return project;
     },
 
+    async deleteProject(id: string): Promise<boolean> {
+        try {
+            const res = await fetch(getApiUrl(`/api/team/projects/${id}`), {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            return res.ok;
+        } catch (e) {
+            console.warn(`Failed to delete project ${id}:`, e);
+            return false;
+        }
+    },
+
     async pushToGit(projectId: string, files: any[], commitMessage: string): Promise<boolean> {
         console.log(`[Cloud] Pushing ${files.length} files to Git for project ${projectId}. Msg: ${commitMessage}`);
         await new Promise(resolve => setTimeout(resolve, 1500));
         return true;
     },
 
-    getCollaborators(projectId: string): Collaborator[] {
+    getCollaborators(projectId: string, currentUser?: { id?: string; name?: string; displayName?: string; email?: string } | null): Collaborator[] {
+        const userName = currentUser?.displayName || currentUser?.name || 'Ich';
+        const userId = currentUser?.id || 'current_user';
         return [
-            { id: 'u1', name: 'Du', color: '#3b82f6', isOnline: true },
-            { id: 'u2', name: 'Sarah Lee', color: '#10b981', isOnline: true, currentAction: 'Bearbeitet Tabelle Customers' },
-            { id: 'u3', name: 'Tom H.', color: '#f59e0b', isOnline: true, currentAction: 'Bearbeitet Tabelle Users' }
+            { id: userId, name: userName, color: '#3b82f6', isOnline: true, currentAction: 'Aktiv im Projekt' }
         ];
     },
 

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Query } from '../../types/index';
-import { FileSpreadsheet, FileText, FileJson, Download, Filter, X } from 'lucide-react';
+import { FileSpreadsheet, FileText, FileJson, Download, Filter, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -19,7 +19,10 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
     return <div className="p-6 text-center text-slate-500">Ergebnisse können nur für SELECT-Abfragen angezeigt werden.</div>;
   }
   
-  const { filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats } = useDataFilter(results);
+  const { 
+    filteredData, filters, setFilter, clearFilters, showFilters, setShowFilters, columnStats,
+    sortColumn, sortDirection, handleSort
+  } = useDataFilter(results);
 
   const headers = query.columns.filter(c => c.show).map(c => c.alias || c.fieldName);
   const dataKeys = query.columns.filter(c => c.show).map(c => c.alias || c.fieldName);
@@ -152,11 +155,32 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
         <div className="overflow-auto flex-1 relative">
           {filteredData.length > 0 ? (
             <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 shadow-sm z-10">
+              <thead className="sticky top-0 shadow-sm z-10 select-none">
                 <tr className="bg-slate-100 border-b border-slate-300 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  {headers.map((header, i) => (
-                    <th key={`hdr-${i}-${header}`} className="p-3 bg-slate-100 whitespace-nowrap">{header}</th>
-                  ))}
+                  {headers.map((header, i) => {
+                    const key = dataKeys[i];
+                    const isSorted = sortColumn === key;
+                    return (
+                      <th 
+                        key={`hdr-${i}-${header}`} 
+                        onClick={() => handleSort(key)}
+                        className={`p-3 bg-slate-100 hover:bg-slate-200 cursor-pointer whitespace-nowrap transition-colors ${
+                          isSorted ? 'bg-indigo-50 text-indigo-900 font-extrabold' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{header}</span>
+                          <span className="text-slate-400">
+                            {isSorted ? (
+                              sortDirection === 'asc' ? <ArrowUp size={14} className="text-indigo-600" /> : <ArrowDown size={14} className="text-indigo-600" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-0 hover:opacity-100" />
+                            )}
+                          </span>
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">

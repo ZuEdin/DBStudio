@@ -166,7 +166,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                   <input 
                       id={elementId}
                       type="checkbox"
-                      disabled={isReadOnly || field?.isAutoIncrement}
+                      disabled={isReadOnly}
                       checked={!!value}
                       onChange={e => onChange(fieldName, e.target.checked)}
                       onFocus={() => onFocusField && onFocusField(fieldName)}
@@ -256,12 +256,12 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
           <input
             id={elementId}
             type={finalType}
-            readOnly={isReadOnly || field?.isAutoIncrement}
+            readOnly={isReadOnly}
             value={displayValue}
             onChange={(e) => onChange(fieldName, e.target.value)}
             onFocus={() => onFocusField && onFocusField(fieldName)}
             onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-            className={`w-full bg-white text-slate-900 font-medium border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${field?.isAutoIncrement ? 'bg-slate-100 text-slate-500 italic' : ''}`}
+            className={`w-full bg-white text-slate-900 font-medium border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${field?.isAutoIncrement ? 'bg-slate-50' : ''}`}
           />
       </div>
   );
