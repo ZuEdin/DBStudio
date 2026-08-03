@@ -197,18 +197,64 @@ function copyDir(src, dest) {
 }
 
 try {
-  console.log('[Tauri Build] Running npm run build...');
-  execSync('npm run build', { stdio: 'inherit' });
+  console.log('[Tauri Build] Transpiling Frontend in ../../Frontend...');
+  let frontendDir = path.join(__dirname, '..', '..', 'Frontend');
+  if (!fs.existsSync(frontendDir)) {
+    frontendDir = path.join(__dirname, '..', '..', 'AngularFrontend');
+  }
+  
+  if (fs.existsSync(frontendDir)) {
+    console.log('[Tauri Build] Running npm install in ' + frontendDir + '...');
+    try {
+      execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });
+    } catch (e) {
+      console.log('[Tauri Build] npm install warning (continuing):', e.message);
+    }
+    console.log('[Tauri Build] Running npm run build in ' + frontendDir + '...');
+    execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
     
-  const srcDist = path.join(__dirname, 'dist');
-  const targetDist = path.join(__dirname, 'dist');
+    const srcDist = path.join(frontendDir, 'dist');
+    const targetDist = path.join(__dirname, 'dist');
     
-  if (fs.existsSync(srcDist)) {
-      console.log('[Tauri Build] Copying files from ' + srcDist + ' to ' + targetDist + '...');
-      copyDir(srcDist, targetDist);
+    if (fs.existsSync(targetDist)) {
+      fs.rmSync(targetDist, { recursive: true, force: true });
+    }
+    
+    if (fs.existsSync(srcDist)) {
+      let actualSrc = srcDist;
+      
+      // If there is no index.html in the root of dist, look inside subdirectories (e.g., Angular/Vite builds)
+      if (!fs.existsSync(path.join(srcDist, 'index.html'))) {
+        try {
+          const subdirs = fs.readdirSync(srcDist, { withFileTypes: true })
+            .filter(dirent => dirent.isDirectory())
+            .map(dirent => dirent.name);
+          
+          for (const sub of subdirs) {
+            const subPath = path.join(srcDist, sub);
+            if (fs.existsSync(path.join(subPath, 'index.html'))) {
+              actualSrc = subPath;
+              break;
+            }
+            const browserPath = path.join(subPath, 'browser');
+            if (fs.existsSync(path.join(browserPath, 'index.html'))) {
+              actualSrc = browserPath;
+              break;
+            }
+          }
+        } catch (e) {
+          console.log('[Tauri Build] Warning scanning subdirs:', e.message);
+        }
+      }
+      
+      console.log('[Tauri Build] Copying files from ' + actualSrc + ' to ' + targetDist + '...');
+      copyDir(actualSrc, targetDist);
       console.log('[Tauri Build] Copy completed successfully!');
-  } else {
+    } else {
       console.error('[Tauri Build] Error: Frontend dist folder not found at ' + srcDist);
+    }
+  } else {
+    console.error('[Tauri Build] Error: Frontend directory not found!');
   }
 } catch (error) {
   console.error('[Tauri Build] Build failed:', error);
@@ -302,7 +348,7 @@ if exist ..\\\\..\\\\Frontend (
     echo Installiere Frontend-Dependencies...
     cd ..\\\\..\\\\Frontend
     call npm install
-    cd ..\\\\Backend\\\\${config.projectName}
+    cd ..\\\\..\\\\Backend\\\\${config.projectName}
 )
 echo.
 echo Downloade standard Tauri-Icons...
@@ -389,7 +435,7 @@ show_menu() {
       if [ -d "../../Frontend" ]; then
         cd ../../Frontend
         npm install
-        cd "../Backend/${config.projectName}"
+        cd "../../Backend/${config.projectName}"
       fi
       mkdir -p src-tauri/icons
       echo "Downloade standard Tauri-Icons..."

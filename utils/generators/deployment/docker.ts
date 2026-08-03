@@ -3,22 +3,46 @@ import { BackendConfig, VirtualFile } from '../../../types/index';
 export const generateDockerFiles = (config: BackendConfig, root: string, target: string): VirtualFile[] => {
     const files: VirtualFile[] = [];
     if (target === 'docker' || target === 'aws' || target === 'azure') {
-        const dockerfileContent = `# Build Stage
-FROM node:18-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
+        let dockerfileContent = '';
+        
+        if (config.language === 'dotnet') {
+            let version = config.backendVersion || '9.0';
+            if (parseFloat(version) > 9.0) {
+                version = '9.0';
+            }
+            dockerfileContent = `# Build Stage
+FROM mcr.microsoft.com/dotnet/sdk:${version} AS build
+WORKDIR /src
+COPY ["Backend/${config.projectName}/${config.projectName}.csproj", "Backend/${config.projectName}/"]
+RUN dotnet restore "Backend/${config.projectName}/${config.projectName}.csproj"
 COPY . .
-RUN npm run build
+WORKDIR "/src/Backend/${config.projectName}"
+RUN dotnet build "${config.projectName}.csproj" -c Release -o /app/build
+
+# Publish Stage
+FROM build AS publish
+RUN dotnet publish "${config.projectName}.csproj" -c Release -o /app/publish
 
 # Final Stage
-FROM node:18-alpine
+FROM mcr.microsoft.com/dotnet/aspnet:${version} AS final
 WORKDIR /app
-COPY --from=build /app/package*.json ./
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "${config.projectName}.dll"]
+`;
+        } else if (config.language === 'nodejs') {
+            dockerfileContent = `FROM node:18-alpine
+WORKDIR /app
+COPY Backend/${config.projectName}/package*.json ./
 RUN npm install --production
-COPY --from=build /app/dist ./dist
-EXPOSE 3000
-CMD ["node", "dist/server.cjs"]`;
+COPY Backend/${config.projectName}/ ./
+EXPOSE ${config.port}
+CMD ["node", "server.js"]`;
+        } else if (config.language === 'php') {
+            dockerfileContent = `FROM php:8.2-apache
+RUN docker-php-ext-install pdo pdo_mysql
+COPY Backend/${config.projectName}/ /var/www/html/
+RUN a2enmod rewrite`;
+        }
 
         files.push({
             name: 'Dockerfile',
@@ -33,9 +57,9 @@ services:
   api:
     build: .
     ports:
-      - "${config.port || 3000}:${config.port || 3000}"
+      - "${config.port}:${config.port}"
     environment:
-      - NODE_ENV=production
+      - ConnectionStrings__DefaultConnection=Server=db;Database=mydb;User=root;Password=example;
     depends_on:
       - db
 

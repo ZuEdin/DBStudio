@@ -213,18 +213,45 @@ function copyDir(src, dest) {
 }
 
 try {
-  console.log('[Electron Build] Running npm run build...');
-  execSync('npm run build', { stdio: 'inherit' });
+  console.log('[Electron Build] Transpiling Frontend in ../../Frontend...');
+  let frontendDir = path.join(__dirname, '..', '..', 'Frontend');
+  if (!fs.existsSync(frontendDir)) {
+    frontendDir = path.join(__dirname, '..', '..', 'AngularFrontend');
+  }
+  
+  if (fs.existsSync(frontendDir)) {
+    console.log('[Electron Build] Running npm install in ' + frontendDir + '...');
+    try {
+      execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });
+    } catch (e) {
+      console.log('[Electron Build] npm install warning (continuing):', e.message);
+    }
+    console.log('[Electron Build] Running npm run build in ' + frontendDir + '...');
+    execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
     
-  const srcDist = path.join(__dirname, 'dist');
-  const targetDist = path.join(__dirname, 'dist'); // Should be same
+    const srcDist = path.join(frontendDir, 'dist');
+    const targetDist = path.join(__dirname, 'dist');
     
-  if (fs.existsSync(srcDist)) {
+    if (fs.existsSync(targetDist)) {
+      fs.rmSync(targetDist, { recursive: true, force: true });
+    }
+    
+    if (fs.existsSync(srcDist)) {
       console.log('[Electron Build] Copying dist to ' + targetDist + '...');
       copyDir(srcDist, targetDist);
       console.log('[Electron Build] Copy completed successfully!');
+    } else {
+      const angularClientDist = path.join(srcDist, 'angular-client');
+      if (fs.existsSync(angularClientDist)) {
+        console.log('[Electron Build] Copying Angular dist to ' + targetDist + '...');
+        copyDir(angularClientDist, targetDist);
+        console.log('[Electron Build] Copy completed successfully!');
+      } else {
+        console.error('[Electron Build] Error: Frontend dist folder not found at ' + srcDist);
+      }
+    }
   } else {
-      console.error('[Electron Build] Error: Frontend dist folder not found at ' + srcDist);
+    console.error('[Electron Build] Error: Frontend directory not found!');
   }
 } catch (error) {
   console.error('[Electron Build] Build failed:', error);
@@ -317,7 +344,7 @@ if exist ..\\\\..\\\\Frontend (
     echo Installiere Frontend-Dependencies...
     cd ..\\\\..\\\\Frontend
     call npm install
-    cd ..\\\\Backend\\\\${config.projectName}
+    cd ..\\\\..\\\\Backend\\\\${config.projectName}
 )
 echo.
 pause
@@ -368,7 +395,7 @@ show_menu() {
       if [ -d "../../Frontend" ]; then
         cd ../../Frontend
         npm install
-        cd "../Backend/${config.projectName}"
+        cd "../../Backend/${config.projectName}"
       fi
       ;;
     2) npm run build ;;
