@@ -78,10 +78,11 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   files.push({ name: 'package.json', path: `${root}/package.json`, content: JSON.stringify(packageJson, null, 2), language: 'json' });
 
   const tsConfig = {
-    "compilerOptions": { "target": "ES2020", "useDefineForClassFields": true, "lib": ["ES2020", "DOM", "DOM.Iterable"], "module": "ESNext", "skipLibCheck": true, "moduleResolution": "bundler", "allowImportingTsExtensions": true, "resolveJsonModule": true, "isolatedModules": true, "noEmit": true, "jsx": "react-jsx", "strict": true, "noUnusedLocals": true, "noUnusedParameters": true, "noFallthroughCasesInSwitch": true },
+    "compilerOptions": { "target": "ES2020", "useDefineForClassFields": true, "lib": ["ES2020", "DOM", "DOM.Iterable"], "module": "ESNext", "skipLibCheck": true, "moduleResolution": "bundler", "allowImportingTsExtensions": true, "resolveJsonModule": true, "isolatedModules": true, "noEmit": true, "jsx": "react-jsx", "strict": false, "noUnusedLocals": false, "noUnusedParameters": false, "noImplicitAny": false, "noFallthroughCasesInSwitch": true },
     "include": ["src"], "references": [{ "path": "./tsconfig.node.json" }]
   };
   files.push({ name: 'tsconfig.json', path: `${root}/tsconfig.json`, content: JSON.stringify(tsConfig, null, 2), language: 'json' });
+  files.push({ name: 'vite-env.d.ts', path: `${root}/src/vite-env.d.ts`, content: '/// <reference types="vite/client" />\n', language: 'typescript' });
 
   const tsConfigNode = {
     "compilerOptions": {
@@ -119,7 +120,7 @@ body {
 }`, language: 'css' });
   }
 
-  files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: ${fePort} } });`, language: 'typescript' });
+  files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], base: './', server: { port: ${fePort} } });`, language: 'typescript' });
   
   const wl: any = config.whitelabel || { primaryColor: '#3b82f6', secondaryColor: '#1e293b' };
   

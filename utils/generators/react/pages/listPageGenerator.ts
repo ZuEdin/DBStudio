@@ -55,7 +55,7 @@ export const ${listName} = () => {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<any | null>(null);
   const [massDeleteOpen, setMassDeleteOpen] = useState(false);
-  ${table.enableMassUpdates ? `const [selectedIds, setSelectedIds] = useState<string[]>([]);` : ''}
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Double-click Detail modal and single-select keyboard selection states
   const [activeRecord, setActiveRecord] = useState<${pascalName} | null>(null);
@@ -112,7 +112,7 @@ export const ${listName} = () => {
   };
 
   const getRowStyle = (item: any) => {
-      const rules = ${JSON.stringify(fmtRules)};
+      const rules: any[] = ${JSON.stringify(fmtRules)};
       for(const r of rules) {
           if(!r.propName) continue;
           const val = String(item[r.propName]);
@@ -125,7 +125,6 @@ export const ${listName} = () => {
       return {};
   };
 
-  ${table.enableMassUpdates ? `
   const handleMassDelete = async () => {
       if(selectedIds.length === 0) return;
       setMassDeleteOpen(true);
@@ -133,12 +132,12 @@ export const ${listName} = () => {
   
   const confirmMassDelete = async () => {
       for(const id of selectedIds) {
-          await remove(\`${pascalName}/\${id}\`);
+          await remove('${pascalName}/' + id);
       }
       setSelectedIds([]);
       setMassDeleteOpen(false);
       loadItems();
-  };` : ''}
+  };
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -263,7 +262,6 @@ export const ${listName} = () => {
                                     className="w-full px-2 py-1 text-xs font-normal border rounded bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                                     value={columnFilters['${toCamelCase(f.name)}'] || ''}
                                     onChange={e => setColumnFilters({ ...columnFilters, '${toCamelCase(f.name)}': e.target.value })}
-                                Amin
                                 />
                             </th>`).join('')}
                             <th className="p-2 text-right">

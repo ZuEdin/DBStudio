@@ -154,9 +154,9 @@ export const UserPickerModal: React.FC<UserPickerModalProps> = ({ isOpen, initia
 };
 
 export const generateCommandPalette = (config: BackendConfig, root: string): VirtualFile => {
-  const commandPaletteTsx = `import React, { useState, useEffect } from 'react';
+  const commandPaletteTsx = `import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Command } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export const CommandPalette = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -180,7 +180,7 @@ export const CommandPalette = () => {
     if (!isOpen) return null;
 
     // Get flat list of available pages
-    const items = ${JSON.stringify(config.navigationConfig || [])};
+    const items: any[] = ${JSON.stringify(config.navigationConfig || [])};
     const flat: any[] = [];
     const recurse = (list: any[]) => {
         list.forEach(i => {

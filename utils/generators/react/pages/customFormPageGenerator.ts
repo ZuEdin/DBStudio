@@ -178,7 +178,7 @@ export const ${compName} = () => {
   const [modals, setModals] = useState<Record<string, boolean>>({});
   const { states, setGlobalState, addToast, executeMacro = (macroId: string) => console.log('Macro executed:', macroId) } = useGlobalState() || { states: {}, setGlobalState: () => {}, addToast: () => {}, executeMacro: () => {} };
   
-  const UXRules = ${JSON.stringify(form.crossFieldValidations || [])};
+  const UXRules: any[] = ${JSON.stringify(form.crossFieldValidations || [])};
 
   const getLoggedInUser = () => {
       try {

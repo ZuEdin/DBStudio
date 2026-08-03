@@ -74,16 +74,23 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
   
   const apiService = `import axios from 'axios';
 const getApiUrl = () => {
-    let raw = import.meta.env.VITE_API_URL || '';
+    let raw = (import.meta as any).env?.VITE_API_URL || '';
     if (raw) {
         let u = raw.trim();
         if (!u.endsWith('/')) u += '/';
         if (!u.includes('/api/')) u = u.replace(/\\/+$/, '') + '/api/';
         return u;
     }
-    return typeof window !== 'undefined'
+    return typeof window !== 'undefined' && window.location.protocol.startsWith('http')
         ? (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:${config.port}/api/' : window.location.origin + '/api/')
         : '/api/';
+};
+export const isLocalMode = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const w = window as any;
+    if (w.electronAPI || w.__TAURI__ || window.location.protocol === 'file:') return true;
+    if (localStorage.getItem('app_mode') === 'local') return true;
+    return false;
 };
 const API_URL = getApiUrl();
 
@@ -268,18 +275,28 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
         });
     }
 
-    try {
-        const token = localStorage.getItem('auth_token');
-        const headers: any = {};
-        if (token) {
-            headers['Authorization'] = 'Bearer ' + token;
+    if (!isLocalMode()) {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const headers: any = {};
+            if (token) {
+                headers['Authorization'] = 'Bearer ' + token;
+            }
+            const response = await api.get(cleanEndpoint, { params: cleanParams, headers });
+            if (response && response.data !== undefined && response.data !== null) {
+                return response.data;
+            }
+        } catch (apiErr) {
+            // Fallback to IndexedDB simulation if server API request fails or is offline
         }
-        const response = await api.get(cleanEndpoint, { params: cleanParams, headers });
-        if (response && response.data !== undefined && response.data !== null) {
-            return response.data;
+    } else {
+        const w = window as any;
+        if (w.electronAPI?.readJson) {
+            try {
+                const localRes = await w.electronAPI.readJson(cleanEndpoint);
+                if (localRes !== undefined && localRes !== null) return localRes;
+            } catch(e) {}
         }
-    } catch (apiErr) {
-        // Fallback to IndexedDB simulation if server API request fails or is offline
     }
 
     const { type, target, id } = parseEndpoint(endpoint);
@@ -370,17 +387,19 @@ export const get = async <T>(endpoint: string, params?: any): Promise<PagedRespo
 export const post = async <T>(endpoint: string, data: any): Promise<T> => {
     const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
     if (endpoint.startsWith('auth/')) {
-        try {
-            const response = await api.post(cleanEndpoint, data);
-            if (response && response.data) {
-                if (response.data.token) {
-                    localStorage.setItem('auth_token', response.data.token);
-                    if (response.data.user) localStorage.setItem('auth_user', JSON.stringify(response.data.user));
+        if (!isLocalMode()) {
+            try {
+                const response = await api.post(cleanEndpoint, data);
+                if (response && response.data) {
+                    if (response.data.token) {
+                        localStorage.setItem('auth_token', response.data.token);
+                        if (response.data.user) localStorage.setItem('auth_user', JSON.stringify(response.data.user));
+                    }
+                    return response.data;
                 }
-                return response.data;
+            } catch (err) {
+                // fallback
             }
-        } catch (err) {
-            // fallback
         }
         if (endpoint === 'auth/login') {
             return loginUser(data) as any;
@@ -398,16 +417,18 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
         throw new Error('Unsupported auth endpoint: ' + endpoint);
     }
 
-    try {
-        const token = localStorage.getItem('auth_token');
-        const headers: any = {};
-        if (token) headers['Authorization'] = 'Bearer ' + token;
-        const response = await api.post(cleanEndpoint, data, { headers });
-        if (response && response.data !== undefined) {
-            return response.data;
+    if (!isLocalMode()) {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const headers: any = {};
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const response = await api.post(cleanEndpoint, data, { headers });
+            if (response && response.data !== undefined) {
+                return response.data;
+            }
+        } catch (apiErr) {
+            // Fallback to IndexedDB simulation
         }
-    } catch (apiErr) {
-        // Fallback to IndexedDB simulation
     }
 
     const { target } = parseEndpoint(endpoint);
@@ -450,16 +471,18 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
 
 export const put = async <T>(endpoint: string, data: any): Promise<T> => {
     const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
-    try {
-        const token = localStorage.getItem('auth_token');
-        const headers: any = {};
-        if (token) headers['Authorization'] = 'Bearer ' + token;
-        const response = await api.put(cleanEndpoint, data, { headers });
-        if (response && response.data !== undefined) {
-            return response.data;
+    if (!isLocalMode()) {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const headers: any = {};
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const response = await api.put(cleanEndpoint, data, { headers });
+            if (response && response.data !== undefined) {
+                return response.data;
+            }
+        } catch (apiErr) {
+            // Fallback to IndexedDB simulation
         }
-    } catch (apiErr) {
-        // Fallback to IndexedDB simulation
     }
 
     const { target, id } = parseEndpoint(endpoint);
@@ -488,16 +511,18 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
 
 export const remove = async (endpoint: string): Promise<any> => {
     const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
-    try {
-        const token = localStorage.getItem('auth_token');
-        const headers: any = {};
-        if (token) headers['Authorization'] = 'Bearer ' + token;
-        const response = await api.delete(cleanEndpoint, { headers });
-        if (response && response.data !== undefined) {
-            return response.data;
+    if (!isLocalMode()) {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const headers: any = {};
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const response = await api.delete(cleanEndpoint, { headers });
+            if (response && response.data !== undefined) {
+                return response.data;
+            }
+        } catch (apiErr) {
+            // Fallback to IndexedDB simulation
         }
-    } catch (apiErr) {
-        // Fallback to IndexedDB simulation
     }
 
     const { target, id } = parseEndpoint(endpoint);
@@ -584,7 +609,7 @@ export const registerUser = async (userData: any) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         
-        const pkField = store.keyPath || 'id';
+        const pkField: any = (Array.isArray(store.keyPath) ? store.keyPath[0] : store.keyPath) || 'id';
         const payload: any = {};
         
         payload[pkField] = Date.now();
@@ -650,7 +675,22 @@ export const logoutUser = () => {
   
   files.push({ name: 'api.ts', path: `${root}/src/services/api.ts`, content: apiService, language: 'typescript' });
 
-  let typesContent = '';
+  let typesContent = `export interface NavigationItem {
+  id: string;
+  title?: string;
+  label?: string;
+  icon?: string;
+  type?: string;
+  route?: string;
+  path?: string;
+  targetType?: string;
+  targetId?: string;
+  requiredRoles?: string[];
+  roles?: string[];
+  children?: NavigationItem[];
+  badgeCountQuery?: string;
+  translations?: Record<string, string>;
+}\n\n`;
   
   // Table Interfaces
   tables.forEach(table => {
@@ -825,18 +865,18 @@ export function exportDataToFile(options: ExportDataOptions) {
         downloadBlob(pdfBlob, \`\${safeFilename}.pdf\`);
       } catch (err) {
         console.error('PDF Export failed, falling back to print:', err);
-        openPrintIframeOrWindow(title, data, columns, filename);
+        openPrintIframeOrWindow(title, data, columns);
       }
       break;
     }
     case 'HTML_PRINT': {
-      openPrintIframeOrWindow(title, data, columns, filename);
+      openPrintIframeOrWindow(title, data, columns);
       break;
     }
   }
 }
 
-function openPrintIframeOrWindow(title: string, data: any[], columns: string[], filename: string) {
+function openPrintIframeOrWindow(title: string, data: any[], columns: string[]) {
   let printWindow = window.open('', '_blank');
   if (!printWindow) {
     const iframe = document.createElement('iframe');

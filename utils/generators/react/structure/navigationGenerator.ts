@@ -422,7 +422,7 @@ export const TopNav: React.FC<TopNavProps> = ({ items }) => {
                 isSubmenu ? 'left-full top-0 ml-1' : 'left-0 top-full mt-1'
               }\`}
             >
-              {visibleChildren.map(child => (
+              {visibleChildren.map((child: any) => (
                 <NavItem key={child.id} item={child} isSubmenu={true} />
               ))}
             </div>
@@ -461,13 +461,13 @@ export const generateLayout = (config: BackendConfig, root: string, wl: any): Vi
   const layoutTsx = `import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopNav } from './TopNav';
-import { Menu, Search, Command } from 'lucide-react';
+import { Menu, Command } from 'lucide-react';
 import { CommandPalette } from './CommandPalette';
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const isTopNav = ${config.navigationPreset === 'top_nav' ? 'true' : 'false'};
-    const menuItems = ${JSON.stringify(config.navigationConfig || [])};
+    const menuItems: any[] = ${JSON.stringify(config.navigationConfig || [])};
 
     return (
         <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">

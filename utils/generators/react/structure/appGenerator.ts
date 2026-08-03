@@ -9,7 +9,7 @@ export const generateAppTsx = (
   wl: any
 ): VirtualFile => {
   const appTsx = `import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { HashRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './components/theme-provider';
 import { Layout } from './components/Layout';
 ${config.productTours && config.productTours.length > 0 ? "import Joyride, { Step } from 'react-joyride';" : ""}
@@ -31,7 +31,7 @@ function App() {
         {/* Render first tour for demonstration - in real app triggered dynamically */}
         <Joyride steps={toursData['${config.productTours[0].id}']} continuous showProgress showSkipButton />
         ` : ""}
-        <BrowserRouter>
+        <HashRouter>
             <Routes>
                 ${useAuth ? `
                 <Route path="/login" element={<Login />} />
@@ -52,7 +52,7 @@ function App() {
                     ${routes.join('\n                    ')}
                 ${useAuth ? `</Route>` : `</Route>`}
             </Routes>
-        </BrowserRouter>
+        </HashRouter>
         ${useAuth ? "</AuthProvider>" : ""}
         </GlobalStateProvider>
     </ThemeProvider>

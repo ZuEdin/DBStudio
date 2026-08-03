@@ -646,12 +646,24 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 const PORT = process.env.PORT || ${config.port};
 
+function startServer(portToUse) {
+    const server = app.listen(portToUse, () => console.log(\`Server running on port \${portToUse}\`));
+    server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.warn(\`Port \${portToUse} is already in use. Retrying on port \${Number(portToUse) + 1}...\`);
+            startServer(Number(portToUse) + 1);
+        } else {
+            console.error('Server error:', err);
+        }
+    });
+}
+
 // Sync Database and Start Server
 db.sequelize.sync({ alter: true })
     .then(() => {
         console.log('Database synced successfully.');
         initJobs(); // Start Scheduler
-        app.listen(PORT, () => console.log(\`Server running on port \${PORT}\`));
+        startServer(PORT);
     })
     .catch(err => {
         console.error('Failed to sync database:', err);

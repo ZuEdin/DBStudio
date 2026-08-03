@@ -64,7 +64,7 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
         return {
           cost: '$0.00 / Monat (Lokaler Desktop Build)',
           provider: 'Offline Desktop Native Wrapper',
-          infraFiles: ['electron/main.js', 'electron/preload.js', 'README_ELECTRON.md'],
+          infraFiles: ['main.js', 'preload.js', 'dist/index.html', 'README_ELECTRON.md'],
           nodes: [
             { id: 'src', label: 'Web Source', type: 'React Framework', active: true },
             { id: 'wrapper', label: 'Electron Main/Preload', type: 'Chromium / Node.js Engine', active: true },

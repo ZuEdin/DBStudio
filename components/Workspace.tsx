@@ -71,7 +71,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onSetView, onActiveObjectC
     if (!activeObject) {
       switch (currentView.type) {
          case 'relationships': return 'Beziehungen';
-         case 'backend_generator': return 'App Generator';
+         case 'backend_generator': return 'Codegenerierung & App Generator';
          case 'navigation_designer': return 'Navigations-Designer';
          case 'scheduler': return 'Zeitplaner';
          case 'api_import': return 'API Import';

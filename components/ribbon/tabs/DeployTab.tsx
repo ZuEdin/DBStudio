@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -145,7 +145,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
         {/* Export Group */}
         <RibbonGroup label="Export" isLast>
-            <RibbonButton icon={<Play className="text-green-600"/>} label="Live-Preview" onClick={() => onAction('backend_generate')} />
+            <RibbonButton icon={<FileCode className="text-green-600"/>} label="Codegenerierung" onClick={() => onAction('backend_generate')} />
             <RibbonButton icon={<Download className="text-slate-600"/>} label="App als ZIP" onClick={() => onAction('backend_export')} />
         </RibbonGroup>
 

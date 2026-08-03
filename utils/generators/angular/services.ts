@@ -79,14 +79,33 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
+  public isLocalMode(): boolean {
+    if (typeof window === 'undefined') return false;
+    const w = window as any;
+    return Boolean(w.electronAPI || w.__TAURI__ || window.location.protocol === 'file:' || localStorage.getItem('app_mode') === 'local');
+  }
+
   private getUrl(ep: string): string {
     const base = this.baseUrl ? (this.baseUrl.endsWith('/') ? this.baseUrl : this.baseUrl + '/') : '/api/';
     const cleanEp = (ep || '').replace(/^\\/+/g, '');
     return base + cleanEp;
   }
 
-  // Generic Get for raw data (single objects or arrays without pagination wrapper)
   get<T>(endpoint: string, params: any = {}): Observable<T> {
+    if (this.isLocalMode()) {
+      const w = window as any;
+      if (w.electronAPI && w.electronAPI.readJson) {
+        return new Observable<T>(subscriber => {
+          w.electronAPI.readJson(endpoint).then((data: any) => {
+            subscriber.next(data as T);
+            subscriber.complete();
+          }).catch(() => {
+            subscriber.next([] as any);
+            subscriber.complete();
+          });
+        });
+      }
+    }
     return this.http.get<T>(this.getUrl(endpoint), { params, withCredentials: true });
   }
 

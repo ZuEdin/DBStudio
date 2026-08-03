@@ -229,16 +229,20 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
     const zip = new JSZip();
 
     // Check if Electron project to add root-level convenience launcher scripts
-    const isElectronProj = localConfig.language === 'electron' || localConfig.frontendFramework === 'electron';
+    const hasBackendElectron = filesToZip.some(f => f.path.startsWith(`Backend/${localConfig.projectName}`) && (f.path.includes('preload.js') || f.path.includes('main.js')));
+    const isElectronProj = localConfig.language === 'electron' || localConfig.frontendFramework === 'electron' || hasBackendElectron;
     if (isElectronProj) {
-        zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Electron Application...\r\ncd ElectronApp\r\ncall run.bat\r\n`);
-        zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Electron App Launcher for macOS/Linux\ncd ElectronApp\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
+        const electronDir = hasBackendElectron ? `Backend/${localConfig.projectName}` : `ElectronApp`;
+        zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Electron Application...\r\ncd ${electronDir}\r\ncall run.bat\r\n`);
+        zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Electron App Launcher for macOS/Linux\ncd ${electronDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
     }
 
-    const isTauriProj = localConfig.language === 'tauri' || localConfig.frontendFramework === 'tauri';
+    const hasBackendTauri = filesToZip.some(f => f.path.startsWith(`Backend/${localConfig.projectName}/src-tauri`) || f.path.includes('tauri.conf.json'));
+    const isTauriProj = localConfig.language === 'tauri' || localConfig.frontendFramework === 'tauri' || hasBackendTauri;
     if (isTauriProj) {
-        zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Tauri Application...\r\ncd TauriApp\r\ncall run.bat\r\n`);
-        zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Tauri App Launcher for macOS/Linux\ncd TauriApp\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
+        const tauriDir = hasBackendTauri ? `Backend/${localConfig.projectName}` : `TauriApp`;
+        zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Tauri Application...\r\ncd ${tauriDir}\r\ncall run.bat\r\n`);
+        zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Tauri App Launcher for macOS/Linux\ncd ${tauriDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
     }
 
     filesToZip.forEach(file => zip.file(file.path, file.content));
