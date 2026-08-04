@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Form, Table, Query, FormElement, Relationship } from '../../types/index';
-import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown, Zap } from 'lucide-react';
+import { Form, Table, Query, FormElement, Relationship, getWidthClasses } from '../../types/index';
+import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown, Zap, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
@@ -75,6 +75,31 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       const newLayout = JSON.parse(JSON.stringify(form.layout));
       updater(newLayout);
       onFormChange({ ...form, layout: newLayout });
+  };
+
+  const handleMoveElementDirect = (id: string, direction: 'up' | 'down') => {
+      updateFormLayout((layout) => {
+          const moveInTree = (parent: FormElement, elementId: string): boolean => {
+              if (!parent.children) return false;
+              const idx = parent.children.findIndex(c => c.id === elementId);
+              if (idx > -1) {
+                  if (direction === 'up' && idx > 0) {
+                      const temp = parent.children[idx];
+                      parent.children[idx] = parent.children[idx - 1];
+                      parent.children[idx - 1] = temp;
+                      return true;
+                  } else if (direction === 'down' && idx < parent.children.length - 1) {
+                      const temp = parent.children[idx];
+                      parent.children[idx] = parent.children[idx + 1];
+                      parent.children[idx + 1] = temp;
+                      return true;
+                  }
+                  return false;
+              }
+              return parent.children.some(c => moveInTree(c, elementId));
+          };
+          moveInTree(layout, id);
+      });
   };
 
   // --- Event Handlers ---
@@ -157,10 +182,10 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
         } else if (actionTrigger.action === 'form_add_container') {
             newEl.type = 'container'; newEl.className = 'p-4 border border-dashed border-slate-300 rounded bg-slate-50 min-h-[60px]';
         } else if (actionTrigger.action === 'form_add_2col') {
-            newEl.type = 'container'; newEl.className = 'grid grid-cols-2 gap-4';
+            newEl.type = 'container'; newEl.className = 'grid grid-cols-12 gap-4';
             newEl.children = [
-                { id: crypto.randomUUID(), type: 'container', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] },
-                { id: crypto.randomUUID(), type: 'container', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] }
+                { id: crypto.randomUUID(), type: 'container', width: '1/2', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] },
+                { id: crypto.randomUUID(), type: 'container', width: '1/2', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] }
             ];
         }
 
@@ -349,7 +374,38 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
           onDrop: (e: React.DragEvent) => handleDropOnElement(e, el.id)
       };
 
-      const baseClass = `relative border transition-all cursor-pointer ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 z-10' : 'border-transparent hover:border-blue-300'} ${isDragging ? 'opacity-40' : 'opacity-100'}`;
+      const widthClass = getWidthClasses(el.width);
+      const baseClass = `relative border transition-all cursor-pointer ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 z-10' : 'border-transparent hover:border-blue-300'} ${isDragging ? 'opacity-40' : 'opacity-100'} ${widthClass}`.trim();
+
+      // Floating Action overlay on selected element
+      const SelectionOverlayActions = () => {
+          if (!isSelected || el.id === form.layout?.id) return null;
+          return (
+              <div className="absolute -top-3 right-1.5 bg-blue-600 text-white text-[10px] rounded flex items-center shadow-md z-30 overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <button 
+                      onClick={(e) => { e.preventDefault(); handleMoveElementDirect(el.id, 'up'); }}
+                      className="p-1 hover:bg-blue-700 transition-colors border-r border-blue-500/50"
+                      title="Nach oben verschieben"
+                  >
+                      <ArrowUp size={10} />
+                  </button>
+                  <button 
+                      onClick={(e) => { e.preventDefault(); handleMoveElementDirect(el.id, 'down'); }}
+                      className="p-1 hover:bg-blue-700 transition-colors border-r border-blue-500/50"
+                      title="Nach unten verschieben"
+                  >
+                      <ArrowDown size={10} />
+                  </button>
+                  <button 
+                      onClick={(e) => { e.preventDefault(); deleteSelected(); }}
+                      className="p-1 hover:bg-red-600 transition-colors"
+                      title="Element löschen"
+                  >
+                      <Trash2 size={10} />
+                  </button>
+              </div>
+          );
+      };
 
       // Grip Handle for Items
       const GripHandle = () => (
@@ -369,11 +425,11 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 draggable // Containers are draggable too
                 onDragStart={(e) => handleDragStart(e, el.id)}
               >
+                  <SelectionOverlayActions />
                   {/* Container Grip - Top Right */}
                   <div className="absolute right-0 top-0 p-1 cursor-move text-slate-300 hover:text-blue-500 opacity-0 group-hover/container:opacity-100 z-20 bg-white/50 rounded">
                       <GripVertical size={14} />
                   </div>
-                  
                   {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-4 border-2 border-dashed border-slate-200 rounded pointer-events-none">Hier Elemente ablegen</div>}
                   {el.children?.map(renderElement)}
               </div>
@@ -383,13 +439,18 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       if (el.type === 'field') {
           return (
               <div key={el.id} className={`${baseClass} ${el.className} bg-white p-3 pr-4 pl-8 rounded-lg border border-slate-200 group shadow-sm hover:shadow transition-shadow`} {...commonProps}>
+                  <SelectionOverlayActions />
                   <GripHandle />
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5 pointer-events-none">{el.label}</label>
+                  {!el.hideLabel ? (
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5 pointer-events-none">{el.label}</label>
+                  ) : (
+                      <span className="block text-[10px] text-slate-400 italic mb-1.5 pointer-events-none">{el.label} (Beschriftung ausgeblendet)</span>
+                  )}
                   <div className="flex gap-2 relative pointer-events-none">
                     {el.widgetType === 'select' ? (
                          <div className="w-full relative pointer-events-none">
                              <select className="w-full appearance-none bg-white border border-slate-300 text-slate-600 text-sm rounded px-3 py-2 shadow-sm pointer-events-none" disabled>
-                                 <option>Auswählen...</option>
+                                  <option>Auswählen...</option>
                              </select>
                              <div className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
                                 <ChevronDown size={14} />
@@ -397,10 +458,16 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                          </div>
                     ) : el.widgetType === 'textarea' ? (
                          <textarea className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none min-h-[80px]" placeholder="Text eingeben..." readOnly />
-                    ) : el.widgetType === 'checkbox' ? (
+                    ) : (el.widgetType === 'checkbox' || el.widgetType === 'switch') ? (
                          <div className="flex items-center gap-2 pointer-events-none py-1.5">
-                             <input type="checkbox" className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" readOnly />
-                             <span className="text-sm text-slate-600">Aktivieren</span>
+                             {el.widgetType === 'switch' ? (
+                                  <div className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full border-2 border-transparent bg-slate-200 transition-colors pointer-events-none">
+                                      <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition pointer-events-none" />
+                                  </div>
+                             ) : (
+                                  <input type="checkbox" className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" readOnly />
+                             )}
+                             <span className="text-sm text-slate-600">{el.widgetType === 'switch' ? 'Schalter' : 'Aktivieren'}</span>
                          </div>
                     ) : (
                          <input type="text" className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none" placeholder="Eingabe..." readOnly />
@@ -417,7 +484,8 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       
       if (el.type === 'label') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} pl-8 py-2 group`} {...commonProps}>
+              <div key={el.id} className={`${baseClass} ${el.className} pl-8 py-2 group relative`} {...commonProps}>
+                  <SelectionOverlayActions />
                   <GripHandle />
                   {el.label}
               </div>
@@ -426,7 +494,8 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
       if (el.type === 'button') {
           return (
-              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2`} {...commonProps}>
+              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2 relative`} {...commonProps}>
+                  <SelectionOverlayActions />
                   <GripHandle />
                   <button className={`${el.className} pointer-events-none opacity-90 shadow-sm transition-all focus:ring`}>
                       {el.label || 'Button'}
@@ -443,7 +512,8 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       if (el.type === 'dropdown_button') {
           const count = el.dropdownItems?.length || 0;
           return (
-              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2`} {...commonProps}>
+              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2 relative`} {...commonProps}>
+                  <SelectionOverlayActions />
                   <GripHandle />
                   <div className="inline-flex items-center gap-2 pointer-events-none">
                       <button className={`${el.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm'} opacity-90 transition-all flex items-center gap-2`}>
@@ -460,7 +530,8 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
       if (el.type === 'subform') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} p-4 pl-6 group`} {...commonProps}>
+              <div key={el.id} className={`${baseClass} ${el.className} p-4 pl-6 group relative`} {...commonProps}>
+                  <SelectionOverlayActions />
                   <GripHandle />
                   <div className="font-bold text-indigo-700 pointer-events-none">Subform: {el.label}</div>
                   <div className="text-xs text-indigo-400">Verknüpftes Formular</div>
@@ -661,6 +732,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                     updateFormLayout(l => { const el = findElement(l, selectedElementId!); if(el && el.subform) (el.subform as any)[k] = v; });
                 }}}
                 onDeleteSelected={deleteSelected}
+                onMoveElement={(dir) => { if (selectedElementId) handleMoveElementDirect(selectedElementId, dir); }}
                 onShowLookupModal={() => setShowLookupModal(true)}
                 onToggleFullScreen={() => onFormChange({...form, settings: {...form.settings, isFullScreen: !form.settings?.isFullScreen}})}
                 onToggleEditButton={() => onFormChange({...form, settings: {...form.settings, showEditToggle: !form.settings?.showEditToggle}})}

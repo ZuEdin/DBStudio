@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Plus, Zap, AlertCircle } from 'lucide-react';
-import { Form, Table, FormElement, Query } from '../../../../types/index';
+import { Form, Table, FormElement, Query, getWidthClasses } from '../../../../types/index';
 import { FormWidget } from '../../renderer/FormWidget';
 import { DropdownButtonWidget } from './DropdownButtonWidget';
 import { executeMacro, getSavedMacros } from '../../../logic/MacroEngine';
@@ -87,7 +87,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
 
   if (el.type === 'container') {
     return (
-      <div key={el.id} className={el.className} id={`container-${el.id}`}>
+      <div key={el.id} className={`${el.className || ''} ${getWidthClasses(el.width)}`.trim()} id={`container-${el.id}`}>
         {el.children?.map(renderChild)}
       </div>
     );
@@ -95,7 +95,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
 
   if (el.type === 'label') {
     return (
-      <div key={el.id} className={el.className} id={`label-${el.id}`}>
+      <div key={el.id} className={`${el.className || ''} ${getWidthClasses(el.width)}`.trim()} id={`label-${el.id}`}>
         {el.label}
       </div>
     );
@@ -153,7 +153,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
     };
 
     return (
-      <div key={el.id} className={`my-2 inline-block ${el.className || ''}`} id={`btn-container-${el.id}`}>
+      <div key={el.id} className={`my-2 inline-block ${el.className || ''} ${getWidthClasses(el.width)}`.trim()} id={`btn-container-${el.id}`}>
         <button
           type="button"
           onClick={handleButtonClick}
@@ -258,7 +258,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
     return (
       <div
         key={el.id}
-        className={`border border-slate-300 rounded-md overflow-hidden mt-4 ${el.className || ''}`}
+        className={`border border-slate-300 rounded-md overflow-hidden mt-4 ${el.className || ''} ${getWidthClasses(el.width)}`.trim()}
         id={`subform-container-${el.id}`}
       >
         <div className="bg-slate-100 p-2 flex justify-between items-center border-b border-slate-200">

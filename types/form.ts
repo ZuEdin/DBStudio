@@ -66,11 +66,13 @@ export interface FormElement {
   fieldId?: string;
   label?: string;
   className?: string;
+  width?: '1/12' | '1/6' | '1/4' | '1/3' | '5/12' | '1/2' | '7/12' | '2/3' | '3/4' | '5/6' | '11/12' | 'full';
   children?: FormElement[];
   dropdownItems?: DropdownItem[];
-  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'select' | 'ad-search' | 'current-user' | 'calculated';
+  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'switch' | 'select' | 'ad-search' | 'current-user' | 'calculated';
   calculationFormula?: string;
   isCalculated?: boolean;
+  hideLabel?: boolean;
   lookup?: LookupConfig;
   subform?: Subform;
   actions?: ActionFlow[];
@@ -116,3 +118,23 @@ export interface Form {
   eventHandlers?: FormEventHandler[];
   allowedRoles?: string[];
 }
+
+export const getWidthClasses = (width: string | undefined): string => {
+  if (!width) return '';
+  switch (width) {
+    case '1/12': return 'col-span-1 w-full md:w-1/12';
+    case '1/6': return 'col-span-2 w-full md:w-1/6';
+    case '1/4': return 'col-span-3 w-full md:w-1/4';
+    case '1/3': return 'col-span-4 w-full md:w-1/3';
+    case '5/12': return 'col-span-5 w-full md:w-5/12';
+    case '1/2': return 'col-span-6 w-full md:w-1/2';
+    case '7/12': return 'col-span-7 w-full md:w-7/12';
+    case '2/3': return 'col-span-8 w-full md:w-2/3';
+    case '3/4': return 'col-span-9 w-full md:w-3/4';
+    case '5/6': return 'col-span-10 w-full md:w-5/6';
+    case '11/12': return 'col-span-11 w-full md:w-11/12';
+    case 'full': return 'col-span-12 w-full';
+    default: return '';
+  }
+};
+

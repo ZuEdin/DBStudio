@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FormElement, Form, Table, Relationship } from '../../../types/index';
-import { Edit3, Trash2, Settings2, Shield, Users, Zap, Plus, ChevronDown } from 'lucide-react';
+import { Edit3, Trash2, Settings2, Shield, Users, Zap, Plus, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { getSavedMacros } from '../../logic/MacroEngine';
 
 interface CommaSeparatedInputProps {
@@ -48,6 +48,65 @@ const CommaSeparatedInput: React.FC<CommaSeparatedInputProps> = ({ value, onChan
   );
 };
 
+const parseBorder = (className: string): string => {
+  if (className.includes('border-dashed')) return 'dashed';
+  if (className.includes('border-0')) return 'none';
+  if (className.includes('border-solid') || className.includes('border')) return 'solid';
+  return 'none';
+};
+
+const parseBg = (className: string): string => {
+  if (className.includes('bg-transparent')) return 'transparent';
+  if (className.includes('bg-white')) return 'white';
+  if (className.includes('bg-slate-50')) return 'slate-50';
+  if (className.includes('bg-indigo-50')) return 'indigo-50';
+  return 'none';
+};
+
+const parsePadding = (className: string): string => {
+  const match = className.match(/\bp-\d+\b/);
+  return match ? match[0] : 'p-4';
+};
+
+const parseGap = (className: string): string => {
+  const match = className.match(/\bgap-\d+\b/);
+  return match ? match[0] : 'gap-4';
+};
+
+const updateContainerClass = (
+  currentClass: string,
+  border: string,
+  bg: string,
+  padding: string,
+  gap: string
+): string => {
+  let cleaned = currentClass || '';
+  
+  cleaned = cleaned.replace(/\bp-\d+\b/g, '').trim();
+  cleaned = cleaned.replace(/\bgap-\d+\b/g, '').trim();
+  cleaned = cleaned.replace(/\bborder-dashed\b|\bborder-solid\b|\bborder-0\b|\bborder-slate-\d+\b|\bdark:border-slate-\d+\b|\bborder\b/g, '').trim();
+  cleaned = cleaned.replace(/\bbg-transparent\b|\bbg-white\b|\bbg-slate-50\/50\b|\bbg-slate-50\b|\bbg-indigo-50\/50\b|\bbg-indigo-50\b|\bdark:bg-slate-\d+\/50\b|\bdark:bg-slate-\d+\b|\bdark:bg-indigo-\d+\/20\b|\bdark:bg-indigo-\d+\b|\bdark:bg-slate-900\b/g, '').trim();
+
+  const parts = [cleaned];
+  
+  if (border === 'dashed') parts.push('border border-dashed border-slate-300 dark:border-slate-600');
+  else if (border === 'solid') parts.push('border border-solid border-slate-200 dark:border-slate-700');
+  else if (border === 'none') parts.push('border-0');
+  
+  if (bg === 'white') parts.push('bg-white dark:bg-slate-900');
+  else if (bg === 'slate-50') parts.push('bg-slate-50/50 dark:bg-slate-800/50');
+  else if (bg === 'indigo-50') parts.push('bg-indigo-50/50 dark:bg-indigo-950/20');
+  else if (bg === 'transparent') parts.push('bg-transparent');
+  
+  parts.push(padding);
+  
+  if (cleaned.includes('grid') || cleaned.includes('flex')) {
+    parts.push(gap);
+  }
+
+  return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+};
+
 interface PropertiesPanelProps {
   form: Form;
   selectedElement: FormElement | null;
@@ -58,6 +117,7 @@ interface PropertiesPanelProps {
   onLookupPropertyChange: (key: string, value: any) => void;
   onSubformPermissionChange: (perm: string, val: boolean) => void;
   onDeleteSelected: () => void;
+  onMoveElement?: (direction: 'up' | 'down') => void;
   onShowLookupModal: () => void;
   onToggleFullScreen: () => void;
   onToggleEditButton: () => void;
@@ -74,6 +134,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onLookupPropertyChange,
   onSubformPermissionChange,
   onDeleteSelected,
+  onMoveElement,
   onShowLookupModal,
   onToggleFullScreen,
   onToggleEditButton,
@@ -95,14 +156,30 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <div className="font-mono text-xs text-slate-400">ID: {selectedElement.id.substring(0,8)}...</div>
             
             {(selectedElement.type === 'field' || selectedElement.type === 'label' || selectedElement.type === 'subform') && (
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">{selectedElement.type === 'label' ? 'Text' : 'Beschriftung'}</label>
-                <input 
-                  type="text" 
-                  value={selectedElement.label || ''} 
-                  onChange={e => onPropertyChange('label', e.target.value)}
-                  className="w-full border border-slate-300 rounded p-1.5" 
-                />
+              <div className="space-y-2">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">{selectedElement.type === 'label' ? 'Text' : 'Beschriftung'}</label>
+                  <input 
+                    type="text" 
+                    value={selectedElement.label || ''} 
+                    onChange={e => onPropertyChange('label', e.target.value)}
+                    className="w-full border border-slate-300 rounded p-1.5" 
+                  />
+                </div>
+                {selectedElement.type === 'field' && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      id="hide-label-checkbox"
+                      type="checkbox"
+                      checked={!!selectedElement.hideLabel}
+                      onChange={e => onPropertyChange('hideLabel', e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                    />
+                    <label htmlFor="hide-label-checkbox" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                      Beschriftung ausblenden (verbergen)
+                    </label>
+                  </div>
+                )}
               </div>
             )}
 
@@ -122,6 +199,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <option value="number">Zahl</option>
                         <option value="date">Datum</option>
                         <option value="checkbox">Checkbox</option>
+                        <option value="switch">Switch (Schalter)</option>
                         <option value="select">Dropdown (Lookup)</option>
                       </optgroup>
                       <optgroup label="Berechnungen & Ausdrücke">
@@ -615,6 +693,181 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </div>
             )}
 
+            {selectedElement.type === 'container' && (
+              <div className="bg-slate-50 border border-slate-200 rounded p-2.5 space-y-3">
+                <div className="font-bold text-slate-800 flex items-center gap-1 text-xs">
+                  <Settings2 size={12}/> Container Layout-Typ
+                </div>
+                <select
+                  value={
+                    selectedElement.className?.includes('grid-cols-12') ? 'grid-12' :
+                    selectedElement.className?.includes('grid-cols-3') ? 'grid-3' :
+                    selectedElement.className?.includes('grid-cols-2') ? 'grid-2' :
+                    selectedElement.className?.includes('flex-row') ? 'flex-row' : 'vertical'
+                  }
+                  onChange={e => {
+                    const val = e.target.value;
+                    let newClass = selectedElement.className || '';
+                    // Strip existing layout classes
+                    newClass = newClass
+                      .replace(/grid\s+grid-cols-\d+/g, '')
+                      .replace(/flex\s+flex-row[^\s]*/g, '')
+                      .replace(/gap-\d+/g, '')
+                      .replace(/flex-wrap/g, '')
+                      .replace(/items-end/g, '')
+                      .trim();
+
+                    if (val === 'grid-12') {
+                      newClass = `grid grid-cols-12 gap-4 ${newClass}`.trim();
+                    } else if (val === 'grid-3') {
+                      newClass = `grid grid-cols-3 gap-4 ${newClass}`.trim();
+                    } else if (val === 'grid-2') {
+                      newClass = `grid grid-cols-2 gap-4 ${newClass}`.trim();
+                    } else if (val === 'flex-row') {
+                      newClass = `flex flex-row gap-4 flex-wrap items-end ${newClass}`.trim();
+                    }
+                    onPropertyChange('className', newClass);
+                  }}
+                  className="w-full border border-slate-300 rounded p-1.5 bg-white text-xs font-semibold"
+                >
+                  <option value="vertical">Einspaltig (Vertikal gestapelt)</option>
+                  <option value="grid-12">Mehrspaltig (12-Spalten Grid)</option>
+                  <option value="grid-3">Mehrspaltig (3-Spalten Grid)</option>
+                  <option value="grid-2">Mehrspaltig (2-Spalten Grid)</option>
+                  <option value="flex-row">Flex-Reihe (Horizontal fließend)</option>
+                </select>
+                <p className="text-[10px] text-slate-400">
+                  Bestimmt, wie die Kind-Elemente innerhalb dieses Containers angeordnet werden.
+                </p>
+
+                <div className="border-t border-slate-200/80 my-2 pt-2.5 space-y-2">
+                  <div className="font-bold text-slate-700 text-[11px] uppercase tracking-wider mb-1">
+                    Container-Styling (Optik)
+                  </div>
+                  
+                  {/* Hintergrund */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Hintergrund</label>
+                    <select
+                      value={parseBg(selectedElement.className || '')}
+                      onChange={e => {
+                        const newBg = e.target.value;
+                        const currentBorder = parseBorder(selectedElement.className || '');
+                        const currentPadding = parsePadding(selectedElement.className || '');
+                        const currentGap = parseGap(selectedElement.className || '');
+                        const newClass = updateContainerClass(selectedElement.className || '', currentBorder, newBg, currentPadding, currentGap);
+                        onPropertyChange('className', newClass);
+                      }}
+                      className="w-full border border-slate-300 rounded p-1 bg-white text-xs font-medium text-slate-700"
+                    >
+                      <option value="none">Standard (Grau)</option>
+                      <option value="transparent">Transparent (Kein Hintergrund)</option>
+                      <option value="white">Weiß (White)</option>
+                      <option value="slate-50">Hellgrau (Slate)</option>
+                      <option value="indigo-50">Hellblau (Indigo)</option>
+                    </select>
+                  </div>
+
+                  {/* Rahmen */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Rahmen (Border)</label>
+                    <select
+                      value={parseBorder(selectedElement.className || '')}
+                      onChange={e => {
+                        const newBorder = e.target.value;
+                        const currentBg = parseBg(selectedElement.className || '');
+                        const currentPadding = parsePadding(selectedElement.className || '');
+                        const currentGap = parseGap(selectedElement.className || '');
+                        const newClass = updateContainerClass(selectedElement.className || '', newBorder, currentBg, currentPadding, currentGap);
+                        onPropertyChange('className', newClass);
+                      }}
+                      className="w-full border border-slate-300 rounded p-1 bg-white text-xs font-medium text-slate-700"
+                    >
+                      <option value="none">Kein Rahmen (Rahmenlos)</option>
+                      <option value="dashed">Gestrichelt (Dashed)</option>
+                      <option value="solid">Durchgezogen (Solid)</option>
+                    </select>
+                  </div>
+
+                  {/* Innenabstand */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Innenabstand (Padding)</label>
+                    <select
+                      value={parsePadding(selectedElement.className || '')}
+                      onChange={e => {
+                        const newPadding = e.target.value;
+                        const currentBorder = parseBorder(selectedElement.className || '');
+                        const currentBg = parseBg(selectedElement.className || '');
+                        const currentGap = parseGap(selectedElement.className || '');
+                        const newClass = updateContainerClass(selectedElement.className || '', currentBorder, currentBg, newPadding, currentGap);
+                        onPropertyChange('className', newClass);
+                      }}
+                      className="w-full border border-slate-300 rounded p-1 bg-white text-xs font-medium text-slate-700"
+                    >
+                      <option value="p-0">Keiner (p-0)</option>
+                      <option value="p-1">Sehr klein (p-1)</option>
+                      <option value="p-2">Klein (p-2)</option>
+                      <option value="p-3">Mittel-klein (p-3)</option>
+                      <option value="p-4">Standard (p-4)</option>
+                      <option value="p-6">Groß (p-6)</option>
+                    </select>
+                  </div>
+
+                  {/* Elementen-Abstand (Gap) */}
+                  {(selectedElement.className?.includes('grid') || selectedElement.className?.includes('flex')) && (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Abstand (Spaltengröße / Gap)</label>
+                      <select
+                        value={parseGap(selectedElement.className || '')}
+                        onChange={e => {
+                          const newGap = e.target.value;
+                          const currentBorder = parseBorder(selectedElement.className || '');
+                          const currentBg = parseBg(selectedElement.className || '');
+                          const currentPadding = parsePadding(selectedElement.className || '');
+                          const newClass = updateContainerClass(selectedElement.className || '', currentBorder, currentBg, currentPadding, newGap);
+                          onPropertyChange('className', newClass);
+                        }}
+                        className="w-full border border-slate-300 rounded p-1 bg-white text-xs font-medium text-slate-700"
+                      >
+                        <option value="gap-0">Keiner (gap-0)</option>
+                        <option value="gap-1">Sehr klein (gap-1 / 4px)</option>
+                        <option value="gap-2">Klein (gap-2 / 8px)</option>
+                        <option value="gap-3">Mittel (gap-3 / 12px)</option>
+                        <option value="gap-4">Standard (gap-4 / 16px)</option>
+                        <option value="gap-6">Groß (gap-6 / 24px)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Breite (Spaltenbreite)</label>
+              <select
+                value={selectedElement.width || ''}
+                onChange={e => onPropertyChange('width', e.target.value || undefined)}
+                className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-700 font-medium text-xs"
+              >
+                <option value="">Standard (Automatisch)</option>
+                <option value="full">Volle Breite (100% / col-span-12)</option>
+                <option value="11/12">11/12 Breite (92% / col-span-11)</option>
+                <option value="5/6">5/6 Breite (83% / col-span-10)</option>
+                <option value="3/4">3/4 Breite (75% / col-span-9)</option>
+                <option value="2/3">2/3 Breite (66% / col-span-8)</option>
+                <option value="7/12">7/12 Breite (58% / col-span-7)</option>
+                <option value="1/2">Hälfte (50% / col-span-6)</option>
+                <option value="5/12">5/12 Breite (42% / col-span-5)</option>
+                <option value="1/3">Ein Drittel (33% / col-span-4)</option>
+                <option value="1/4">Ein Viertel (25% / col-span-3)</option>
+                <option value="1/6">Ein Sechstel (16% / col-span-2)</option>
+                <option value="1/12">Ein Zwölftel (8% / col-span-1)</option>
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Bestimmt die Breite des Elements in einem Raster (Grid) oder einer flexiblen Reihe.
+              </p>
+            </div>
+
             <div>
               <label className="block font-bold text-slate-700 mb-1">CSS Klassen (Tailwind)</label>
               <textarea 
@@ -715,6 +968,25 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </div>
                 </div>
             </div>
+
+            {onMoveElement && (
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                <button 
+                  type="button"
+                  onClick={() => onMoveElement('up')} 
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 p-2 rounded flex items-center justify-center gap-1 font-bold text-xs shadow-xs transition-colors"
+                >
+                  <ArrowUp size={14} /> Nach oben
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => onMoveElement('down')} 
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 p-2 rounded flex items-center justify-center gap-1 font-bold text-xs shadow-xs transition-colors"
+                >
+                  <ArrowDown size={14} /> Nach unten
+                </button>
+              </div>
+            )}
 
             <button onClick={onDeleteSelected} className="w-full mt-4 bg-red-50 text-red-600 border border-red-200 p-2 rounded hover:bg-red-100 flex items-center justify-center gap-2">
               <Trash2 size={14} /> Element löschen

@@ -61,90 +61,93 @@ export const generateCustomPage = (
   const generateNode = (node: any, ctx: GeneratorContext): string => {
       if (!node) return '';
       
-      switch(node.type) {
-          case 'container': {
-              const hasDataSource = !!node.props?.dataSourceId;
-              if (hasDataSource) {
-                  const suffix = getCleanSuffix(node, 'container');
-                  const stateName = `data_${suffix}`;
-                  const loadingState = `loading_${suffix}`;
-                  const paginatedName = `finalData_${suffix}`;
-                  const containerContext = `containerContext_${suffix}`;
-
-                  states.push(`const [${stateName}, set_${stateName}] = useState<any[]>([]);`);
-                  states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
-
-                  let fetchUrl = '';
-                  if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
-                      const tObj = tables.find(t => t.id === node.props.dataSourceId);
-                      if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
-                  } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
-                      const qObj = queries.find(q => q.id === node.props.dataSourceId);
-                      if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
-                  }
-
-                  if (fetchUrl) {
-                      imports.add('get');
-                      effects.push(`
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        set_${loadingState}(true);
-        const res = await get<any>('${fetchUrl}', { pageSize: 10000 });
-        const items = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
-        set_${stateName}(items);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        set_${loadingState}(false);
-      }
-    };
-    fetchData();
-  }, []);`);
-                  }
-
-                  const filterParamField = node.props?.filterParamField;
-                  const filterParamName = node.props?.filterParamName;
-                  let filterSnippet = '';
-                  if (filterParamField && filterParamName) {
-                      filterSnippet = `
-    const filterVal = searchParams.get('${filterParamName}');
-    if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-      items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
-    } else {
-      items = [];
-    }`;
-                  }
-
-                  effects.push(`
-  const ${paginatedName} = useMemo(() => {
-    let items = ${stateName};
-    ${filterSnippet}
-    return items;
-  }, [${stateName}, searchParams]);`);
-
-                  effects.push(`
-  const ${containerContext} = useMemo(() => {
-    return ${paginatedName} && ${paginatedName}.length > 0 ? ${paginatedName}[0] : null;
-  }, [${paginatedName}]);`);
-
-                  const innerCtx = { ...ctx, currentContextVar: containerContext };
-                  const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx)).join('\n');
-                  const classNameStr = node.props?.className || '';
-                  const styleStr = JSON.stringify(node.props?.style || {});
-
-                  return `
-                  <div className="${classNameStr || 'p-4 border rounded'}" style={${styleStr}}>
-                      {${loadingState} ? (
-                          <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin text-indigo-500" /></div>
-                      ) : (
-                          ${childrenStr}
-                      )}
-                  </div>`;
-              } else {
-                  return generateSimpleNode(node, ctx);
-              }
+      const evaluateBaseNode = (node: any, ctx: GeneratorContext): string => {
+          switch(node.type) {
+              case 'container': {
+                  const hasDataSource = !!node.props?.dataSourceId;
+                  if (hasDataSource) {
+                      const suffix = getCleanSuffix(node, 'container');
+                      const stateName = `data_${suffix}`;
+                      const loadingState = `loading_${suffix}`;
+                      const paginatedName = `finalData_${suffix}`;
+                      const containerContext = `containerContext_${suffix}`;
+    
+                      states.push(`const [${stateName}, set_${stateName}] = useState<any[]>([]);`);
+                      states.push(`const [${loadingState}, set_${loadingState}] = useState(false);`);
+    
+                      let fetchUrl = '';
+                      if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+                          const tObj = tables.find(t => t.id === node.props.dataSourceId);
+                          if (tObj) fetchUrl = `${toPascalCase(tObj.name)}`;
+                      } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+                          const qObj = queries.find(q => q.id === node.props.dataSourceId);
+                          if (qObj) fetchUrl = `queries/${toCamelCase(qObj.name)}`;
+                      }
+    
+                      if (fetchUrl) {
+                          imports.add('get');
+                          effects.push(`
+      useEffect(() => {
+        const fetchData = async () => {
+          try {
+            set_${loadingState}(true);
+            const res = await get<any>('${fetchUrl}', { pageSize: 10000 });
+            const items = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
+            set_${stateName}(items);
+          } catch (err) {
+            console.error(err);
+          } finally {
+            set_${loadingState}(false);
           }
+        };
+        fetchData();
+      }, []);`);
+                      }
+    
+                      const filterParamField = node.props?.filterParamField;
+                      const filterParamName = node.props?.filterParamName;
+                      let filterSnippet = '';
+                      if (filterParamField && filterParamName) {
+                          filterSnippet = `
+        const filterVal = searchParams.get('${filterParamName}');
+        if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
+          items = items.filter(row => String(row['${toCamelCase(filterParamField)}'] || row['${filterParamField}'] || '') === String(filterVal));
+        } else {
+          items = [];
+        }`;
+                      }
+    
+                      effects.push(`
+      const ${paginatedName} = useMemo(() => {
+        let items = ${stateName};
+        ${filterSnippet}
+        return items;
+      }, [${stateName}, searchParams]);`);
+    
+                      effects.push(`
+      const ${containerContext} = useMemo(() => {
+        return ${paginatedName} && ${paginatedName}.length > 0 ? ${paginatedName}[0] : null;
+      }, [${paginatedName}]);`);
+    
+                      const innerCtx = { ...ctx, currentContextVar: containerContext };
+                      const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx)).join('\n');
+                      const classNameStr = node.props?.className || '';
+                      const styleStr = JSON.stringify(node.props?.style || {});
+    
+                      return `
+                      <div className="${classNameStr || 'p-4 border rounded'}" style={${styleStr}}>
+                          {${loadingState} ? (
+                              <div className="flex items-center justify-center p-4"><Loader2 className="animate-spin text-indigo-500" /></div>
+                          ) : (
+                              <React.Fragment>
+                                  ${childrenStr}
+                              </React.Fragment>
+                          )}
+                      </div>`;
+                  } else {
+                      return generateSimpleNode(node, ctx);
+                  }
+              }
           case 'text':
           case 'button':
           case 'divider':
@@ -630,7 +633,44 @@ export const generateCustomPage = (
           }
           default:
               return `<div className="p-4 bg-slate-50 rounded border text-sm text-slate-400">${node.type} Component</div>`;
+          }
+      };
+
+      let nodeHtml = evaluateBaseNode(node, ctx);
+
+      if (node.props?.visibilityField) {
+          const vField = node.props.visibilityField;
+          const vOperator = node.props.visibilityOperator || '==';
+          const vExpected = node.props.visibilityValue || '';
+          
+          let valExpr = '';
+          if (ctx.currentContextVar) {
+              valExpr = `(${ctx.currentContextVar}?\\['${vField}'\\] !== undefined ? String(${ctx.currentContextVar}?\\['${vField}'\\] ?? '') : (${ctx.currentContextVar}?\\['${toCamelCase(vField)}'\\] !== undefined ? String(${ctx.currentContextVar}?\\['${toCamelCase(vField)}'\\] ?? '') : String(searchParams.get('${vField}') ?? '')))`;
+          } else {
+              valExpr = `String(searchParams.get('${vField}') ?? '')`;
+          }
+          
+          let cond = 'true';
+          if (vOperator === '==') {
+              cond = `${valExpr} === "${vExpected.replace(/"/g, '\\\\"')}"`;
+          } else if (vOperator === '!=') {
+              cond = `${valExpr} !== "${vExpected.replace(/"/g, '\\\\"')}"`;
+          } else if (vOperator === '>') {
+              cond = `parseFloat(${valExpr}) > parseFloat("${vExpected}")`;
+          } else if (vOperator === '<') {
+              cond = `parseFloat(${valExpr}) < parseFloat("${vExpected}")`;
+          } else if (vOperator === 'contains') {
+              cond = `${valExpr}.toLowerCase().includes("${vExpected.replace(/"/g, '\\\\"')}".toLowerCase())`;
+          } else if (vOperator === 'not_empty') {
+              cond = `${valExpr} !== '' && ${valExpr} !== 'undefined' && ${valExpr} !== 'null'`;
+          } else if (vOperator === 'empty') {
+              cond = `${valExpr} === '' || ${valExpr} === 'undefined' || ${valExpr} === 'null'`;
+          }
+          
+          nodeHtml = `{(${cond}) ? (<React.Fragment>${nodeHtml}</React.Fragment>) : null}`;
       }
+
+      return nodeHtml;
   };
 
   const context: GeneratorContext = {

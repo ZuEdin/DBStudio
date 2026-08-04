@@ -73,6 +73,7 @@ goto MENU
 :ICONS
 cls
 echo Generiere Standard-Icons fuer Tauri...
+cd /d "%~dp0"
 if not exist src-tauri\\icons mkdir src-tauri\\icons
 echo Lade Platzhalter-Icon herunter...
 curl -s -L -o src-tauri\\temp_icon.png "https://raw.githubusercontent.com/tauri-apps/tauri/dev/app-icon.png"
@@ -115,6 +116,7 @@ show_menu() {
     3) npx tauri dev ;;
     4) npx tauri build ;;
     5) 
+      cd "$(dirname "$0")"
       mkdir -p src-tauri/icons
       echo "Lade Platzhalter-Icon herunter..."
       curl -s -L -o src-tauri/temp_icon.png "https://raw.githubusercontent.com/tauri-apps/tauri/dev/app-icon.png"

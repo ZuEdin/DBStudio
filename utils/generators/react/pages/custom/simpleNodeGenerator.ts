@@ -21,7 +21,7 @@ export const compilePlaceholders = (text: string, contextVar?: string): string =
   const replaced = normalized.replace(/\{([^{}]+)\}/g, (match, key) => {
     const trimmedKey = key.trim();
     if (contextVar) {
-      return `\${${contextVar}['${trimmedKey}'] || ${contextVar}['${toCamelCase(trimmedKey)}'] || searchParams.get('${trimmedKey}') || ''}`;
+      return `\${${contextVar}?.\['${trimmedKey}'\] || ${contextVar}?.\['${toCamelCase(trimmedKey)}'\] || searchParams.get('${trimmedKey}') || ''}`;
     } else {
       return `\${searchParams.get('${trimmedKey}') || ''}`;
     }
@@ -74,7 +74,7 @@ export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => 
             const clickHandler = `() => {
               let targetId = 'new';
               ${node.props?.formMode === 'edit' ? `
-              targetId = ${ctx.currentContextVar ? `String(${ctx.currentContextVar}.id || ${ctx.currentContextVar}['id'] || ${ctx.currentContextVar}['${toCamelCase(tblObj?.fields?.find(f => f.isPrimaryKey)?.name || 'id')}'])` : `searchParams.get('selectedId')`} || 'new';
+              targetId = ${ctx.currentContextVar ? `String(${ctx.currentContextVar}?.id || ${ctx.currentContextVar}?.\['id'\] || ${ctx.currentContextVar}?.\['${toCamelCase(tblObj?.fields?.find(f => f.isPrimaryKey)?.name || 'id')}'\] || '')` : `searchParams.get('selectedId')`} || 'new';
               ` : ''}
               
               const qParams = new URLSearchParams();
@@ -84,7 +84,7 @@ export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => 
                   if (!src || !tgt) return '';
                   let resolvedVal = '';
                   if (ctx.currentContextVar) {
-                      resolvedVal = `String(${ctx.currentContextVar}['${src}'] ?? ${ctx.currentContextVar}['${toCamelCase(src)}'] ?? searchParams.get('${src}') ?? '${src}')`;
+                      resolvedVal = `String(${ctx.currentContextVar}?.\['${src}'\] ?? ${ctx.currentContextVar}?.\['${toCamelCase(src)}'\] ?? searchParams.get('${src}') ?? '${src}')`;
                   } else {
                       resolvedVal = `String(searchParams.get('${src}') ?? '${src}')`;
                   }
@@ -111,7 +111,7 @@ export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => 
                   if (!src || !tgt) return '';
                   let resolvedVal = '';
                   if (ctx.currentContextVar) {
-                      resolvedVal = `String(${ctx.currentContextVar}['${src}'] ?? ${ctx.currentContextVar}['${toCamelCase(src)}'] ?? searchParams.get('${src}') ?? '${src}')`;
+                      resolvedVal = `String(${ctx.currentContextVar}?.\['${src}'\] ?? ${ctx.currentContextVar}?.\['${toCamelCase(src)}'\] ?? searchParams.get('${src}') ?? '${src}')`;
                   } else {
                       resolvedVal = `String(searchParams.get('${src}') ?? '${src}')`;
                   }
@@ -172,7 +172,7 @@ export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => 
   };`);
 
               const clickHandler = `() => {
-                const idVal = ${ctx.currentContextVar ? `String(${ctx.currentContextVar}.id || ${ctx.currentContextVar}['id'] || ${ctx.currentContextVar}['${toCamelCase(pkField)}'])` : `searchParams.get('${node.props?.paramKey || 'selectedId'}')`};
+                const idVal = ${ctx.currentContextVar ? `String(${ctx.currentContextVar}?.id || ${ctx.currentContextVar}?.\['id'\] || ${ctx.currentContextVar}?.\['${toCamelCase(pkField)}'\] || '')` : `searchParams.get('${node.props?.paramKey || 'selectedId'}')`};
                 if (idVal) {
                   ${setIdState}(idVal);
                   ${setShowState}(true);

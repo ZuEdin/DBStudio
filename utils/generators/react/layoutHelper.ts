@@ -29,6 +29,25 @@ export const collectLookups = (element: FormElement, tables: Table[], queries: a
     return accumulated;
 };
 
+const getTailwindWidthClass = (width: string | undefined): string => {
+  if (!width) return '';
+  switch (width) {
+    case '1/12': return 'col-span-1 w-full md:w-1/12';
+    case '1/6': return 'col-span-2 w-full md:w-1/6';
+    case '1/4': return 'col-span-3 w-full md:w-1/4';
+    case '1/3': return 'col-span-4 w-full md:w-1/3';
+    case '5/12': return 'col-span-5 w-full md:w-5/12';
+    case '1/2': return 'col-span-6 w-full md:w-1/2';
+    case '7/12': return 'col-span-7 w-full md:w-7/12';
+    case '2/3': return 'col-span-8 w-full md:w-2/3';
+    case '3/4': return 'col-span-9 w-full md:w-3/4';
+    case '5/6': return 'col-span-10 w-full md:w-5/6';
+    case '11/12': return 'col-span-11 w-full md:w-11/12';
+    case 'full': return 'col-span-12 w-full';
+    default: return '';
+  }
+};
+
 // Returns JSX string AND potentially side-effect info (used by pages.ts to know which modals to create)
 export const generateJsxForLayout = (element: FormElement, tables: Table[], forms: Form[], dataVar: string = "data", modals: any[] = [], queries: any[] = []): string => {
     if (element.type === 'container') {
@@ -37,10 +56,16 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         if (element.children && element.children.length > 1 && !className.includes('grid') && !className.includes('flex')) {
              className += ' space-y-4';
         }
+        const widthClass = getTailwindWidthClass(element.width);
+        if (widthClass) {
+             className = `${className} ${widthClass}`.trim();
+        }
         return `<div className="${className}">\n${childrenJsx}\n</div>`;
     } 
     else if (element.type === 'label') {
-        return `<div className="${element.className || 'text-lg font-bold mb-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2'}">${element.label}</div>`;
+        const widthClass = getTailwindWidthClass(element.width);
+        const className = `${element.className || 'text-lg font-bold mb-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2'} ${widthClass}`.trim();
+        return `<div className="${className}">${element.label}</div>`;
     } 
     else if (element.type === 'button') {
         let onClickContent = '';
@@ -65,7 +90,9 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             }).filter(Boolean).join('\n            ');
             onClickContent = `onClick={async () => {\n            ${clickActions}\n        }}`;
         }
-        return `<button type="button" className="${element.className || 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors shadow-sm'}" ${onClickContent}>\n   ${element.label}\n</button>`;
+        const widthClass = getTailwindWidthClass(element.width);
+        const className = `${element.className || 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors shadow-sm'} ${widthClass}`.trim();
+        return `<button type="button" className="${className}" ${onClickContent}>\n   ${element.label}\n</button>`;
     }
     else if (element.type === 'dropdown_button') {
         const items = element.dropdownItems || [];
@@ -88,7 +115,9 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             return `<button key="${item.id}" type="button" onClick={() => { ${itemActions} }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2">\n        <span>${item.label}</span>\n      </button>`;
         }).join('\n      ');
 
-        return `<div className="relative inline-block text-left group">\n  <button type="button" className="${element.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm inline-flex items-center gap-2'}">\n    <span>${element.label || 'Aktionen'}</span>\n    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>\n  </button>\n  <div className="hidden group-hover:block group-focus-within:block absolute left-0 mt-1 w-52 rounded-md shadow-lg bg-white border border-slate-200 z-50 py-1">\n      ${itemsJsx}\n  </div>\n</div>`;
+        const widthClass = getTailwindWidthClass(element.width);
+        const btnClass = element.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm inline-flex items-center gap-2';
+        return `<div className="relative inline-block text-left group ${widthClass}">\n  <button type="button" className="${btnClass}">\n    <span>${element.label || 'Aktionen'}</span>\n    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>\n  </button>\n  <div className="hidden group-hover:block group-focus-within:block absolute left-0 mt-1 w-52 rounded-md shadow-lg bg-white border border-slate-200 z-50 py-1">\n      ${itemsJsx}\n  </div>\n</div>`;
     }
     else if (element.type === 'subform' && element.subform) {
         const subformDef = forms.find(f => f.id === element.subform!.formId);
@@ -115,8 +144,9 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             // Simplified display: Just list first few fields or use form fields
             const displayFields = subTable.fields.filter(f => !f.isPrimaryKey).slice(0, 3);
 
+            const widthClass = getTailwindWidthClass(element.width);
             return `
-            <div className="border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden mt-6 shadow-sm">
+            <div className="border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden mt-6 shadow-sm ${widthClass}">
                 <div className="bg-slate-100 dark:bg-slate-800 p-3 flex justify-between items-center border-b border-slate-200 dark:border-slate-700">
                     <span className="font-bold text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2">
                         <Layout size={16} className="text-indigo-500"/> ${element.label || subformDef.name}
@@ -180,7 +210,8 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
 
         const labelClass = "block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5";
         const inputClass = `w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-slate-400 \${${uxDisabled} ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''}`;
-        const wrapperClass = `${element.className || ""} ${uxHidden}`;
+        const widthClass = getTailwindWidthClass(element.width);
+        const wrapperClass = `${element.className || ""} ${widthClass} ${uxHidden}`.trim();
 
         // Select / Lookup
         if (element.widgetType === 'select' && element.lookup) {

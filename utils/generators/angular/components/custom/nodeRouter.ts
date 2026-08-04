@@ -48,11 +48,12 @@ const getCleanSuffix = (node: any, context: NodeGeneratorContext, defaultPrefix 
 export const generateNode = (node: any, context: NodeGeneratorContext, pages: any[]): string => {
     if (!node) return '';
     
-    switch(node.type) {
-        case 'row':
-            return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' row' } }, context, (n, ctx) => generateNode(n, ctx, pages));
-        case 'column':
-            return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' col' } }, context, (n, ctx) => generateNode(n, ctx, pages));
+    const evaluateBaseNode = (node: any, context: NodeGeneratorContext): string => {
+        switch(node.type) {
+            case 'row':
+                return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' row' } }, context, (n, ctx) => generateNode(n, ctx, pages));
+            case 'column':
+                return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' col' } }, context, (n, ctx) => generateNode(n, ctx, pages));
         case 'card': {
             const childrenStr = (node.children || []).map((c: any) => generateNode(c, context, pages)).join('\n');
             const titleText = node.props?.title ? compileAngularPlaceholders(node.props.title, context.currentContextVar) : '';
@@ -630,5 +631,42 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
 
         default:
             return `<div class="p-3 bg-light border rounded text-secondary small">${node.type} Component</div>`;
+        }
+    };
+
+    let nodeHtml = evaluateBaseNode(node, context);
+
+    if (node.props?.visibilityField) {
+        const vField = node.props.visibilityField;
+        const vOperator = node.props.visibilityOperator || '==';
+        const vExpected = node.props.visibilityValue || '';
+        
+        let valExpr = '';
+        if (context.currentContextVar) {
+            valExpr = `(${context.currentContextVar}?.\['${vField}'\] !== undefined ? String(${context.currentContextVar}?.\['${vField}'\] ?? '') : (${context.currentContextVar}?.\['${toCamelCase(vField)}'\] !== undefined ? String(${context.currentContextVar}?.\['${toCamelCase(vField)}'\] ?? '') : String(queryParams?.\['${vField}'\] ?? '')))`;
+        } else {
+            valExpr = `String(queryParams?.\['${vField}'\] ?? '')`;
+        }
+        
+        let cond = 'true';
+        if (vOperator === '==') {
+            cond = `${valExpr} === '${vExpected.replace(/'/g, "\\'")}'`;
+        } else if (vOperator === '!=') {
+            cond = `${valExpr} !== '${vExpected.replace(/'/g, "\\'")}'`;
+        } else if (vOperator === '>') {
+            cond = `parseFloat(${valExpr}) > parseFloat('${vExpected}')`;
+        } else if (vOperator === '<') {
+            cond = `parseFloat(${valExpr}) < parseFloat('${vExpected}')`;
+        } else if (vOperator === 'contains') {
+            cond = `${valExpr}.toLowerCase().includes('${vExpected.replace(/'/g, "\\'")}'.toLowerCase())`;
+        } else if (vOperator === 'not_empty') {
+            cond = `${valExpr} !== '' && ${valExpr} !== 'undefined' && ${valExpr} !== 'null'`;
+        } else if (vOperator === 'empty') {
+            cond = `${valExpr} === '' || ${valExpr} === 'undefined' || ${valExpr} === 'null'`;
+        }
+        
+        nodeHtml = `<ng-container *ngIf="${cond}">${nodeHtml}</ng-container>`;
     }
+
+    return nodeHtml;
 };

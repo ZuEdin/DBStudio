@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { FormElement, Table } from '../../../types/index';
+import { FormElement, Table, getWidthClasses } from '../../../types/index';
 import { Plus, Search, User, Loader2 } from 'lucide-react';
 import { UserPickerModal } from '../components/UserPickerModal';
 
@@ -32,6 +32,9 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   const label = element.label || fieldName;
   const elementId = `field_${element.id}`;
 
+  const widthClass = getWidthClasses(element.width);
+  const mergedClassName = `${element.className || ''} ${widthClass}`.trim();
+
   const [showUserPicker, setShowUserPicker] = useState<boolean>(false);
   const [pickerMode, setPickerMode] = useState<'me' | 'search'>('me');
 
@@ -59,9 +62,10 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   // --- RENDER: Calculated Field ---
   if (widget === 'calculated' || element.isCalculated) {
       return (
-          <div className={element.className}>
+          <div className={mergedClassName}>
               <div className="flex justify-between items-center mb-1">
-                  <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700">{label}</label>
+                  {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700">{label}</label>}
+                  {element.hideLabel && <div className="flex-1" />}
                   <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300/50 flex items-center gap-1 font-mono">
                       ⚡ Berechnet {element.calculationFormula ? `(${element.calculationFormula})` : ''}
                   </span>
@@ -84,8 +88,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   // --- RENDER: Current User (WhoAmI) ---
   if (widget === 'current-user') {
       return (
-          <div className={element.className}>
-              <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+          <div className={mergedClassName}>
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>}
               <div className="flex gap-2">
                   <div className="relative flex-1">
                       <User className="absolute left-2 top-2 text-emerald-600" size={16} />
@@ -123,8 +127,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   // --- RENDER: AD Search ---
   if (widget === 'ad-search') {
       return (
-          <div className={element.className}>
-              <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+          <div className={mergedClassName}>
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>}
               <div className="flex gap-2">
                   <div className="relative flex-1">
                       <Search className="absolute left-2 top-2 text-blue-500" size={16} />
@@ -159,21 +163,43 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
       );
   }
 
-  if (widget === 'checkbox') {
+  if (widget === 'checkbox' || widget === 'switch') {
+      const isSwitch = widget === 'switch';
       return (
-          <div className={element.className}>
-              <div className="flex items-center gap-2 mt-6 mb-2">
-                  <input 
-                      id={elementId}
-                      type="checkbox"
-                      disabled={isReadOnly}
-                      checked={!!value}
-                      onChange={e => onChange(fieldName, e.target.checked)}
-                      onFocus={() => onFocusField && onFocusField(fieldName)}
-                      onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-                  />
-                  <label htmlFor={elementId} className="text-sm font-semibold text-slate-700 cursor-pointer">{label}</label>
+          <div className={mergedClassName}>
+              <div className={`flex items-center gap-2.5 ${element.hideLabel ? 'mt-2' : 'mt-6'} mb-2`}>
+                  {isSwitch ? (
+                      <button
+                          id={elementId}
+                          type="button"
+                          disabled={isReadOnly}
+                          onClick={() => !isReadOnly && onChange(fieldName, !value)}
+                          onFocus={() => onFocusField && onFocusField(fieldName)}
+                          className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                              value ? 'bg-indigo-600' : 'bg-slate-200'
+                          } ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                          <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  value ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                          />
+                      </button>
+                  ) : (
+                      <input 
+                          id={elementId}
+                          type="checkbox"
+                          disabled={isReadOnly}
+                          checked={!!value}
+                          onChange={e => onChange(fieldName, e.target.checked)}
+                          onFocus={() => onFocusField && onFocusField(fieldName)}
+                          onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
+                          className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300 cursor-pointer"
+                      />
+                  )}
+                  {!element.hideLabel && (
+                      <label htmlFor={elementId} className="text-sm font-semibold text-slate-700 cursor-pointer">{label}</label>
+                  )}
               </div>
           </div>
       );
@@ -182,8 +208,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   if (widget === 'select') {
       const options = element.lookup ? getLookupOptions(element.lookup) : [{ value: '', label: '(Keine Datenquelle konfiguriert)' }];
       return (
-          <div className={element.className}>
-              <label htmlFor={elementId} className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+          <div className={mergedClassName}>
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>}
               <div className="flex gap-2">
                 <select
                     id={elementId}
@@ -215,8 +241,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
 
   if (widget === 'textarea') {
        return (
-          <div className={element.className}>
-              <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
+          <div className={mergedClassName}>
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>}
               <textarea
                   id={elementId}
                   readOnly={isReadOnly}
@@ -251,8 +277,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   }
 
   return (
-      <div className={element.className}>
-          <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700 mb-1">{label}</label>
+      <div className={mergedClassName}>
+          {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700 mb-1">{label}</label>}
           <input
             id={elementId}
             type={finalType}

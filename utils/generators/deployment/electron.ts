@@ -340,11 +340,11 @@ goto MENU
 cls
 echo Installiere Electron-Dependencies...
 call npm install
-if exist ..\\\\..\\\\Frontend (
+if exist ..\\..\\Frontend (
     echo Installiere Frontend-Dependencies...
-    cd ..\\\\..\\\\Frontend
+    cd ..\\..\\Frontend
     call npm install
-    cd ..\\\\..\\\\Backend\\\\${config.projectName}
+    cd ..\\Backend\\${config.projectName}
 )
 echo.
 pause
@@ -395,7 +395,7 @@ show_menu() {
       if [ -d "../../Frontend" ]; then
         cd ../../Frontend
         npm install
-        cd "../../Backend/${config.projectName}"
+        cd "../Backend/${config.projectName}"
       fi
       ;;
     2) npm run build ;;

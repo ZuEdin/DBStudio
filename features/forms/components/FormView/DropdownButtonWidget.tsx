@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Table, FormElement, Query } from '../../../../types/index';
+import { Form, Table, FormElement, Query, getWidthClasses } from '../../../../types/index';
 import { ChevronDown, Zap } from 'lucide-react';
 import { executeMacro, getSavedMacros } from '../../../logic/MacroEngine';
 import { useProjectStore } from '../../../../stores/useProjectStore';
@@ -82,7 +82,7 @@ export const DropdownButtonWidget: React.FC<DropdownButtonWidgetProps> = ({
   const items = el.dropdownItems || [];
 
   return (
-    <div ref={dropdownRef} className="relative inline-block my-2 text-left" id={`dropdown-btn-${el.id}`}>
+    <div ref={dropdownRef} className={`relative inline-block my-2 text-left ${getWidthClasses(el.width)}`.trim()} id={`dropdown-btn-${el.id}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}

@@ -5,7 +5,16 @@ export const generateTableViewNode = (node: any, context: NodeGeneratorContext, 
     let classNameStr = node.props?.className || '';
     let styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
 
-    const suffix = node.id.replace(/-/g, '_');
+    let cleanName = 'table';
+    if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+        const tObj = context.tables.find(t => t.id === node.props.dataSourceId);
+        if (tObj) cleanName = tObj.name;
+    } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+        const qObj = context.queries.find(q => q.id === node.props.dataSourceId);
+        if (qObj) cleanName = qObj.name;
+    }
+    const shortId = node.id ? (node.id.split('-')[0] || '') : '';
+    const suffix = `${toCamelCase(cleanName)}_${shortId}`;
     const stateName = `tableData_${suffix}`;
     const loadingState = `tableLoading_${suffix}`;
     const searchState = `search_${suffix}`;

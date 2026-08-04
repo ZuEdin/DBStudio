@@ -344,11 +344,11 @@ goto MENU
 cls
 echo Installiere Tauri-Dependencies...
 call npm install
-if exist ..\\\\..\\\\Frontend (
+if exist ..\\..\\Frontend (
     echo Installiere Frontend-Dependencies...
-    cd ..\\\\..\\\\Frontend
+    cd ..\\..\\Frontend
     call npm install
-    cd ..\\\\..\\\\Backend\\\\${config.projectName}
+    cd ..\\Backend\\${config.projectName}
 )
 echo.
 echo Downloade standard Tauri-Icons...
@@ -435,7 +435,7 @@ show_menu() {
       if [ -d "../../Frontend" ]; then
         cd ../../Frontend
         npm install
-        cd "../../Backend/${config.projectName}"
+        cd "../Backend/${config.projectName}"
       fi
       mkdir -p src-tauri/icons
       echo "Downloade standard Tauri-Icons..."

@@ -1,6 +1,44 @@
 import { Table, FormElement, Form } from '../../../types/index';
 import { toCamelCase, toPascalCase } from '../common';
 
+const getBootstrapWidthClass = (width: string | undefined): string => {
+  if (!width) return '';
+  switch (width) {
+    case '1/12': return 'col-1';
+    case '1/6': return 'col-2';
+    case '1/4': return 'col-3';
+    case '1/3': return 'col-4';
+    case '5/12': return 'col-5';
+    case '1/2': return 'col-6';
+    case '7/12': return 'col-7';
+    case '2/3': return 'col-8';
+    case '3/4': return 'col-9';
+    case '5/6': return 'col-10';
+    case '11/12': return 'col-11';
+    case 'full': return 'col-12';
+    default: return '';
+  }
+};
+
+const getTailwindWidthClass = (width: string | undefined): string => {
+  if (!width) return '';
+  switch (width) {
+    case '1/12': return 'col-span-1 w-full md:w-1/12';
+    case '1/6': return 'col-span-2 w-full md:w-1/6';
+    case '1/4': return 'col-span-3 w-full md:w-1/4';
+    case '1/3': return 'col-span-4 w-full md:w-1/3';
+    case '5/12': return 'col-span-5 w-full md:w-5/12';
+    case '1/2': return 'col-span-6 w-full md:w-1/2';
+    case '7/12': return 'col-span-7 w-full md:w-7/12';
+    case '2/3': return 'col-span-8 w-full md:w-2/3';
+    case '3/4': return 'col-span-9 w-full md:w-3/4';
+    case '5/6': return 'col-span-10 w-full md:w-5/6';
+    case '11/12': return 'col-span-11 w-full md:w-11/12';
+    case 'full': return 'col-span-12 w-full';
+    default: return '';
+  }
+};
+
 export const generateHtmlForLayout = (
     element: FormElement, 
     tables: Table[], 
@@ -14,11 +52,18 @@ export const generateHtmlForLayout = (
     if (element.type === 'container') {
         const children = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap)).join('\n') || '';
         const defaultClass = isBootstrap ? 'row g-3' : 'space-y-4';
-        return `<div class="${element.className || defaultClass}">\n${children}\n</div>`;
+        const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
+        let className = element.className || defaultClass;
+        if (widthClass) {
+             className = `${className} ${widthClass}`.trim();
+        }
+        return `<div class="${className}">\n${children}\n</div>`;
     }
     if (element.type === 'label') {
         const labelClass = isBootstrap ? 'h5 mb-3 pb-2 border-bottom text-dark mt-3' : 'font-bold text-lg mb-2 text-slate-800 border-b pb-1';
-        return `<div class="${element.className || labelClass}">${element.label}</div>`;
+        const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
+        const className = `${element.className || labelClass} ${widthClass}`.trim();
+        return `<div class="${className}">${element.label}</div>`;
     }
     if (element.type === 'field' && element.fieldId) {
         let fieldName = '';
@@ -39,7 +84,10 @@ export const generateHtmlForLayout = (
         if (!fieldName) return `<!-- Field not found: ${element.label} -->`;
         
         const bindProp = toCamelCase(fieldName);
-        const wrapperClass = isBootstrap ? (element.className || 'col-12 mb-3') : (element.className || 'mb-4');
+        const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
+        const wrapperClass = isBootstrap 
+            ? `${element.className || 'mb-3'} ${widthClass}`.trim() 
+            : `${element.className || 'mb-4'} ${widthClass}`.trim();
         const labelClass = isBootstrap ? "form-label fw-bold text-secondary small" : "block text-sm font-semibold text-slate-700 mb-1";
         const inputClass = isBootstrap 
             ? "form-control" 
@@ -312,15 +360,17 @@ export const generateHtmlForLayout = (
                 }
             }
         }
+        const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
         const btnClass = isBootstrap 
-            ? (element.className || 'btn btn-primary my-2') 
-            : (element.className || 'px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition my-2 font-bold cursor-pointer');
+            ? `${element.className || 'btn btn-primary my-2'} ${widthClass}`.trim() 
+            : `${element.className || 'px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition my-2 font-bold cursor-pointer'} ${widthClass}`.trim();
         return `<button type="button" ${clickHandler} class="${btnClass}">${element.label || 'Aktion'}</button>`;
     }
 
     if (element.type === 'dropdown_button') {
         const items = element.dropdownItems || [];
         let itemsHtml = '';
+        const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
         if (isBootstrap) {
             itemsHtml = items.map(item => `
                 <li>
@@ -330,7 +380,7 @@ export const generateHtmlForLayout = (
                     </button>
                 </li>`).join('\n');
             return `
-            <div class="dropdown d-inline-block my-2">
+            <div class="dropdown d-inline-block my-2 ${widthClass}">
                 <button class="btn btn-secondary dropdown-toggle" type="button" (click)="dropdowns['${element.id}'] = !dropdowns['${element.id}']">
                     ${element.label || 'Aktionen'}
                 </button>
@@ -345,7 +395,7 @@ export const generateHtmlForLayout = (
                     <span>${item.label}</span>
                 </button>`).join('\n');
             return `
-            <div class="relative inline-block text-left my-2">
+            <div class="relative inline-block text-left my-2 ${widthClass}">
                 <button type="button" (click)="dropdowns['${element.id}'] = !dropdowns['${element.id}']" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg shadow transition-colors cursor-pointer">
                     <span>${element.label || 'Aktionen'}</span>
                     <i class="fas fa-chevron-down text-xs transition-transform duration-200" [class.rotate-180]="dropdowns['${element.id}']"></i>
@@ -367,6 +417,7 @@ export const generateHtmlForLayout = (
             const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms, "tempSubData", queries, isBootstrap) : '<p>Leer</p>';
             const subTableCamel = toCamelCase(subTable.name);
             const listVariable = `${subTableCamel}SubList_${element.id.substring(0,8)}`;
+            const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
 
             if (isBootstrap) {
                 const subModal = `
@@ -390,7 +441,7 @@ export const generateHtmlForLayout = (
                 </div>`;
 
                 return `
-                <div class="card mt-4 shadow-sm">
+                <div class="card mt-4 shadow-sm ${widthClass}">
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
                         <h5 class="card-title h6 mb-0 text-dark">📄 ${element.label || subFormDef?.name}</h5>
                         <div *ngIf="!isNew">
@@ -430,7 +481,7 @@ export const generateHtmlForLayout = (
                 </div>`;
 
                 return `
-                <div class="${element.className || 'border border-slate-300 rounded-lg overflow-hidden mt-6 shadow-sm'}">
+                <div class="${element.className || 'border border-slate-300 rounded-lg overflow-hidden mt-6 shadow-sm'} ${widthClass}">
                     <div class="bg-slate-100 p-3 flex justify-between items-center border-b border-slate-200">
                         <h4 class="font-bold text-sm text-slate-700 flex items-center gap-2">📄 ${element.label || subFormDef?.name}</h4>
                         <div *ngIf="!isNew">

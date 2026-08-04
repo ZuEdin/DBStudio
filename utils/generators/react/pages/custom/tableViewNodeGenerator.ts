@@ -5,7 +5,16 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
   const classNameStr = node.props?.className || '';
   const styleStr = JSON.stringify(node.props?.style || {});
   
-  const idSuffix = node.id.replace(/-/g, '_');
+  let cleanName = 'table';
+  if (node.props?.dataSourceType === 'table' && node.props?.dataSourceId) {
+      const tObj = ctx.tables.find(t => t.id === node.props.dataSourceId);
+      if (tObj) cleanName = tObj.name;
+  } else if (node.props?.dataSourceType === 'query' && node.props?.dataSourceId) {
+      const qObj = ctx.queries.find(q => q.id === node.props.dataSourceId);
+      if (qObj) cleanName = qObj.name;
+  }
+  const shortId = node.id ? (node.id.split('-')[0] || '') : '';
+  const idSuffix = `${toCamelCase(cleanName)}_${shortId}`;
   const stateName = `tableData_${idSuffix}`;
   const loadingState = `tableLoading_${idSuffix}`;
   const searchState = `tableSearch_${idSuffix}`;
@@ -155,7 +164,7 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
   let dblclickActionCode = '';
 
   if (detailsPageRoute) {
-      const code = `navigate(\`${detailsPageRoute}?\${paramKey}=\${idVal}\`);`;
+      const code = `navigate(\`${detailsPageRoute}?${paramKey}=\${idVal}\`);`;
       if (clickTrigger === 'click') clickActionCode = code;
       if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
   } else if (formRoute) {
@@ -271,7 +280,7 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
   }
 
   const totalItems = `${processedName}.length`;
-  const totalPages = `Math.ceil(${totalItems} / 10) || 1`;
+  const totalPages = `Math.max(1, Math.ceil(${totalItems} / 10))`;
   const startIndex = `(${pageState} - 1) * 10`;
   const endIndex = `Math.min(${startIndex} + 10, ${totalItems})`;
   
