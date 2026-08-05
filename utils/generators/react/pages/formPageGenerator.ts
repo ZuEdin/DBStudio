@@ -6,7 +6,7 @@ export const generateFormPage = (table: Table, root: string): VirtualFile => {
   const camelName = toCamelCase(table.name);
   const formCompName = `${pascalName}Form`;
 
-  const formFieldsJsx = table.fields.filter(f => !f.isPrimaryKey && !f.isAutoIncrement).map(f => {
+  const formFieldsJsx = table.fields.filter(f => !f.isAutoIncrement).map(f => {
       const fCamel = toCamelCase(f.name);
       const label = f.comment || f.name;
       let inputJsx = '';
@@ -114,6 +114,38 @@ export const generateFormPage = (table: Table, root: string): VirtualFile => {
       }
   });
 
+  const calculatedFields: { fieldName: string; formula: string }[] = [];
+  table.fields.forEach(f => {
+      if (f.isCalculated || f.calculationFormula) {
+          calculatedFields.push({ fieldName: toCamelCase(f.name), formula: f.calculationFormula || '' });
+      }
+  });
+
+  const recalculateCode = `const recalculateCalculatedFields = (record: Record<string, any>): Record<string, any> => {
+    const updatedRecord = { ...record };
+    const calcFields = ${JSON.stringify(calculatedFields)};
+    let changed = true;
+    let passes = 0;
+    while (changed && passes < 5) {
+        changed = false;
+        passes++;
+        for (const cf of calcFields) {
+            if (cf.formula) {
+                const fieldMap: Record<string, string> = {};
+                ${JSON.stringify(table.fields.map(f => ({ name: f.name, camel: toCamelCase(f.name) })))}.forEach(m => {
+                    fieldMap[m.name] = m.camel;
+                });
+                const calculatedVal = evaluateFormFormula(cf.formula, updatedRecord, fieldMap);
+                if (updatedRecord[cf.fieldName] !== calculatedVal) {
+                    updatedRecord[cf.fieldName] = calculatedVal;
+                    changed = true;
+                }
+            }
+        }
+    }
+    return updatedRecord;
+  };`;
+
   const initialDataObjStr = defaultFields.length > 0 ? `{\n      ${defaultFields.join(',\n      ')}\n    }` : '{}';
   const payloadSetupsCode = payloadSetups.length > 0 ? `const payload = { ...data };\n    ${payloadSetups.join('\n    ')}` : 'const payload = { ...data };';
 
@@ -121,12 +153,23 @@ export const generateFormPage = (table: Table, root: string): VirtualFile => {
 import { useNavigate, useParams } from 'react-router-dom';
 import { get, post, put } from '../../services/api';
 import { Save, ArrowLeft, Loader2 } from 'lucide-react';
+import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
 export const ${formCompName} = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [data, setData] = useState<any>({});
+  const [data, setRawData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+
+  ${recalculateCode}
+
+  const setData = (newDataOrFn: any) => {
+    setRawData(prev => {
+        const next = typeof newDataOrFn === 'function' ? newDataOrFn(prev) : newDataOrFn;
+        return recalculateCalculatedFields(next);
+    });
+  };
+
 
   const getLoggedInUser = () => {
       try {

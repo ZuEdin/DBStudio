@@ -124,6 +124,7 @@ export const generateTableComponents = (
       const pkCamel = toCamelCase(pkField);
 
       let lookupMethodsCode = '';
+      let calculatedFields: { fieldName: string; formula: string }[] = [];
       let onFieldChangeCode = `  onFieldChange(fieldName: string, value: any) {
     (this.data as any)[fieldName] = value;
   }`;
@@ -561,11 +562,65 @@ ${checkCondition}    const params: Record<string, any> = {};
 
           listFetches = lookups.map((l: any) => `    this.loadLookup_${toCamelCase(l.name)}();`).join('\n');
 
+          calculatedFields.length = 0;
+          table.fields.forEach(f => {
+              if (f.isCalculated || f.calculationFormula) {
+                  calculatedFields.push({ fieldName: toCamelCase(f.name), formula: f.calculationFormula || '' });
+              }
+          });
+          if (linkedForm && linkedForm.layout) {
+              const walk = (el: any) => {
+                  if (!el) return;
+                  if ((el.widgetType === 'calculated' || el.isCalculated) && el.calculationFormula && el.fieldId) {
+                      const field = table.fields.find(f => f.id === el.fieldId);
+                      if (field) {
+                          const camelName = toCamelCase(field.name);
+                          if (!calculatedFields.some(cf => cf.fieldName === camelName)) {
+                              calculatedFields.push({ fieldName: camelName, formula: el.calculationFormula });
+                          }
+                      }
+                  }
+                  if (Array.isArray(el.children)) {
+                      el.children.forEach(walk);
+                  }
+              };
+              walk(linkedForm.layout);
+          }
+
+          let recalculateMethod = '';
+          if (calculatedFields.length > 0) {
+              recalculateMethod = `  recalculateCalculatedFields() {
+    const calcFields = ${JSON.stringify(calculatedFields)};
+    let changed = true;
+    let passes = 0;
+    while (changed && passes < 5) {
+        changed = false;
+        passes++;
+        for (const cf of calcFields) {
+            if (cf.formula) {
+                const fieldMap: Record<string, string> = {};
+                ${JSON.stringify(table.fields.map(f => ({ name: f.name, camel: toCamelCase(f.name) })))}.forEach(m => {
+                    fieldMap[m.name] = m.camel;
+                });
+                const calculatedVal = evaluateFormFormula(cf.formula, this.data, fieldMap);
+                if ((this.data as any)[cf.fieldName] !== calculatedVal) {
+                    (this.data as any)[cf.fieldName] = calculatedVal;
+                    changed = true;
+                }
+            }
+        }
+    }
+  }`;
+          }
+
           onFieldChangeCode = `  onFieldChange(fieldName: string, value: any) {
     (this.data as any)[fieldName] = value;
+    ${calculatedFields.length > 0 ? 'this.recalculateCalculatedFields();' : ''}
     // Reload query-based lookups to handle cascading changes
     ${lookups.filter((l: any) => l.isQuery).map((l: any) => `this.loadLookup_${toCamelCase(l.name)}();`).join('\n    ')}
-  }`;
+  }
+
+${recalculateMethod}`;
           
           const subforms = collectAngularSubforms(linkedForm.layout, tables, forms);
           subformDeclarations = subforms.map(s => `  public ${toCamelCase(s.tableName)}SubList_${s.id.substring(0,8)}: any[] = [];`).join('\n');
@@ -574,28 +629,81 @@ ${checkCondition}    const params: Record<string, any> = {};
               const tName = toCamelCase(s.tableName);
               const fName = toCamelCase(s.childField);
               const listVar = `${tName}SubList_${s.id.substring(0,8)}`;
-              return `    if(id && id!=='new') this.api.getAll('${tPascal}', 1, 10000).subscribe((res: any) => this.${listVar} = (res.data || res).filter((x:any) => String(x.${fName}) == String(id)));`;
+              return `    if(id && id!=='new') this.api.getAll('${tPascal}', 1, 10000).subscribe((res: any) => {
+      const allItems = res.data || res;
+      this.${listVar} = allItems.filter((x:any) => String(x.${fName}) === String(id) || String(x['${s.childField}']) === String(id));
+    });`;
           }).join('\n');
           
           subformSaveLogic = `
-  saveSubform(table: string, childField: string, modalId: string) {
+  editingSubformId: any = null;
+
+  openAddSubformModal(modalId: string) {
+      this.editingSubformId = null;
+      this.tempSubData = {};
+      this.openModal(modalId);
+  }
+
+  editSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
+      this.editingSubformId = item.id || item.Id;
+      this.tempSubData = { ...item };
+      this.openModal(modalId);
+  }
+
+  deleteSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
+      if(!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
+      const itemId = item.id || item.Id;
+      this.api.delete(table, itemId).subscribe(() => {
+          const parentId = this.route.snapshot.paramMap.get('id');
+          this.refreshSubformList(table, childFieldId, modalId, parentId);
+      });
+  }
+
+  saveSubform(table: string, childFieldId: string, modalId: string) {
       const parentId = this.route.snapshot.paramMap.get('id');
       if(!parentId || parentId === 'new') { alert('Bitte erst Hauptdatensatz speichern, bevor Sie Details hinzufügen.'); return; }
       
-      const childProp = childField.charAt(0).toLowerCase() + childField.slice(1);
-      this.tempSubData[childProp] = parentId; 
+      const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
+      const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+      const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
       
-      this.api.create(table, this.tempSubData).subscribe(() => {
-          this.closeModal(modalId);
-          this.api.getAll(table, 1, 10000).subscribe((res: any) => {
-              const listKeyPrefix = table + 'SubList_';
-              const modalHash = modalId.replace('sub_','').substring(0,8);
-              const targetKey = Object.keys(this).find(k => k.startsWith(listKeyPrefix) && k.includes(modalHash));
-              if(targetKey) {
-                  const allItems = res.data || res;
-                  (this as any)[targetKey] = allItems.filter((x:any) => String(x[childProp]) == String(parentId));
-              }
+      let parsedParentId: any = parentId;
+      if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
+          const num = Number(parentId);
+          if (!isNaN(num)) parsedParentId = num;
+      }
+      this.tempSubData[childProp] = parsedParentId;
+      if (childFieldObj && childFieldObj.name) {
+          this.tempSubData[childFieldObj.name] = parsedParentId;
+      }
+      
+      if (this.editingSubformId) {
+          this.api.update(table, this.editingSubformId, this.tempSubData).subscribe(() => {
+              this.editingSubformId = null;
+              this.closeModal(modalId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId);
           });
+      } else {
+          this.api.create(table, this.tempSubData).subscribe(() => {
+              this.closeModal(modalId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId);
+          });
+      }
+  }
+
+  refreshSubformList(table: string, childFieldId: string, modalId: string, parentId: any) {
+      this.api.getAll(table, 1, 10000).subscribe((res: any) => {
+          const listKeyPrefix = table + 'SubList_';
+          const modalHash = modalId.replace('sub_','').substring(0,8);
+          const targetKey = Object.keys(this).find(k => k.startsWith(listKeyPrefix) && k.includes(modalHash));
+          if(targetKey) {
+              const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
+              const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+              const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
+              const originalName = childFieldObj ? childFieldObj.name : childProp;
+              const allItems = res.data || res;
+              (this as any)[targetKey] = allItems.filter((x:any) => String(x[childProp]) === String(parentId) || String(x[originalName]) === String(parentId));
+          }
       });
   }`;
 
@@ -787,6 +895,7 @@ import { ApiService } from '../../services/api.service';
 import { MacroService } from '../../services/macro.service';
 import { UserPickerComponent } from '../../components/user-picker/user-picker.component';
 import { ${interfaceName} } from '../../models/${interfaceName.toLowerCase()}.interface';
+import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
 @Component({
   selector: 'app-${kebabName}-form',
@@ -808,6 +917,8 @@ export class ${pascalName}FormComponent implements OnInit {
   userPickerOpen = false;
   userPickerMode: 'me' | 'search' = 'me';
   userPickerTargetField = '';
+
+  private allTables: any[] = ${JSON.stringify(tables.map(t => ({ name: t.name, camelName: toCamelCase(t.name), fields: t.fields.map(f => ({ id: f.id, name: f.name, camelName: toCamelCase(f.name), type: f.type })) })))};
 
 ${listDeclarations}
 ${subformDeclarations}
@@ -867,10 +978,12 @@ ${subformDeclarations}
               }`).join('\n              ')}
               // Reload query-based lookups now that data has been loaded asynchronously
               ${lookups.filter((l: any) => l.isQuery).map((l: any) => `this.loadLookup_${toCamelCase(l.name)}();`).join('\n              ')}
+              ${calculatedFields.length > 0 ? 'this.recalculateCalculatedFields();' : ''}
           });
           ${subformLoads}
       } else {
           this.data = ${initObject} as unknown as ${interfaceName};
+          ${calculatedFields.length > 0 ? 'this.recalculateCalculatedFields();' : ''}
       }
 ${listFetches}
   }

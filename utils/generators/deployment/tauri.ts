@@ -204,11 +204,17 @@ try {
   }
   
   if (fs.existsSync(frontendDir)) {
-    console.log('[Tauri Build] Running npm install in ' + frontendDir + '...');
-    try {
-      execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });
-    } catch (e) {
-      console.log('[Tauri Build] npm install warning (continuing):', e.message);
+    const hasLocalModules = fs.existsSync(path.join(frontendDir, 'node_modules'));
+    const hasParentModules = fs.existsSync(path.join(frontendDir, '..', 'node_modules')) || fs.existsSync(path.join(__dirname, '..', 'node_modules')) || fs.existsSync(path.join(__dirname, 'node_modules'));
+    if (!hasLocalModules && !hasParentModules) {
+      console.log('[Tauri Build] Running npm install in ' + frontendDir + '...');
+      try {
+        execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });
+      } catch (e) {
+        console.log('[Tauri Build] npm install warning (continuing):', e.message);
+      }
+    } else {
+      console.log('[Tauri Build] node_modules folder detected, skipping npm install...');
     }
     console.log('[Tauri Build] Running npm run build in ' + frontendDir + '...');
     execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });

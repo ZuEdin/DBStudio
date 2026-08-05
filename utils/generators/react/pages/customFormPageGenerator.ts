@@ -1,5 +1,5 @@
 import { Table, Form, Query, VirtualFile } from '../../../../types/index';
-import { toCamelCase, toPascalCase } from '../../common';
+import { toCamelCase, toPascalCase, toSubformSuffix } from '../../common';
 import { collectLookups, generateJsxForLayout } from '../layoutHelper';
 
 const getFormParametersFromQuery = (query: any): { formName: string; fieldName: string; paramName: string }[] => {
@@ -28,7 +28,8 @@ export const generateCustomFormPage = (
   form: Form,
   tables: Table[],
   queries: Query[],
-  root: string
+  root: string,
+  forms: Form[] = []
 ): VirtualFile | null => {
   const compName = `${toPascalCase(form.name)}Form`;
   const sourceTable = tables.find(t => t.id === form.sourceId);
@@ -37,25 +38,48 @@ export const generateCustomFormPage = (
   const sourceTablePascal = toPascalCase(sourceTable.name);
   const lookups = form.layout ? collectLookups(form.layout, tables, queries) : [];
   const requiredModals: any[] = [];
-  const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables, [form], "data", requiredModals, queries) : '<div>Kein Layout definiert.</div>';
+  const layoutJsx = form.layout ? generateJsxForLayout(form.layout, tables, forms.length > 0 ? forms : [form], "data", requiredModals, queries) : '<div>Kein Layout definiert.</div>';
   
   const subformStateDecls = requiredModals.filter(m => m.type === 'subform').map(m => {
         const camelChild = toCamelCase(m.table.name);
-        const varName = `${camelChild}SubList_${m.id.replace('sub_field_', '')}`;
-        return `const [${varName}, set${toPascalCase(varName)}] = useState<any[]>([]);`;
+        const suffix = toSubformSuffix(m.id);
+        const listVar = `${camelChild}SubList_${suffix}`;
+        const childTableCamel = toCamelCase(m.table.name);
+
+        return `const [${listVar}, set${toPascalCase(listVar)}] = useState<any[]>([]);
+  const [${listVar}_editingId, set${toPascalCase(listVar)}_editingId] = useState<any>(null);
+  const [${listVar}_subData, set${toPascalCase(listVar)}_subData] = useState<any>({});
+
+  const editSubformItem_${suffix} = (item: any) => {
+      set${toPascalCase(listVar)}_editingId(item.id || item.Id);
+      set${toPascalCase(listVar)}_subData({ ...item });
+      toggleModal('${m.id}', true);
+  };
+
+  const deleteSubformItem_${suffix} = async (item: any) => {
+      if (!window.confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
+      const itemId = item.id || item.Id;
+      try {
+          await del('${childTableCamel}', itemId);
+          set${toPascalCase(listVar)}(prev => prev.filter(x => (x.id || x.Id) !== itemId));
+      } catch (err) {
+          alert('Fehler beim Löschen');
+      }
+  };`;
     }).join('\n  ');
 
   const subformLoadLogic = requiredModals.filter(m => m.type === 'subform').map(m => {
         const childTablePascal = toPascalCase(m.table.name);
         const childTableCamel = toCamelCase(m.table.name);
         const childField = m.table.fields.find(f => f.id === m.childField)?.name;
-        const varName = `${childTableCamel}SubList_${m.id.replace('sub_field_', '')}`;
+        const suffix = toSubformSuffix(m.id);
+        const varName = `${childTableCamel}SubList_${suffix}`;
         return `if(id && id!=='new') { const subRes = await get('${childTablePascal}', { pageSize: 10000 }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
     }).join('\n        ');
 
   const modalJsx = requiredModals.map(m => {
       if (m.type === 'lookup') {
-          const fields = m.table.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement).map((f: any) => {
+          const fields = m.table.fields.filter((f: any) => !f.isAutoIncrement).map((f: any) => {
               const label = f.name;
               const name = toCamelCase(f.name);
               let input = `<input name="${name}" className="w-full border p-2 rounded" />`;
@@ -70,10 +94,25 @@ export const generateCustomFormPage = (
           return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Neu: ${m.table.name}"><form onSubmit={async (e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); const payload: any = {}; formData.forEach((value, key) => { if(value==='true') payload[key]=true; else if(value==='false') payload[key]=false; else payload[key]=value; }); try { await post('${toCamelCase(m.table.name)}', payload); const res = await get('${toCamelCase(m.table.name)}', { pageSize: 10000 }); set${toPascalCase(toCamelCase(m.table.name))}List(res.data || res); toggleModal('${m.id}', false); } catch (err) { alert('Fehler'); } }}><div className="space-y-2">${fields}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => toggleModal('${m.id}', false)} className="px-4 py-2 border rounded">Abbrechen</button><button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700">Speichern</button></div></form></Modal>`;
       }
       if (m.type === 'subform') {
-          const subLayout = m.form.layout ? generateJsxForLayout(m.form.layout, tables, [m.form], "subData", [], queries) : '<div>Formular leer</div>';
+          const childTablePascal = toPascalCase(m.table.name);
           const childTableCamel = toCamelCase(m.table.name);
-          const childField = m.table.fields.find(f => f.id === m.childField)?.name;
-          return `<Modal isOpen={modals['${m.id}']} onClose={() => toggleModal('${m.id}', false)} title="Eintrag hinzufügen: ${m.form.name}"><SubFormWrapper onSave={async (subData) => { if(id && id!=='new') { subData.${toCamelCase(childField || '')} = id; await post('${childTableCamel}', subData); const subRes = await get('${childTableCamel}', { search: '', pageSize: 10000 }); set${toPascalCase(toCamelCase(m.table.name))}SubList_${m.id.replace('sub_field_', '')}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField || '')}) === String(id))); } else { alert('Bitte erst Hauptdatensatz speichern.'); } toggleModal('${m.id}', false); }}>{${subLayout}}</SubFormWrapper></Modal>`;
+          const childFieldObj = m.table.fields.find(f => f.id === m.childField);
+          const childFieldName = childFieldObj ? toCamelCase(childFieldObj.name) : 'id';
+          const suffix = toSubformSuffix(m.id);
+          const listVar = `${childTableCamel}SubList_${suffix}`;
+
+          const fieldsJsx = m.table.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement).map((f: any) => {
+              const label = f.name;
+              const name = toCamelCase(f.name);
+              if (name === childFieldName) return '';
+              let input = `<input value={${listVar}_subData['${name}'] || ''} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.value }))} className="w-full border p-2 rounded text-sm" />`;
+              if (f.type === 'BOOLEAN') input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" checked={!!${listVar}_subData['${name}']} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.checked }))} className="w-4 h-4" /> <span className="text-sm">Aktivieren</span></div>`;
+              else if (f.type === 'INTEGER' || f.type === 'DECIMAL') input = `<input type="number" value={${listVar}_subData['${name}'] ?? ''} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.value === '' ? '' : Number(e.target.value) }))} className="w-full border p-2 rounded text-sm" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
+              else if (f.type === 'DATE') input = `<input type="date" value={${listVar}_subData['${name}'] || ''} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.value }))} className="w-full border p-2 rounded text-sm" />`;
+              return `<div className="mb-3"><label className="block text-xs font-bold mb-1 text-slate-700">${label}</label>${input}</div>`;
+          }).join('');
+
+          return `<Modal isOpen={modals['${m.id}']} onClose={() => { toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); }} title={${listVar}_editingId ? "Eintrag bearbeiten" : "Eintrag hinzufügen"}><form onSubmit={async (e) => { e.preventDefault(); if (!id || id === 'new') { alert('Bitte erst Hauptdatensatz speichern.'); return; } const payload = { ...${listVar}_subData, ${childFieldName}: id }; try { if (${listVar}_editingId) { await put('${childTableCamel}', ${listVar}_editingId, payload); } else { await post('${childTableCamel}', payload); } const subRes = await get('${childTablePascal}', { search: '', pageSize: 10000 }); set${toPascalCase(listVar)}((subRes.data||subRes).filter((x:any) => String(x.${childFieldName}) === String(id))); toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); } catch (err) { alert('Fehler beim Speichern'); } }}><div className="space-y-2">${fieldsJsx}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => { toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); }} className="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm">Abbrechen</button><button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 text-sm">Speichern</button></div></form></Modal>`;
       }
       if (m.type === 'user-picker') {
           return `<UserPickerModal isOpen={modals['${m.id}']} initialTab="${m.mode}" onSelect={(username, displayName) => { setData(prev => ({ ...prev, ${m.targetField}: username })); toggleModal('${m.id}', false); }} onClose={() => toggleModal('${m.id}', false)} />`;
@@ -123,6 +162,55 @@ export const generateCustomFormPage = (
   const initialDataObjStr = defaultFields.length > 0 ? `{\n      ${defaultFields.join(',\n      ')}\n    }` : '{}';
   const payloadSetupsCode = payloadSetups.length > 0 ? `const payload = { ...data };\n    ${payloadSetups.join('\n    ')}` : 'const payload = { ...data };';
 
+  const calculatedFields: { fieldName: string; formula: string }[] = [];
+  sourceTable.fields.forEach(f => {
+      if (f.isCalculated || f.calculationFormula) {
+          calculatedFields.push({ fieldName: toCamelCase(f.name), formula: f.calculationFormula || '' });
+      }
+  });
+
+  const walk = (el: any) => {
+      if (!el) return;
+      if ((el.widgetType === 'calculated' || el.isCalculated) && el.calculationFormula && el.fieldId) {
+          const field = sourceTable.fields.find(f => f.id === el.fieldId);
+          if (field) {
+              const camelName = toCamelCase(field.name);
+              if (!calculatedFields.some(cf => cf.fieldName === camelName)) {
+                  calculatedFields.push({ fieldName: camelName, formula: el.calculationFormula });
+              }
+          }
+      }
+      if (Array.isArray(el.children)) {
+          el.children.forEach(walk);
+      }
+  };
+  if (form.layout) walk(form.layout);
+
+  const recalculateCode = `const recalculateCalculatedFields = (record: Record<string, any>): Record<string, any> => {
+    const updatedRecord = { ...record };
+    const calcFields = ${JSON.stringify(calculatedFields)};
+    let changed = true;
+    let passes = 0;
+    while (changed && passes < 5) {
+        changed = false;
+        passes++;
+        for (const cf of calcFields) {
+            if (cf.formula) {
+                const fieldMap: Record<string, string> = {};
+                ${JSON.stringify(sourceTable.fields.map(f => ({ name: f.name, camel: toCamelCase(f.name) })))}.forEach(m => {
+                    fieldMap[m.name] = m.camel;
+                });
+                const calculatedVal = evaluateFormFormula(cf.formula, updatedRecord, fieldMap);
+                if (updatedRecord[cf.fieldName] !== calculatedVal) {
+                    updatedRecord[cf.fieldName] = calculatedVal;
+                    changed = true;
+                }
+            }
+        }
+    }
+    return updatedRecord;
+  };`;
+
   const queryBasedEffectsCode = lookups.filter(l => l.isQuery).map(l => {
       const queryParams = getFormParametersFromQuery(l.table);
       const formName = form.name.toLowerCase();
@@ -159,11 +247,12 @@ export const generateCustomFormPage = (
 
   const content = `import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { get, post, put } from '../../services/api';
+import { get, post, put, del } from '../../services/api';
 import { Save, ArrowLeft, Loader2, Plus, Layout, User, Search, ChevronDown } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { UserPickerModal } from '../../components/UserPickerModal';
 import { useGlobalState } from '../../context/GlobalStateContext';
+import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
 const SubFormWrapper = ({ children, onSave }: any) => {
     const [subData, setData] = useState<any>({});
@@ -173,8 +262,18 @@ const SubFormWrapper = ({ children, onSave }: any) => {
 
 export const ${compName} = () => {
   const { id } = useParams(); const navigate = useNavigate();
-  const [data, setData] = useState<any>({});
+  const [data, setRawData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+
+  ${recalculateCode}
+
+  const setData = (newDataOrFn: any) => {
+    setRawData(prev => {
+        const next = typeof newDataOrFn === 'function' ? newDataOrFn(prev) : newDataOrFn;
+        return recalculateCalculatedFields(next);
+    });
+  };
+
   const [modals, setModals] = useState<Record<string, boolean>>({});
   const { states, setGlobalState, addToast, executeMacro = (macroId: string) => console.log('Macro executed:', macroId) } = useGlobalState() || { states: {}, setGlobalState: () => {}, addToast: () => {}, executeMacro: () => {} };
   

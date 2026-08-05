@@ -235,9 +235,15 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
       const childLinkField = subTable.fields.find((f) => f.id === el.subform!.childLinkFieldId);
       if (masterLinkField && childLinkField) {
         const linkValue = currentRecord[masterLinkField.name];
-        subformData = (subTable.data || []).filter((row) => row[childLinkField.name] == linkValue);
+        subformData = (subTable.data || []).filter(
+          (row) => linkValue !== undefined && linkValue !== null && linkValue !== '' && String(row[childLinkField.name]) === String(linkValue)
+        );
       }
     }
+
+    const canAdd = el.subform.canAdd !== false;
+    const canEdit = el.subform.canEdit !== false;
+    const canDelete = el.subform.canDelete !== false;
 
     const handleOpenSubformModalLocal = () => {
       if (!sourceTable || !currentRecord) return;
@@ -265,7 +271,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
           <span className="font-bold text-sm text-slate-700 flex items-center gap-2">
             <Layout size={14} /> {el.label || subDef.name} ({subformData.length})
           </span>
-          {!isReadOnly && el.subform.canAdd && (
+          {!isReadOnly && canAdd && (
             <button
               onClick={handleOpenSubformModalLocal}
               className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 rounded px-2 py-1 text-xs font-semibold flex items-center gap-1 shadow-sm transition-colors"
@@ -288,11 +294,12 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
               filteredData={subformData}
               parentRecord={currentRecord}
               linkConfig={{ masterFieldId: el.subform!.masterLinkFieldId, childFieldId: el.subform!.childLinkFieldId }}
+              subformPermissions={{ canAdd, canEdit, canDelete }}
             />
           ) : (
             <div className="p-6 text-center">
               <p className="text-slate-400 text-sm mb-3">Keine Einträge vorhanden.</p>
-              {!isReadOnly && el.subform.canAdd && (
+              {!isReadOnly && canAdd && (
                 <button
                   onClick={handleOpenSubformModalLocal}
                   className="bg-blue-50 text-blue-600 px-4 py-2 rounded text-sm font-medium hover:bg-blue-100 transition-colors mx-auto flex items-center gap-2"

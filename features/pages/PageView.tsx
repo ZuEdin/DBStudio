@@ -253,7 +253,7 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
                                allTables={tables}
                                onTableChange={handleTableChange}
                                showConfirmation={(t, m, c) => handleShowConfirm(t, m, c)}
-                               isSubform={activeFormModal.mode === 'edit'}
+                               isSubform={false}
                                filteredData={modalFilteredData}
                                defaultValues={{
                                    ...Object.keys(pageParams).reduce((acc, key) => {

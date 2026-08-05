@@ -54,7 +54,8 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
     const fetchTableData = async () => {
       try {
         set_${loadingState}(true);
-        const res = await get<any>('${fetchUrl}', { pageSize: 10 });
+        const params = Object.fromEntries(searchParams.entries());
+        const res = await get<any>('${fetchUrl}', { pageSize: 10, ...params });
         const items = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
         set_${stateName}(items);
       } catch (err) {
@@ -64,7 +65,7 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
       }
     };
     fetchTableData();
-  }, []);`);
+  }, [searchParams]);`);
   }
   
   const columnsStr = node.props?.columns || '';

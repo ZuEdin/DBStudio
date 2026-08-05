@@ -139,38 +139,6 @@ export const generateSidebar = (
       }
   } else {
       sidebarMainContent = `
-            {/* Tables */}
-            <div>
-                <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Daten</div>
-                <div className="space-y-1">
-                ${tables.map(t => {
-                    const isSystem = t.name.startsWith('sys_');
-                    const cond = isSystem && useAuth ? `{user?.role === 'Admin' && (` : ``;
-                    const closeCond = isSystem && useAuth ? `)}` : ``;
-                    return `${cond}
-                    <Link to="/${toCamelCase(t.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
-                        ${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} ${t.name}
-                    </Link>${closeCond}`;
-                }).join('\n')}
-                </div>
-            </div>
-            
-            {/* Queries */}
-            ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').length > 0 ? `
-            <div>
-                <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Abfragen</div>
-                <div className="space-y-1">
-                ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').map(q => {
-                    const iconName = q.type === 'UPDATE' ? 'RefreshCw' : 'Search';
-                    return `
-                    <Link to="/queries/${toCamelCase(q.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
-                        <${iconName} size={16}/> ${q.name}
-                    </Link>`;
-                }).join('\n')}
-                </div>
-            </div>
-            ` : ''}
-
             {/* Forms */}
             ${forms.length > 0 ? `
             <div>
@@ -183,6 +151,19 @@ export const generateSidebar = (
                         <Layout size={16}/> ${f.name}
                     </Link>`;
                 }).join('\n')}
+                </div>
+            </div>
+            ` : ''}
+
+            {/* Custom Pages */}
+            ${pages.filter(p => !p.isSubpage).length > 0 ? `
+            <div>
+                <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Eigene Seiten</div>
+                <div className="space-y-1">
+                ${pages.filter(p => !p.isSubpage).map(p => `
+                    <Link to="/custom/${toCamelCase(p.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/custom/${toCamelCase(p.name)}')}\`}>
+                        <Layout size={16}/> ${p.name}
+                    </Link>`).join('\n')}
                 </div>
             </div>
             ` : ''}
@@ -200,16 +181,55 @@ export const generateSidebar = (
             </div>
             ` : ''}
 
-            {/* Custom Pages */}
-            ${pages.filter(p => !p.isSubpage).length > 0 ? `
+            {/* Tables */}
+            ${tables.length > 0 ? `
             <div>
-                <div className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Eigene Seiten</div>
-                <div className="space-y-1">
-                ${pages.filter(p => !p.isSubpage).map(p => `
-                    <Link to="/custom/${toCamelCase(p.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/custom/${toCamelCase(p.name)}')}\`}>
-                        <Layout size={16}/> ${p.name}
-                    </Link>`).join('\n')}
-                </div>
+                <button 
+                    type="button" 
+                    onClick={() => setTablesOpen(!tablesOpen)} 
+                    className="w-full px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between hover:text-white transition"
+                >
+                    <span className="flex items-center gap-2"><Table size={14}/> Tabellen (${tables.length})</span>
+                    {tablesOpen ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                </button>
+                {tablesOpen && (
+                    <div className="space-y-1 pl-2 border-l border-slate-700/50 ml-3">
+                    ${tables.map(t => {
+                        const isSystem = t.name.startsWith('sys_');
+                        const cond = isSystem && useAuth ? `{user?.role === 'Admin' && (` : ``;
+                        const closeCond = isSystem && useAuth ? `)}` : ``;
+                        return `${cond}
+                        <Link to="/${toCamelCase(t.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/${toCamelCase(t.name)}')}\`}>
+                            ${isSystem ? '<Shield size={16}/>' : '<Table size={16}/>'} ${t.name}
+                        </Link>${closeCond}`;
+                    }).join('\n')}
+                    </div>
+                )}
+            </div>
+            ` : ''}
+            
+            {/* Queries */}
+            ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').length > 0 ? `
+            <div>
+                <button 
+                    type="button" 
+                    onClick={() => setQueriesOpen(!queriesOpen)} 
+                    className="w-full px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between hover:text-white transition"
+                >
+                    <span className="flex items-center gap-2"><Search size={14}/> Abfragen (${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').length})</span>
+                    {queriesOpen ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                </button>
+                {queriesOpen && (
+                    <div className="space-y-1 pl-2 border-l border-slate-700/50 ml-3">
+                    ${queries.filter(q => q.type === 'SELECT' || q.type === 'UPDATE').map(q => {
+                        const iconName = q.type === 'UPDATE' ? 'RefreshCw' : 'Search';
+                        return `
+                        <Link to="/queries/${toCamelCase(q.name)}" onClick={() => { if (window.innerWidth < 1024) onClose(); }} className={\`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all \${isActive('/queries/${toCamelCase(q.name)}')}\`}>
+                            <${iconName} size={16}/> ${q.name}
+                        </Link>`;
+                    }).join('\n')}
+                    </div>
+                )}
             </div>
             ` : ''}
       `;
@@ -217,7 +237,7 @@ export const generateSidebar = (
 
   const sidebarTsx = `import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Table, Layout, FileText, Search, Database, Moon, Sun, X, Menu, LogOut, Shield, User, PieChart, Home, Calendar, Globe } from 'lucide-react';
+import { Table, Layout, FileText, Search, Database, Moon, Sun, X, Menu, LogOut, Shield, User, PieChart, Home, Calendar, Globe, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { useTheme } from './theme-provider';
 ${useAuth ? "import { useAuth } from '../context/AuthContext';" : ""}
 
@@ -225,6 +245,8 @@ export const Sidebar = ({ isOpen, onClose, isTopNav }: { isOpen: boolean; onClos
   const location = useLocation();
   const { theme, setTheme } = useTheme();
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'de');
+  const [tablesOpen, setTablesOpen] = useState(false);
+  const [queriesOpen, setQueriesOpen] = useState(false);
   ${useAuth ? "const { logout, user } = useAuth();" : ""}
   
   const isActive = (path: string) => location.pathname.startsWith(path) ? 'bg-[${wl.primaryColor}] text-white shadow-lg font-bold' : 'text-slate-300 hover:bg-slate-800 hover:text-white';

@@ -482,45 +482,61 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
     reader.readAsText(file);
   };
 
-  const renderRow = (row: any, rowIndex: number) => (
-      <div 
-          onDragOver={(e) => {
-              e.preventDefault();
-          }}
-          onDrop={(e) => {
-              e.preventDefault();
-              const srcIdxStr = e.dataTransfer.getData('text/row-index');
-              if (srcIdxStr) {
-                  const srcIdx = parseInt(srcIdxStr, 10);
-                  if (!isNaN(srcIdx)) {
-                      handleRowReorder(srcIdx, rowIndex);
+  const renderRow = (row: any, rowIndex: number) => {
+      const computedRow = { ...row };
+      const calculatedFields = table.fields.filter(f => f.isCalculated || Boolean(f.calculationFormula));
+      let changed = true;
+      let passes = 0;
+      while (changed && passes < 5) {
+          changed = false;
+          passes++;
+          for (const field of calculatedFields) {
+              if (field.calculationFormula) {
+                  const newVal = evaluateFormFormula(field.calculationFormula, computedRow);
+                  if (computedRow[field.name] !== newVal) {
+                      computedRow[field.name] = newVal;
+                      changed = true;
                   }
               }
-          }}
-          className="flex border-b border-slate-100 hover:bg-sky-50 group h-full items-center text-sm text-slate-700"
-      >
-          {/* Drag Handle */}
-          <div 
-              draggable
-              onDragStart={(e) => {
-                  e.dataTransfer.setData('text/row-index', String(rowIndex));
-                  e.dataTransfer.effectAllowed = 'move';
-              }}
-              className="w-8 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 border-r border-slate-100 h-full bg-slate-50/50"
-              title="Zeile verschieben (Drag & Drop)"
-          >
-              <GripVertical size={14} />
-          </div>
+          }
+      }
 
-          {headers.map((header, colIdx) => {
-            const field = table.fields.find(f => f.name === header);
-            const isAutoInc = field?.isAutoIncrement;
-            const isCalculated = field?.isCalculated || Boolean(field?.calculationFormula);
-            let rawVal = row[header] ?? '';
-            
-            if (isCalculated && field?.calculationFormula) {
-                rawVal = evaluateFormFormula(field.calculationFormula, row);
-            }
+      return (
+          <div 
+              onDragOver={(e) => {
+                  e.preventDefault();
+              }}
+              onDrop={(e) => {
+                  e.preventDefault();
+                  const srcIdxStr = e.dataTransfer.getData('text/row-index');
+                  if (srcIdxStr) {
+                      const srcIdx = parseInt(srcIdxStr, 10);
+                      if (!isNaN(srcIdx)) {
+                          handleRowReorder(srcIdx, rowIndex);
+                      }
+                  }
+              }}
+              className="flex border-b border-slate-100 hover:bg-sky-50 group h-full items-center text-sm text-slate-700"
+          >
+              {/* Drag Handle */}
+              <div 
+                  draggable
+                  onDragStart={(e) => {
+                      e.dataTransfer.setData('text/row-index', String(rowIndex));
+                      e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  className="w-8 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 border-r border-slate-100 h-full bg-slate-50/50"
+                  title="Zeile verschieben (Drag & Drop)"
+              >
+                  <GripVertical size={14} />
+              </div>
+
+              {headers.map((header, colIdx) => {
+                const field = table.fields.find(f => f.name === header);
+                const isAutoInc = field?.isAutoIncrement;
+                const isCalculated = field?.isCalculated || Boolean(field?.calculationFormula);
+                let rawVal = computedRow[header] ?? '';
+
 
             const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
             const isFK = !!rel;
@@ -599,7 +615,8 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
               </button>
           </div>
       </div>
-  );
+      );
+  };
 
   const targetTable = detailView ? allTables.find(t => t.id === detailView.targetTableId) : null;
 

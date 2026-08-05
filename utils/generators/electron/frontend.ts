@@ -18,7 +18,7 @@ export const generateElectronFrontend = (
   );
 
   const angularFiles = generateElectronAngularFrontend(
-    safeTables, safeRelationships, safeQueries, config, safeForms, safeReports, root
+    safeTables, safeRelationships, safeQueries, config, safeForms, safeReports, root, fePort, bePort
   );
 
   return [...reactFiles, ...angularFiles];

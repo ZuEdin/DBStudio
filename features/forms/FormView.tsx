@@ -33,6 +33,7 @@ interface FormViewProps {
   filteredData?: Record<string, any>[];
   parentRecord?: Record<string, any>;
   linkConfig?: { masterFieldId: string; childFieldId: string };
+  subformPermissions?: { canAdd?: boolean; canEdit?: boolean; canDelete?: boolean };
   onClose?: () => void;
   initialMode?: 'create' | 'edit' | 'view';
   hideNavigation?: boolean;

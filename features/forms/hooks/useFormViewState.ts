@@ -22,6 +22,7 @@ interface UseFormViewStateProps {
   filteredData?: Record<string, any>[];
   parentRecord?: Record<string, any>;
   linkConfig?: { masterFieldId: string; childFieldId: string };
+  subformPermissions?: { canAdd?: boolean; canEdit?: boolean; canDelete?: boolean };
   initialMode?: 'create' | 'edit' | 'view';
   hideNavigation?: boolean;
   defaultValues?: Record<string, any>;
@@ -40,6 +41,7 @@ export const useFormViewState = ({
   filteredData,
   parentRecord,
   linkConfig,
+  subformPermissions,
   initialMode,
   hideNavigation,
   defaultValues,
@@ -91,7 +93,8 @@ export const useFormViewState = ({
     (form.mode as any) === 'readonly' ||
     (initialMode as any) === 'readonly' ||
     form.sourceType === 'query' ||
-    (!sourceTable && !isUnbound);
+    (!sourceTable && !isUnbound) ||
+    (isSubform && subformPermissions?.canEdit === false);
   const finalHideNavigation = hideNavigation || (form.settings as any)?.hideNavigation;
 
   const data = isSubform ? filteredData || [] : sourceTable?.data || [];
@@ -324,9 +327,21 @@ export const useFormViewState = ({
 
     if (!sourceTable) return;
 
-    const originalIndex = isSubform
-      ? sourceTable.data?.findIndex((row) => JSON.stringify(row) === JSON.stringify(currentRecord))
-      : currentIndex;
+    let originalIndex = -1;
+    if (isSubform && currentRecord) {
+      const pkField = sourceTable.fields.find((f) => f.isPrimaryKey) || sourceTable.fields.find((f) => f.name.toLowerCase() === 'id');
+      if (pkField && currentRecord[pkField.name] !== undefined) {
+        originalIndex = sourceTable.data?.findIndex((row) => String(row[pkField.name]) === String(currentRecord[pkField.name])) ?? -1;
+      }
+      if (originalIndex === -1) {
+        originalIndex = sourceTable.data?.findIndex((row) => row === currentRecord) ?? -1;
+      }
+      if (originalIndex === -1) {
+        originalIndex = sourceTable.data?.findIndex((row) => JSON.stringify(row) === JSON.stringify(currentRecord)) ?? -1;
+      }
+    } else {
+      originalIndex = currentIndex;
+    }
 
     if (originalIndex === undefined || originalIndex === -1) return;
 
@@ -380,10 +395,11 @@ export const useFormViewState = ({
 
   const startCreate = () => {
     if (isReadOnly || !sourceTable) return;
+    if (isSubform && subformPermissions?.canAdd === false) return;
 
     let initialData = prepareNewRecord(sourceTable);
 
-    if (isSubform && parentRecord && linkConfig) {
+    if (parentRecord && linkConfig) {
       const masterFieldName = getFieldName(linkConfig.masterFieldId);
       if (masterFieldName && parentRecord[masterFieldName] !== undefined) {
         initialData = prepareNewRecord(
@@ -462,6 +478,16 @@ export const useFormViewState = ({
     if (!sourceTable) return;
     const recordToSave = { ...tempRecord };
 
+    if (parentRecord && linkConfig) {
+      const masterFieldName = getFieldName(linkConfig.masterFieldId);
+      const childFieldName = sourceTable.fields.find((f) => f.id === linkConfig.childFieldId)?.name;
+      if (masterFieldName && childFieldName && parentRecord[masterFieldName] !== undefined) {
+        if (recordToSave[childFieldName] === undefined || recordToSave[childFieldName] === '') {
+          recordToSave[childFieldName] = parentRecord[masterFieldName];
+        }
+      }
+    }
+
     if (!validateRecord(recordToSave)) return;
 
     sourceTable.fields.forEach((f) => {
@@ -485,6 +511,8 @@ export const useFormViewState = ({
       details: `Datensatz in Formular '${form.name}' neu angelegt.`,
     });
 
+    setIsCreating(false);
+
     let initialData: Record<string, any> = {};
     if (defaultValues) {
       initialData = { ...initialData, ...defaultValues };
@@ -499,6 +527,7 @@ export const useFormViewState = ({
 
   const deleteCurrentRecord = () => {
     if (isReadOnly || data.length === 0 || !sourceTable || isCreating) return;
+    if (isSubform && subformPermissions?.canDelete === false) return;
 
     const rels = relationships.filter((r) => r.fromTableId === sourceTable.id);
     if (rels.length > 0) {
@@ -507,9 +536,21 @@ export const useFormViewState = ({
     }
 
     showConfirmation('Datensatz löschen', 'Möchten Sie diesen Datensatz wirklich löschen?', () => {
-      const originalIndex = isSubform
-        ? sourceTable.data?.findIndex((row) => JSON.stringify(row) === JSON.stringify(currentRecord))
-        : currentIndex;
+      let originalIndex = -1;
+      if (isSubform && currentRecord) {
+        const pkField = sourceTable.fields.find((f) => f.isPrimaryKey) || sourceTable.fields.find((f) => f.name.toLowerCase() === 'id');
+        if (pkField && currentRecord[pkField.name] !== undefined) {
+          originalIndex = sourceTable.data?.findIndex((row) => String(row[pkField.name]) === String(currentRecord[pkField.name])) ?? -1;
+        }
+        if (originalIndex === -1) {
+          originalIndex = sourceTable.data?.findIndex((row) => row === currentRecord) ?? -1;
+        }
+        if (originalIndex === -1) {
+          originalIndex = sourceTable.data?.findIndex((row) => JSON.stringify(row) === JSON.stringify(currentRecord)) ?? -1;
+        }
+      } else {
+        originalIndex = currentIndex;
+      }
 
       if (originalIndex === undefined || originalIndex === -1) return;
 
@@ -704,7 +745,7 @@ export const useFormViewState = ({
   };
 
   useEffect(() => {
-    if (linkConfig && parentRecord && !isSubform && !isCreating && data.length === 0 && !isReadOnly) {
+    if (linkConfig && parentRecord && !isCreating && data.length === 0 && !isReadOnly) {
       startCreate();
     }
   }, [linkConfig]);

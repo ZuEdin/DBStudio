@@ -325,7 +325,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
        
        if (tbl) {
            const tblCamel = toCamelCase(tbl.name);
-           const fieldsToRender = tbl.fields.filter(f => !f.isPrimaryKey);
+           const fieldsToRender = tbl.fields.filter(f => !f.isAutoIncrement);
            const formDataState = `formData_${idSuffix}`;
            states.push(`const [${formDataState}, set_${formDataState}] = useState<Record<string, any>>({});`);
            imports.add('post');

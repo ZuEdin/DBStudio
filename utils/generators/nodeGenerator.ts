@@ -340,6 +340,17 @@ app.delete('/api/${routeName}/:id', async (req, res) => {
       
       // Generate Node.js parameter-based filtering code
       const filterStatements: string[] = [];
+
+      // Generic filter for selectedId or id passed as URL params
+      filterStatements.push(`        if (req.query.selectedId !== undefined && req.query.selectedId !== '' && req.query.selectedId !== 'undefined' && req.query.selectedId !== 'null') {
+            whereClause += ' AND ("Id" = :selectedId OR "id" = :selectedId)';
+            replacements['selectedId'] = req.query.selectedId;
+        }
+        if (req.query.id !== undefined && req.query.id !== '' && req.query.id !== 'undefined' && req.query.id !== 'null') {
+            whereClause += ' AND ("Id" = :id OR "id" = :id)';
+            replacements['id'] = req.query.id;
+        }`);
+
       selectQ.columns?.forEach(c => {
           c.criteria?.forEach(cr => {
               if (cr && /(?:\[?Forms\]?!)/i.test(cr)) {
@@ -572,11 +583,12 @@ const getLoggedInUser = (req) => {
     return 'System';
 };
 
-// Map database row keys to camelCase to match the frontend expectations
+// Map database row keys to camelCase while preserving original and lowercase keys for maximum compatibility
 const mapToCamelCase = (row) => {
     if (!row) return row;
-    const mapped = {};
+    const mapped = { ...row };
     for (let key in row) {
+        mapped[key.toLowerCase()] = row[key];
         let clean = key.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
                        .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue');
         clean = clean.replace(/[_-]/g, ' ');
@@ -584,8 +596,6 @@ const mapToCamelCase = (row) => {
         let pascal = clean.split(' ').filter(w => w.length > 0).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
         if (pascal) {
             mapped[pascal.charAt(0).toLowerCase() + pascal.slice(1)] = row[key];
-        } else {
-            mapped[key] = row[key];
         }
     }
     return mapped;

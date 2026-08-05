@@ -234,34 +234,59 @@ function copyDir(src, dest) {
   }
 }
 
-const reactDist = path.join(__dirname, 'Frontend', 'dist');
-const angularDist = path.join(__dirname, 'AngularFrontend', 'dist');
-const angularClientDist = path.join(__dirname, 'AngularFrontend', 'dist', 'angular-client');
+function findActualDistDir(baseDist) {
+  if (!fs.existsSync(baseDist)) return null;
+  if (fs.existsSync(path.join(baseDist, 'index.html'))) {
+    return baseDist;
+  }
+  const subDirs = ['angular-client/browser', 'angular-client', 'browser'];
+  for (const sub of subDirs) {
+    const cand = path.join(baseDist, sub);
+    if (fs.existsSync(path.join(cand, 'index.html'))) return cand;
+  }
+  try {
+    const entries = fs.readdirSync(baseDist, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const cand = path.join(baseDist, entry.name);
+        if (fs.existsSync(path.join(cand, 'index.html'))) return cand;
+        const candBrowser = path.join(cand, 'browser');
+        if (fs.existsSync(path.join(candBrowser, 'index.html'))) return candBrowser;
+      }
+    }
+  } catch (e) {}
+  return baseDist;
+}
+
+const candidateDistDirs = [
+  path.join(__dirname, 'Frontend', 'dist'),
+  path.join(__dirname, 'AngularFrontend', 'dist'),
+  path.join(__dirname, 'dist')
+];
+
 const targetDist = path.join(__dirname, 'dist');
+let actualSource = null;
 
-if (fs.existsSync(targetDist)) {
-  fs.rmSync(targetDist, { recursive: true, force: true });
+for (const candBase of candidateDistDirs) {
+  if (candBase === targetDist && fs.existsSync(path.join(targetDist, 'index.html'))) continue;
+  const found = findActualDistDir(candBase);
+  if (found && fs.existsSync(path.join(found, 'index.html'))) {
+    actualSource = found;
+    break;
+  }
 }
 
-let copied = false;
-if (fs.existsSync(reactDist)) {
-  console.log('[Electron Copy] Kopiere React dist...');
-  copyDir(reactDist, targetDist);
-  copied = true;
-} else if (fs.existsSync(angularClientDist)) {
-  console.log('[Electron Copy] Kopiere Angular Client dist...');
-  copyDir(angularClientDist, targetDist);
-  copied = true;
-} else if (fs.existsSync(angularDist)) {
-  console.log('[Electron Copy] Kopiere Angular dist...');
-  copyDir(angularDist, targetDist);
-  copied = true;
-}
-
-if (copied) {
-  console.log('[Electron Copy] Build-Dateien erfolgreich in dist/ indexiert.');
+if (actualSource) {
+  if (actualSource !== targetDist) {
+    if (fs.existsSync(targetDist)) {
+      fs.rmSync(targetDist, { recursive: true, force: true });
+    }
+    console.log('[Electron Copy] Kopiere Frontend-Build von ' + actualSource + ' nach ' + targetDist + '...');
+    copyDir(actualSource, targetDist);
+  }
+  console.log('[Electron Copy] Build-Dateien erfolgreich in dist/ indexiert (index.html verifiziert).');
 } else {
-  console.warn('[Electron Copy] Keine Frontend Build-Dateien zum Kopieren gefunden!');
+  console.warn('[Electron Copy] Keine Frontend Build-Dateien mit index.html zum Kopieren gefunden!');
 }
 `;
 
@@ -288,14 +313,34 @@ function copyDir(src, dest) {
   }
 }
 
+function findActualDistDir(baseDist) {
+  if (!fs.existsSync(baseDist)) return null;
+  if (fs.existsSync(path.join(baseDist, 'index.html'))) {
+    return baseDist;
+  }
+  const subDirs = ['angular-client/browser', 'angular-client', 'browser'];
+  for (const sub of subDirs) {
+    const cand = path.join(baseDist, sub);
+    if (fs.existsSync(path.join(cand, 'index.html'))) return cand;
+  }
+  try {
+    const entries = fs.readdirSync(baseDist, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const cand = path.join(baseDist, entry.name);
+        if (fs.existsSync(path.join(cand, 'index.html'))) return cand;
+        const candBrowser = path.join(cand, 'browser');
+        if (fs.existsSync(path.join(candBrowser, 'index.html'))) return candBrowser;
+      }
+    }
+  } catch (e) {}
+  return baseDist;
+}
+
 const rootDir = __dirname;
 const reactDir = path.join(rootDir, 'Frontend');
 const angularDir = path.join(rootDir, 'AngularFrontend');
 const targetDist = path.join(rootDir, 'dist');
-
-if (fs.existsSync(targetDist)) {
-  fs.rmSync(targetDist, { recursive: true, force: true });
-}
 
 let built = false;
 
@@ -303,10 +348,12 @@ if (fs.existsSync(reactDir)) {
   console.log('[Build] React Frontend gefunden. Starte Build...');
   try {
     execSync('npm run build', { cwd: reactDir, stdio: 'inherit' });
-    const reactDist = path.join(reactDir, 'dist');
-    if (fs.existsSync(reactDist)) {
-      console.log('[Build] Kopiere React Build nach Electron dist...');
-      copyDir(reactDist, targetDist);
+    const reactDistBase = path.join(reactDir, 'dist');
+    const actualDist = findActualDistDir(reactDistBase);
+    if (actualDist && fs.existsSync(path.join(actualDist, 'index.html'))) {
+      if (fs.existsSync(targetDist)) fs.rmSync(targetDist, { recursive: true, force: true });
+      console.log('[Build] Kopiere React Build von ' + actualDist + ' nach ' + targetDist + '...');
+      copyDir(actualDist, targetDist);
       built = true;
     }
   } catch (err) {
@@ -316,13 +363,12 @@ if (fs.existsSync(reactDir)) {
   console.log('[Build] Angular Frontend gefunden. Starte Build...');
   try {
     execSync('npm run build', { cwd: angularDir, stdio: 'inherit' });
-    let angularDist = path.join(angularDir, 'dist', 'angular-client');
-    if (!fs.existsSync(angularDist)) {
-      angularDist = path.join(angularDir, 'dist');
-    }
-    if (fs.existsSync(angularDist)) {
-      console.log('[Build] Kopiere Angular Build nach Electron dist...');
-      copyDir(angularDist, targetDist);
+    const angularDistBase = path.join(angularDir, 'dist');
+    const actualDist = findActualDistDir(angularDistBase);
+    if (actualDist && fs.existsSync(path.join(actualDist, 'index.html'))) {
+      if (fs.existsSync(targetDist)) fs.rmSync(targetDist, { recursive: true, force: true });
+      console.log('[Build] Kopiere Angular Build von ' + actualDist + ' nach ' + targetDist + '...');
+      copyDir(actualDist, targetDist);
       built = true;
     }
   } catch (err) {
@@ -331,7 +377,7 @@ if (fs.existsSync(reactDir)) {
 }
 
 if (built) {
-  console.log('[Build] Frontend-Build und Kopieren erfolgreich abgeschlossen!');
+  console.log('[Build] Frontend-Build und Kopieren erfolgreich abgeschlossen (dist/index.html verifiziert)!');
 } else {
   console.warn('[Build] Kein Frontend zum Bauen gefunden oder Build fehlgeschlagen.');
 }

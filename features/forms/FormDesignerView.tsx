@@ -352,7 +352,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
               if (container && container.children) {
                   container.children.push({
                       id: crypto.randomUUID(), type: 'subform', label: linkingSubform.name,
-                      subform: { formId: linkingSubform.id, masterLinkFieldId: m, childLinkFieldId: c },
+                      subform: { formId: linkingSubform.id, masterLinkFieldId: m, childLinkFieldId: c, canAdd: true, canEdit: true, canDelete: true },
                       className: 'border p-2 rounded bg-indigo-50'
                   });
               }

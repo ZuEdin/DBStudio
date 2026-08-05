@@ -93,7 +93,7 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
             context.states.push(`${statusState}: { type: 'success' | 'error' | null, message: string } = { type: null, message: '' };`);
 
             // Fields to render
-            const formFields = tObj.fields.filter(f => !f.isPrimaryKey && !f.isAutoIncrement);
+            const formFields = tObj.fields.filter(f => !f.isAutoIncrement);
             
             // Mode: 'create' or 'edit'
             const formMode = node.props?.formMode || 'create';

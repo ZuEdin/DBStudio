@@ -12,11 +12,12 @@ export const generateQueryPage = (
       const q = query as SelectQuery;
       const endpoint = `queries/${toCamelCase(q.name)}`; // Using view/query endpoint
       
-      const columns = q.columns.filter(c => c.show).map(c => {
+      const visibleColumns = q.columns.filter(c => c.show !== false);
+      const columns = visibleColumns.map(c => {
           return `<th className="p-4">${c.alias || c.fieldName}</th>`;
       }).join('\n');
 
-      const cells = q.columns.filter(c => c.show).map(c => {
+      const cells = visibleColumns.map(c => {
           const rawKey = c.alias || c.fieldName || '';
           const fieldName = c.fieldName || '';
           return `<td className="p-4 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{String(getCellValue(item, ${JSON.stringify(rawKey)}, ${JSON.stringify(fieldName)}) ?? '')}</td>`;
@@ -95,7 +96,7 @@ export const ${compName} = () => {
                                 ${cells}
                             </tr>
                         )) : (
-                            <tr><td colSpan={${q.columns.filter(c=>c.show).length}} className="p-8 text-center text-slate-400">Keine Daten.</td></tr>
+                            <tr><td colSpan={${q.columns.filter(c=>c.show !== false).length}} className="p-8 text-center text-slate-400">Keine Daten.</td></tr>
                         )}
                     </tbody>
                 </table>

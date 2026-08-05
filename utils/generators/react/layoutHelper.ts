@@ -1,5 +1,5 @@
 import { Table, FormElement, Form } from '../../../types/index';
-import { toCamelCase, toPascalCase } from '../common';
+import { toCamelCase, toPascalCase, toSubformSuffix } from '../common';
 import { Plus, Layout, User, Search } from 'lucide-react';
 
 export const collectLookups = (element: FormElement, tables: Table[], queries: any[] = [], accumulated: any[] = []) => {
@@ -51,7 +51,7 @@ const getTailwindWidthClass = (width: string | undefined): string => {
 // Returns JSX string AND potentially side-effect info (used by pages.ts to know which modals to create)
 export const generateJsxForLayout = (element: FormElement, tables: Table[], forms: Form[], dataVar: string = "data", modals: any[] = [], queries: any[] = []): string => {
     if (element.type === 'container') {
-        const childrenJsx = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals)).join('\n') || '';
+        const childrenJsx = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries)).join('\n') || '';
         let className = element.className || '';
         if (element.children && element.children.length > 1 && !className.includes('grid') && !className.includes('flex')) {
              className += ' space-y-4';
@@ -124,7 +124,8 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         const subTable = tables.find(t => t.id === subformDef?.sourceId);
         
         if (subformDef && subTable) {
-            const modalId = `sub_${element.id}`;
+            const suffix = toSubformSuffix(element.id);
+            const modalId = `sub_${suffix}`;
             // Register Modal Requirement
             if (!modals.find(m => m.id === modalId)) {
                 modals.push({ 
@@ -139,7 +140,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
 
             // Generate List Display
             const camelSubTable = toCamelCase(subTable.name);
-            const listVar = `${camelSubTable}SubList_${element.id.replace('sub_field_', '')}`; 
+            const listVar = `${camelSubTable}SubList_${suffix}`; 
             
             // Simplified display: Just list first few fields or use form fields
             const displayFields = subTable.fields.filter(f => !f.isPrimaryKey).slice(0, 3);
@@ -151,7 +152,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                     <span className="font-bold text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2">
                         <Layout size={16} className="text-indigo-500"/> ${element.label || subformDef.name}
                     </span>
-                    ${element.subform.canAdd ? `
+                    ${element.subform.canAdd !== false ? `
                     <button 
                         type="button"
                         onClick={() => toggleModal('${modalId}', true)} 
@@ -172,7 +173,9 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                             {${listVar} && ${listVar}.length > 0 ? ${listVar}.map((item: any, idx: number) => (
                                 <tr key={idx} className="border-b dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                     ${displayFields.map(f => `<td className="p-2">{item.${toCamelCase((f as any).name || (f as any).alias || (f as any).fieldName)}}</td>`).join('')}
-                                    <td className="p-2 text-right">
+                                    <td className="p-2 text-right whitespace-nowrap space-x-2">
+                                        ${element.subform.canEdit !== false ? `<button type="button" onClick={() => editSubformItem_${suffix}(item)} className="text-blue-600 dark:text-blue-400 hover:underline text-xs font-semibold">Bearbeiten</button>` : ''}
+                                        ${element.subform.canDelete !== false ? `<button type="button" onClick={() => deleteSubformItem_${suffix}(item)} className="text-rose-600 dark:text-rose-400 hover:underline text-xs font-semibold">Löschen</button>` : ''}
                                     </td>
                                 </tr>
                             )) : (

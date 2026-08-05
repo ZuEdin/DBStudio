@@ -8,41 +8,23 @@ export const generateElectronAngularFrontend = (
   config: BackendConfig,
   safeForms: Form[],
   safeReports: Report[],
-  root: string
+  root: string,
+  fePort: number = 3002,
+  bePort: number = 3001
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
+  const targetBePort = bePort || config.port || 3001;
   const angularFiles = generateAngular(safeTables, safeRelationships, safeQueries, safeForms, config, safeReports);
 
   if (Array.isArray(angularFiles)) {
     angularFiles.forEach(f => {
       let relativePath = f.path.replace(/^Frontend\//, '');
 
-      // Angular API Service: Portless Electron IPC local file access
+      // Angular API Service: Uses localhost server in Electron or file:// protocol
       if (f.name === 'api.service.ts') {
         f.content = f.content.replace(
           /private baseUrl = .*/,
-          `private baseUrl = (typeof window !== 'undefined' && (window as any).electronAPI) ? 'electron://local' : environment.apiUrl;`
-        );
-
-        // Enhance ApiService with Electron IPC local file/DB fallback
-        f.content = f.content.replace(
-          /get<T>\(endpoint: string, params: any = \{\}\): Observable<T> \{[\s\S]*?\n  \}/,
-          `get<T>(endpoint: string, params: any = {}): Observable<T> {
-    if (typeof window !== 'undefined' && ((window as any).electronAPI || window.location.protocol === 'file:')) {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI && electronAPI.readJson) {
-        return new Observable<T>(subscriber => {
-          electronAPI.readJson(endpoint).then((data: any) => {
-            subscriber.next(data as T);
-            subscriber.complete();
-          }).catch((err: any) => {
-            this.http.get<T>(this.getUrl(endpoint), { params, withCredentials: true }).subscribe(subscriber);
-          });
-        });
-      }
-    }
-    return this.http.get<T>(this.getUrl(endpoint), { params, withCredentials: true });
-  }`
+          `private baseUrl = (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) ? (window.location.origin.includes('localhost') ? 'http://localhost:${targetBePort}/api/' : window.location.origin + '/api/') : 'http://localhost:${targetBePort}/api/';`
         );
       }
 

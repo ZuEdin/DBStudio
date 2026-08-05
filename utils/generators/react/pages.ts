@@ -31,7 +31,7 @@ export const generateReactPages = (
 
   // 2. Custom Forms
   forms.forEach(form => {
-    const customFormFile = generateCustomFormPage(form, tables, queries, root);
+    const customFormFile = generateCustomFormPage(form, tables, queries, root, forms);
     if (customFormFile) {
       files.push(customFormFile);
     }

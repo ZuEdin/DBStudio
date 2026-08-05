@@ -83,7 +83,7 @@ const getApiUrl = () => {
     }
     return typeof window !== 'undefined' && window.location.protocol.startsWith('http')
         ? (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? 'http://localhost:${config.port}/api/' : window.location.origin + '/api/')
-        : '/api/';
+        : 'http://localhost:${config.port}/api/';
 };
 export const isLocalMode = (): boolean => {
     if (typeof window === 'undefined') return false;
@@ -469,14 +469,20 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
     });
 };
 
-export const put = async <T>(endpoint: string, data: any): Promise<T> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
+export const put = async <T>(endpoint: string, dataOrId?: any, dataPayload?: any): Promise<T> => {
+    let endpointPath = endpoint || '';
+    let payloadData = dataOrId;
+    if (dataPayload !== undefined) {
+        endpointPath = endpointPath + '/' + dataOrId;
+        payloadData = dataPayload;
+    }
+    const cleanEndpoint = endpointPath.replace(/^\\/+/g, '');
     if (!isLocalMode()) {
         try {
             const token = localStorage.getItem('auth_token');
             const headers: any = {};
             if (token) headers['Authorization'] = 'Bearer ' + token;
-            const response = await api.put(cleanEndpoint, data, { headers });
+            const response = await api.put(cleanEndpoint, payloadData, { headers });
             if (response && response.data !== undefined) {
                 return response.data;
             }
@@ -485,7 +491,7 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
         }
     }
 
-    const { target, id } = parseEndpoint(endpoint);
+    const { target, id } = parseEndpoint(cleanEndpoint);
     const storeConfig = findStoreConfig(target);
     const storeName = storeConfig ? storeConfig.name : target;
     const keyPath = storeConfig ? storeConfig.keyPath : 'id';
@@ -495,7 +501,7 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
         throw new Error('Store not found: ' + storeName);
     }
 
-    const payload = normalizeKeysOnWrite({ ...data }, storeConfig);
+    const payload = normalizeKeysOnWrite({ ...payloadData }, storeConfig);
     if (id) {
         payload[keyPath] = isNaN(Number(id)) ? id : Number(id);
     }
@@ -509,8 +515,12 @@ export const put = async <T>(endpoint: string, data: any): Promise<T> => {
     });
 };
 
-export const remove = async (endpoint: string): Promise<any> => {
-    const cleanEndpoint = (endpoint || '').replace(/^\\/+/g, '');
+export const remove = async (endpoint: string, itemId?: any): Promise<any> => {
+    let endpointPath = endpoint || '';
+    if (itemId !== undefined && itemId !== null) {
+        endpointPath = endpointPath + '/' + itemId;
+    }
+    const cleanEndpoint = endpointPath.replace(/^\\/+/g, '');
     if (!isLocalMode()) {
         try {
             const token = localStorage.getItem('auth_token');
@@ -525,7 +535,7 @@ export const remove = async (endpoint: string): Promise<any> => {
         }
     }
 
-    const { target, id } = parseEndpoint(endpoint);
+    const { target, id } = parseEndpoint(cleanEndpoint);
     const storeConfig = findStoreConfig(target);
     const storeName = storeConfig ? storeConfig.name : target;
 
@@ -545,6 +555,8 @@ export const remove = async (endpoint: string): Promise<any> => {
         request.onerror = () => reject(request.error);
     });
 };
+
+export const del = remove;
 
 // Local Auth API using IndexedDB
 export const loginUser = async (credentials: any) => {
@@ -705,7 +717,7 @@ export const logoutUser = () => {
       const safeName = toPascalCase(q.name);
       const usedNames = new Set<string>(); // Track used property names to prevent duplicates
       
-      const props = query.columns.filter(c => c.show).map(c => {
+      const props = query.columns.filter(c => c.show !== false).map(c => {
           let type = 'string';
           const table = tables.find(t => t.id === c.tableId);
           const field = table?.fields.find(f => f.id === c.fieldId);
@@ -951,21 +963,23 @@ function downloadBlob(blob: Blob, filename: string) {
   return parts.length > 0 ? parts.join(', ') : '0 Tage';
 }
 
-export function evaluateFormFormula(formula: string, record: Record<string, any>): any {
+export function evaluateFormFormula(formula: string, record: Record<string, any>, fieldMap?: Record<string, string>): any {
   if (!formula || typeof formula !== 'string') return '';
   try {
     let expr = formula.trim();
     const ageMatch = expr.match(/^(?:AGE|ALTER|ALTER_JMD|DATEDIFF)\\s*\\(\\s*\\[([^\\]]+)\\]\\s*\\)$/i);
     if (ageMatch) {
       const fieldKey = ageMatch[1];
-      let val = record[fieldKey];
+      const actualFieldName = fieldMap && fieldMap[fieldKey] ? fieldMap[fieldKey] : fieldKey;
+      let val = record[actualFieldName];
       if (val === undefined) {
-        const lowerKey = Object.keys(record).find(k => k.toLowerCase() === fieldKey.toLowerCase());
+        const lowerKey = Object.keys(record).find(k => k.toLowerCase() === actualFieldName.toLowerCase());
         if (lowerKey) val = record[lowerKey];
       }
       return calculateDetailedAge(val);
     }
-    expr = expr.replace(/\\[([^\\]]+)\\]/g, (_, fieldName) => {
+    expr = expr.replace(/\\[([^\\]]+)\\]/g, (_, nameOrId) => {
+      const fieldName = fieldMap && fieldMap[nameOrId] ? fieldMap[nameOrId] : nameOrId;
       let val = record[fieldName];
       if (val === undefined) {
         const lowerKey = Object.keys(record).find(k => k.toLowerCase() === fieldName.toLowerCase());

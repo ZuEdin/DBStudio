@@ -3,6 +3,11 @@
 import { Field, DbType } from '../../types/index';
 import { DATA_TYPES } from '../../config/dataTypes';
 
+export const toSubformSuffix = (id: string) => {
+    if (!id) return '';
+    return id.replace(/^sub_field_/, '').replace(/^sub_/, '').replace(/^field_/, '').replace(/[^a-zA-Z0-9_]/g, '_');
+};
+
 export const isNullable = (field: Field | undefined | null) => field ? (field.allowNull !== false && !field.isPrimaryKey) : true;
 
 export const resolveType = (field: Field | undefined | null, language: 'csharp' | 'sequelize' | 'typescript' | 'sql', dbType?: DbType) => {

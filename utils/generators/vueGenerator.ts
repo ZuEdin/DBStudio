@@ -282,7 +282,7 @@ const save = async () => { if(isNew) await post('${c}', data.value); else await 
   <div class="max-w-2xl mx-auto bg-white p-8 rounded shadow">
     <h1 class="text-xl font-bold mb-6">{{ isNew ? 'Neu' : 'Bearbeiten' }} ${table.name}</h1>
     <form @submit.prevent="save">
-        ${table.fields.filter(f => !f.isPrimaryKey).map(f => `
+        ${table.fields.filter(f => !f.isAutoIncrement).map(f => `
         <div class="mb-4">
             <label class="block text-sm font-bold mb-1">${f.name}</label>
             <input v-model="data.${toCamelCase(f.name)}" class="w-full border rounded p-2" />
@@ -459,7 +459,7 @@ const loadComp_${suffix} = async () => {
                   const tbl = formObj ? tables.find(t => t.id === formObj.sourceId) : null;
                   if (tbl) {
                       const tblCamel = toCamelCase(tbl.name);
-                      const fieldsToRender = tbl.fields.filter(f => !f.isPrimaryKey);
+                      const fieldsToRender = tbl.fields.filter(f => !f.isAutoIncrement);
                       const formDataState = `formData_${suffix}`;
                       states.push(`const ${formDataState} = ref<Record<string, any>>({});`);
                       

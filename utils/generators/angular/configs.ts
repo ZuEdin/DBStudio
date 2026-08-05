@@ -105,6 +105,7 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
             "builder": "@angular-devkit/build-angular:browser",
             "options": {
               "outputPath": "dist/angular-client",
+              "baseHref": "./",
               "index": "src/index.html",
               "main": "src/main.ts",
               "polyfills": ["src/polyfills.ts"],
@@ -115,7 +116,7 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
             },
             "configurations": {
               "production": {
-                "budgets": [{ "type": "initial", "maximumWarning": "500kb", "maximumError": "1mb" }],
+                "budgets": [{ "type": "initial", "maximumWarning": "25mb", "maximumError": "50mb" }, { "type": "anyComponentStyle", "maximumWarning": "10mb", "maximumError": "20mb" }],
                 "outputHashing": "all",
                 "fileReplacements": [
                   {
@@ -125,7 +126,7 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
                 ]
               },
               "staging": {
-                "budgets": [{ "type": "initial", "maximumWarning": "500kb", "maximumError": "1mb" }],
+                "budgets": [{ "type": "initial", "maximumWarning": "25mb", "maximumError": "50mb" }, { "type": "anyComponentStyle", "maximumWarning": "10mb", "maximumError": "20mb" }],
                 "outputHashing": "all",
                 "fileReplacements": [
                   {
@@ -162,12 +163,10 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
   
   // Environments
   const getApiUrlExpr = (url: string) => {
-      let norm = url;
+      let norm = url || `http://localhost:${config.port || 3000}/api/`;
       if (!norm.endsWith('/')) norm += '/';
-      if (norm.startsWith('http://localhost') || norm.startsWith('http://127.0.0.1')) {
-          return `typeof window !== 'undefined' ? (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? '${norm}' : window.location.origin + '/api/') : '/api/'`;
-      }
-      return `'${norm}'`;
+      const localhostTarget = norm.startsWith('http') ? norm : `http://localhost:${config.port || 3000}/api/`;
+      return `typeof window !== 'undefined' ? (window.location.protocol === 'file:' || !window.location.origin.startsWith('http') ? '${localhostTarget}' : (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') ? '${localhostTarget}' : window.location.origin + '/api/')) : '${localhostTarget}'`;
   };
 
   files.push({
@@ -271,7 +270,7 @@ export class AppComponent {
 `;
   files.push({ name: 'app.component.ts', path: `${root}/src/app/app.component.ts`, content: appComponentTs, language: 'typescript' });
 
-  files.push({ name: 'index.html', path: `${root}/src/index.html`, content: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${config.projectName}</title><base href="/"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><app-root></app-root></body></html>`, language: 'html' });
+  files.push({ name: 'index.html', path: `${root}/src/index.html`, content: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${config.projectName}</title><base href="./"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><app-root></app-root></body></html>`, language: 'html' });
 
   return files;
 };

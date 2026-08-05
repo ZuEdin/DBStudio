@@ -45,12 +45,13 @@ export const generateHtmlForLayout = (
     forms: Form[], 
     dataObjName: string = "data", 
     queries: any[] = [],
-    isBootstrap: boolean = false
+    isBootstrap: boolean = false,
+    ignoredFieldIds: string[] = []
 ): string => {
     if (!element) return '';
 
     if (element.type === 'container') {
-        const children = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap)).join('\n') || '';
+        const children = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
         const defaultClass = isBootstrap ? 'row g-3' : 'space-y-4';
         const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
         let className = element.className || defaultClass;
@@ -66,6 +67,9 @@ export const generateHtmlForLayout = (
         return `<div class="${className}">${element.label}</div>`;
     }
     if (element.type === 'field' && element.fieldId) {
+        if (ignoredFieldIds && ignoredFieldIds.includes(element.fieldId)) {
+            return `<!-- Hidden parent link field: ${element.label} -->`;
+        }
         let fieldName = '';
         let inputType = 'text';
         
@@ -239,7 +243,7 @@ export const generateHtmlForLayout = (
                                      <button type="button" class="btn-close" (click)="closeModal('lookup_${element.id}')"></button>
                                  </div>
                                  <div class="modal-body">
-                                     ${lookupTable.fields.filter(f=>!f.isPrimaryKey && !f.isAutoIncrement).map(f => {
+                                     ${lookupTable.fields.filter(f=>!f.isAutoIncrement).map(f => {
                                          const fName = toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName);
                                          if (f.type === 'BOOLEAN') {
                                              return `
@@ -285,7 +289,7 @@ export const generateHtmlForLayout = (
                          <div class="bg-white p-6 rounded-xl w-96 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
                              <h3 class="font-bold mb-4 text-lg border-b pb-2 text-slate-800">Neu: ${lookupTable.name}</h3>
                              <div class="space-y-3">
-                                 ${lookupTable.fields.filter(f=>!f.isPrimaryKey && !f.isAutoIncrement).map(f => {
+                                 ${lookupTable.fields.filter(f=>!f.isAutoIncrement).map(f => {
                                      const fName = toCamelCase(((f as any).name || (f as any).alias || (f as any).fieldName) || f.alias || f.fieldName);
                                      if (f.type === 'BOOLEAN') {
                                          return `
@@ -414,10 +418,12 @@ export const generateHtmlForLayout = (
         
         if (subTable) {
             const modalId = `sub_${element.id}`;
-            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms, "tempSubData", queries, isBootstrap) : '<p>Leer</p>';
+            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms, "tempSubData", queries, isBootstrap, [element.subform.childLinkFieldId]) : '<p>Leer</p>';
             const subTableCamel = toCamelCase(subTable.name);
             const listVariable = `${subTableCamel}SubList_${element.id.substring(0,8)}`;
             const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
+
+            const displayFields = subTable.fields.filter(f => !f.isPrimaryKey).slice(0, 4);
 
             if (isBootstrap) {
                 const subModal = `
@@ -425,7 +431,7 @@ export const generateHtmlForLayout = (
                     <div class="modal-dialog modal-dialog-centered modal-lg" (click)="$event.stopPropagation()">
                         <div class="modal-content">
                             <div class="modal-header bg-light">
-                                <h5 class="modal-title">Eintrag hinzufügen</h5>
+                                <h5 class="modal-title">{{editingSubformId ? 'Eintrag bearbeiten' : 'Eintrag hinzufügen'}}</h5>
                                 <button type="button" class="btn-close" (click)="closeModal('${modalId}')"></button>
                             </div>
                             <div class="modal-body subform-content">
@@ -445,7 +451,7 @@ export const generateHtmlForLayout = (
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
                         <h5 class="card-title h6 mb-0 text-dark">📄 ${element.label || subFormDef?.name}</h5>
                         <div *ngIf="!isNew">
-                            ${element.subform.canAdd ? `<button type="button" (click)="openModal('${modalId}')" class="btn btn-sm btn-outline-primary">+ Neu</button>` : ''}
+                            ${element.subform.canAdd !== false ? `<button type="button" (click)="openAddSubformModal('${modalId}')" class="btn btn-sm btn-outline-primary">+ Neu</button>` : ''}
                         </div>
                         <div *ngIf="isNew" class="badge bg-warning text-dark">
                             Bitte speichern um Einträge hinzuzufügen
@@ -453,12 +459,21 @@ export const generateHtmlForLayout = (
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light"><tr><th class="px-3">Daten</th></tr></thead>
+                            <thead class="table-light">
+                                <tr>
+                                    ${displayFields.map(f => `<th class="px-3">${f.name}</th>`).join('')}
+                                    <th class="text-end px-3">Aktionen</th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 <tr *ngFor="let item of ${listVariable}">
-                                    <td class="px-3 font-mono small text-muted">{{item | json}}</td>
+                                    ${displayFields.map(f => `<td class="px-3">{{item.${toCamelCase(f.name)}}}</td>`).join('')}
+                                    <td class="text-end px-3 text-nowrap">
+                                        ${element.subform.canEdit !== false ? `<button type="button" (click)="editSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="btn btn-sm btn-link text-primary p-0 me-2">Bearbeiten</button>` : ''}
+                                        ${element.subform.canDelete !== false ? `<button type="button" (click)="deleteSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="btn btn-sm btn-link text-danger p-0">Löschen</button>` : ''}
+                                    </td>
                                 </tr>
-                                <tr *ngIf="!${listVariable}?.length"><td class="p-4 text-center text-muted fst-italic">Keine Einträge vorhanden.</td></tr>
+                                <tr *ngIf="!${listVariable}?.length"><td colSpan="${displayFields.length + 1}" class="p-4 text-center text-muted fst-italic">Keine Einträge vorhanden.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -468,7 +483,7 @@ export const generateHtmlForLayout = (
                 const subModal = `
                 <div *ngIf="modals['${modalId}']" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
                     <div class="bg-white p-6 rounded-xl w-[600px] max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
-                        <h3 class="font-bold mb-4 text-lg border-b pb-2 text-slate-800">Eintrag hinzufügen</h3>
+                        <h3 class="font-bold mb-4 text-lg border-b pb-2 text-slate-800">{{editingSubformId ? 'Eintrag bearbeiten' : 'Eintrag hinzufügen'}}</h3>
                         <div class="subform-content space-y-4">
                             <!-- Bind to tempSubData -->
                             ${subFormHtml}
@@ -485,7 +500,7 @@ export const generateHtmlForLayout = (
                     <div class="bg-slate-100 p-3 flex justify-between items-center border-b border-slate-200">
                         <h4 class="font-bold text-sm text-slate-700 flex items-center gap-2">📄 ${element.label || subFormDef?.name}</h4>
                         <div *ngIf="!isNew">
-                            ${element.subform.canAdd ? `<button type="button" (click)="openModal('${modalId}')" class="bg-white text-blue-600 px-3 py-1 text-xs font-bold border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors">+ Neu</button>` : ''}
+                            ${element.subform.canAdd !== false ? `<button type="button" (click)="openAddSubformModal('${modalId}')" class="bg-white text-blue-600 px-3 py-1 text-xs font-bold border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors">+ Neu</button>` : ''}
                         </div>
                         <div *ngIf="isNew" class="text-xs text-orange-600 font-semibold bg-orange-100 px-2 py-1 rounded">
                             Bitte speichern um Einträge hinzuzufügen
@@ -493,12 +508,21 @@ export const generateHtmlForLayout = (
                     </div>
                     <div class="p-0">
                         <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th class="p-3">Daten</th></tr></thead>
+                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+                                <tr>
+                                    ${displayFields.map(f => `<th class="p-3">${f.name}</th>`).join('')}
+                                    <th class="p-3 text-right">Aktionen</th>
+                                </tr>
+                            </thead>
                             <tbody class="divide-y divide-slate-100">
                                 <tr *ngFor="let item of ${listVariable}" class="hover:bg-slate-50">
-                                    <td class="p-3 font-mono text-xs text-slate-600">{{item | json}}</td>
+                                    ${displayFields.map(f => `<td class="p-3 text-slate-700">{{item.${toCamelCase(f.name)}}}</td>`).join('')}
+                                    <td class="p-3 text-right whitespace-nowrap space-x-2">
+                                        ${element.subform.canEdit !== false ? `<button type="button" (click)="editSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="text-blue-600 hover:underline text-xs font-semibold">Bearbeiten</button>` : ''}
+                                        ${element.subform.canDelete !== false ? `<button type="button" (click)="deleteSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="text-rose-600 hover:underline text-xs font-semibold">Löschen</button>` : ''}
+                                    </td>
                                 </tr>
-                                <tr *ngIf="!${listVariable}?.length"><td class="p-6 text-center text-slate-400 italic">Keine Einträge vorhanden.</td></tr>
+                                <tr *ngIf="!${listVariable}?.length"><td colSpan="${displayFields.length + 1}" class="p-6 text-center text-slate-400 italic">Keine Einträge vorhanden.</td></tr>
                             </tbody>
                         </table>
                     </div>

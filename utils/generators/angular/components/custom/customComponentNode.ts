@@ -385,7 +385,7 @@ export const generateCustomComponentNode = (node: any, context: NodeGeneratorCon
         const tbl = formObj ? context.tables.find(t => t.id === formObj.sourceId) : null;
         if (tbl) {
             const tblPascal = toPascalCase(tbl.name);
-            const fieldsToRender = tbl.fields.filter(f => !f.isPrimaryKey);
+            const fieldsToRender = tbl.fields.filter(f => !f.isAutoIncrement);
             const formDataState = `formData_${suffix}`;
             context.states.push(`${formDataState}: Record<string, any> = {};`);
             
