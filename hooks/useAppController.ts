@@ -4,7 +4,9 @@ import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig, Relationship } from '../types/index';
 import { saveProjectToStorage, getProjectById } from '../services/storageService';
+import { sanitizeProjectName } from '../utils/nameUtils';
 import { cloudService } from '../services/cloudService'; 
+import { createTableFromTemplate } from '../services/tableTemplateService';
 import * as XLSX from 'xlsx';
 
 // Import Sub-Hooks
@@ -356,13 +358,29 @@ export const useAppController = () => {
 
   const handleSave = async () => { 
       if (activeObject) {
+          const nameClean = (activeObject.name || '').trim();
+          if (!nameClean) {
+              ui.addToast("Name darf nicht leer sein.", 'error');
+              return;
+          }
+
           if ('fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
               // Table
+              const hasConflict = store.tables.some(t => t.id !== activeObject.id && t.name.trim().toLowerCase() === nameClean.toLowerCase());
+              if (hasConflict) {
+                  ui.showMessage("Namenskonflikt", `Eine Tabelle mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                  return;
+              }
               const exists = store.tables.some(t => t.id === activeObject.id);
               if (exists) store.updateTable(activeObject as Table);
               else store.addTable(activeObject as Table);
           } else if ('nodes' in activeObject && 'columns' in activeObject) {
               // Query
+              const hasConflict = store.queries.some(q => q.id !== activeObject.id && q.name.trim().toLowerCase() === nameClean.toLowerCase());
+              if (hasConflict) {
+                  ui.showMessage("Namenskonflikt", `Eine Abfrage mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                  return;
+              }
               const exists = store.queries.some(q => q.id === activeObject.id);
               if (exists) {
                   const queries = store.queries.map(q => q.id === activeObject.id ? activeObject as Query : q);
@@ -372,6 +390,11 @@ export const useAppController = () => {
               }
           } else if ('layout' in activeObject && 'sourceType' in activeObject) {
               // Form
+              const hasConflict = store.forms.some(f => f.id !== activeObject.id && f.name.trim().toLowerCase() === nameClean.toLowerCase());
+              if (hasConflict) {
+                  ui.showMessage("Namenskonflikt", `Ein Formular mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                  return;
+              }
               const exists = store.forms.some(f => f.id === activeObject.id);
               if (exists) {
                   const forms = store.forms.map(f => f.id === activeObject.id ? activeObject as Form : f);
@@ -381,6 +404,11 @@ export const useAppController = () => {
               }
           } else if ('layout' in activeObject && !('sourceType' in activeObject)) {
               // CustomPage
+              const hasConflict = (store.pages || []).some(p => p.id !== activeObject.id && p.name.trim().toLowerCase() === nameClean.toLowerCase());
+              if (hasConflict) {
+                  ui.showMessage("Namenskonflikt", `Eine Seite mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                  return;
+              }
               const exists = store.pages?.some(p => p.id === activeObject.id);
               if (exists) {
                   const pages = (store.pages || []).map(p => p.id === activeObject.id ? activeObject as any : p);
@@ -390,6 +418,11 @@ export const useAppController = () => {
               }
           } else if ('summaries' in activeObject) {
               // Report
+              const hasConflict = store.reports.some(r => r.id !== activeObject.id && r.name.trim().toLowerCase() === nameClean.toLowerCase());
+              if (hasConflict) {
+                  ui.showMessage("Namenskonflikt", `Ein Bericht mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                  return;
+              }
               const exists = store.reports.some(r => r.id === activeObject.id);
               if (exists) {
                   const reports = store.reports.map(r => r.id === activeObject.id ? activeObject as Report : r);
@@ -399,6 +432,11 @@ export const useAppController = () => {
               }
           } else if ('config' in activeObject) {
               // Chart
+              const hasConflict = store.charts.some(c => c.id !== activeObject.id && c.name.trim().toLowerCase() === nameClean.toLowerCase());
+              if (hasConflict) {
+                  ui.showMessage("Namenskonflikt", `Ein Diagramm mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                  return;
+              }
               const exists = store.charts.some(c => c.id === activeObject.id);
               if (exists) {
                   const charts = store.charts.map(c => c.id === activeObject.id ? activeObject as Chart : c);
@@ -408,6 +446,11 @@ export const useAppController = () => {
               }
           } else if ('nodes' in activeObject) {
               // Workflow
+              const hasConflict = store.workflows.some(w => w.id !== activeObject.id && w.name.trim().toLowerCase() === nameClean.toLowerCase());
+              if (hasConflict) {
+                  ui.showMessage("Namenskonflikt", `Ein Workflow mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                  return;
+              }
               const exists = store.workflows.some(w => w.id === activeObject.id);
               if (exists) {
                   const workflows = store.workflows.map(w => w.id === activeObject.id ? activeObject as Workflow : w);
@@ -687,12 +730,34 @@ export const useAppController = () => {
               label: 'Neuer Name',
               initialValue: currentName,
               onConfirm: (newName) => {
-                  if (type === 'table') store.setTables(store.tables.map(t => t.id === id ? { ...t, name: newName } : t));
-                  if (type === 'query') store.setQueries(store.queries.map(q => q.id === id ? { ...q, name: newName } : q));
-                  if (type === 'form') store.setForms(store.forms.map(f => f.id === id ? { ...f, name: newName } : f));
-                  if (type === 'report') store.setReports(store.reports.map(r => r.id === id ? { ...r, name: newName } : r));
-                  if (type === 'workflow') store.setWorkflows(store.workflows.map(w => w.id === id ? { ...w, name: newName } : w));
-                  if (type === 'page' && store.pages) store.setPages(store.pages.map(p => p.id === id ? { ...p, name: newName } : p));
+                  const nameClean = newName.trim();
+                  if (!nameClean) {
+                      ui.addToast("Name darf nicht leer sein.", 'error');
+                      return;
+                  }
+                  
+                  const isDuplicate = (() => {
+                      const lower = nameClean.toLowerCase();
+                      if (type === 'table') return store.tables.some(t => t.id !== id && t.name.trim().toLowerCase() === lower);
+                      if (type === 'query') return store.queries.some(q => q.id !== id && q.name.trim().toLowerCase() === lower);
+                      if (type === 'form') return store.forms.some(f => f.id !== id && f.name.trim().toLowerCase() === lower);
+                      if (type === 'report') return store.reports.some(r => r.id !== id && r.name.trim().toLowerCase() === lower);
+                      if (type === 'workflow') return store.workflows.some(w => w.id !== id && w.name.trim().toLowerCase() === lower);
+                      if (type === 'page' && store.pages) return store.pages.some(p => p.id !== id && p.name.trim().toLowerCase() === lower);
+                      return false;
+                  })();
+
+                  if (isDuplicate) {
+                      ui.showMessage("Namenskonflikt", `Ein Objekt vom Typ "${type === 'table' ? 'Tabelle' : type === 'query' ? 'Abfrage' : type === 'form' ? 'Formular' : type === 'report' ? 'Bericht' : type === 'workflow' ? 'Workflow' : 'Seite'}" mit dem Namen "${nameClean}" existiert bereits!`, 'error');
+                      return;
+                  }
+
+                  if (type === 'table') store.setTables(store.tables.map(t => t.id === id ? { ...t, name: nameClean } : t));
+                  if (type === 'query') store.setQueries(store.queries.map(q => q.id === id ? { ...q, name: nameClean } : q));
+                  if (type === 'form') store.setForms(store.forms.map(f => f.id === id ? { ...f, name: nameClean } : f));
+                  if (type === 'report') store.setReports(store.reports.map(r => r.id === id ? { ...r, name: nameClean } : r));
+                  if (type === 'workflow') store.setWorkflows(store.workflows.map(w => w.id === id ? { ...w, name: nameClean } : w));
+                  if (type === 'page' && store.pages) store.setPages(store.pages.map(p => p.id === id ? { ...p, name: nameClean } : p));
                   ui.setNameInput(null);
               },
               onCancel: () => ui.setNameInput(null)
@@ -835,6 +900,38 @@ export const useAppController = () => {
             });
             break;
         case 'create_table': handleSetView({ type: 'table_create' }); break;
+        case 'create_table_from_template': {
+          if (payload && payload.template) {
+            const newTable = createTableFromTemplate(payload.template, store.tables, payload.withSampleData !== false);
+            store.addTable(newTable);
+            setActiveObject(newTable);
+            handleSetView({ type: 'table_data', tableId: newTable.id });
+            setIsDirty(true);
+            ui.addToast(`Tabelle "${newTable.name}" aus Vorlage "${payload.template.name}" erfolgreich erstellt.`, 'success');
+          }
+          break;
+        }
+        case 'open_table_template_manager': {
+          ui.setShowTableTemplateManager(true);
+          break;
+        }
+        case 'save_current_as_template': {
+          let tableToSave: Table | null = null;
+          if (activeObject && 'fields' in activeObject && !('nodes' in activeObject) && !('sourceType' in activeObject)) {
+            tableToSave = activeObject as Table;
+          } else if (currentView.type === 'table_data' || currentView.type === 'table_edit') {
+            const tId = (currentView as any).tableId;
+            tableToSave = store.tables.find(t => t.id === tId) || null;
+          } else if (store.tables.length > 0) {
+            tableToSave = store.tables[0];
+          }
+
+          if (tableToSave) {
+            ui.setSaveTableAsTemplateModal({ show: true, table: tableToSave });
+          }
+          ui.setShowTableTemplateManager(true);
+          break;
+        }
         case 'tickets_board': handleSetView({ type: 'tickets_board' }); break;
         case 'ai_swarm': handleSetView({ type: 'ai_swarm' }); break;
         case 'create_table_ai': handleSetView({ type: 'table_create' }); break;
@@ -1058,6 +1155,7 @@ export const useAppController = () => {
         case 'open_envs': ui.setShowEnvModal(true); break;
         case 'open_migrations': ui.setShowMigrationModal(true); break;
         case 'open_deployment_modal': ui.setShowDeploymentModal(true); break;
+        case 'open_offline_sync': ui.setShowOfflineSyncModal(true); break;
         
         case 'project_backup': {
             const project = {
@@ -1091,7 +1189,7 @@ export const useAppController = () => {
             const seconds = String(now.getSeconds()).padStart(2, '0');
             const dateStr = `${year}${month}${day}`;
             const timeStr = `${hours}${minutes}${seconds}`;
-            const filename = `${store.projectName || 'DBStudioPro'}_Backup_${dateStr}_${timeStr}.dbsp`;
+            const filename = `${sanitizeProjectName(store.projectName || 'DBStudioPro')}_Backup_${dateStr}_${timeStr}.dbsp`;
 
             // Try client-side blob download first (works on any static or custom server without backend endpoint)
             try {
@@ -1218,7 +1316,7 @@ export const useAppController = () => {
             
             const linkElement = document.createElement('a');
             linkElement.href = url;
-            linkElement.download = `${store.projectName}.dbsp`;
+            linkElement.download = `${sanitizeProjectName(store.projectName)}.dbsp`;
             linkElement.click();
             
             URL.revokeObjectURL(url);

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Save, Download, Upload } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { useUIStore } from '../../../stores/useUIStore';
+import { sanitizeProjectName } from '../../../utils/nameUtils';
 
 interface BackupRestoreSectionProps {
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
@@ -40,7 +41,7 @@ export const BackupRestoreSection: React.FC<BackupRestoreSectionProps> = ({ show
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(payload, null, 2))}`;
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", jsonString);
-    downloadAnchor.setAttribute("download", `${store.projectName.replace(/\s+/g, '_')}_Backup_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute("download", `${sanitizeProjectName(store.projectName)}_Backup_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

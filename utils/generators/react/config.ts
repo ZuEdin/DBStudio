@@ -37,7 +37,9 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
       "date-fns": "^3.6.0",
       "xlsx": "^0.18.5",
       "jspdf": "^2.5.1",
-      "jspdf-autotable": "^3.8.1"
+      "jspdf-autotable": "^3.8.1",
+      "react-markdown": "^9.0.1",
+      "remark-gfm": "^4.0.0"
   };
 
   const devDependencies: any = { 

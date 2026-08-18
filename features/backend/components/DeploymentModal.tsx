@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { DeploymentConfig, DeploymentTarget } from '../../../types/index';
-import { X, Upload, Server, Cloud, Globe, Ship, Github, MonitorPlay, ArrowRight, Database, Terminal, Cpu, Layers, Settings, GitBranch, Play, CheckCircle2, DollarSign, Building, FileText } from 'lucide-react';
+import { X, Upload, Server, Cloud, Globe, Ship, Github, MonitorPlay, ArrowRight, Database, Terminal, Cpu, Layers, Settings, GitBranch, Play, CheckCircle2, DollarSign, Building, FileText, RefreshCw } from 'lucide-react';
 
 interface DeploymentModalProps {
   config: DeploymentConfig | undefined;
@@ -108,6 +108,24 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
             { id: 'db', label: 'Postgres Flexible Server', type: 'Azure Managed Database', active: true }
           ]
         };
+      case 'offline_sync':
+        return {
+          cost: '$0 - $15 / Monat (Lokale SQLite kostenlos)',
+          provider: 'Hybrid: SQLite (Client) ➔ MySQL (Cloud)',
+          infraFiles: [
+            '01_sqlite_local_schema.sql',
+            '02_mysql_remote_schema.sql',
+            'syncApiRoutes.ts',
+            'offlineClientSyncWorker.ts',
+            'docker-compose.offline-sync.yml'
+          ],
+          nodes: [
+            { id: 'src', label: 'SQLite Client', type: 'Lokale Edge DB', active: true },
+            { id: 'wrapper', label: 'Sync Worker', type: 'Delta Push/Pull', active: true },
+            { id: 'service', label: 'Sync API', type: 'REST Gateway', active: true },
+            { id: 'db', label: 'MySQL Server', type: 'Cloud Master DB', active: true }
+          ]
+        };
       default:
         return {
           cost: 'Variabel',
@@ -144,6 +162,9 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                 </button>
                 <button onClick={() => setTarget('tauri')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'tauri' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
                     <Terminal size={16} className="text-amber-400" /> Tauri Desktop (Rust)
+                </button>
+                <button onClick={() => setTarget('offline_sync')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'offline_sync' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
+                    <RefreshCw size={16} className="text-emerald-400" /> Offline-First (SQLite ➔ MySQL)
                 </button>
                 <div className="h-4 border-t border-slate-700/50 my-2"></div>
                 <button onClick={() => setTarget('ftp')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'ftp' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
@@ -291,6 +312,36 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                                 <div className="space-y-1 font-mono text-[9px] text-slate-500 bg-slate-900 text-slate-200 p-2 rounded">
                                   <div>- #[tauri::command] execute_local_query</div>
                                   <div>- #[tauri::command] check_database_latency</div>
+                                </div>
+                              </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {target === 'offline_sync' && (
+                        <div className="space-y-4 animate-in slide-in-from-right-2">
+                            <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-lg text-emerald-950 text-xs leading-relaxed">
+                                <p className="font-bold text-emerald-900 mb-1 flex items-center gap-1.5">
+                                    <RefreshCw size={13} className="text-emerald-600 animate-spin-reverse" /> Offline-First Synchronisations-Architektur
+                                </p>
+                                Ermöglicht unterbrechungsfreies Arbeiten in einer lokalen **SQLite**-Datenbank (Client/Desktop/Edge) und synchronisiert Änderungen im Hintergrund mit dem zentralen **MySQL / PostgreSQL** Online-Server.
+                            </div>
+                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-2.5">
+                              <div>
+                                <p className="font-bold text-slate-700 text-[11px]">Automatische Features & Spalten:</p>
+                                <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-600 mt-1">
+                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> Soft-Delete (<code>_is_deleted</code>)</div>
+                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> Delta-Zeitstempel (<code>_updated_at</code>)</div>
+                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> Revisions-Locking (<code>_sync_version</code>)</div>
+                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> Last-Write-Wins (LWW)</div>
+                                </div>
+                              </div>
+                              <div className="pt-2 border-t border-slate-200/60">
+                                <p className="font-bold text-slate-700 text-[11px] mb-1">Generierte Sync-Routen & Worker:</p>
+                                <div className="space-y-1 font-mono text-[9px] text-slate-300 bg-slate-900 p-2 rounded">
+                                  <div>- POST /api/sync/pull (Delta-Query since timestamp)</div>
+                                  <div>- POST /api/sync/push (Batch Upsert & Soft-Delete)</div>
+                                  <div>- OfflineSyncEngine (Client SQLite Worker)</div>
                                 </div>
                               </div>
                             </div>

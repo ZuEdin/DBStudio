@@ -22,6 +22,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   const [showLookupModal, setShowLookupModal] = useState(false);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'layout' | 'validation'>('layout');
+  const [activeDesignerTabs, setActiveDesignerTabs] = useState<Record<string, string>>({});
   
   const mainFormTable = allTables.find(t => t.id === form.sourceId);
 
@@ -187,6 +188,13 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 { id: crypto.randomUUID(), type: 'container', width: '1/2', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] },
                 { id: crypto.randomUUID(), type: 'container', width: '1/2', className: 'border border-dashed border-slate-300 p-2 min-h-[60px] rounded bg-slate-50/50', children: [] }
             ];
+        } else if (actionTrigger.action === 'form_add_tabs') {
+            newEl.type = 'tabs';
+            newEl.className = 'my-4';
+            newEl.children = [
+                { id: 'tabpage_' + crypto.randomUUID(), type: 'tab_page', label: 'Registerkarte 1', children: [] },
+                { id: 'tabpage_' + crypto.randomUUID(), type: 'tab_page', label: 'Registerkarte 2', children: [] }
+            ];
         }
 
         if (target && target.children) target.children.push(newEl);
@@ -212,8 +220,19 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       try {
         const data = JSON.parse(json);
         updateFormLayout((layout) => {
-            const container = findElement(layout, containerId);
-            if (!container || !container.children) return;
+            let container = findElement(layout, containerId);
+            if (!container) return;
+
+            // If user drops onto a 'tabs' element directly, target the active tab page!
+            if (container.type === 'tabs') {
+                const activePageId = activeDesignerTabs[container.id] || container.children?.[0]?.id;
+                const activePage = (container.children || []).find(p => p.id === activePageId) || container.children?.[0];
+                if (activePage) {
+                    container = activePage;
+                }
+            }
+
+            if (!container.children) container.children = [];
 
             if (data.type === 'move_element') {
                 if (data.id === containerId) return; // Can't drop into self
@@ -235,11 +254,39 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 const isChild = (parent: FormElement, childId: string): boolean => {
                     return parent.id === childId || (parent.children || []).some(c => isChild(c, childId));
                 };
-                if (isChild(findElement(layout, data.id)!, containerId)) return;
+                const draggedItem = findElement(layout, data.id);
+                if (draggedItem && isChild(draggedItem, containerId)) return;
 
                 removeAndFind(layout);
                 if (itemToMove) container.children.push(itemToMove);
 
+            } else if (data.type === 'container') {
+                container.children.push({
+                    id: 'container_' + crypto.randomUUID(),
+                    type: 'container',
+                    className: 'grid grid-cols-1 md:grid-cols-2 gap-4 border border-dashed border-slate-200 p-4 rounded-lg my-2',
+                    children: []
+                });
+            } else if (data.type === 'tabs') {
+                container.children.push({
+                    id: 'tabs_' + crypto.randomUUID(),
+                    type: 'tabs',
+                    className: 'my-4',
+                    children: [
+                        {
+                            id: 'tabpage_' + crypto.randomUUID(),
+                            type: 'tab_page',
+                            label: 'Registerkarte 1',
+                            children: []
+                        },
+                        {
+                            id: 'tabpage_' + crypto.randomUUID(),
+                            type: 'tab_page',
+                            label: 'Registerkarte 2',
+                            children: []
+                        }
+                    ]
+                });
             } else if (data.type === 'field') {
                 // New Field
                 container.children.push({ id: crypto.randomUUID(), type: 'field', fieldId: data.fieldId, label: data.label, className: 'mb-4' });
@@ -267,7 +314,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
             } else if (data.type === 'form') {
                 // New Subform
                 setLinkingSubform(allForms.find(f => f.id === data.formId) || null);
-                (window as any).__tempContainerId = containerId;
+                (window as any).__tempContainerId = container.id;
             }
         });
       } catch (e) { console.error(e); }
@@ -316,15 +363,71 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
               } 
               // CASE B: Dropping new Field
               else if (data.type === 'field') {
+                  const targetField = mainFormTable?.fields.find(f => f.id === data.fieldId);
+                  const isMd = targetField?.rendererType === 'markdown' || targetField?.type === 'TEXT' || (data.label || '').toLowerCase().includes('markdown') || (data.label || '').toLowerCase().includes('beschreibung') || (data.label || '').toLowerCase().includes('notiz');
                   itemToInsert = { 
                       id: crypto.randomUUID(), 
                       type: 'field', 
                       fieldId: data.fieldId, 
                       label: data.label, 
+                      widgetType: isMd ? 'markdown' : undefined,
                       className: 'mb-4' 
                   };
               }
-              // CASE C: Dropping new Subform (Not supported for insert-before yet, use container drop)
+              // CASE C: Dropping container
+              else if (data.type === 'container') {
+                  itemToInsert = {
+                      id: 'container_' + crypto.randomUUID(),
+                      type: 'container',
+                      className: 'grid grid-cols-1 md:grid-cols-2 gap-4 border border-dashed border-slate-200 p-4 rounded-lg my-2',
+                      children: []
+                  };
+              }
+              // CASE D: Dropping tabs
+              else if (data.type === 'tabs') {
+                  itemToInsert = {
+                      id: 'tabs_' + crypto.randomUUID(),
+                      type: 'tabs',
+                      className: 'my-4',
+                      children: [
+                          {
+                              id: 'tabpage_' + crypto.randomUUID(),
+                              type: 'tab_page',
+                              label: 'Registerkarte 1',
+                              children: []
+                          },
+                          {
+                              id: 'tabpage_' + crypto.randomUUID(),
+                              type: 'tab_page',
+                              label: 'Registerkarte 2',
+                              children: []
+                          }
+                      ]
+                  };
+              }
+              // CASE E: Dropping button
+              else if (data.type === 'button') {
+                  itemToInsert = { 
+                      id: crypto.randomUUID(), 
+                      type: 'button', 
+                      label: data.label || '⚡ Makro ausführen', 
+                      className: 'bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
+                      actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }]
+                  };
+              }
+              // CASE F: Dropping dropdown_button
+              else if (data.type === 'dropdown_button') {
+                  itemToInsert = {
+                      id: crypto.randomUUID(),
+                      type: 'dropdown_button',
+                      label: data.label || 'Aktionen',
+                      className: 'bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
+                      dropdownItems: [
+                          { id: crypto.randomUUID(), label: '⚡ Makro 1 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] },
+                          { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
+                      ]
+                  };
+              }
               
               // Perform Insertion
               if (itemToInsert) {
@@ -435,6 +538,101 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
               </div>
           );
       }
+
+      if (el.type === 'tabs') {
+          const tabPages = el.children || [];
+          const activeTabPageId = activeDesignerTabs[el.id] || tabPages[0]?.id || '';
+          const activePage = tabPages.find(p => p.id === activeTabPageId) || tabPages[0];
+
+          return (
+              <div 
+                key={el.id} 
+                className={`${baseClass} bg-slate-50 dark:bg-slate-900/40 p-4 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl group relative`}
+                onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => handleDropOnContainer(e, el.id)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, el.id)}
+              >
+                  <SelectionOverlayActions />
+                  <div className="absolute right-0 top-0 p-1 cursor-move text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 z-20 bg-white/50 dark:bg-slate-800/50 rounded">
+                      <GripVertical size={14} />
+                  </div>
+
+                  {/* Tab Headers in Designer */}
+                  <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 px-2 rounded-t-lg items-center justify-between">
+                      <div className="flex overflow-x-auto whitespace-nowrap">
+                          {tabPages.map((tab, idx) => {
+                              const isActive = tab.id === activeTabPageId;
+                              return (
+                                  <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setActiveDesignerTabs(prev => ({ ...prev, [el.id]: tab.id })); setSelectedElementId(tab.id); }}
+                                    className={`px-3 py-1.5 text-xs font-semibold border-b-2 transition-all ${
+                                      isActive
+                                        ? 'border-blue-600 text-blue-600 bg-white dark:bg-slate-900 shadow-sm'
+                                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 hover:bg-slate-200/50'
+                                    }`}
+                                  >
+                                      {tab.label || `Registerkarte ${idx + 1}`}
+                                  </button>
+                              );
+                          })}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Add a new tab page
+                            const newTabPage: FormElement = {
+                                id: 'tabpage_' + crypto.randomUUID(),
+                                type: 'tab_page',
+                                label: 'Neue Registerkarte',
+                                children: []
+                            };
+                            const updatedLayout = JSON.parse(JSON.stringify(form.layout));
+                            const foundTabs = findElement(updatedLayout, el.id);
+                            if (foundTabs) {
+                                if (!foundTabs.children) foundTabs.children = [];
+                                foundTabs.children.push(newTabPage);
+                                onFormChange({ ...form, layout: updatedLayout });
+                                setActiveDesignerTabs(prev => ({ ...prev, [el.id]: newTabPage.id }));
+                                setSelectedElementId(newTabPage.id);
+                            }
+                        }}
+                        className="m-1 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"
+                      >
+                          <Plus size={10} strokeWidth={3} /> Tab hinzufügen
+                      </button>
+                  </div>
+
+                  {/* Active Tab Page Content */}
+                  <div className="p-2 border-x border-b border-slate-200 dark:border-slate-800 rounded-b-lg bg-white dark:bg-slate-900/20 min-h-[80px]">
+                      {activePage ? renderElement(activePage) : <div className="text-xs text-slate-400 text-center py-4">Keine Registerkarten vorhanden</div>}
+                  </div>
+              </div>
+          );
+      }
+
+      if (el.type === 'tab_page') {
+          return (
+              <div 
+                key={el.id} 
+                className={`${baseClass} bg-slate-50/50 p-2 border border-dashed border-slate-200 dark:border-slate-800 rounded min-h-[60px] group relative`}
+                onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => handleDropOnContainer(e, el.id)}
+              >
+                  <SelectionOverlayActions />
+                  <div className="text-[10px] text-slate-400 font-semibold mb-2 flex items-center justify-between border-b border-slate-100 pb-1">
+                      <span>Registerkarte: {el.label}</span>
+                  </div>
+                  {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-2 pointer-events-none">Hier Elemente ablegen</div>}
+                  {el.children?.map(renderElement)}
+              </div>
+          );
+      }
       
       if (el.type === 'field') {
           return (
@@ -454,6 +652,24 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                              </select>
                              <div className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
                                 <ChevronDown size={14} />
+                             </div>
+                         </div>
+                    ) : el.widgetType === 'markdown' ? (
+                         <div className="w-full bg-slate-50 border border-slate-300 rounded-lg overflow-hidden shadow-2xs pointer-events-none">
+                             <div className="bg-slate-100 px-2.5 py-1 border-b border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
+                                 <div className="flex items-center gap-1.5 font-semibold text-slate-500">
+                                     <span className="font-bold text-slate-700">B</span>
+                                     <span className="italic text-slate-700">I</span>
+                                     <span>H1</span>
+                                     <span>H2</span>
+                                     <span>• Liste</span>
+                                     <span>📊 Tabelle</span>
+                                 </div>
+                                 <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono font-bold">Markdown</span>
+                             </div>
+                             <div className="p-2.5 text-xs text-slate-400 font-mono leading-relaxed">
+                                 # Überschrift<br/>
+                                 - **Formatierter Text** und Listen...
                              </div>
                          </div>
                     ) : el.widgetType === 'textarea' ? (
@@ -740,6 +956,71 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
             />
           </div>
           <div className="h-1/3 border-t border-slate-300 p-4 overflow-y-auto bg-slate-50">
+             <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">Struktur-Elemente</h4>
+             <div className="space-y-1 mb-4">
+                  <div 
+                     draggable 
+                     onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'container', label: 'Zweispaltiger Container' })); }}
+                     onClick={() => {
+                         updateFormLayout(layout => {
+                             if (!layout.children) layout.children = [];
+                             layout.children.push({
+                                 id: 'container_' + crypto.randomUUID(),
+                                 type: 'container',
+                                 className: 'grid grid-cols-1 md:grid-cols-2 gap-4 border border-dashed border-slate-200 p-4 rounded-lg my-2',
+                                 children: []
+                             });
+                         });
+                     }}
+                     className="bg-sky-50 border border-sky-300 p-2 rounded-lg cursor-grab text-xs flex items-center justify-between text-sky-950 hover:border-sky-400 hover:bg-sky-100/80 active:cursor-grabbing font-bold shadow-xs transition-colors"
+                     title="Zweispaltiger Container für Felder"
+                  >
+                     <span className="flex items-center gap-2">
+                       <Columns size={14} className="text-sky-600" /> 
+                       Spaltenbereich (Container)
+                     </span>
+                     <Plus size={14} className="text-sky-700" />
+                  </div>
+
+                  <div 
+                     draggable 
+                     onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'tabs', label: 'Registerkarte' })); }}
+                     onClick={() => {
+                         updateFormLayout(layout => {
+                             if (!layout.children) layout.children = [];
+                             const tabsId = 'tabs_' + crypto.randomUUID();
+                             layout.children.push({
+                                 id: tabsId,
+                                 type: 'tabs',
+                                 className: 'my-4',
+                                 children: [
+                                     {
+                                         id: 'tabpage_' + crypto.randomUUID(),
+                                         type: 'tab_page',
+                                         label: 'Registerkarte 1',
+                                         children: []
+                                     },
+                                     {
+                                         id: 'tabpage_' + crypto.randomUUID(),
+                                         type: 'tab_page',
+                                         label: 'Registerkarte 2',
+                                         children: []
+                                     }
+                                 ]
+                             });
+                         });
+                     }}
+                     className="bg-emerald-50 border border-emerald-300 p-2 rounded-lg cursor-grab text-xs flex items-center justify-between text-emerald-950 hover:border-emerald-400 hover:bg-emerald-100/80 active:cursor-grabbing font-bold shadow-xs transition-colors"
+                     title="Registerkartensteuerung (Tabs) zum Organisieren von Formularbereichen"
+                  >
+                     <span className="flex items-center gap-2">
+                       <Layout size={14} className="text-emerald-600" /> 
+                       Registerkarten (Tabulator)
+                     </span>
+                     <Plus size={14} className="text-emerald-700" />
+                  </div>
+             </div>
+
              <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">Verfügbare Felder</h4>
              <p className="text-[10px] text-slate-400 mb-2">Drag & Drop auf das Formular.</p>
              <div className="space-y-1">

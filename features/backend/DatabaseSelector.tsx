@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Database, FolderOpen, RefreshCw, Upload } from 'lucide-react';
 import { DbType, Project, BackendLanguage, AuthConfig, BackendConfig, ProjectData } from '../../types/index';
+import { sanitizeProjectName } from '../../utils/nameUtils';
 import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage, getProjectById } from '../../services/storageService';
 import { cloudService } from '../../services/cloudService';
 import { getTemplates } from '../../data/templates/index';
@@ -324,7 +325,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
           language: newLanguage,
           backendVersion: newLanguage === 'dotnet' ? '10.0' : undefined,
           dbType: newDbType,
-          projectName: newProjectName.replace(/\s+/g, '') || 'MyProject',
+          projectName: sanitizeProjectName(newProjectName),
           port: 5000,
           dbConnection: newDbType === DbType.SQLite ? 'Data Source=app.db' 
                         : newDbType === DbType.MySQL ? 'Server=localhost;Database=mydb;User=root;Password=password;'
@@ -435,7 +436,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
         const original = await getProjectById(copyingProject.id);
         if (original) {
             const newId = crypto.randomUUID();
-            const cleanName = renameValue.replace(/\s+/g, '') || 'MyProject';
+            const cleanName = sanitizeProjectName(renameValue);
             const clone: Project = {
                 ...original,
                 id: newId,
@@ -464,7 +465,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
     try {
         const original = await getProjectById(renamingProject.id);
         if (original) {
-            const cleanName = renameValue.replace(/\s+/g, '') || 'MyProject';
+            const cleanName = sanitizeProjectName(renameValue);
             const updated: Project = {
                 ...original,
                 name: renameValue,

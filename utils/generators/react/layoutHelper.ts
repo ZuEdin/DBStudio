@@ -62,6 +62,36 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         }
         return `<div className="${className}">\n${childrenJsx}\n</div>`;
     } 
+    else if (element.type === 'tabs') {
+        const tabPages = element.children || [];
+        const widthClass = getTailwindWidthClass(element.width);
+        const tabsId = element.id.replace(/[^a-zA-Z0-9_]/g, '_');
+        
+        const headerButtons = tabPages.map((tab, idx) => {
+            const tabId = tab.id;
+            return `<button type="button" onClick={() => setActiveTabs(prev => ({ ...prev, '${tabsId}': '${tabId}' }))} className={\`px-4 py-2.5 text-xs md:text-sm font-semibold border-b-2 transition-all \${(activeTabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tabId}' ? 'border-blue-600 text-blue-600 bg-white dark:bg-slate-900 shadow-sm' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}\`}>${tab.label || `Tab ${idx + 1}`}</button>`;
+        }).join('\n');
+
+        const pagesContent = tabPages.map(tab => {
+            const content = tab.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries)).join('\n') || '';
+            return `{(activeTabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}' && (
+              <div className="p-4 bg-white dark:bg-slate-900 min-h-[60px]">
+                ${content}
+              </div>
+            )}`;
+        }).join('\n');
+
+        return `<div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm my-4 ${element.className || ''} ${widthClass}">
+          <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 overflow-x-auto whitespace-nowrap">
+            ${headerButtons}
+          </div>
+          ${pagesContent}
+        </div>`;
+    }
+    else if (element.type === 'tab_page') {
+        const content = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries)).join('\n') || '';
+        return `<div className="${element.className || 'space-y-4'}">\n${content}\n</div>`;
+    }
     else if (element.type === 'label') {
         const widthClass = getTailwindWidthClass(element.width);
         const className = `${element.className || 'text-lg font-bold mb-3 text-slate-800 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2'} ${widthClass}`.trim();
@@ -190,13 +220,16 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
     else if (element.type === 'field' && element.fieldId) {
         let fieldName = '';
         let inputType = 'text';
+        let foundField: any = null;
         
         for (const t of tables) {
             const f = t.fields.find(field => field.id === element.fieldId);
             if (f) {
                 fieldName = f.name;
-                if (f.type === 'INTEGER' || f.type === 'DECIMAL') inputType = 'number';
-                if (f.type === 'DATE') inputType = 'date';
+                foundField = f;
+                if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') inputType = 'number';
+                else if (f.type === 'BOOLEAN') inputType = 'checkbox';
+                else if (f.type === 'DATE') inputType = 'date';
                 else if (f.type === 'TIME') inputType = 'time';
                 else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') inputType = 'datetime-local';
                 break;
@@ -215,6 +248,78 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         const inputClass = `w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-slate-400 \${${uxDisabled} ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''}`;
         const widthClass = getTailwindWidthClass(element.width);
         const wrapperClass = `${element.className || ""} ${widthClass} ${uxHidden}`.trim();
+
+        // Markdown Editor Widget
+        if (element.widgetType === 'markdown' || foundField?.rendererType === 'markdown' || (foundField?.type === 'TEXT' && foundField?.comment?.toLowerCase().includes('markdown'))) {
+            return `
+            <div className={\`${wrapperClass}\`}>
+                <div className="flex justify-between items-center mb-1">
+                    <label className="${labelClass}">${element.label} {${uxRequired} && <span className="text-red-500">*</span>}</label>
+                    <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-200/60 dark:border-indigo-800/60 font-mono">
+                        Markdown
+                    </span>
+                </div>
+                <MarkdownEditor
+                    id="field_${element.id}"
+                    value={${dataVar}.${bindProp} !== undefined && ${dataVar}.${bindProp} !== null ? String(${dataVar}.${bindProp}) : ''}
+                    onChange={(val: string) => setData({ ...${dataVar}, ${bindProp}: val })}
+                    disabled={${uxDisabled}}
+                    minHeight="140px"
+                />
+            </div>`;
+        }
+
+        // Textarea Widget
+        if (element.widgetType === 'textarea' || foundField?.type === 'TEXT') {
+            return `
+            <div className={\`${wrapperClass}\`}>
+                <label className="${labelClass}">${element.label} {${uxRequired} && <span className="text-red-500">*</span>}</label>
+                <textarea
+                    rows={4}
+                    disabled={${uxDisabled}}
+                    required={${uxRequired}}
+                    className={\`${inputClass}\`}
+                    value={${dataVar}.${bindProp} !== undefined && ${dataVar}.${bindProp} !== null ? ${dataVar}.${bindProp} : ''}
+                    onChange={e => setData({...${dataVar}, ${bindProp}: e.target.value})}
+                />
+            </div>`;
+        }
+
+        // Calculated Field Widget
+        if (element.widgetType === 'calculated' || element.isCalculated || foundField?.isCalculated) {
+            return `
+            <div className={\`${wrapperClass}\`}>
+                <div className="flex justify-between items-center mb-1">
+                    <label className="${labelClass}">${element.label}</label>
+                    <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-300/50 dark:border-amber-800/50">⚡ Berechnet</span>
+                </div>
+                <input
+                    type="text"
+                    readOnly
+                    className={\`${inputClass} bg-amber-50 dark:bg-amber-950/20 text-amber-950 dark:text-amber-200 font-mono font-bold cursor-default\`}
+                    value={${dataVar}.${bindProp} !== undefined && ${dataVar}.${bindProp} !== null ? ${dataVar}.${bindProp} : ''}
+                    placeholder="(Berechnung)"
+                />
+            </div>`;
+        }
+
+        // Checkbox / Switch Widget
+        if (element.widgetType === 'checkbox' || element.widgetType === 'switch' || inputType === 'checkbox') {
+            return `
+            <div className={\`${wrapperClass}\`}>
+                <div className="flex items-center gap-2.5 mt-6 mb-2">
+                    <input
+                        type="checkbox"
+                        id="field_${element.id}"
+                        disabled={${uxDisabled}}
+                        checked={!!${dataVar}.${bindProp}}
+                        onChange={e => setData({...${dataVar}, ${bindProp}: e.target.checked})}
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700 cursor-pointer"
+                    />
+                    <label htmlFor="field_${element.id}" className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">${element.label} {${uxRequired} && <span className="text-red-500">*</span>}</label>
+                </div>
+            </div>`;
+        }
 
         // Select / Lookup
         if (element.widgetType === 'select' && element.lookup) {

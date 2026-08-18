@@ -13,6 +13,7 @@ import { WhitelabelModal } from '../features/backend/WhitelabelModal';
 import { EnvironmentManagerModal } from '../features/backend/EnvironmentManagerModal';
 import { MigrationManagerModal } from '../features/backend/MigrationManagerModal';
 import { IntegrationsModal } from '../features/backend/IntegrationsModal';
+import { OfflineSyncGeneratorModal } from '../features/backend/components/OfflineSyncGeneratorModal';
 import { DuplicateWizard, InconsistencyWizard } from '../features/queries/wizards/QueryWizards';
 import { AppendQueryWizard } from '../features/queries/wizards/AppendQueryWizard';
 import { DeleteQueryWizard } from '../features/queries/wizards/DeleteQueryWizard'; 
@@ -25,6 +26,8 @@ import { SharePointImportWizard } from '../features/tools/SharePointImportWizard
 import { SchemaImportWizard } from '../features/tools/SchemaImportWizard'; 
 import { MessageModal } from './modals/MessageModal';
 import { ButtonInfoModal } from './modals/ButtonInfoModal';
+import { TableTemplateManagerModal } from '../features/tables/TableTemplateManagerModal';
+import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 import { DbType } from '../types/index';
@@ -56,9 +59,12 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
     showDeploymentModal, setShowDeploymentModal, showWhitelabelModal, setShowWhitelabelModal,
     showEnvModal, setShowEnvModal, showMigrationModal, setShowMigrationModal,
     showIntegrationsModal, setShowIntegrationsModal, showExcelWizard, setShowExcelWizard,
+    showOfflineSyncModal, setShowOfflineSyncModal,
     showAccessWizard, setShowAccessWizard, showDummyDataWizard, setShowDummyDataWizard,
     showSharePointWizard, setShowSharePointWizard, showSchemaWizard, setShowSchemaWizard,
     showButtonInfoModal, setShowButtonInfoModal,
+    showTableTemplateManager, setShowTableTemplateManager,
+    saveTableAsTemplateModal, setSaveTableAsTemplateModal,
     messageModal, closeMessage: onCloseMessage, setCurrentView, addToast
   } = ui;
 
@@ -239,6 +245,20 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
           />
       )}
 
+      {showOfflineSyncModal && (
+        <OfflineSyncGeneratorModal
+          tables={tables}
+          backendConfig={backendConfig}
+          onUpdateTables={(newTables) => {
+            newTables.forEach(t => updateTable(t));
+          }}
+          onSaveConfig={(newConfig) => setBackendConfig(newConfig)}
+          onClose={() => setShowOfflineSyncModal(false)}
+          showMessage={(title, msg, typ) => ui.showMessage(title, msg, typ)}
+          addToast={addToast}
+        />
+      )}
+
       {/* Query Wizards */}
       {activeWizard === 'duplicate' && <DuplicateWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
       {activeWizard === 'inconsistency' && <InconsistencyWizard tables={tables} onSave={onSaveWizardQuery} onClose={() => setActiveWizard(null)} />}
@@ -290,6 +310,30 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             if (props.onContextMenuAction) {
               props.onContextMenuAction(actionKey);
             }
+          }}
+        />
+      )}
+
+      {showTableTemplateManager && (
+        <TableTemplateManagerModal 
+          isOpen={showTableTemplateManager}
+          onClose={() => {
+            setShowTableTemplateManager(false);
+            setSaveTableAsTemplateModal(null);
+          }}
+          existingTables={tables}
+          initialTableToSave={saveTableAsTemplateModal?.table}
+          onSelectTemplate={(template, withSampleData) => {
+            const newTable = createTableFromTemplate(template, tables, withSampleData);
+            addTable(newTable);
+            ui.setActiveObject(newTable);
+            if (onSetView) {
+              onSetView({ type: 'table_data', tableId: newTable.id });
+            } else {
+              setCurrentView({ type: 'table_data', tableId: newTable.id });
+            }
+            ui.setIsDirty(true);
+            addToast(`Tabelle "${newTable.name}" aus Vorlage "${template.name}" erfolgreich erstellt.`, 'success');
           }}
         />
       )}

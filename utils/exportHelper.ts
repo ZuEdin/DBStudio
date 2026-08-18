@@ -2,6 +2,7 @@ import { ExportFormat } from '../types/macro';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { sanitizeProjectName } from './nameUtils';
 
 export interface ExportDataOptions {
   title?: string;
@@ -231,7 +232,11 @@ function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename;
+  const nameParts = filename.split('.');
+  const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
+  const baseName = nameParts.join('.');
+  const cleanBase = sanitizeProjectName(baseName);
+  a.download = `${cleanBase}${ext}`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

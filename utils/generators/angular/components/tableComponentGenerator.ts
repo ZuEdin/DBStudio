@@ -189,7 +189,11 @@ export const generateTableComponents = (
                             ${table.fields.map(f => `
                             <div class="row py-2 border-bottom">
                                 <div class="col-4 text-uppercase text-muted small fw-bold">${f.name}</div>
-                                <div class="col-8 text-dark fw-medium text-break">{{ getFieldValue(selectedItem, '${f.name}') }}</div>
+                                <div class="col-8 text-dark fw-medium text-break">
+                                    ${((f as any).rendererType === 'markdown' || (f.comment && f.comment.toLowerCase().includes('markdown'))) 
+                                      ? `<app-markdown-viewer [content]="getFieldValue(selectedItem, '${f.name}')"></app-markdown-viewer>` 
+                                      : `{{ getFieldValue(selectedItem, '${f.name}') }}`}
+                                </div>
                             </div>`).join('')}
                         </div>
                     </div>
@@ -241,10 +245,12 @@ export const generateTableComponents = (
                 <tbody>
                     <tr *ngFor="let item of items" class="border-b hover:bg-slate-50 cursor-pointer" (dblclick)="viewDetails(item)">
                         ${table.fields.map(f => `<td class="p-4">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
-                        <td class="p-4">
-                            <button (click)="viewDetails(item)" class="text-slate-500 hover:bg-slate-100 p-1.5 rounded mr-1" title="Details"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></button>
-                            <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded mr-1" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>
-                            <button (click)="delete(getFieldValue(item, '${pkField}'))" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                        <td class="p-4 whitespace-nowrap">
+                            <div class="flex items-center gap-1">
+                                <button (click)="viewDetails(item)" class="text-slate-500 hover:bg-slate-100 p-1.5 rounded" title="Details"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></button>
+                                <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>
+                                <button (click)="delete(getFieldValue(item, '${pkField}'))" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                            </div>
                         </td>
                     </tr>
                     <tr *ngIf="items.length === 0">
@@ -276,7 +282,11 @@ export const generateTableComponents = (
                     ${table.fields.map(f => `
                     <div class="grid grid-cols-3 gap-2 py-2 border-b border-slate-100 last:border-0">
                         <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">${f.name}</span>
-                        <span class="col-span-2 text-sm text-slate-800 font-medium whitespace-pre-wrap">{{ getFieldValue(selectedItem, '${f.name}') }}</span>
+                        <div class="col-span-2 text-sm text-slate-800 font-medium">
+                            ${((f as any).rendererType === 'markdown' || (f.comment && f.comment.toLowerCase().includes('markdown'))) 
+                              ? `<app-markdown-viewer [content]="getFieldValue(selectedItem, '${f.name}')"></app-markdown-viewer>` 
+                              : `<span class="whitespace-pre-wrap">{{ getFieldValue(selectedItem, '${f.name}') }}</span>`}
+                        </div>
                     </div>`).join('')}
                 </div>
                 <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
@@ -336,12 +346,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../services/api.service';
+import { MarkdownViewerComponent } from '../../components/common/markdown-viewer.component';
 import { ${interfaceName} } from '../../models/${interfaceName.toLowerCase()}.interface';
 
 @Component({
   selector: 'app-${kebabName}-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, MarkdownViewerComponent],
   templateUrl: './${kebabName}-list.component.html',
   styleUrl: './${kebabName}-list.component.css'
 })
@@ -894,13 +905,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { MacroService } from '../../services/macro.service';
 import { UserPickerComponent } from '../../components/user-picker/user-picker.component';
+import { MarkdownEditorComponent } from '../../components/common/markdown-editor.component';
 import { ${interfaceName} } from '../../models/${interfaceName.toLowerCase()}.interface';
 import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
 @Component({
   selector: 'app-${kebabName}-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, UserPickerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, UserPickerComponent, MarkdownEditorComponent],
   templateUrl: './${kebabName}-form.component.html',
   styleUrl: './${kebabName}-form.component.css'
 })
@@ -909,6 +921,7 @@ export class ${pascalName}FormComponent implements OnInit {
   tempData: any = {}; 
   tempSubData: any = {};
   modals: any = {};
+  tabs: any = {};
   dropdowns: any = {};
   dropdownActions: Record<string, any[]> = ${dropdownActionsStr};
   isNew = true;

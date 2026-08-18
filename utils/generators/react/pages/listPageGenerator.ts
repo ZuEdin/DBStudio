@@ -47,6 +47,7 @@ import { Link } from 'react-router-dom';
 import { ${pascalName} } from '../../types';
 import { get, remove } from '../../services/api';
 import { Trash2, Plus, Edit, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Eye } from 'lucide-react';
+import { MarkdownViewer } from '../../components/common/MarkdownViewer';
 
 export const ${listName} = () => {
   const [data, setData] = useState<{ data: ${pascalName}[], total: number, page: number, totalPages: number }>({ data: [], total: 0, page: 1, totalPages: 1 });
@@ -387,6 +388,19 @@ export const ${listName} = () => {
                             const disp = '${lookup.displayFieldName}';
                             val = match[disp] !== undefined ? match[disp] : (match[disp.toLowerCase()] !== undefined ? match[disp.toLowerCase()] : match[disp.charAt(0).toUpperCase() + disp.slice(1)] || val);
                         }
+                        `;
+                    }
+                    if (f.rendererType === 'markdown' || (f.type === 'TEXT' && f.comment?.toLowerCase().includes('markdown'))) {
+                        return `
+                        <div className="col-span-1 md:col-span-2 p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">${f.name}</span>
+                            <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-200/60 font-mono">Markdown</span>
+                          </div>
+                          <div className="text-sm text-slate-800 dark:text-slate-200">
+                            <MarkdownViewer content={String(detailRecord.${fieldCamel} || '')} />
+                          </div>
+                        </div>
                         `;
                     }
                     return `

@@ -62,14 +62,14 @@ export interface DropdownItem {
 
 export interface FormElement {
   id: string;
-  type: 'container' | 'field' | 'label' | 'subform' | 'button' | 'dropdown_button';
+  type: 'container' | 'field' | 'label' | 'subform' | 'button' | 'dropdown_button' | 'tabs' | 'tab_page';
   fieldId?: string;
   label?: string;
   className?: string;
   width?: '1/12' | '1/6' | '1/4' | '1/3' | '5/12' | '1/2' | '7/12' | '2/3' | '3/4' | '5/6' | '11/12' | 'full';
   children?: FormElement[];
   dropdownItems?: DropdownItem[];
-  widgetType?: 'text' | 'textarea' | 'number' | 'date' | 'checkbox' | 'switch' | 'select' | 'ad-search' | 'current-user' | 'calculated';
+  widgetType?: 'text' | 'textarea' | 'markdown' | 'number' | 'date' | 'checkbox' | 'switch' | 'select' | 'ad-search' | 'current-user' | 'calculated';
   calculationFormula?: string;
   isCalculated?: boolean;
   hideLabel?: boolean;

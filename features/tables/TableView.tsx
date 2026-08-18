@@ -8,6 +8,7 @@ import { useDataFilter } from '../../hooks/useDataFilter';
 import { RecordDetailModal } from '../../components/modals/RecordDetailModal';
 import { KanbanBoard } from './components/KanbanBoard';
 import { evaluateFormFormula } from '../../utils/formulaEvaluator';
+import { generateNextSequenceValue } from '../../utils/sequenceHelper';
 import { AdvancedFilterModal } from './components/AdvancedFilterModal';
 import { CascadeDeleteModal } from './components/CascadeDeleteModal';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -301,7 +302,7 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
       onTableChange({ ...table, apiConfig: { ...table.apiConfig, queryParams: newParams } });
   };
 
-  const handleDataChange = (rowToUpdate: any, header: string, value: string) => {
+  const handleDataChange = (rowToUpdate: any, header: string, value: any) => {
     const originalIndex = rawData.indexOf(rowToUpdate);
     if (originalIndex === -1) return;
     const newData = [...rawData];
@@ -312,7 +313,9 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   const addRow = () => {
     const newRow = headers.reduce((acc, header) => {
       const field = table.fields.find(f => f.name === header);
-      if (field?.isAutoIncrement && field.type === 'INTEGER') {
+      if (field?.sequenceConfig?.enabled) {
+          acc[header] = generateNextSequenceValue(field, rawData);
+      } else if (field?.isAutoIncrement && field.type === 'INTEGER') {
           const maxVal = rawData.reduce((max, row) => {
               const val = parseInt(row[header], 10);
               return !isNaN(val) && val > max ? val : max;

@@ -11,6 +11,10 @@ import {
   generateCommandPalette
 } from './structure/modalGenerator';
 import {
+  generateMarkdownEditorComponent,
+  generateMarkdownViewerComponent
+} from './structure/markdownGenerator';
+import {
   generateSidebar,
   generateTopNav,
   generateLayout,
@@ -71,6 +75,10 @@ export const generateReactStructure = (
 
   // User Picker Modal Component
   files.push(generateUserPickerModal(root));
+
+  // Markdown Editor and Viewer Components
+  files.push(generateMarkdownEditorComponent(root));
+  files.push(generateMarkdownViewerComponent(root));
 
   // CommandPalette Component
   files.push(generateCommandPalette(config, root));

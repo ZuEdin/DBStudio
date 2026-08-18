@@ -40,13 +40,17 @@ authors = ["DB Studio Pro Generator"]
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "2.0.0" }
+tauri-build = { version = "1.5" }
 
 [dependencies]
-tauri = { version = "2.0.0", features = [] }
+tauri = { version = "1.5", features = ["api-all", "custom-protocol"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri-plugin-sql = { version = "2.0.0", features = ["sqlite", "mysql", "postgres"] }
+tauri-plugin-sql = { version = "2.0.0", features = ["sqlite", "mysql", "postgres"], optional = true }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
 `;
 
   files.push({

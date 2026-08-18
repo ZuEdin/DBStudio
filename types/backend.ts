@@ -21,7 +21,22 @@ export interface ElectronSettings {
   targetUrl?: string;
 }
 
-export type DeploymentTarget = 'docker' | 'ftp' | 'azure' | 'aws' | 'github' | 'electron' | 'tauri';
+export type DeploymentTarget = 'docker' | 'ftp' | 'azure' | 'aws' | 'github' | 'electron' | 'tauri' | 'offline_sync';
+
+export interface OfflineSyncConfig {
+  enabled: boolean;
+  localEngine: 'sqlite' | 'sqlcipher' | 'indexeddb' | 'powersync';
+  remoteEngine: 'mysql' | 'postgres' | 'mssql' | 'mariadb';
+  autoAddMetadataColumns: boolean;
+  conflictStrategy: 'last_write_wins' | 'server_wins' | 'client_wins' | 'manual_review';
+  softDeleteField: string;
+  updatedAtField: string;
+  createdAtField: string;
+  syncVersionField: string;
+  clientIdField: string;
+  syncIntervalSeconds: number;
+  generateTriggers: boolean;
+}
 
 export interface DeploymentConfig {
   target: DeploymentTarget;
@@ -30,6 +45,7 @@ export interface DeploymentConfig {
   ftpHost?: string;
   ftpUser?: string;
   ftpPath?: string;
+  offlineSync?: OfflineSyncConfig;
 }
 
 export interface StorageConfig {
@@ -199,4 +215,5 @@ export interface BackendConfig {
   navigationPreset?: 'sidebar' | 'top_nav' | 'double_rail';
   globalStates?: GlobalStateVariable[];
   productTours?: ProductTour[];
+  offlineSync?: OfflineSyncConfig;
 }

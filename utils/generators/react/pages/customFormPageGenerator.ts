@@ -251,6 +251,8 @@ import { get, post, put, del } from '../../services/api';
 import { Save, ArrowLeft, Loader2, Plus, Layout, User, Search, ChevronDown } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { UserPickerModal } from '../../components/UserPickerModal';
+import { MarkdownEditor } from '../../components/common/MarkdownEditor';
+import { MarkdownViewer } from '../../components/common/MarkdownViewer';
 import { useGlobalState } from '../../context/GlobalStateContext';
 import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
@@ -275,6 +277,7 @@ export const ${compName} = () => {
   };
 
   const [modals, setModals] = useState<Record<string, boolean>>({});
+  const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
   const { states, setGlobalState, addToast, executeMacro = (macroId: string) => console.log('Macro executed:', macroId) } = useGlobalState() || { states: {}, setGlobalState: () => {}, addToast: () => {}, executeMacro: () => {} };
   
   const UXRules: any[] = ${JSON.stringify(form.crossFieldValidations || [])};

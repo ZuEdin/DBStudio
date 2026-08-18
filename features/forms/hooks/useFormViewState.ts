@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Table, Query } from '../../../types/index';
 import { evaluateFormFormula } from '../../../utils/formulaEvaluator';
+import { generateNextSequenceValue } from '../../../utils/sequenceHelper';
 import { logAuditTrail } from '../../../utils/auditTrail';
 import { useProjectStore } from '../../../stores/useProjectStore';
 
@@ -361,7 +362,9 @@ export const useFormViewState = ({
 
   const prepareNewRecord = (table: Table, masterFieldId?: string, childFieldId?: string, parentVal?: any) => {
     const initialData = table.fields.reduce((acc, field) => {
-      if (field.defaultValue !== undefined && field.defaultValue !== '') {
+      if (field.sequenceConfig?.enabled) {
+        acc[field.name] = generateNextSequenceValue(field, table.data || []);
+      } else if (field.defaultValue !== undefined && field.defaultValue !== '') {
         if (field.type === 'BOOLEAN') {
           acc[field.name] = field.defaultValue === 'true';
         } else if (
@@ -424,7 +427,7 @@ export const useFormViewState = ({
     if (!sourceTable) return true;
 
     for (const field of sourceTable.fields) {
-      if (!field.allowNull && !field.isAutoIncrement && field.type !== 'BOOLEAN') {
+      if (!field.allowNull && !field.isAutoIncrement && !field.sequenceConfig?.enabled && field.type !== 'BOOLEAN') {
         const val = record[field.name];
         if (val === undefined || val === null || String(val).trim() === '') {
           setValidationError(`Pflichtfeld-Fehler: '${field.name}' darf nicht leer sein.`);
@@ -491,7 +494,9 @@ export const useFormViewState = ({
     if (!validateRecord(recordToSave)) return;
 
     sourceTable.fields.forEach((f) => {
-      if (f.isAutoIncrement && f.type === 'INTEGER' && !recordToSave[f.name]) {
+      if (f.sequenceConfig?.enabled && !recordToSave[f.name]) {
+        recordToSave[f.name] = generateNextSequenceValue(f, sourceTable.data || []);
+      } else if (f.isAutoIncrement && f.type === 'INTEGER' && !recordToSave[f.name]) {
         const maxVal = (sourceTable.data || []).reduce((max, row) => {
           const val = parseInt(row[f.name], 10);
           return !isNaN(val) && val > max ? val : max;
@@ -719,6 +724,11 @@ export const useFormViewState = ({
   };
 
   const evalVisibility = (el: any) => {
+    // Only in subforms: hide the child link field because it is automatically populated and bound to the master record
+    if (isSubform && linkConfig && el.type === 'field' && el.fieldId === linkConfig.childFieldId) {
+      return false;
+    }
+
     if (!el.visibilityCondition || !el.visibilityCondition.fieldId) return true;
     const targetField = sourceTable?.fields.find((f) => f.id === el.visibilityCondition!.fieldId);
     if (!targetField) return true;

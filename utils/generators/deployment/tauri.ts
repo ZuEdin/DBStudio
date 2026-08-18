@@ -14,10 +14,16 @@ edition = "2021"
 tauri-build = { version = "1.5" }
 
 [dependencies]
-tauri = { version = "1.5", features = ["api-all"] }
+tauri = { version = "1.5", features = ["api-all", "custom-protocol"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
+
+[features]
+# this feature is used for production builds or when \`devPath\` points to the filesystem
+# DO NOT REMOVE!!
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
 `;
 
         const tauriConf = `{

@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
 import { FormElement, Table, getWidthClasses } from '../../../types/index';
-import { Plus, Search, User, Loader2 } from 'lucide-react';
+import { Plus, Search, User, Loader2, FileText } from 'lucide-react';
 import { UserPickerModal } from '../components/UserPickerModal';
+import { MarkdownEditor } from '../../../components/common/MarkdownEditor';
+import { MarkdownViewer } from '../../../components/common/MarkdownViewer';
 
 interface FormWidgetProps {
   element: FormElement;
@@ -51,7 +53,8 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
 
   let widget = element.widgetType;
   if (!widget && field) {
-      if (field.type === 'BOOLEAN') widget = 'checkbox';
+      if (field.rendererType === 'markdown') widget = 'markdown';
+      else if (field.type === 'BOOLEAN') widget = 'checkbox';
       else if (field.type === 'DATE') widget = 'date';
       else if (field.type === 'TIME') widget = 'time';
       else if (field.type === 'DATETIME' || field.type === 'TIMESTAMP') widget = 'datetime-local';
@@ -235,6 +238,34 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                     </button>
                 )}
               </div>
+          </div>
+      );
+  }
+
+  if (widget === 'markdown') {
+      return (
+          <div className={mergedClassName}>
+              <div className="flex justify-between items-center mb-1">
+                  {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700">{label}</label>}
+                  {element.hideLabel && <div className="flex-1" />}
+                  <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full border border-indigo-200/60 flex items-center gap-1 font-mono">
+                      <FileText size={10} /> Markdown
+                  </span>
+              </div>
+              {isReadOnly ? (
+                  <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[80px]">
+                      <MarkdownViewer content={value || ''} />
+                  </div>
+              ) : (
+                  <MarkdownEditor
+                      id={elementId}
+                      value={value !== undefined && value !== null ? String(value) : ''}
+                      onChange={(newVal) => onChange(fieldName, newVal)}
+                      onFocus={() => onFocusField && onFocusField(fieldName)}
+                      onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
+                      minHeight="140px"
+                  />
+              )}
           </div>
       );
   }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -139,6 +139,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
         {/* Cloud Group */}
         <RibbonGroup label="Cloud & DevOps">
             <RibbonButton icon={<Server className="text-indigo-600" />} label="Self-Host" onClick={() => onAction('dbstudio_backend')} />
+            <RibbonButton icon={<RefreshCw className="text-emerald-600" />} label="Offline Sync" onClick={() => onAction('open_offline_sync')} />
             <RibbonButton icon={<Server className="text-teal-600" />} label="Umgebungen" onClick={() => onAction('open_envs')} />
             <RibbonButton icon={<UploadCloud className="text-indigo-600" />} label="Deployment" onClick={() => onAction('open_deployment_modal')} />
         </RibbonGroup>

@@ -21,9 +21,129 @@ export const generateCustomPageComponents = (
       const folder = 'custom';
       const compName = `${pascalName}CustomComponent`;
 
-      const states: string[] = ['queryParams: any = {};'];
+      const allTablesStr = JSON.stringify(tables.map(t => ({ name: t.name, camelName: toCamelCase(t.name), fields: t.fields.map(f => ({ id: f.id, name: f.name, camelName: toCamelCase(f.name), type: f.type })) })));
+
+      const states: string[] = [
+          'queryParams: any = {};',
+          'userPickerOpen: boolean = false;',
+          "userPickerMode: 'me' | 'search' = 'me';",
+          "userPickerTargetField: string = '';",
+          'editingSubformId: any = null;',
+          'tempSubData: any = {};',
+          'modals: any = {};',
+          'tabs: any = {};',
+          'dropdowns: any = {};',
+          `private allTables: any[] = ${allTablesStr};`,
+          `get isNew(): boolean { const editId = this.queryParams['selectedId'] || this.queryParams['id']; return !editId || editId === 'new'; }`
+      ];
       const initCalls: string[] = ['this.route.queryParams.subscribe(params => { this.queryParams = params; });'];
-      const methods: string[] = [];
+      const methods: string[] = [
+          `openUserPicker(mode: 'me' | 'search', field: string) {
+      this.userPickerMode = mode;
+      this.userPickerTargetField = field;
+      this.userPickerOpen = true;
+  }`,
+          `handleUserPicked(event: {username: string, displayName: string}) {
+      if (this.userPickerTargetField) {
+          const parts = this.userPickerTargetField.split('.');
+          if (parts.length > 1) {
+              let currentObj = (this as any);
+              for (let i = 0; i < parts.length - 1; i++) {
+                  if (currentObj[parts[i]]) {
+                      currentObj = currentObj[parts[i]];
+                  }
+              }
+              currentObj[parts[parts.length - 1]] = event.username;
+          } else {
+              const field = this.userPickerTargetField;
+              let found = false;
+              for (const prop of Object.keys(this)) {
+                  if (prop.startsWith('formData_') && (this as any)[prop]) {
+                      (this as any)[prop][field] = event.username;
+                      found = true;
+                  }
+              }
+              if (!found) {
+                  (this as any)[field] = event.username;
+              }
+          }
+      }
+      this.userPickerOpen = false;
+  }`,
+          `openModal(modalId: string) {
+      this.modals[modalId] = true;
+  }`,
+          `closeModal(modalId: string) {
+      this.modals[modalId] = false;
+  }`,
+          `openAddSubformModal(modalId: string) {
+      this.editingSubformId = null;
+      this.tempSubData = {};
+      this.openModal(modalId);
+  }`,
+          `editSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
+      this.editingSubformId = item.id || item.Id;
+      this.tempSubData = { ...item };
+      this.openModal(modalId);
+  }`,
+          `deleteSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
+      if(!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
+      const itemId = item.id || item.Id;
+      this.api.delete(table, itemId).subscribe(() => {
+          const parentId = this.queryParams['selectedId'] || this.queryParams['id'];
+          this.refreshSubformList(table, childFieldId, modalId, parentId);
+      });
+  }`,
+          `saveSubform(table: string, childFieldId: string, modalId: string) {
+      const parentId = this.queryParams['selectedId'] || this.queryParams['id'];
+      if(!parentId || parentId === 'new') { 
+          alert('Bitte erst Hauptdatensatz speichern, bevor Sie Details hinzufügen.'); 
+          return; 
+      }
+      
+      const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
+      const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+      const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
+      
+      let parsedParentId: any = parentId;
+      if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
+          const num = Number(parentId);
+          if (!isNaN(num)) parsedParentId = num;
+      }
+      this.tempSubData[childProp] = parsedParentId;
+      if (childFieldObj && childFieldObj.name) {
+          this.tempSubData[childFieldObj.name] = parsedParentId;
+      }
+      
+      if (this.editingSubformId) {
+          this.api.update(table, this.editingSubformId, this.tempSubData).subscribe(() => {
+              this.editingSubformId = null;
+              this.closeModal(modalId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId);
+          });
+      } else {
+          this.api.create(table, this.tempSubData).subscribe(() => {
+              this.closeModal(modalId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId);
+          });
+      }
+  }`,
+          `refreshSubformList(table: string, childFieldId: string, modalId: string, parentId: any) {
+      this.api.getAll(table, 1, 10000).subscribe((res: any) => {
+          const listKeyPrefix = table + 'SubList_';
+          const modalHash = modalId.replace('sub_','').substring(0,8);
+          const targetKey = Object.keys(this).find(k => k.startsWith(listKeyPrefix) && k.includes(modalHash));
+          if(targetKey) {
+              const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
+              const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+              const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
+              const originalName = childFieldObj ? childFieldObj.name : childProp;
+              const allItems = res.data || res;
+              (this as any)[targetKey] = allItems.filter((x:any) => String(x[childProp]) === String(parentId) || String(x[originalName]) === String(parentId));
+          }
+      });
+  }`
+      ];
 
       const context: NodeGeneratorContext = {
           isBootstrap,
@@ -64,6 +184,15 @@ export const generateCustomPageComponents = (
           </div>`;
       }
 
+      customHtml += `
+      <app-user-picker 
+          [isOpen]="userPickerOpen" 
+          [initialTab]="userPickerMode"
+          (userSelected)="handleUserPicked($event)"
+          (closed)="userPickerOpen = false"
+      ></app-user-picker>
+      `;
+
       
       const checkHasCalendar = (node: any): boolean => {
           if (!node) return false;
@@ -96,12 +225,13 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { MacroService } from '../../services/macro.service';
+import { UserPickerComponent } from '../../components/user-picker/user-picker.component';
 ${calendarImports}
 
 @Component({
   selector: 'app-${kebabName}-custom',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule${moduleImports}],
+  imports: [CommonModule, FormsModule, RouterModule, UserPickerComponent${moduleImports}],
   templateUrl: './${kebabName}-custom.component.html'
 })
 export class ${pascalName}CustomComponent implements OnInit {

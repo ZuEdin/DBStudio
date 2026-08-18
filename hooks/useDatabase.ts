@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { DbType, Table, Query, Relationship, Report, Form, SelectQuery, Project, BackendConfig, FormElement, Workflow, TableNode } from '../types/index';
 import { executeSelectQuery } from '../features/queries/utils/queryExecution';
 import { saveProjectToStorage } from '../services/storageService';
+import { sanitizeProjectName } from '../utils/nameUtils';
 
 export const useDatabase = () => {
   // Project State
@@ -194,7 +195,7 @@ export const useDatabase = () => {
               backendConfig: config || {
                   language: 'dotnet',
                   dbType: type,
-                  projectName: name.replace(/\s+/g, '') || 'MyProject',
+                  projectName: sanitizeProjectName(name),
                   port: 5000,
                   dbConnection: '',
                   useSwagger: true,

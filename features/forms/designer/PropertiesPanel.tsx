@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FormElement, Form, Table, Relationship } from '../../../types/index';
-import { Edit3, Trash2, Settings2, Shield, Users, Zap, Plus, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Edit3, Trash2, Settings2, Shield, Users, Zap, Plus, ChevronDown, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 import { getSavedMacros } from '../../logic/MacroEngine';
 
 interface CommaSeparatedInputProps {
@@ -155,10 +155,10 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           <div className="space-y-4 text-sm">
             <div className="font-mono text-xs text-slate-400">ID: {selectedElement.id.substring(0,8)}...</div>
             
-            {(selectedElement.type === 'field' || selectedElement.type === 'label' || selectedElement.type === 'subform') && (
+            {(selectedElement.type === 'field' || selectedElement.type === 'label' || selectedElement.type === 'subform' || selectedElement.type === 'tab_page') && (
               <div className="space-y-2">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">{selectedElement.type === 'label' ? 'Text' : 'Beschriftung'}</label>
+                  <label className="block font-bold text-slate-700 mb-1">{selectedElement.type === 'label' ? 'Text' : selectedElement.type === 'tab_page' ? 'Tab-Titel / Name' : 'Beschriftung'}</label>
                   <input 
                     type="text" 
                     value={selectedElement.label || ''} 
@@ -194,8 +194,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     >
                       <option value="">Automatisch (Text)</option>
                       <optgroup label="Standard">
-                        <option value="text">Textfeld</option>
-                        <option value="textarea">Mehrzeilig (Area)</option>
+                        <option value="text">Textfeld (Einzeilig)</option>
+                        <option value="textarea">Mehrzeilig (Textarea)</option>
+                        <option value="markdown">📝 Markdown / Rich-Text Editor</option>
                         <option value="number">Zahl</option>
                         <option value="date">Datum</option>
                         <option value="checkbox">Checkbox</option>
@@ -211,6 +212,18 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       </optgroup>
                     </select>
                 </div>
+
+                {/* Additional Info for Markdown */}
+                {selectedElement.widgetType === 'markdown' && (
+                    <div className="p-2.5 bg-indigo-50 text-indigo-900 text-xs rounded-lg border border-indigo-200 space-y-1.5">
+                        <div className="flex items-center gap-1.5 font-bold text-indigo-950">
+                            <Sparkles size={13} className="text-indigo-600" /> Markdown / Rich-Text Editor
+                        </div>
+                        <p className="text-[11px] text-indigo-800 leading-relaxed">
+                            Bietet einen visuellen Editor mit Formatierungsleiste (Fett, Kursiv, Überschriften, Listen, Tabellen, Code) und Live-Vorschau. In der Detailansicht wird der formatierte Text direkt visualisiert.
+                        </p>
+                    </div>
+                )}
 
                 {/* Additional Info for AD Types */}
                 {selectedElement.widgetType === 'ad-search' && (

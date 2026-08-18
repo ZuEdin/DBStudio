@@ -5,6 +5,7 @@ import Editor from '@monaco-editor/react';
 import { FileCode, Download, Wand2, Folder, FolderOpen, ChevronRight, ChevronDown, RefreshCw, UploadCloud, GitBranch, CloudLightning, Globe, GitCommit, Briefcase, AlertCircle } from 'lucide-react';
 import { generateBackendCode } from '../../utils/backendGenerators';
 import { generateDeploymentScripts } from '../../utils/generators/deploymentGenerator';
+import { sanitizeProjectName } from '../../utils/nameUtils';
 import JSZip from 'jszip';
 import { GitPushModal } from '../versioning/GitPushModal';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -227,20 +228,21 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
         return;
     }
     const zip = new JSZip();
+    const cleanProjectName = sanitizeProjectName(localConfig.projectName || 'MyProject');
 
     // Check if Electron project to add root-level convenience launcher scripts
-    const hasBackendElectron = filesToZip.some(f => f.path.startsWith(`Backend/${localConfig.projectName}`) && (f.path.includes('preload.js') || f.path.includes('main.js')));
+    const hasBackendElectron = filesToZip.some(f => f.path.startsWith(`Backend/${cleanProjectName}`) && (f.path.includes('preload.js') || f.path.includes('main.js')));
     const isElectronProj = localConfig.language === 'electron' || localConfig.frontendFramework === 'electron' || hasBackendElectron;
     if (isElectronProj) {
-        const electronDir = hasBackendElectron ? `Backend/${localConfig.projectName}` : `ElectronApp`;
+        const electronDir = hasBackendElectron ? `Backend/${cleanProjectName}` : `ElectronApp`;
         zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Electron Application...\r\ncd ${electronDir}\r\ncall run.bat\r\n`);
         zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Electron App Launcher for macOS/Linux\ncd ${electronDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
     }
 
-    const hasBackendTauri = filesToZip.some(f => f.path.startsWith(`Backend/${localConfig.projectName}/src-tauri`) || f.path.includes('tauri.conf.json'));
+    const hasBackendTauri = filesToZip.some(f => f.path.startsWith(`Backend/${cleanProjectName}/src-tauri`) || f.path.includes('tauri.conf.json'));
     const isTauriProj = localConfig.language === 'tauri' || localConfig.frontendFramework === 'tauri' || hasBackendTauri;
     if (isTauriProj) {
-        const tauriDir = hasBackendTauri ? `Backend/${localConfig.projectName}` : `TauriApp`;
+        const tauriDir = hasBackendTauri ? `Backend/${cleanProjectName}` : `TauriApp`;
         zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Tauri Application...\r\ncd ${tauriDir}\r\ncall run.bat\r\n`);
         zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Tauri App Launcher for macOS/Linux\ncd ${tauriDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
     }
@@ -256,7 +258,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
     
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-    a.download = `${localConfig.projectName}_FullStack_${timeStr}.zip`;
+    a.download = `${cleanProjectName}_FullStack_${timeStr}.zip`;
     
     a.click();
     document.body.removeChild(a);

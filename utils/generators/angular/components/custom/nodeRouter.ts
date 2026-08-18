@@ -4,6 +4,78 @@ import { generateDropdownNode } from './dropdownNode';
 import { generateTableViewNode } from './tableViewNode';
 import { generateCustomComponentNode } from './customComponentNode';
 import { toCamelCase, toPascalCase, toKebabCase } from '../../../common';
+import { generateHtmlForLayout } from '../../layoutHelper';
+import { Table, Form, Query } from '../../../../../types/index';
+
+const collectAngularSubforms = (
+  element: any,
+  tables: Table[],
+  forms: Form[],
+  accumulated: any[] = []
+): any[] => {
+  if (!element) return accumulated;
+  if (element.type === 'subform' && element.subform) {
+      const subFormDef = forms.find(f => f.id === element.subform!.formId);
+      const subTable = tables.find(t => t.id === subFormDef?.sourceId);
+      if (subTable) {
+          accumulated.push({ 
+              id: element.id, 
+              tableName: subTable.name, 
+              childField: tables.find(t => t.id === subFormDef!.sourceId)?.fields.find(f => f.id === element.subform!.childLinkFieldId)?.name 
+          });
+      }
+  }
+  if (element.children) {
+      element.children.forEach(child => collectAngularSubforms(child, tables, forms, accumulated));
+  }
+  return accumulated;
+};
+
+const collectAngularLookups = (
+  element: any,
+  tables: Table[],
+  queries: Query[] = [],
+  accumulated: Map<string, any> = new Map()
+): any[] => {
+  if (!element) return Array.from(accumulated.values());
+  
+  if (element.widgetType === 'select' && element.lookup?.tableId) {
+      const table = tables.find(t => t.id === element.lookup!.tableId);
+      
+      let targetName = '';
+      let sortInfo = undefined;
+      let isQuery = false;
+      if (table) {
+          targetName = table.name;
+          if (element.lookup!.sort) {
+              const sortField = table.fields.find(f => f.id === element.lookup!.sort!.fieldId);
+              if (sortField) sortInfo = { field: toCamelCase(sortField.name), dir: element.lookup!.sort!.direction };
+          }
+      } else {
+          const query = queries.find(q => q.id === element.lookup!.tableId);
+          if (query) {
+              targetName = query.name;
+              isQuery = true;
+              if (element.lookup!.sort) {
+                  const sortField = (query as any).columns?.find((c: any) => c.id === element.lookup!.sort!.fieldId);
+                  if (sortField) sortInfo = { field: toCamelCase(sortField.alias || sortField.fieldName), dir: element.lookup!.sort!.direction };
+              }
+          }
+      }
+      if (targetName && !accumulated.has(targetName)) {
+          accumulated.set(targetName, { 
+              name: targetName, 
+              sort: sortInfo, 
+              isQuery,
+              table: table || queries.find(q => q.id === element.lookup!.tableId)
+          });
+      }
+  }
+  if (element.children) {
+      element.children.forEach((c: any) => collectAngularLookups(c, tables, queries, accumulated));
+  }
+  return Array.from(accumulated.values());
+};
 
 const getCleanSuffix = (node: any, context: NodeGeneratorContext, defaultPrefix = 'node'): string => {
     const nodeId = node.id || 'unknown';
@@ -81,6 +153,14 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
                 return `<div class="p-3 text-danger text-center border border-dashed rounded">Tabelle für Formular nicht gefunden</div>`;
             }
 
+            const formSubforms = fObj.layout ? collectAngularSubforms(fObj.layout, context.tables, context.forms) : [];
+            formSubforms.forEach(s => {
+                const listVar = `${toCamelCase(s.tableName)}SubList_${s.id.substring(0,8)}`;
+                if (!context.states.some(st => st.startsWith(`${listVar}:`))) {
+                    context.states.push(`${listVar}: any[] = [];`);
+                }
+            });
+
             const suffix = getCleanSuffix(node, context, 'form');
             const stateName = `formData_${suffix}`;
             const loadingState = `formLoading_${suffix}`;
@@ -140,6 +220,19 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
         next: (res: any) => {
           this.${stateName} = { ...initialData, ...(res.data || res) };
           this.${loadingState} = false;
+          
+          // Load subforms
+          ${formSubforms.map(s => {
+              const tPascal = toPascalCase(s.tableName);
+              const tName = toCamelCase(s.tableName);
+              const fName = toCamelCase(s.childField);
+              const listVar = `${tName}SubList_${s.id.substring(0,8)}`;
+              return `
+          this.api.getAll('${tPascal}', 1, 10000).subscribe((subRes: any) => {
+            const allItems = subRes.data || subRes;
+            this.${listVar} = allItems.filter((x: any) => String(x.${fName}) === String(editId) || String(x['${s.childField}']) === String(editId));
+          });`;
+          }).join('\n')}
         },
         error: (err: any) => {
           console.error(err);
@@ -152,6 +245,11 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
     ` : ''}
 
     this.${stateName} = initialData;
+    ${formSubforms.map(s => {
+        const tName = toCamelCase(s.tableName);
+        const listVar = `${tName}SubList_${s.id.substring(0,8)}`;
+        return `this.${listVar} = [];`;
+    }).join('\n')}
   }`);
 
             // Submit logic
@@ -193,86 +291,215 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
     }
   }`);
 
+            const formLookups = fObj.layout ? collectAngularLookups(fObj.layout, context.tables, context.queries) : [];
+            formLookups.forEach((l: any) => {
+                const camel = toCamelCase(l.name);
+                if (!context.states.some(s => s.startsWith(`${camel}List:`))) {
+                    context.states.push(`${camel}List: any[] = [];`);
+                    
+                    let sortLogic = '';
+                    if (l.sort) {
+                        const dir = l.sort.dir === 'DESC' ? -1 : 1;
+                        sortLogic = `.sort((a: any, b: any) => (a.${l.sort.field} > b.${l.sort.field} ? ${dir} : -1 * ${dir}))`;
+                    }
+                    
+                    if (l.isQuery) {
+                        context.methods.push(`
+  loadLookup_${camel}() {
+    const params: Record<string, any> = {};
+    this.api.getAll('queries/${camel}', 1, 10000, '', params).subscribe((res: any) => this.${camel}List = (res.data || res)${sortLogic});
+  }`);
+                    } else {
+                        context.methods.push(`
+  loadLookup_${camel}() {
+    this.api.getAll('${toPascalCase(l.name)}', 1, 10000).subscribe((res: any) => this.${camel}List = (res.data || res)${sortLogic});
+  }`);
+                    }
+                    
+                    context.initCalls.push(`this.loadLookup_${camel}();`);
+                }
+            });
+
             // Fields HTML
             let fieldsHtml = '';
-            // Generate simple template-driven inputs
-            fieldsHtml = formFields.map(f => {
-                const fCamel = toCamelCase(f.name);
-                const label = f.comment || f.name;
-                let input = '';
-                if (f.type === 'BOOLEAN') {
-                    input = `
-                    <div class="form-check mt-2">
-                        <input 
-                            type="checkbox" 
-                            id="${fCamel}_${suffix}"
-                            [(ngModel)]="${stateName}['${fCamel}']"
-                            name="${fCamel}_${suffix}"
-                            class="form-check-input" 
-                        />
-                        <label for="${fCamel}_${suffix}" class="form-check-label fw-semibold">${label}</label>
-                    </div>`;
-                } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
-                    input = `
-                    <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
-                    <input 
-                        type="number" 
-                        [(ngModel)]="${stateName}['${fCamel}']"
-                        name="${fCamel}_${suffix}"
-                        class="form-control" 
-                        step="${f.type === 'INTEGER' ? '1' : 'any'}"
-                    />`;
-                } else if (f.type === 'DATE') {
-                    input = `
-                    <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
-                    <input 
-                        type="date" 
-                        [(ngModel)]="${stateName}['${fCamel}']"
-                        name="${fCamel}_${suffix}"
-                        class="form-control" 
-                    />`;
+            if (fObj.layout) {
+                fieldsHtml = generateHtmlForLayout(fObj.layout, context.tables, context.forms, stateName, context.queries, context.isBootstrap);
+            } else {
+                // Generate simple template-driven inputs
+                fieldsHtml = formFields.map(f => {
+                    const fCamel = toCamelCase(f.name);
+                    const label = f.comment || f.name;
+                    let input = '';
+                    if (f.type === 'BOOLEAN') {
+                        if (context.isBootstrap) {
+                            input = `
+                            <div class="form-check mt-2">
+                                <input 
+                                    type="checkbox" 
+                                    id="${fCamel}_${suffix}"
+                                    [(ngModel)]="${stateName}['${fCamel}']"
+                                    name="${fCamel}_${suffix}"
+                                    class="form-check-input" 
+                                />
+                                <label for="${fCamel}_${suffix}" class="form-check-label fw-semibold">${label}</label>
+                            </div>`;
+                        } else {
+                            input = `
+                            <div class="flex items-center gap-2 mt-2">
+                                <input 
+                                    type="checkbox" 
+                                    id="${fCamel}_${suffix}"
+                                    [(ngModel)]="${stateName}['${fCamel}']"
+                                    name="${fCamel}_${suffix}"
+                                    class="h-4 w-4 text-blue-600 border-slate-300 rounded" 
+                                />
+                                <label for="${fCamel}_${suffix}" class="text-sm font-semibold text-slate-700">${label}</label>
+                            </div>`;
+                        }
+                    } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
+                        if (context.isBootstrap) {
+                            input = `
+                            <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
+                            <input 
+                                type="number" 
+                                [(ngModel)]="${stateName}['${fCamel}']"
+                                name="${fCamel}_${suffix}"
+                                class="form-control" 
+                                step="${f.type === 'INTEGER' ? '1' : 'any'}"
+                            />`;
+                        } else {
+                            input = `
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">${label}</label>
+                            <input 
+                                type="number" 
+                                [(ngModel)]="${stateName}['${fCamel}']"
+                                name="${fCamel}_${suffix}"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                                step="${f.type === 'INTEGER' ? '1' : 'any'}"
+                            />`;
+                        }
+                    } else if (f.type === 'DATE') {
+                        if (context.isBootstrap) {
+                            input = `
+                            <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
+                            <input 
+                                type="date" 
+                                [(ngModel)]="${stateName}['${fCamel}']"
+                                name="${fCamel}_${suffix}"
+                                class="form-control" 
+                            />`;
+                        } else {
+                            input = `
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">${label}</label>
+                            <input 
+                                type="date" 
+                                [(ngModel)]="${stateName}['${fCamel}']"
+                                name="${fCamel}_${suffix}"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                            />`;
+                        }
+                    } else {
+                        if (context.isBootstrap) {
+                            input = `
+                            <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
+                            <input 
+                                type="text" 
+                                [(ngModel)]="${stateName}['${fCamel}']"
+                                name="${fCamel}_${suffix}"
+                                class="form-control" 
+                            />`;
+                        } else {
+                            input = `
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">${label}</label>
+                            <input 
+                                type="text" 
+                                [(ngModel)]="${stateName}['${fCamel}']"
+                                name="${fCamel}_${suffix}"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                            />`;
+                        }
+                    }
+                    if (context.isBootstrap) {
+                        return `<div class="col-md-6 text-start mb-3">${input}</div>`;
+                    } else {
+                        return `<div class="text-start">${input}</div>`;
+                    }
+                }).join('\n');
+
+                if (context.isBootstrap) {
+                    fieldsHtml = `<div class="row">${fieldsHtml}</div>`;
                 } else {
-                    input = `
-                    <label class="form-label fw-bold small text-muted text-uppercase mb-1">${label}</label>
-                    <input 
-                        type="text" 
-                        [(ngModel)]="${stateName}['${fCamel}']"
-                        name="${fCamel}_${suffix}"
-                        class="form-control" 
-                    />`;
+                    fieldsHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${fieldsHtml}</div>`;
                 }
-                return `<div class="col-md-6 text-start mb-3">${input}</div>`;
-            }).join('\n');
+            }
 
-            return `
-            <div class="card p-4 mb-4 bg-white shadow-sm border rounded-3">
-                <div *ngIf="!${node.props?.hideHeader ? 'true' : 'false'}" class="border-bottom pb-2 mb-4 text-start">
-                    <h4 class="h5 mb-1 text-dark fw-bold">${fObj.name}</h4>
-                    <p class="text-muted small mb-0">${formMode === 'edit' ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen'}</p>
+            if (context.isBootstrap) {
+                return `
+                <div class="card p-4 mb-4 bg-white shadow-sm border rounded-3">
+                    <div *ngIf="!${node.props?.hideHeader ? 'true' : 'false'}" class="border-bottom pb-2 mb-4 text-start">
+                        <h4 class="h5 mb-1 text-dark fw-bold">${fObj.name}</h4>
+                        <p class="text-muted small mb-0">${formMode === 'edit' ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen'}</p>
+                    </div>
+
+                    <div *ngIf="${statusState}.type" class="alert mb-4 text-start" [ngClass]="{'alert-success': ${statusState}.type === 'success', 'alert-danger': ${statusState}.type === 'error'}">
+                        {{ ${statusState}.message }}
+                    </div>
+
+                    <div *ngIf="${loadingState}" class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Lade...</span>
+                        </div>
+                    </div>
+
+                    <form *ngIf="!${loadingState}" (ngSubmit)="submitForm_${suffix}()">
+                        ${fieldsHtml}
+                        
+                        <div *ngIf="!${node.props?.hideActions ? 'true' : 'false'}" class="col-12 d-flex justify-content-end mt-4 pt-3 border-top">
+                            <button type="submit" [disabled]="${savingState}" class="btn btn-primary px-4 fw-bold cursor-pointer">
+                                <span *ngIf="${savingState}" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                Speichern
+                            </button>
+                        </div>
+                    </form>
                 </div>
+                `;
+            } else {
+                return `
+                <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden mb-6">
+                    <div *ngIf="!${node.props?.hideHeader ? 'true' : 'false'}" class="bg-slate-50 border-b border-slate-200 px-6 py-4 text-start">
+                        <h4 class="text-lg font-bold text-slate-800">${fObj.name}</h4>
+                        <p class="text-xs text-slate-500 mt-1">${formMode === 'edit' ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen'}</p>
+                    </div>
 
-                <div *ngIf="${statusState}.type" class="alert mb-4 text-start" [ngClass]="{'alert-success': ${statusState}.type === 'success', 'alert-danger': ${statusState}.type === 'error'}">
-                    {{ ${statusState}.message }}
-                </div>
+                    <div class="p-6">
+                        <div *ngIf="${statusState}.type" class="mb-4 text-start p-3 rounded-lg text-sm" [ngClass]="{'bg-emerald-50 text-emerald-800 border border-emerald-200': ${statusState}.type === 'success', 'bg-rose-50 text-rose-800 border border-rose-200': ${statusState}.type === 'error'}">
+                            {{ ${statusState}.message }}
+                        </div>
 
-                <div *ngIf="${loadingState}" class="text-center p-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Lade...</span>
+                        <div *ngIf="${loadingState}" class="flex justify-center py-6">
+                            <svg class="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+
+                        <form *ngIf="!${loadingState}" (ngSubmit)="submitForm_${suffix}()">
+                            ${fieldsHtml}
+                            
+                            <div *ngIf="!${node.props?.hideActions ? 'true' : 'false'}" class="flex justify-end mt-6 pt-4 border-t border-slate-200">
+                                <button type="submit" [disabled]="${savingState}" class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors cursor-pointer flex items-center flex-row">
+                                    <svg *ngIf="${savingState}" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Speichern
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-
-                <form *ngIf="!${loadingState}" (ngSubmit)="submitForm_${suffix}()" class="row">
-                    ${fieldsHtml}
-                    
-                    <div *ngIf="!${node.props?.hideActions ? 'true' : 'false'}" class="col-12 d-flex justify-content-end mt-4 pt-3 border-top">
-                        <button type="submit" [disabled]="${savingState}" class="btn btn-primary px-4 fw-bold cursor-pointer">
-                            <span *ngIf="${savingState}" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                            Speichern
-                        </button>
-                    </div>
-                </form>
-            </div>
-            `;
+                `;
+            }
         }
         case 'container': {
             const hasDataSource = !!node.props?.dataSourceId;

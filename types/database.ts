@@ -8,6 +8,18 @@ export enum DbType {
 
 export type FieldType = 'INTEGER' | 'VARCHAR' | 'CHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'TINYINT' | 'TIMESTAMP' | 'ENUM' | 'UUID' | 'EMAIL' | 'PHONE' | 'URL';
 
+export interface SequenceConfig {
+  enabled: boolean;
+  prefix?: string;
+  suffix?: string;
+  padding: number;
+  startValue?: number;
+  step?: number;
+  includeYear?: boolean;
+  yearFormat?: 'YYYY' | 'YY';
+  pattern?: string;
+}
+
 export interface Field {
   id: string;
   name: string;
@@ -24,10 +36,11 @@ export interface Field {
   scale?: number;
   displayFormat?: string;
   enumValues?: string[];
-  rendererType?: 'text' | 'progress' | 'status_pill' | 'avatar' | 'currency' | 'date';
+  rendererType?: 'text' | 'markdown' | 'progress' | 'status_pill' | 'avatar' | 'currency' | 'date';
   inlineEditable?: boolean;
   isCalculated?: boolean;
   calculationFormula?: string;
+  sequenceConfig?: SequenceConfig;
 }
 
 export interface ValidationRule {

@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo, Relationship } from '../../types/index';
-import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical, Database } from 'lucide-react';
+import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical, Database, Sparkles } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
 import { MockDataGeneratorModal } from './MockDataGeneratorModal';
+import { SequenceConfigModal } from './components/SequenceConfigModal';
 
 interface TableDesignerProps {
   table: Table;
@@ -23,6 +24,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const [draggedFieldIndex, setDraggedFieldIndex] = useState<number | null>(null);
   const [showMockData, setShowMockData] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [sequenceModalField, setSequenceModalField] = useState<Field | null>(null);
 
   const { name: tableName, description: tableDescription, fields = [], validationRules = [] } = table;
 
@@ -473,13 +475,33 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                 />
                             </td>
                             <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
-                                {field.type === 'INTEGER' && (
+                                {field.sequenceConfig?.enabled ? (
                                     <button 
-                                    disabled={isReadOnly}
-                                    onClick={() => updateField(field.id, { isAutoIncrement: !field.isAutoIncrement })}
-                                    className={`p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-300'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
+                                      disabled={isReadOnly}
+                                      onClick={() => setSequenceModalField(field)}
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-mono font-bold hover:bg-emerald-200 transition-colors"
+                                      title={`Nummernkreis: ${field.sequenceConfig.prefix || ''}000... (Klicken zum Bearbeiten)`}
                                     >
-                                    <Hash size={16} />
+                                      <Sparkles size={10} className="text-emerald-600" />
+                                      {field.sequenceConfig.prefix ? field.sequenceConfig.prefix.replace('-', '') : 'SEQ'}
+                                    </button>
+                                ) : field.type === 'INTEGER' ? (
+                                    <button 
+                                      disabled={isReadOnly}
+                                      onClick={() => updateField(field.id, { isAutoIncrement: !field.isAutoIncrement })}
+                                      className={`p-1 rounded ${field.isAutoIncrement ? 'text-green-600' : 'text-slate-300'} ${!isReadOnly ? 'hover:bg-slate-200' : ''}`}
+                                      title={field.isAutoIncrement ? 'Auto-Inkrement aktiv (Klicken zum Deaktivieren)' : 'Auto-Inkrement aktivieren'}
+                                    >
+                                      <Hash size={16} />
+                                    </button>
+                                ) : (
+                                    <button
+                                      disabled={isReadOnly}
+                                      onClick={() => setSequenceModalField(field)}
+                                      className="p-1 rounded text-slate-200 hover:text-blue-600 hover:bg-slate-200 transition-colors opacity-60 hover:opacity-100"
+                                      title="Nummernkreis / Sequenz einrichten"
+                                    >
+                                      <Hash size={14} />
                                     </button>
                                 )}
                             </td>
@@ -673,6 +695,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                               className="w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white"
                             >
                               <option value="">(Standard Text)</option>
+                              <option value="markdown">📝 Markdown / Formatierter Text</option>
                               <option value="currency">💶 Währung (€)</option>
                               <option value="progress">📊 Fortschrittsbalken (%)</option>
                               <option value="status_pill">🏷️ Status Pill Badge</option>
@@ -741,7 +764,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                             </div>
                           </div>
 
-                          {selectedField.type === 'INTEGER' && (
+                          {selectedField.type === 'INTEGER' && !selectedField.sequenceConfig?.enabled && (
                             <div>
                               <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                                 Auto-Inkrement:
@@ -756,11 +779,59 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                   className="rounded border-slate-300 text-blue-600"
                                 />
                                 <label htmlFor="autoIncProp" className="text-xs text-slate-700 cursor-pointer">
-                                  Automatisch hochzählen
+                                  Automatisch hochzählen (+1)
                                 </label>
                               </div>
                             </div>
                           )}
+
+                          <div className="col-span-full">
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Fortlaufende Nummerierung / Nummernkreis (Formatierung):
+                            </label>
+                            {selectedField.sequenceConfig?.enabled ? (
+                              <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                                <div className="space-y-0.5">
+                                  <div className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                                    <Sparkles size={14} className="text-emerald-600" />
+                                    Aktiv: <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-300 text-emerald-800">{selectedField.sequenceConfig.prefix || ''}{'0'.repeat(selectedField.sequenceConfig.padding || 5)}{selectedField.sequenceConfig.suffix || ''}</span>
+                                  </div>
+                                  <div className="text-[11px] text-emerald-700">
+                                    Startwert: {selectedField.sequenceConfig.startValue ?? 1} • Schritt: +{selectedField.sequenceConfig.step ?? 1} {selectedField.sequenceConfig.includeYear ? `• Jahr: ${selectedField.sequenceConfig.includeYear}` : ''}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    disabled={isReadOnly}
+                                    onClick={() => setSequenceModalField(selectedField)}
+                                    className="px-2.5 py-1 text-xs font-bold text-emerald-800 bg-white border border-emerald-300 rounded-md hover:bg-emerald-100 transition-colors shadow-2xs"
+                                  >
+                                    Konfigurieren
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isReadOnly}
+                                    onClick={() => updateField(selectedField.id, { sequenceConfig: undefined })}
+                                    className="p-1 text-xs text-slate-400 hover:text-red-600 transition-colors"
+                                    title="Nummernkreis deaktivieren"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isReadOnly}
+                                onClick={() => setSequenceModalField(selectedField)}
+                                className="w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed border-slate-300 hover:border-blue-500 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 hover:bg-blue-50/70 transition-colors"
+                              >
+                                <Sparkles size={14} className="text-blue-600" />
+                                Fortlaufende Nummerierung einrichten (z. B. LIF-00010, KD-10001)...
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <div>
@@ -1017,6 +1088,17 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
       </div>
       {showMockData && (
           <MockDataGeneratorModal table={table} onClose={() => setShowMockData(false)} />
+      )}
+      {sequenceModalField && (
+          <SequenceConfigModal
+            isOpen={Boolean(sequenceModalField)}
+            field={sequenceModalField}
+            onClose={() => setSequenceModalField(null)}
+            onSave={(cfg) => {
+              updateField(sequenceModalField.id, { sequenceConfig: cfg });
+              setSequenceModalField(null);
+            }}
+          />
       )}
     </div>
   );

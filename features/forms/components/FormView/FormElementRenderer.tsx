@@ -35,6 +35,48 @@ interface FormElementRendererProps {
   FormViewComponent: React.ComponentType<any>;
 }
 
+const TabsContainerWidget: React.FC<{
+  el: FormElement;
+  renderChild: (childEl: FormElement) => React.ReactNode;
+}> = ({ el, renderChild }) => {
+  const tabPages = el.children || [];
+  const [activeTabId, setActiveTabId] = React.useState<string>(() => tabPages[0]?.id || '');
+
+  // Synchronize activeTabId if children change
+  const currentTabId = tabPages.some(t => t.id === activeTabId) ? activeTabId : (tabPages[0]?.id || '');
+  const activePage = tabPages.find(child => child.id === currentTabId) || tabPages[0];
+
+  return (
+    <div key={el.id} className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm my-4 ${el.className || ''} ${getWidthClasses(el.width)}`.trim()} id={`tabs-${el.id}`}>
+      {/* Tab Headers */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 overflow-x-auto whitespace-nowrap">
+        {tabPages.map((tab, idx) => {
+          const isActive = tab.id === currentTabId;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTabId(tab.id)}
+              className={`px-4 py-2.5 text-xs md:text-sm font-semibold border-b-2 transition-all focus:outline-none ${
+                isActive
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 shadow-sm'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/30'
+              }`}
+            >
+              {tab.label || `Registerkarte ${idx + 1}`}
+            </button>
+          );
+        })}
+      </div>
+      
+      {/* Tab Content */}
+      <div className="p-4 bg-white dark:bg-slate-900 min-h-[60px]">
+        {activePage ? renderChild(activePage) : <p className="text-slate-400 text-sm">Leere Registerkarte.</p>}
+      </div>
+    </div>
+  );
+};
+
 export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
   el,
   allForms,
@@ -88,6 +130,18 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
   if (el.type === 'container') {
     return (
       <div key={el.id} className={`${el.className || ''} ${getWidthClasses(el.width)}`.trim()} id={`container-${el.id}`}>
+        {el.children?.map(renderChild)}
+      </div>
+    );
+  }
+
+  if (el.type === 'tabs') {
+    return <TabsContainerWidget key={el.id} el={el} renderChild={renderChild} />;
+  }
+
+  if (el.type === 'tab_page') {
+    return (
+      <div key={el.id} className={`${el.className || ''} w-full flex flex-col gap-4`.trim()} id={`tabpage-${el.id}`}>
         {el.children?.map(renderChild)}
       </div>
     );

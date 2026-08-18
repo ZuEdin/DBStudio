@@ -84,8 +84,14 @@ interface UIStore {
   setShowIntegrationsModal: (show: boolean) => void;
   showDeploymentModal: boolean;
   setShowDeploymentModal: (show: boolean) => void;
+  showOfflineSyncModal: boolean;
+  setShowOfflineSyncModal: (show: boolean) => void;
   showButtonInfoModal: boolean;
   setShowButtonInfoModal: (show: boolean) => void;
+  showTableTemplateManager: boolean;
+  setShowTableTemplateManager: (show: boolean) => void;
+  saveTableAsTemplateModal: { show: boolean; table?: Table } | null;
+  setSaveTableAsTemplateModal: (modal: { show: boolean; table?: Table } | null) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -178,8 +184,14 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowIntegrationsModal: (showIntegrationsModal) => set({ showIntegrationsModal }),
   showDeploymentModal: false,
   setShowDeploymentModal: (showDeploymentModal) => set({ showDeploymentModal }),
+  showOfflineSyncModal: false,
+  setShowOfflineSyncModal: (showOfflineSyncModal) => set({ showOfflineSyncModal }),
   showButtonInfoModal: false,
   setShowButtonInfoModal: (showButtonInfoModal) => set({ showButtonInfoModal }),
+  showTableTemplateManager: false,
+  setShowTableTemplateManager: (showTableTemplateManager) => set({ showTableTemplateManager }),
+  saveTableAsTemplateModal: null,
+  setSaveTableAsTemplateModal: (saveTableAsTemplateModal) => set({ saveTableAsTemplateModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

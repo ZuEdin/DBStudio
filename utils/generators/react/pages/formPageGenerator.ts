@@ -59,6 +59,27 @@ export const generateFormPage = (table: Table, root: string): VirtualFile => {
               onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
               className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
           />`;
+      } else if (f.rendererType === 'markdown' || (f.type === 'TEXT' && f.comment?.toLowerCase().includes('markdown'))) {
+          inputJsx = `
+          <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">${label}</label>
+              <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-200/60 font-mono">Markdown</span>
+          </div>
+          <MarkdownEditor 
+              id="${fCamel}"
+              value={data.${fCamel} ?? ''} 
+              onChange={val => setData({ ...data, ${fCamel}: val })}
+              minHeight="140px"
+          />`;
+      } else if (f.type === 'TEXT') {
+          inputJsx = `
+          <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
+          <textarea 
+              rows={4}
+              value={data.${fCamel} ?? ''} 
+              onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
+              className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+          />`;
       } else {
           inputJsx = `
           <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">${label}</label>
@@ -153,6 +174,7 @@ export const generateFormPage = (table: Table, root: string): VirtualFile => {
 import { useNavigate, useParams } from 'react-router-dom';
 import { get, post, put } from '../../services/api';
 import { Save, ArrowLeft, Loader2 } from 'lucide-react';
+import { MarkdownEditor } from '../../components/common/MarkdownEditor';
 import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 
 export const ${formCompName} = () => {

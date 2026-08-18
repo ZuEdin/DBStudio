@@ -60,6 +60,63 @@ export const generateHtmlForLayout = (
         }
         return `<div class="${className}">\n${children}\n</div>`;
     }
+    if (element.type === 'tabs') {
+        const tabPages = element.children || [];
+        const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
+        const tabsId = element.id.replace(/[^a-zA-Z0-9_]/g, '_');
+        
+        if (isBootstrap) {
+            const navItems = tabPages.map((tab, idx) => `
+                <li class="nav-item">
+                    <button class="nav-link" [class.active]="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" (click)="tabs['${tabsId}'] = '${tab.id}'" type="button">
+                        ${tab.label || `Tab ${idx + 1}`}
+                    </button>
+                </li>
+            `).join('\n');
+            const pagesHtml = tabPages.map(tab => {
+                const content = tab.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
+                return `
+                <div *ngIf="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" class="p-3">
+                    ${content}
+                </div>`;
+            }).join('\n');
+            return `
+            <div class="card my-3 ${widthClass}">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs">
+                        ${navItems}
+                    </ul>
+                </div>
+                <div class="card-body">
+                    ${pagesHtml}
+                </div>
+            </div>`;
+        } else {
+            const navItems = tabPages.map((tab, idx) => `
+                <button type="button" (click)="tabs['${tabsId}'] = '${tab.id}'" class="px-4 py-2.5 text-xs md:text-sm font-semibold border-b-2 transition-all" [class.border-blue-600]="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" [class.text-blue-600]="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" [class.bg-white]="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" [class.border-transparent]="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') !== '${tab.id}'" [class.text-slate-500]="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') !== '${tab.id}'">
+                    ${tab.label || `Tab ${idx + 1}`}
+                </button>
+            `).join('\n');
+            const pagesHtml = tabPages.map(tab => {
+                const content = tab.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
+                return `
+                <div *ngIf="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" class="p-4 bg-white">
+                    ${content}
+                </div>`;
+            }).join('\n');
+            return `
+            <div class="w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm my-4 ${element.className || ''} ${widthClass}">
+                <div class="flex border-b border-slate-200 bg-slate-50 px-2 overflow-x-auto whitespace-nowrap">
+                    ${navItems}
+                </div>
+                ${pagesHtml}
+            </div>`;
+        }
+    }
+    if (element.type === 'tab_page') {
+        const content = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
+        return `<div class="${element.className || 'space-y-4'}">\n${content}\n</div>`;
+    }
     if (element.type === 'label') {
         const labelClass = isBootstrap ? 'h5 mb-3 pb-2 border-bottom text-dark mt-3' : 'font-bold text-lg mb-2 text-slate-800 border-b pb-1';
         const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
@@ -329,6 +386,25 @@ export const generateHtmlForLayout = (
         }
 
         const changeHandler = dataObjName === 'data' ? `(ngModelChange)="onFieldChange('${bindProp}', $event); onFieldChange('${fieldName}', $event)"` : '';
+
+        // Markdown Editor Widget
+        const isMarkdownWidget = element.widgetType === 'markdown' || 
+          tables.some(t => t.fields.some(f => f.id === element.fieldId && ((f as any).rendererType === 'markdown' || (f.comment && f.comment.toLowerCase().includes('markdown')))));
+
+        if (isMarkdownWidget) {
+            return `<div class="${wrapperClass}">
+                <label class="${labelClass}">${element.label}</label>
+                <app-markdown-editor [(value)]="${dataObjName}['${bindProp}']" [placeholder]="'${element.label || 'Markdown-Inhalt hier eingeben...'}'"></app-markdown-editor>
+            </div>`;
+        }
+
+        // Textarea / Richtext Widget
+        if ((element.widgetType as string) === 'textarea' || (element.widgetType as string) === 'richtext') {
+            return `<div class="${wrapperClass}">
+                <label class="${labelClass}">${element.label}</label>
+                <textarea rows="4" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler} class="${inputClass}"></textarea>
+            </div>`;
+        }
 
         if (inputType === 'checkbox') {
             if (isBootstrap) {

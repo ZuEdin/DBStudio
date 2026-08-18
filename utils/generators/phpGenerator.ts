@@ -588,6 +588,216 @@ ${queryMethods}
       files.push({ name: 'QueriesController.php', path: `${root}/controllers/QueriesController.php`, content: queriesControllerContent, language: 'php' });
   }
 
+  // --- Offline Sync Controller (PHP Native) ---
+  const tableNamesPhp = tables.map(t => `'${toPascalCase(t.name)}'`).join(', ');
+  const syncControllerPhp = `<?php
+namespace App\\Controllers;
+
+use PDO;
+use Exception;
+
+class SyncController {
+    private $db;
+    private $supportedTables = [${tableNamesPhp}];
+
+    public function __construct($db) {
+        $this->db = $db;
+    }
+
+    public function processRequest($method, $action = null) {
+        if ($method === 'GET' && ($action === 'status' || $action === null)) {
+            $this->getStatus();
+            return;
+        }
+
+        if ($method === 'POST') {
+            if ($action === 'push') {
+                $this->pushChanges();
+                return;
+            } elseif ($action === 'pull') {
+                $this->pullChanges();
+                return;
+            }
+        }
+
+        http_response_code(400);
+        echo json_encode(["message" => "Invalid sync action"]);
+    }
+
+    private function getStatus() {
+        echo json_encode([
+            "isOnline" => true,
+            "serverTimestamp" => gmdate("c"),
+            "serverVersion" => "1.0.0",
+            "supportedTables" => $this->supportedTables
+        ]);
+    }
+
+    private function pushChanges() {
+        $data = json_decode(file_get_contents("php://input"), true);
+        if (!$data || !isset($data['changes'])) {
+            http_response_code(400);
+            echo json_encode(["success" => false, "errors" => ["Invalid payload"]]);
+            return;
+        }
+
+        $applied = 0;
+        $serverNow = gmdate("Y-m-d H:i:s");
+        $clientId = $data['clientId'] ?? null;
+
+        try {
+            $this->db->beginTransaction();
+
+            foreach ($data['changes'] as $table => $syncData) {
+                // Check table validity
+                $matchedTable = null;
+                foreach ($this->supportedTables as $st) {
+                    if (strcasecmp($st, $table) === 0) {
+                        $matchedTable = $st;
+                        break;
+                    }
+                }
+                if (!$matchedTable) continue;
+
+                // 1. Process Soft-Deletes
+                if (!empty($syncData['deletedIds'])) {
+                    foreach ($syncData['deletedIds'] as $delId) {
+                        try {
+                            $stmt = $this->db->prepare("UPDATE \`$matchedTable\` SET _is_deleted = 1, _updated_at = :now WHERE id = :id OR ID = :id");
+                            $stmt->execute([':now' => $serverNow, ':id' => $delId]);
+                            $applied += $stmt->rowCount();
+                        } catch (Exception $e) {
+                            $stmt = $this->db->prepare("DELETE FROM \`$matchedTable\` WHERE id = :id OR ID = :id");
+                            $stmt->execute([':id' => $delId]);
+                            $applied += $stmt->rowCount();
+                        }
+                    }
+                }
+
+                // 2. Process Upserts
+                if (!empty($syncData['upserted'])) {
+                    foreach ($syncData['upserted'] as $record) {
+                        if (empty($record)) continue;
+                        $pkKey = isset($record['id']) ? 'id' : (isset($record['ID']) ? 'ID' : array_key_first($record));
+                        $pkVal = $record[$pkKey] ?? null;
+
+                        $record['_updated_at'] = $serverNow;
+                        $record['_is_deleted'] = 0;
+                        if ($clientId) {
+                            $record['_client_id'] = $clientId;
+                        }
+
+                        $exists = false;
+                        if ($pkVal !== null) {
+                            $stmt = $this->db->prepare("SELECT COUNT(*) FROM \`$matchedTable\` WHERE \`$pkKey\` = :id");
+                            $stmt->execute([':id' => $pkVal]);
+                            $exists = $stmt->fetchColumn() > 0;
+                        }
+
+                        if ($exists) {
+                            $setCols = [];
+                            $params = [':pk' => $pkVal];
+                            foreach ($record as $col => $val) {
+                                if ($col === $pkKey) continue;
+                                $paramName = ':p_' . preg_replace('/[^a-zA-Z0-9_]/', '', $col);
+                                $setCols[] = "\`$col\` = $paramName";
+                                $params[$paramName] = is_array($val) ? json_encode($val) : $val;
+                            }
+                            $sql = "UPDATE \`$matchedTable\` SET " . implode(", ", $setCols) . " WHERE \`$pkKey\` = :pk";
+                            $stmt = $this->db->prepare($sql);
+                            $stmt->execute($params);
+                            $applied += $stmt->rowCount();
+                        } else {
+                            $cols = [];
+                            $placeholders = [];
+                            $params = [];
+                            foreach ($record as $col => $val) {
+                                $paramName = ':p_' . preg_replace('/[^a-zA-Z0-9_]/', '', $col);
+                                $cols[] = "\`$col\`";
+                                $placeholders[] = $paramName;
+                                $params[$paramName] = is_array($val) ? json_encode($val) : $val;
+                            }
+                            $sql = "INSERT INTO \`$matchedTable\` (" . implode(", ", $cols) . ") VALUES (" . implode(", ", $placeholders) . ")";
+                            $stmt = $this->db->prepare($sql);
+                            $stmt->execute($params);
+                            $applied += 1;
+                        }
+                    }
+                }
+            }
+
+            $this->db->commit();
+            echo json_encode([
+                "success" => true,
+                "appliedCount" => $applied,
+                "serverTimestamp" => gmdate("c")
+            ]);
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            http_response_code(500);
+            echo json_encode(["success" => false, "errors" => [$e->getMessage()]]);
+        }
+    }
+
+    private function pullChanges() {
+        $data = json_decode(file_get_contents("php://input"), true) ?? [];
+        $since = $data['since'] ?? null;
+        $requestedTables = $data['tables'] ?? $this->supportedTables;
+
+        $changes = [];
+
+        foreach ($requestedTables as $table) {
+            $matchedTable = null;
+            foreach ($this->supportedTables as $st) {
+                if (strcasecmp($st, $table) === 0) {
+                    $matchedTable = $st;
+                    break;
+                }
+            }
+            if (!$matchedTable) continue;
+
+            $tableData = ["upserted" => [], "deletedIds" => []];
+
+            try {
+                if ($since) {
+                    $stmt = $this->db->prepare("SELECT * FROM \`$matchedTable\` WHERE _updated_at > :since OR _created_at > :since");
+                    $stmt->execute([':since' => $since]);
+                } else {
+                    $stmt = $this->db->query("SELECT * FROM \`$matchedTable\`");
+                }
+
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($rows as $row) {
+                    $isDeleted = !empty($row['_is_deleted']) && $row['_is_deleted'] == 1;
+                    $idVal = $row['id'] ?? ($row['ID'] ?? ($row['Id'] ?? null));
+
+                    if ($isDeleted && $idVal !== null) {
+                        $tableData['deletedIds'][] = $idVal;
+                    } else {
+                        $tableData['upserted'][] = $row;
+                    }
+                }
+            } catch (Exception $e) {
+                // Fallback for tables without metadata
+                $stmt = $this->db->query("SELECT * FROM \`$matchedTable\`");
+                $tableData['upserted'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+
+            $changes[$matchedTable] = $tableData;
+        }
+
+        echo json_encode([
+            "success" => true,
+            "serverTimestamp" => gmdate("c"),
+            "changes" => $changes
+        ]);
+    }
+}
+?>`;
+  files.push({ name: 'SyncController.php', path: `${root}/controllers/SyncController.php`, content: syncControllerPhp, language: 'php' });
+
   // 5. Main Router (index.php)
   const routerContent = `<?php
 use App\\Config\\Database;

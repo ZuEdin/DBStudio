@@ -6,6 +6,7 @@ import { generateDbContext, generateModels } from './dotnet/models';
 import { generateControllers } from './dotnet/controllers';
 import { generateAdServices } from './dotnet/services'; // UPDATED IMPORT
 import { generateDbInitializer } from './dotnet/seed';
+import { generateDotNetSync } from './dotnet/sync';
 
 export const generateDotNet = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -258,6 +259,7 @@ namespace ${safeNamespace}.Middleware
   
   // API Layer
   files.push(...generateControllers(tables, cleanRelationships, queries, config, root));
+  files.push(...generateDotNetSync(tables, config, root));
 
   // Docs
   files.push({ name: 'README.md', path: `${root}/README.md`, content: `# ${config.projectName}\n\nGenerated .NET API`, language: 'markdown' });

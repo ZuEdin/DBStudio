@@ -43,6 +43,16 @@ export const MockDataGeneratorModal: React.FC<MockDataGeneratorModalProps> = ({ 
         return type === 'DATE' ? date.toISOString().split('T')[0] : date.toISOString().replace('T', ' ').substring(0, 19);
     }
     
+    // Markdown / Rich-Text field generator
+    if (field.rendererType === 'markdown' || n.includes('markdown') || n.includes('beschreibung') || n.includes('notiz') || n.includes('dokumentation') || n.includes('inhalt') || n.includes('content') || n.includes('details') || (type === 'TEXT' && !n.includes('name') && !n.includes('mail'))) {
+        const mdTemplates = [
+            `### ${faker.commerce.productName()}\n\n${faker.lorem.paragraph()}\n\n- **Status:** Aktiv\n- **Priorität:** Hoch\n- [x] Überprüfung abgeschlossen\n- [ ] Freigabe ausstehend`,
+            `## Übersicht & Spezifikation\n\n> ${faker.company.catchPhrase()}\n\n| Eigenschaft | Wert |\n|---|---|\n| Kategorie | Standard |\n| Version | 1.2.0 |\n| Bewertung | ⭐⭐⭐⭐⭐ |\n\n*Wichtiger Hinweis:* ${faker.lorem.sentence()}`,
+            `#### Vorgangsdetails\n\n${faker.lorem.sentence()}\n\n1. Schritt 1: Initialisierung und Vorprüfung\n2. Schritt 2: Durchführung der Aufgaben\n3. Schritt 3: Endabnahme\n\n\`\`\`json\n{\n  "status": "success",\n  "verified": true\n}\n\`\`\``
+        ];
+        return mdTemplates[Math.floor(Math.random() * mdTemplates.length)];
+    }
+
     switch (type) {
       case 'INTEGER':
       case 'TINYINT':

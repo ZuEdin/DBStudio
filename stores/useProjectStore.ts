@@ -6,6 +6,7 @@ import { initSqlEngine, syncTablesToSql, executeRawSql } from '../services/sqlEn
 import { executeSelectQuery as executeJsQuery } from '../features/queries/utils/queryExecution';
 import { generateSqlSelect } from '../utils/sqlHelper';
 import { saveProjectToStorage } from '../services/storageService';
+import { sanitizeProjectName, getUniqueName } from '../utils/nameUtils';
 
 // Enable Immer patches feature
 enablePatches();
@@ -450,8 +451,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         debouncedSync(tables); 
     },
     addTable: (table) => { 
-        if (get().tables.some(t => t.id === table.id || t.name === table.name)) return;
-        get().executeAction(s => { s.tables.push(table); });
+        if (get().tables.some(t => t.id === table.id)) return;
+        const uniqueName = getUniqueName(table.name, get().tables.map(t => t.name));
+        const finalTable = { ...table, name: uniqueName };
+        get().executeAction(s => { s.tables.push(finalTable); });
         debouncedSync(get().tables); 
     },
     updateTable: (table) => { 
@@ -494,7 +497,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setBackendConfig: (config) => get().executeAction(s => { s.backendConfig = config; }),
     
     renameProject: async (name) => {
-        const cleanName = name.replace(/\s+/g, '') || 'MyProject';
+        const cleanName = sanitizeProjectName(name);
         set({
             projectName: name,
             backendConfig: {

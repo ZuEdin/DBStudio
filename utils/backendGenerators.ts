@@ -1,5 +1,6 @@
 
 import { Table, BackendConfig, VirtualFile, Relationship, Query, Form, Report, CustomPage } from '../types/index';
+import { sanitizeProjectName } from './nameUtils';
 import { generateDotNet } from './generators/dotnetGenerator';
 import { generateNodeJs } from './generators/nodeGenerator';
 import { generateAngular } from './generators/angularGenerator';
@@ -16,6 +17,7 @@ import { generatePython } from './generators/pythonGenerator';
 import { generateMarkdownApiDocs } from "./generators/markdownApiGenerator";
 import { generateDatabaseScripts } from './generators/databaseGenerator';
 import { generateSolution } from './generators/dotnet/solution';
+import { generateOfflineSyncFiles } from './generators/offlineSyncGenerator';
 
 // Main Generator Function
 export const generateBackendCode = (
@@ -42,7 +44,10 @@ export const generateBackendCode = (
 
   // Normalize Auth Config (Legacy String -> Mapping)
   // Ensures that simple comma-separated lists from the wizard are converted to proper Role Mappings for the backend
-  const activeConfig = { ...config }; 
+  const activeConfig = { 
+    ...config,
+    projectName: sanitizeProjectName(config?.projectName || 'MyProject')
+  }; 
   if (activeConfig.authConfig) {
       activeConfig.authConfig = { ...activeConfig.authConfig }; // Shallow copy auth level
       if (activeConfig.authConfig.useWindowsAuth && 
@@ -137,6 +142,12 @@ export const generateBackendCode = (
 
       // Add Visual Studio Solution File
       files.push(generateSolution(activeConfig));
+  }
+
+  // 4. Generate Offline-First & Sync Infrastructure if enabled or selected
+  if (activeConfig.offlineSync?.enabled || activeConfig.deploymentConfig?.target === 'offline_sync' || activeConfig.deploymentConfig?.offlineSync?.enabled) {
+    const syncFiles = generateOfflineSyncFiles(tables, activeConfig, activeConfig.offlineSync || activeConfig.deploymentConfig?.offlineSync);
+    files = [...files, ...syncFiles];
   }
 
   const apiDocsMd = generateMarkdownApiDocs(tables, activeConfig, queries, relationships);
