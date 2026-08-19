@@ -1,5 +1,6 @@
 import React from 'react';
 import { HeroSection } from './info/HeroSection';
+import { ComparisonSection } from './info/ComparisonSection';
 import { FeaturesGrid } from './info/FeaturesGrid';
 import { DesktopBuildsSection } from './info/DesktopBuildsSection';
 import { AiAndAutomationSection } from './info/AiAndAutomationSection';
@@ -16,6 +17,7 @@ export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
   return (
     <div className="h-full bg-slate-50 overflow-y-auto" id="app-info-view-root">
       <HeroSection onNavigate={onNavigate} />
+      <ComparisonSection />
       <FeaturesGrid />
       <DesktopBuildsSection />
       <AiAndAutomationSection />

@@ -231,7 +231,7 @@ export const MacroModal: React.FC<MacroModalProps> = ({
                               const updatedSteps = selectedMacro.steps.map(s => s.id === step.id ? { 
                                 ...s, 
                                 type: newType,
-                                ...(newType === 'EXPORT_REPORT' && !s.exportConfig ? { exportConfig: { sourceType: 'report', sourceId: '', format: 'PDF', title: 'Bericht' } } : {})
+                                ...(newType === 'EXPORT_REPORT' && !s.exportConfig ? { exportConfig: { sourceType: 'report' as const, sourceId: '', format: 'PDF' as const, title: 'Bericht' } } : {})
                               } : s);
                               setSelectedMacro({ ...selectedMacro, steps: updatedSteps });
                             }}

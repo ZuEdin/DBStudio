@@ -1,80 +1,122 @@
-import React from 'react';
-import { Database, Lock, Globe, Layers, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { HelpCircle, ChevronDown, ChevronUp, Lock, Code2, RefreshCw, FileSpreadsheet, ShieldCheck, Sparkles } from 'lucide-react';
+
+interface FaqItem {
+  question: string;
+  answer: string;
+  tag: string;
+}
 
 export const FaqSection: React.FC = () => {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  const faqs: FaqItem[] = [
+    {
+      question: 'Gehört der generierte Quellcode wirklich zu 100% mir?',
+      answer: 'Ja, uneingeschränkt! DB Studio Pro bindet Sie an keinen proprietären Cloud-Dienst oder Laufzeit-Abo. Wenn Sie den Code exportieren (React, Angular, .NET C#, PHP, Node.js), erhalten Sie sauberen, standardisierten Quellcode, den Sie frei hosten, anpassen, verkaufen oder in Ihre eigene CI/CD-Pipeline einbinden können.',
+      tag: 'Lizenz & Eigentum'
+    },
+    {
+      question: 'Wie funktioniert die Offline-First Synchronisation (Tauri + Remote Backend)?',
+      answer: 'Die generierte Client-Anwendung (z. B. Desktop mit Tauri oder Web-App) speichert alle Daten lokal in SQLite oder IndexedDB. Bei aktiver Internetverbindung synchronisiert ein robuster Push/Pull-Mechanismus nur die geänderten Datensätze (Deltas anhand von _updated_at, _is_deleted und _client_id) gegen den generierten SyncController.cs (.NET) oder SyncController.php (PHP). So können Benutzer auch im Funkloch ohne Latenz weiterarbeiten.',
+      tag: 'Architektur'
+    },
+    {
+      question: 'Kann ich bestehende Excel-Tabellen und Datenbanken importieren?',
+      answer: 'Ja! Der erweiterte Excel-Import analysiert Arbeitsmappen mit mehreren Blättern, erkennt automatisch ENUM-Auswahllisten bei wiederkehrenden Werten und schlägt intelligente SVERWEIS-Verknüpfungen (1:n Beziehungen) zu bestehenden Tabellen vor. Zudem können Sie bestehende SQL-Dumps (MySQL, PostgreSQL, SQLite) direkt einlesen.',
+      tag: 'Import & Migration'
+    },
+    {
+      question: 'Welche Frontend- und Backend-Frameworks werden unterstützt?',
+      answer: 'Sie haben maximale Freiheit: Im Frontend wählen Sie zwischen React 18+ (mit Vite & Tailwind) oder modernem Angular 19+ (Standalone Components, Signals & Reactive Forms). Im Backend generiert das System wahlweise .NET 8/9 C# (Entity Framework Core Web API), PHP (natives PDO oder Laravel Eloquent), Node.js (Express & TypeScript) oder Python (FastAPI).',
+      tag: 'Tech-Stack'
+    },
+    {
+      question: 'Wo werden meine Entwürfe und Daten während der Arbeit gespeichert?',
+      answer: 'DB Studio Pro arbeitet strikt nach dem Local-First-Prinzip. Alle Tabellenstrukturen, Beziehungen, Formulardesigns und Testdaten verbleiben verschlüsselt in der IndexedDB Ihres Browsers. Es findet kein unbefugter Datenabfluss auf externe Cloud-Server statt – DSGVO-Konformität by Design.',
+      tag: 'Datenschutz'
+    },
+    {
+      question: 'Wie unterscheidet sich DB Studio Pro von klassischen No-Code Tools wie Airtable oder Retool?',
+      answer: 'Klassische No-Code-Plattformen verlangen hohe monatliche Lizenzgebühren pro Benutzer und behalten den Quellcode unter Verschluss. Sobald Sie die Plattform verlassen, ist Ihre App verloren. DB Studio Pro kombiniert die visuelle Entwicklungsgeschwindigkeit von No-Code mit der uneingeschränkten Freiheit von echter professioneller Softwareentwicklung.',
+      tag: 'Vergleich'
+    }
+  ];
+
   return (
-    <div className="bg-white py-16 px-6 border-b border-slate-200" id="faq-section">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          
-          {/* MS Access Comparison */}
-          <div className="bg-slate-50 p-8 rounded-xl border border-slate-100 flex flex-col justify-between" id="comparison-card">
-            <div>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-orange-100 text-orange-700 rounded-lg">
-                  <Database size={20} />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">Das Beste aus beiden Welten</h3>
-              </div>
-              
-              <p className="text-slate-600 text-xs md:text-sm leading-relaxed mb-4">
-                Erinnern Sie sich an <strong>Microsoft Access</strong>? Es erlaubte jedem, schnell relationale Datenbanken zusammenzuklicken und sofort zu betreiben. Es war genial einfach, aber leider proprietär, an Windows gebunden, unübersichtlich bei großen Teams und im Web kaum nutzbar.
-              </p>
-              
-              <p className="text-slate-600 text-xs md:text-sm leading-relaxed mb-6">
-                <strong>DB Studio Pro</strong> bringt dieses legendäre Gefühl von Produktivität zurück – aber mit modernen Web- und Desktop-Technologien. Kein Vendor-Lock-in, kein proprietäres Dateiformat. Sie erhalten echten, sauberen Quellcode, den Ihr Team sofort erweitern kann.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 border-t border-slate-200/80 pt-4 text-xs text-slate-500">
-              <div>
-                <span className="font-bold text-slate-800 block">Klassisches Access</span>
-                <span>Windows-only, Binär-Dateien, veraltete UI, limitiert im Web.</span>
-              </div>
-              <div>
-                <span className="font-bold text-indigo-600 block">DB Studio Pro</span>
-                <span>Web &amp; Desktop (Rust/Tauri), offener Code, moderne UI, Echtzeit-Kollaboration.</span>
-              </div>
-            </div>
+    <div className="bg-slate-50 py-20 px-6 border-b border-slate-200" id="faq-section">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-full text-xs font-bold mb-3">
+            <HelpCircle size={13} />
+            <span>Häufige Fragen &amp; Antworten</span>
           </div>
-
-          {/* Privacy & Security */}
-          <div className="bg-slate-900 text-white p-8 rounded-xl border border-slate-800 flex flex-col justify-between" id="privacy-card">
-            <div>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
-                  <Lock size={20} />
-                </div>
-                <h3 className="text-lg font-bold text-white">100% Local-First &amp; Datenschutz</h3>
-              </div>
-              
-              <p className="text-slate-300 text-xs md:text-sm leading-relaxed mb-4">
-                Ihre sensiblen Daten gehören Ihnen und sonst niemandem. DB Studio Pro arbeitet nach dem <strong>Local-First-Prinzip</strong>. Ihre Entwürfe, Tabellen und Einstellungen werden verschlüsselt in den lokalen IndexedDB-Datenbanken Ihres eigenen Webbrowsers gesichert.
-              </p>
-
-              <ul className="space-y-3 text-xs text-slate-400 mb-6">
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400 font-bold">✓</span>
-                  <span>Keine ungefragte Übertragung auf externe Cloud-Server</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400 font-bold">✓</span>
-                  <span>Vollständige Funktionalität auch im Offline-Modus</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400 font-bold">✓</span>
-                  <span>Perfekt geeignet für DSGVO-konforme Enterprise-Projekte</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-              <span>Kein Account-Zwang</span>
-              <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-mono text-[10px] font-bold">DSGVO Konform</span>
-            </div>
-          </div>
-
+          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            Wissenswertes zu DB Studio Pro
+          </h2>
+          <p className="text-slate-600 text-sm mt-2">
+            Transparente Antworten zu Architektur, Lizenzen, Code-Generierung und Datenschutz.
+          </p>
         </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq, idx) => {
+            const isOpen = openIndex === idx;
+            return (
+              <div
+                key={idx}
+                className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs transition-all"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenIndex(isOpen ? null : idx)}
+                  className="w-full px-5 py-4 text-left flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase tracking-wider">
+                      {faq.tag}
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {faq.question}
+                    </span>
+                  </div>
+                  <div className="text-slate-400">
+                    {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className="px-5 pb-5 pt-1 text-xs md:text-sm text-slate-600 leading-relaxed border-t border-slate-100 bg-slate-50/50">
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Security & Privacy Banner */}
+        <div className="mt-12 bg-slate-900 text-white rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 justify-between border border-slate-800 shadow-lg">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0 mt-1">
+              <ShieldCheck size={24} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white mb-1">
+                100% Local-First &amp; DSGVO-konform
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-xl">
+                Alle Ihre Schemata, Formulardefinitionen und Datensätze verbleiben in der lokalen <strong>IndexedDB-Datenbank</strong> Ihres Browsers. Kein Zwang zu Drittanbieter-Clouds.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+              ✓ Lokale Daten-Hoheit
+            </span>
+          </div>
+        </div>
+
       </div>
     </div>
   );

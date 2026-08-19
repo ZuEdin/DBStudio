@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Table, Field, FieldType, ValidationRule, ValidationOperator, LockInfo, Relationship } from '../../types/index';
-import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical, Database, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Key, Wand2, Hash, Clock, CheckSquare, ShieldAlert, Lock, Unlock, UserCheck, GripVertical, Database, Sparkles, ListFilter, Tag, X, ListPlus } from 'lucide-react';
 import { generateTableSchema } from '../../services/geminiService';
 import { DATA_TYPES } from '../../config/dataTypes';
 import { MockDataGeneratorModal } from './MockDataGeneratorModal';
@@ -25,6 +25,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
   const [showMockData, setShowMockData] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [sequenceModalField, setSequenceModalField] = useState<Field | null>(null);
+  const [enumInputText, setEnumInputText] = useState('');
 
   const { name: tableName, description: tableDescription, fields = [], validationRules = [] } = table;
 
@@ -91,6 +92,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                 length: config.hasLength ? (config.defaultLength || 255) : undefined,
                 precision: config.hasPrecision ? config.defaultPrecision : undefined,
                 scale: config.hasPrecision ? config.defaultScale : undefined,
+                enumValues: updates.type === 'ENUM' ? (f.enumValues && f.enumValues.length > 0 ? f.enumValues : ['Option 1', 'Option 2']) : f.enumValues,
                 defaultValue: undefined 
             };
         }
@@ -232,6 +234,23 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                   <option value="">(Kein Standard)</option>
                   <option value="true">True (Ja)</option>
                   <option value="false">False (Nein)</option>
+              </select>
+          );
+      }
+
+      if (field.type === 'ENUM') {
+          const options = field.enumValues || [];
+          return (
+              <select 
+                  value={field.defaultValue || ''} 
+                  disabled={isReadOnly}
+                  onChange={e => updateField(field.id, { defaultValue: e.target.value })}
+                  className="w-full border border-slate-300 focus:border-blue-500 rounded px-2 py-1 bg-white text-xs text-slate-800"
+              >
+                  <option value="">(Kein Standard / Leer)</option>
+                  {options.map((opt, i) => (
+                      <option key={i} value={opt}>{opt}</option>
+                  ))}
               </select>
           );
       }
@@ -510,6 +529,17 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-mono font-bold">
                                     ⚡ {field.calculationFormula || 'Berechnet'}
                                   </span>
+                                ) : field.type === 'ENUM' ? (
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-semibold" title={`Optionen: ${(field.enumValues || []).join(', ')}`}>
+                                      🏷️ {(field.enumValues || []).length} Werte: {(field.enumValues || []).slice(0, 3).join(', ')}{(field.enumValues || []).length > 3 ? '...' : ''}
+                                    </span>
+                                    {field.defaultValue && (
+                                      <span className="text-[10px] text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title="Standardwert">
+                                        = {String(field.defaultValue)}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : field.defaultValue ? (
                                   <span className="text-xs text-slate-600 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                     = {String(field.defaultValue)}
@@ -848,6 +878,170 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({ table, onTableChan
                           />
                         </div>
                       </div>
+
+                      {/* Volle Breite (wenn ENUM): 🏷️ ENUM-Auswahloptionen Manager */}
+                      {selectedField.type === 'ENUM' && (
+                        <div className="col-span-full bg-white border-2 border-indigo-200 rounded-lg p-4 space-y-3.5 shadow-sm animate-in fade-in">
+                          <div className="flex items-center justify-between border-b border-indigo-100 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-md">
+                                <Tag size={16} />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-xs text-slate-800 flex items-center gap-2">
+                                  ENUM-Auswahlwerte / Dropdown-Optionen
+                                  <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-mono font-bold">
+                                    {(selectedField.enumValues || []).length} Werte definiert
+                                  </span>
+                                </h4>
+                                <p className="text-[11px] text-slate-500">
+                                  Legen Sie die erlaubten Werte für das Dropdown-Menü fest. Benutzer können im Datenblatt oder Formularen aus diesen Optionen wählen.
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {(selectedField.enumValues || []).length > 0 && !isReadOnly && (
+                              <button
+                                type="button"
+                                onClick={() => updateField(selectedField.id, { enumValues: [], defaultValue: undefined })}
+                                className="text-[11px] text-red-600 hover:text-red-800 hover:underline font-semibold"
+                              >
+                                Alle löschen
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Aktuelle ENUM-Werte als interaktive Tags / Badges */}
+                          <div>
+                            <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                              Aktuelle Auswahloptionen:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 min-h-[38px] p-2 bg-slate-50 border border-slate-200 rounded-lg items-center">
+                              {(selectedField.enumValues || []).map((val, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold shadow-2xs transition-all ${
+                                    selectedField.defaultValue === val
+                                      ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                                      : 'bg-white text-indigo-900 border border-indigo-200 hover:border-indigo-300'
+                                  }`}
+                                >
+                                  <Tag size={11} className={selectedField.defaultValue === val ? 'text-indigo-200' : 'text-indigo-500'} />
+                                  <span>{val}</span>
+                                  {selectedField.defaultValue === val && (
+                                    <span className="text-[9px] bg-indigo-800 text-indigo-100 px-1 rounded uppercase font-bold tracking-wider">
+                                      Standard
+                                    </span>
+                                  )}
+                                  {!isReadOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newVals = (selectedField.enumValues || []).filter((_, i) => i !== idx);
+                                        const newDefault = selectedField.defaultValue === val ? undefined : selectedField.defaultValue;
+                                        updateField(selectedField.id, { enumValues: newVals, defaultValue: newDefault });
+                                      }}
+                                      className="ml-1 text-slate-400 hover:text-red-600 font-bold p-0.5 hover:bg-slate-100 rounded"
+                                      title={`"${val}" entfernen`}
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+
+                              {(!selectedField.enumValues || selectedField.enumValues.length === 0) && (
+                                <span className="text-xs text-slate-400 italic">
+                                  Noch keine Werte eingetragen. Tragen Sie unten Werte ein oder wählen Sie eine Vorlage.
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Schnelleingabe neuer Werte */}
+                          {!isReadOnly && (
+                            <div className="space-y-2">
+                              <label className="block text-[11px] font-bold text-slate-700">
+                                Neuen Wert hinzufügen (Einzeln oder Komma-getrennt für mehrere):
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={enumInputText}
+                                  onChange={e => setEnumInputText(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      const trimmed = enumInputText.trim();
+                                      if (!trimmed) return;
+                                      const splitValues = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+                                      const existing = selectedField.enumValues || [];
+                                      const uniqueToAdd = splitValues.filter(v => !existing.includes(v));
+                                      if (uniqueToAdd.length > 0) {
+                                        updateField(selectedField.id, { enumValues: [...existing, ...uniqueToAdd] });
+                                      }
+                                      setEnumInputText('');
+                                    }
+                                  }}
+                                  placeholder="z.B. Offen, In Bearbeitung, Erledigt oder einzelner Wert (Enter zum Hinzufügen)..."
+                                  className="flex-1 border border-slate-300 focus:border-indigo-500 rounded-lg px-3 py-1.5 text-xs bg-white text-slate-800 shadow-2xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const trimmed = enumInputText.trim();
+                                    if (!trimmed) return;
+                                    const splitValues = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+                                    const existing = selectedField.enumValues || [];
+                                    const uniqueToAdd = splitValues.filter(v => !existing.includes(v));
+                                    if (uniqueToAdd.length > 0) {
+                                      updateField(selectedField.id, { enumValues: [...existing, ...uniqueToAdd] });
+                                    }
+                                    setEnumInputText('');
+                                  }}
+                                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
+                                >
+                                  <Plus size={14} /> Hinzufügen
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Schnellauswahl / Presets */}
+                          {!isReadOnly && (
+                            <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block">
+                                Schnellauswahl / Häufige Vorlagen (Klick zum Übernehmen):
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {[
+                                  { label: 'Anrede (Herr, Frau, Divers, Firma)', vals: ['Herr', 'Frau', 'Divers', 'Firma'] },
+                                  { label: 'Status (Offen, In Bearbeitung, Erledigt, Blockiert)', vals: ['Offen', 'In Bearbeitung', 'Erledigt', 'Blockiert'] },
+                                  { label: 'Ticket (Neu, In Bearbeitung, Gelöst, Geschlossen)', vals: ['Neu', 'In Bearbeitung', 'Gelöst', 'Geschlossen'] },
+                                  { label: 'Priorität (Niedrig, Normal, Hoch, Dringend)', vals: ['Niedrig', 'Normal', 'Hoch', 'Dringend'] },
+                                  { label: 'Ja / Nein', vals: ['Ja', 'Nein'] },
+                                  { label: 'Zahlung (Offen, Bezahlt, Gemahnt, Storniert)', vals: ['Offen', 'Bezahlt', 'Gemahnt', 'Storniert'] },
+                                  { label: 'Einheiten (Stück, Stunde, Meter, kg, Pauschale)', vals: ['Stück', 'Stunde', 'Meter', 'kg', 'Pauschale'] },
+                                ].map((preset, pIdx) => (
+                                  <button
+                                    key={pIdx}
+                                    type="button"
+                                    onClick={() => {
+                                      updateField(selectedField.id, {
+                                        enumValues: preset.vals,
+                                        defaultValue: preset.vals[0]
+                                      });
+                                    }}
+                                    className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded text-[11px] text-slate-700 hover:text-indigo-900 transition-colors font-medium"
+                                  >
+                                    ⚡ {preset.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                     </div>
                   </div>

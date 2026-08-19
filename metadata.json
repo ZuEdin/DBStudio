@@ -1,6 +1,6 @@
 {
   "name": "DB Studio Pro",
-  "description": "Eine professionelle Datenbank-Management-Anwendung mit visuellem Abfrage-Designer und Beziehungs-Manager.",
+  "description": "Professionelle Low-Code Datenbank- und Workflow-Suite mit visuellem Designer, Offline-Sync und Multi-Framework Codegenerator (React, Angular Standalone & Signals, .NET C#, PHP, Tauri).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

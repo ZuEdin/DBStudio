@@ -14,7 +14,8 @@ interface DeployTabProps {
 
 const getDefaultPort = (framework: FrontendFramework): number => {
     switch (framework) {
-        case 'angular': return 4200;
+        case 'angular':
+        case 'angular-modern': return 4200;
         case 'vue': return 5173;
         case 'blazor': return 5002;
         case 'maui': return 5003;
@@ -43,7 +44,8 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
     switch(fw) {
       case 'react': return 'React';
       case 'vue': return 'Vue.js';
-      case 'angular': return 'Angular';
+      case 'angular-modern': return 'Angular 19 (Standalone & Signals)';
+      case 'angular': return 'Angular (Klassisch / NgModule)';
       case 'blazor': return 'Blazor (WASM)';
       case 'maui': return '.NET MAUI (Blazor Hybrid)';
       case 'maui-native': return '.NET MAUI (XAML / Native)';
@@ -344,7 +346,8 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         >
                             <option value="react">React</option>
                             <option value="vue">Vue.js</option>
-                            <option value="angular">Angular</option>
+                            <option value="angular-modern">Angular 19 (Standalone & Signals)</option>
+                            <option value="angular">Angular (Klassisch / NgModule)</option>
                             <option value="blazor">Blazor (WASM)</option>
                             <option value="maui">.NET MAUI (Blazor Hybrid)</option>
                             <option value="maui-native">.NET MAUI (XAML / Native)</option>

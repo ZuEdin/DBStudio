@@ -15,7 +15,7 @@ export const buildWorkflowAST = (workflow: Workflow): ASTNode[] | null => {
     const nodesMap = new Map<string, WorkflowNode>(workflow.nodes.map(n => [n.id, n]));
     
     // Finde den/die Trigger (Wurzeln)
-    const triggerNodes = workflow.nodes.filter(n => n.type === 'trigger' || n.type === 'triggerNode');
+    const triggerNodes = workflow.nodes.filter(n => (n.type as string) === 'trigger' || (n.type as string) === 'triggerNode');
     if (triggerNodes.length === 0) return null;
 
     const buildTree = (nodeId: string, visited: Set<string>): ASTNode[] => {
@@ -99,11 +99,17 @@ export const generateTypeScriptCode = (ast: ASTNode[]): string => {
             } else if (astNode.type === 'apiNode') {
                  const method = astNode.node.data.apiConfig?.method || "GET";
                  const url = astNode.node.data.apiConfig?.url || "https://api.example.com";
+                 const headersStr = typeof astNode.node.data.apiConfig?.headers === 'string' 
+                   ? astNode.node.data.apiConfig.headers.replace(/\n/g, '\n' + indent + '    ') 
+                   : JSON.stringify(astNode.node.data.apiConfig?.headers || {});
+                 const bodyStr = typeof astNode.node.data.apiConfig?.body === 'string' && (method === 'POST' || method === 'PUT')
+                   ? 'JSON.stringify(' + astNode.node.data.apiConfig.body.replace(/\n/g, '\n' + indent + '    ') + ')'
+                   : 'undefined';
                  code += `${indent}// API Call to endpoint
 ${indent}const response_${astNode.id} = await fetch("${url}", {
 ${indent}    method: "${method}",
-${indent}    headers: ${astNode.node.data.apiConfig?.headers ? astNode.node.data.apiConfig.headers.replace(/\n/g, '\n' + indent + '    ') : '{}'},
-${indent}    body: ${astNode.node.data.apiConfig?.body && (method === 'POST' || method === 'PUT') ? 'JSON.stringify(' + astNode.node.data.apiConfig.body.replace(/\n/g, '\n' + indent + '    ') + ')' : 'undefined'}
+${indent}    headers: ${headersStr},
+${indent}    body: ${bodyStr}
 ${indent}});
 ${indent}const data_${astNode.id} = await response_${astNode.id}.json();
 `;
@@ -161,11 +167,17 @@ export const generateCSharpCode = (ast: ASTNode[]): string => {
             } else if (astNode.type === 'apiNode') {
                  const method = astNode.node.data.apiConfig?.method || "GET";
                  const url = astNode.node.data.apiConfig?.url || "https://api.example.com";
+                 const headersStr = typeof astNode.node.data.apiConfig?.headers === 'string' 
+                   ? astNode.node.data.apiConfig.headers.replace(/\n/g, ' ') 
+                   : '{}';
+                 const bodyStr = typeof astNode.node.data.apiConfig?.body === 'string' && (method === 'POST' || method === 'PUT') 
+                   ? astNode.node.data.apiConfig.body.replace(/\n/g, ' ') 
+                   : 'None';
                  code += `${indent}// API Call to endpoint
 ${indent}using (var client = new HttpClient()) {
 ${indent}    var request = new HttpRequestMessage(HttpMethod.${method.charAt(0).toUpperCase() + method.slice(1).toLowerCase()}, "${url}");
-${indent}    // Headers: ${astNode.node.data.apiConfig?.headers ? astNode.node.data.apiConfig.headers.replace(/\n/g, ' ') : '{}'}
-${indent}    // Body: ${astNode.node.data.apiConfig?.body && (method === 'POST' || method === 'PUT') ? astNode.node.data.apiConfig.body.replace(/\n/g, ' ') : 'None'}
+${indent}    // Headers: ${headersStr}
+${indent}    // Body: ${bodyStr}
 ${indent}    var response = await client.SendAsync(request);
 ${indent}    var responseString = await response.Content.ReadAsStringAsync();
 ${indent}}

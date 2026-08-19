@@ -574,6 +574,9 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             } else if (field?.type === 'BOOLEAN') {
                 inputType = "checkbox";
                 inputValue = Boolean(rawVal) && String(rawVal).toLowerCase() !== 'false' && String(rawVal) !== '0';
+            } else if (field?.type === 'ENUM') {
+                inputType = "enum";
+                inputValue = rawVal !== undefined && rawVal !== null ? String(rawVal) : '';
             }
 
             return (
@@ -589,6 +592,23 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
                                 className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                             />
                         </div>
+                    ) : inputType === 'enum' ? (
+                        <select
+                            value={inputValue as string}
+                            onChange={(e) => { handleDataChange(row, header, e.target.value) }}
+                            onFocus={() => setActiveColumn(header)}
+                            disabled={isAutoInc || isCalculated}
+                            className={`flex-1 h-full px-2 w-full bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-indigo-500 text-xs font-medium text-slate-800 ${isCalculated ? 'cursor-default font-semibold text-amber-900' : ''} ${showLink ? 'pr-8' : ''}`}
+                        >
+                            <option value="">(Leer)</option>
+                            {(field?.enumValues || []).map((enumVal, eIdx) => (
+                                <option key={eIdx} value={enumVal}>{enumVal}</option>
+                            ))}
+                            {/* If current value is not in enum list, preserve it */}
+                            {inputValue && !(field?.enumValues || []).includes(inputValue as string) && (
+                                <option value={inputValue as string}>{inputValue as string} (Benutzerdefiniert)</option>
+                            )}
+                        </select>
                     ) : (
                         <input
                             type={inputType}

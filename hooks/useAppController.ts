@@ -7,6 +7,7 @@ import { saveProjectToStorage, getProjectById } from '../services/storageService
 import { sanitizeProjectName } from '../utils/nameUtils';
 import { cloudService } from '../services/cloudService'; 
 import { createTableFromTemplate } from '../services/tableTemplateService';
+import { WorkflowExecutionEngine } from '../features/logic/WorkflowEngine';
 import * as XLSX from 'xlsx';
 
 // Import Sub-Hooks
@@ -1063,29 +1064,96 @@ export const useAppController = () => {
 
         // --- Workflow Ribbon Actions ---
         case 'add_trigger_node':
+        case 'add_db_action_node':
+        case 'add_email_node':
+        case 'add_export_node':
         case 'add_condition_node':
+        case 'add_loop_node':
+        case 'add_api_node':
         case 'add_action_node':
              if (currentView.type === 'workflow_designer' && activeObject && 'nodes' in activeObject) {
                  const wf = activeObject as Workflow;
-                 const type = action === 'add_trigger_node' ? 'triggerNode' : action === 'add_condition_node' ? 'conditionNode' : 'actionNode';
+                 let type = 'triggerNode';
+                 let label = 'Knoten';
+                 let data: any = {};
+
+                 if (action === 'add_trigger_node') {
+                     type = 'triggerNode';
+                     label = 'Datensatz erstellt';
+                     data = { label, triggerConfig: { event: 'onCreate', tableId: store.tables[0]?.id } };
+                 } else if (action === 'add_db_action_node' || action === 'add_action_node') {
+                     type = 'databaseActionNode';
+                     label = 'Datensatz anlegen';
+                     data = { label, databaseActionConfig: { actionType: 'createRecord', targetTableId: store.tables[0]?.id } };
+                 } else if (action === 'add_email_node') {
+                     type = 'emailActionNode';
+                     label = 'E-Mail senden';
+                     data = { label, emailActionConfig: { to: '{{trigger.email}}', subject: 'Benachrichtigung', body: 'Hallo {{trigger.name}}' } };
+                 } else if (action === 'add_export_node') {
+                     type = 'exportActionNode';
+                     label = 'Excel Export';
+                     data = { label, exportActionConfig: { exportType: 'excel', sourceType: 'table', sourceId: store.tables[0]?.id } };
+                 } else if (action === 'add_condition_node') {
+                     type = 'conditionNode';
+                     label = 'Prüfung (IF)';
+                     data = { label, conditionConfig: { operator: 'eq', value: 'Bezahlt' } };
+                 } else if (action === 'add_loop_node') {
+                     type = 'loopNode';
+                     label = 'Für jeden Eintrag';
+                     data = { label, loopConfig: { tableId: store.tables[0]?.id, variableName: 'item' } };
+                 } else if (action === 'add_api_node') {
+                     type = 'apiNode';
+                     label = 'REST API Aufruf';
+                     data = { label, apiConfig: { method: 'POST', url: 'https://api.example.com/v1/event' } };
+                 }
+
                  const newNode = {
-                     id: crypto.randomUUID(),
+                     id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
                      type,
                      position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
-                     data: {
-                         label: type === 'triggerNode' ? 'Start' : type === 'conditionNode' ? 'Bedingung' : 'Aktion',
-                         triggerConfig: type === 'triggerNode' ? { event: 'onCreate' } : undefined,
-                         conditionConfig: type === 'conditionNode' ? { operator: '=' } : undefined,
-                         actionConfig: type === 'actionNode' ? { actionType: 'sendEmail' } : undefined
-                     }
+                     data
                  };
                  const updated = { ...wf, nodes: [...wf.nodes, newNode as any] };
                  setActiveObject(updated);
                  store.setWorkflows(store.workflows.map(w => w.id === updated.id ? updated : w));
+                 setIsDirty(true);
+                 ui.addToast(`Knoten "${label}" hinzugefügt.`, 'info');
              }
              break;
+
+        case 'test_workflow':
+             if (currentView.type === 'workflow_designer' && activeObject && 'nodes' in activeObject) {
+                 const wf = activeObject as Workflow;
+                 const triggerNode = wf.nodes.find(n => n.type === 'triggerNode');
+                 const tableId = triggerNode?.data?.triggerConfig?.tableId;
+                 const table = store.tables.find(t => t.id === tableId) || store.tables[0];
+                 const record = table?.data?.[0] || { id: 'TEST_001', name: 'Test Datensatz' };
+
+                 WorkflowExecutionEngine.executeWorkflow(
+                     wf,
+                     'onManual',
+                     record,
+                     undefined,
+                     { onShowToast: (msg, type) => ui.addToast(msg, type) }
+                 ).then(log => {
+                     ui.addToast(`Workflow-Testlauf beendet: ${log.status === 'success' ? 'Erfolgreich' : 'Fehlgeschlagen'} (${log.durationMs}ms)`, log.status === 'success' ? 'success' : 'error');
+                 });
+             }
+             break;
+
+        case 'toggle_workflow_active':
+             if (currentView.type === 'workflow_designer' && activeObject && 'nodes' in activeObject) {
+                 const wf = activeObject as Workflow;
+                 const newActive = !wf.active;
+                 const updated = { ...wf, active: newActive };
+                 setActiveObject(updated);
+                 store.setWorkflows(store.workflows.map(w => w.id === updated.id ? updated : w));
+                 ui.addToast(`Workflow ist jetzt ${newActive ? 'aktiviert' : 'deaktiviert'}.`, newActive ? 'success' : 'info');
+             }
+             break;
+
         case 'save_workflow':
-             ui.addToast("Workflow gespeichert.", 'success');
+             store.saveProject().then(() => ui.addToast("Workflow erfolgreich gespeichert.", 'success'));
              break;
         // -------------------------------
         

@@ -605,6 +605,92 @@ Gleicht das gesamte lokale Schema (Tabellen, Spalten, Datentypen, Relationen und
   }
   ```
 
+---
+
+## 12. Workflow & Macro Engine API (IndexedDB / REST / SQL)
+
+Die Workflow-Engine ermöglicht die grafische Modellierung und automatisierte Ausführung von Geschäftslogik ohne Programmiercode. Datenhaltung und Ausführungsprotokolle werden prioritär in **IndexedDB** gespeichert und können nahtlos in relationale SQL-Backends migriert werden.
+
+### 12.1 Workflow Schema in IndexedDB
+
+| Feld | Typ | Beschreibung |
+| :--- | :--- | :--- |
+| `id` | `string` | Eindeutige Workflow-ID (UUID) |
+| `name` | `string` | Bezeichnung des Workflows |
+| `active` | `boolean` | Status: `true` (Aktiv / Event-Hooking) oder `false` (Entwurf) |
+| `nodes` | `WorkflowNode[]` | Array der Flow-Knoten (Trigger, Actions, Conditions, Loops) |
+| `edges` | `WorkflowEdge[]` | Verbindungen und Verzweigungen (True/False, Loop/Done) |
+| `executionLogs` | `WorkflowExecutionLog[]` | Historie der letzten 20 Ausführungen |
+
+### 12.2 API-Endpunkte der Workflow-Engine
+
+#### `POST /api/workflows/execute` (bzw. `WorkflowExecutionEngine.executeWorkflow()`)
+Führt einen Workflow mit einem übergebenen Datensatz aus.
+- **Request-Body:**
+  ```json
+  {
+    "workflowId": "wf_123",
+    "event": "onCreate",
+    "record": { "id": "ORD_100", "kunde": "Acme Corp", "betrag": 249.50 },
+    "previousRecord": null
+  }
+  ```
+- **Rückgabe (`WorkflowExecutionLog`):**
+  ```json
+  {
+    "id": "log_987",
+    "workflowId": "wf_123",
+    "triggeredBy": "onCreate",
+    "startedAt": "2026-08-19T08:00:00.000Z",
+    "status": "success",
+    "durationMs": 42,
+    "steps": [
+      {
+        "nodeId": "node_1",
+        "nodeLabel": "Datensatz erstellt",
+        "nodeType": "triggerNode",
+        "status": "success",
+        "timestamp": "2026-08-19T08:00:00.005Z",
+        "details": "Trigger auf Tabelle [bestellungen] ausgelöst."
+      },
+      {
+        "nodeId": "node_2",
+        "nodeLabel": "Formel berechnen",
+        "nodeType": "databaseActionNode",
+        "status": "success",
+        "timestamp": "2026-08-19T08:00:00.015Z",
+        "details": "Feld [gesamt_brutto] = 296.91 berechnet."
+      },
+      {
+        "nodeId": "node_3",
+        "nodeLabel": "E-Mail senden",
+        "nodeType": "emailActionNode",
+        "status": "success",
+        "timestamp": "2026-08-19T08:00:00.030Z",
+        "details": "E-Mail an 'kunde@acme.com' versendet mit Anhang 'Rechnung_ORD_100.pdf'."
+      }
+    ],
+    "emailSentPreview": {
+      "to": "kunde@acme.com",
+      "subject": "Ihre Rechnung #ORD_100",
+      "body": "Hallo Acme Corp,\n\nvielen Dank für Ihre Bestellung.",
+      "attachmentName": "Rechnung_ORD_100.pdf"
+    }
+  }
+  ```
+
+#### `POST /api/workflows/trigger-event` (bzw. `triggerTableEvent()`)
+Globaler Hook, der bei Tabellen-Operationen (Erstellen, Aktualisieren, Löschen) automatisch alle passenden aktiven Workflows auslöst.
+- **Request-Body:**
+  ```json
+  {
+    "tableId": "tbl_orders",
+    "event": "onCreate",
+    "record": { "id": "ORD_101", "kunde": "Muster AG", "summe": 500 }
+  }
+  ```
+
+
 
 
 

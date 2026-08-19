@@ -526,6 +526,27 @@ Das Excel-Import-System verfügt über erstklassige, automatisierte Datenvorbere
 *   **Verknüpfungs-Dropdown**: Wird eine Ähnlichkeit erkannt, schlägt der Assistent automatisch eine Beziehung vor. Der Benutzer kann die Beziehung manuell anpassen oder auf eine andere Tabelle verweisen.
 *   **Beziehungs-Erstellung**: Nach dem Import wird die neue Tabelle mitsamt allen ausgewählten `1:n`-Beziehungen im globalen Beziehungs-Schema des Daten-Studios registriert. Diese Verknüpfungen stehen sofort in Abfragen (Queries) und im ER-Diagramm zur Verfügung.
 
+## 12. ENUM-Felder & Dropdown-Werte (Tabellenentwurf & Datenblatt)
+
+### 12.1. Feld-Konfiguration im Tabellenentwurf
+*   **Datentyp**: Bei Auswahl des Datentyps `ENUM` im Tabellenentwurf (`TableDesigner`) wird im Bereich *Feldeigenschaften* ein visueller **ENUM-Auswahlwerte-Manager** eingeblendet.
+*   **Werte-Eingabe**:
+    *   **Einzeleingabe**: Wert tippen und mit `Enter` oder `+ Hinzufügen` bestätigen.
+    *   **Komma-getrennte Mehrfacheingabe**: z. B. `Offen, In Bearbeitung, Erledigt, Storniert` wird automatisch in separate Auswahlwerte aufgeteilt.
+    *   **Schnellvorlagen (Presets)**: Vorlagen für Anrede, Status, Priorität, Ticket, Ja/Nein, Einheiten und Zahlung per Klick sofort einsatzbereit.
+    *   **Standardwert**: Ein interaktives Dropdown im Eigenschaften-Panel erlaubt die direkte Wahl des Standardwertes (`defaultValue`) aus den definierten Optionen.
+*   **Persistenz**: Die Werte werden im Schema als `field.enumValues: string[]` in der lokalen **IndexedDB** gespeichert.
+
+### 12.2. Interaktives Datenblatt (Data Grid)
+*   Im Datenblatt (`TableView`) wird bei Feldern vom Typ `ENUM` automatisch eine native Dropdown-Auswahlbox gerendert, welche die Eingabe auf die definierten Enum-Optionen beschränkt und Fehleingaben verhindert.
+
+### 12.3. Backend- & SQL-Export
+*   **MySQL / MariaDB**: `ENUM('Wert1', 'Wert2', ...)`
+*   **PostgreSQL**: `VARCHAR(255) CHECK (field IN ('Wert1', 'Wert2', ...))` oder `CREATE TYPE ... AS ENUM`
+*   **SQLite**: `TEXT CHECK (field IN ('Wert1', 'Wert2', ...))`
+*   **.NET (C#)**: `enum StatusEnum { Wert1, Wert2 }`
+*   **PHP / Laravel**: `$table->enum('field', ['Wert1', 'Wert2'])`
+
 
 
 

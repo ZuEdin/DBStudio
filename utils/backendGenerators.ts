@@ -4,6 +4,7 @@ import { sanitizeProjectName } from './nameUtils';
 import { generateDotNet } from './generators/dotnetGenerator';
 import { generateNodeJs } from './generators/nodeGenerator';
 import { generateAngular } from './generators/angularGenerator';
+import { generateAngularModern } from './generators/angularModernGenerator';
 import { generateReact } from './generators/reactGenerator';
 import { generatePhp } from './generators/phpGenerator';
 import { generateLaravel } from './generators/laravelGenerator';
@@ -83,6 +84,9 @@ export const generateBackendCode = (
   if (activeConfig.frontendFramework === 'angular') {
     const angularFiles = generateAngular(tables, relationships, queries, forms, activeConfig, reports, pages, customComponents, macros);
     files = [...files, ...angularFiles];
+  } else if (activeConfig.frontendFramework === 'angular-modern') {
+    const angularModernFiles = generateAngularModern(tables, relationships, queries, forms, activeConfig, reports, pages, customComponents, macros);
+    files = [...files, ...angularModernFiles];
   } else if (activeConfig.frontendFramework === 'react') {
     const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents, macros);
     files = [...files, ...reactFiles];

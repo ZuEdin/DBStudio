@@ -269,7 +269,14 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
         return null;
       case 'workflow_designer':
         if (activeObject && 'nodes' in activeObject && 'active' in activeObject) {
-            return <WorkflowDesigner workflow={activeObject as Workflow} tables={tables} onWorkflowChange={onActiveObjectChange as any} />;
+            return (
+              <WorkflowDesigner 
+                workflow={activeObject as Workflow} 
+                tables={tables} 
+                onWorkflowChange={onActiveObjectChange as any} 
+                onShowToast={(msg, type) => showMessage('Workflow', msg, type)}
+              />
+            );
         }
         return null;
       case 'scheduler':

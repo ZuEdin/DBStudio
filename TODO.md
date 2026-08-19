@@ -191,7 +191,76 @@ Folgende Punkte sind für die nächste Entwicklungsphase geplant und im System h
 *   [x] **Angular-Formular-Makro-Dropdown:** Integration des Makro-Aktions-Dropdown-Buttons oder entsprechender Trigger im generierten HTML der Angular-Formular-Komponenten (analog zur React-Implementierung), um zugewiesene Makros direkt aufrufen zu können.
 *   [x] **Erweiterte E-Mail-Makro-Integration:** Entwicklung einer sicheren serverseitigen Mailer-Schnittstelle (`EMAIL_DATABASE_OBJECT`), die SMTP oder Drittanbieter-Services zur verschlüsselten PDF-Zustellung anbindet.
 *   [x] **Zusätzliche Validierungsschemata:** Ausbau der Hybrid-Validierung für noch komplexere Tabellenbeziehungen (cross-table validation rules).
+*   [x] **Angular 19 Standalone & Signals Generator:** Neuer dedizierter Code-Generator für moderne Angular 19/18 Architekturen ohne NgModules mit reaktiven Signals und neuem `@if/@for` Control Flow.
 
 ---
 
-*Letzte Aktualisierung: Juli 2026 • DB Studio Pro Engineering Team*
+## 🌟 7. Next-Level Enterprise & Developer Feature Roadmap (v3.0)
+
+Diese 8 High-Impact Features heben **DB Studio Pro** auf das Niveau marktführender Enterprise Low-Code- und Developer-Plattformen:
+
+### 🤖 1. AI Schema- & Query-Copilot (Natural Language zu DB)
+- [ ] **Natural Language to Schema Generator:**
+  - Eingabe: *"Erstelle ein Datenmodell für ein Hotel-Buchungssystem mit Zimmern, Gästen, Reservierungen und Rechnungsstatus."*
+  - Automatische Generierung aller Tabellen, Primär-/Fremdschlüssel, Datentypen und visuellen ERD-Kopplungen.
+- [ ] **Natural Language to Visual Query Builder:**
+  - Eingabe: *"Finde alle Kunden aus Linz, die seit 6 Monaten nichts bestellt haben."*
+  - Automatische Konfiguration von Joins, Aggregationen, Kriterienfiltern und HAVING-Klauseln im visuellen Abfrage-Editor.
+- [ ] **Copilot Explainer & SQL Optimizer:**
+  - Erklärt komplexe SQL-Queries in einfacher Sprache und schlägt Index-Optimierungen für langsame Queries vor.
+
+### 🔄 2. Schema-Diff & Automatische SQL-Migrationen (Up/Down)
+- [ ] **Visueller Schema-Diff Inspektor:**
+  - Erkennt Schema-Änderungen in Echtzeit (z. B. *"Spalte 'email' in Tabelle 'kunden' hinzugefügt, 'plz' zu VARCHAR(10) geändert"*).
+- [ ] **Flyway & Liquibase Generator:**
+  - Generiert automatisch versionierte Migrationsdateien (`V001__init.sql`, `V002__add_email.sql`, `U002__undo_add_email.sql`).
+- [ ] **Migration Pre-Flight Check:**
+  - Prüft vor Ausführung auf Datenverlust (z. B. Spaltenlöschungen oder Type-Casting mit potenzieller Kürzung).
+
+### 🔒 3. Visuelle Row-Level-Security (RLS) & Rollen-Matrix
+- [ ] **Visuelle Berechtigungs-Matrix:**
+  - Tabellen- und spaltenbasierte CRUD-Rechte pro Benutzerrolle (Admin, Manager, Sachbearbeiter, Gast).
+- [ ] **Zeilenbasierte Filter-Regeln (Row-Level Security):**
+  - Regel-Definition per visueller Formel (z. B. `vertrieb.owner_id === auth.userId` oder `mitarbeiter.filiale_id === auth.filiale_id`).
+- [ ] **Multi-Target RLS Export:**
+  - Generierung von nativen **PostgreSQL RLS-Policies** (`CREATE POLICY ... USING (...)`) und **ASP.NET Core Authorization Handlers**.
+
+### 📡 4. Live OpenAPI / Swagger & In-Browser Mock-Server
+- [ ] **Automatischer OpenAPI 3.1 / Swagger-Generator:**
+  - Erzeugt zu jedem Schema eine interaktive Swagger-UI mit allen CRUD-Endpunkten (`GET`, `POST`, `PUT`, `DELETE`).
+- [ ] **In-Browser Local Mock Server:**
+  - Ermöglicht das Testen von REST-Aufrufen direkt im Studio mit echten IndexedDB-Testdaten ohne externes Backend.
+- [ ] **Postman Collection & cURL Export:**
+  - Export aller generierten Routen als importierbare Postman-Collection oder cURL-Befehlszeilen.
+
+### 📜 5. Audit-Trail & Change Data Capture (CDC / Time-Travel)
+- [ ] **Lückenloses Änderungs-Protokoll (Audit Log):**
+  - Automatische Erfassung von: Wer, Wann, Welche Tabelle, Welches Feld, Alter Wert ➔ Neuer Wert.
+- [ ] **Time-Travel Datensatz-Wiederherstellung:**
+  - Ein-Klick-Rollback eines Datensatzes auf einen beliebigen historischen Zeitstempel (Point-in-Time Restore).
+- [ ] **Diff-Vergleichsansicht:**
+  - Side-by-Side Vergleich zwischen dem aktuellen Datensatz und einer früheren Version.
+
+### ⚡ 6. n8n & Zapier Workflow-Export
+- [ ] **n8n Workflow JSON Generator:**
+  - Export von im Studio modellierten visuellen Flows (Trigger, Filter, HTTP-Requests, Mail-Versand) als sofort importierbare n8n-Workflows.
+- [ ] **Zapier / Make.com Webhook-Kompatibilität:**
+  - Vorkonfigurierte Payload-Templates für No-Code Integrations-Plattformen.
+- [ ] **Bi-Direktionale Event-Bridges:**
+  - Anbindung von Webhooks an den internen DB Studio Event-Bus.
+
+### 📥 7. Webhook & Event-Trigger Ingestion Hub
+- [ ] **Inbound Webhook Listener:**
+  - Bereitstellung von dedizierten Endpunkten zur automatischen Datensatz-Erstellung bei externen Ereignissen (z. B. Stripe Zahlung, GitHub Event, IoT Sensor).
+- [ ] **Payload Schema-Validator:**
+  - Visuelle Validierung eingehender JSON-Payloads vor dem automatischen DB-Insert.
+
+### 🌐 8. Multi-DB Sync Matrix & Hybrid-Replikation
+- [ ] **Heterogene Datenbank-Synchronisation:**
+  - Live-Replikation zwischen SQLite (Lokal), PostgreSQL (Cloud) und MS SQL Server.
+- [ ] **Visuelle Konfliktlösungs-Strategien:**
+  - Konfigurierbare Regeln: *Last-Write-Wins*, *Server-Authoritative* oder *Manuelle Merge-UI*.
+
+---
+
+*Letzte Aktualisierung: August 2026 • DB Studio Pro Engineering Team*
