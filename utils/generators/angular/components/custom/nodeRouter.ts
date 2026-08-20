@@ -3,6 +3,8 @@ import { generateContainerNode, generateTextNode, generateButtonNode, generateDi
 import { generateDropdownNode } from './dropdownNode';
 import { generateTableViewNode } from './tableViewNode';
 import { generateCustomComponentNode } from './customComponentNode';
+import { generateSubformNode } from './subformNode';
+import { generateWidgetNode } from './widgetNodes';
 import { toCamelCase, toPascalCase, toKebabCase } from '../../../common';
 import { generateHtmlForLayout } from '../../layoutHelper';
 import { Table, Form, Query } from '../../../../../types/index';
@@ -11,9 +13,11 @@ const collectAngularSubforms = (
   element: any,
   tables: Table[],
   forms: Form[],
-  accumulated: any[] = []
+  accumulated: any[] = [],
+  visitedNodes: Set<any> = new Set()
 ): any[] => {
-  if (!element) return accumulated;
+  if (!element || visitedNodes.has(element)) return accumulated;
+  visitedNodes.add(element);
   if (element.type === 'subform' && element.subform) {
       const subFormDef = forms.find(f => f.id === element.subform!.formId);
       const subTable = tables.find(t => t.id === subFormDef?.sourceId);
@@ -26,7 +30,7 @@ const collectAngularSubforms = (
       }
   }
   if (element.children) {
-      element.children.forEach(child => collectAngularSubforms(child, tables, forms, accumulated));
+      element.children.forEach(child => collectAngularSubforms(child, tables, forms, accumulated, visitedNodes));
   }
   return accumulated;
 };
@@ -35,9 +39,11 @@ const collectAngularLookups = (
   element: any,
   tables: Table[],
   queries: Query[] = [],
-  accumulated: Map<string, any> = new Map()
+  accumulated: Map<string, any> = new Map(),
+  visitedNodes: Set<any> = new Set()
 ): any[] => {
-  if (!element) return Array.from(accumulated.values());
+  if (!element || visitedNodes.has(element)) return Array.from(accumulated.values());
+  visitedNodes.add(element);
   
   if (element.widgetType === 'select' && element.lookup?.tableId) {
       const table = tables.find(t => t.id === element.lookup!.tableId);
@@ -117,17 +123,25 @@ const getCleanSuffix = (node: any, context: NodeGeneratorContext, defaultPrefix 
     return finalSuffix;
 };
 
-export const generateNode = (node: any, context: NodeGeneratorContext, pages: any[]): string => {
-    if (!node) return '';
+export const generateNode = (
+    node: any, 
+    context: NodeGeneratorContext, 
+    pages: any[], 
+    visitedPages: Set<string> = new Set(), 
+    depth: number = 0,
+    visitedNodes: Set<any> = new Set()
+): string => {
+    if (!node || depth > 15 || visitedNodes.has(node)) return '';
+    visitedNodes.add(node);
     
     const evaluateBaseNode = (node: any, context: NodeGeneratorContext): string => {
         switch(node.type) {
             case 'row':
-                return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' row' } }, context, (n, ctx) => generateNode(n, ctx, pages));
+                return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' row' } }, context, (n, ctx) => generateNode(n, ctx, pages, visitedPages, depth + 1, visitedNodes));
             case 'column':
-                return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' col' } }, context, (n, ctx) => generateNode(n, ctx, pages));
+                return generateContainerNode({ ...node, props: { ...node.props, className: (node.props?.className || '') + ' col' } }, context, (n, ctx) => generateNode(n, ctx, pages, visitedPages, depth + 1, visitedNodes));
         case 'card': {
-            const childrenStr = (node.children || []).map((c: any) => generateNode(c, context, pages)).join('\n');
+            const childrenStr = (node.children || []).map((c: any) => generateNode(c, context, pages, visitedPages, depth + 1, visitedNodes)).join('\n');
             const titleText = node.props?.title ? compileAngularPlaceholders(node.props.title, context.currentContextVar) : '';
             const titleHtml = titleText 
                 ? `<div class="card-header bg-light border-bottom font-weight-bold px-3 py-2 text-dark">${titleText}</div>`
@@ -141,7 +155,7 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
             </div>`;
         }
         case 'sub_page':
-            return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages));
+            return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages, visitedPages, depth + 1, visitedNodes));
         case 'form_view': {
             const formId = node.props?.formId;
             const fObj = context.forms.find(f => f.id === formId);
@@ -567,7 +581,7 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
   }`);
 
                 const innerCtx = { ...context, currentContextVar: containerContext };
-                const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx, pages)).join('\n');
+                const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx, pages, visitedPages, depth + 1, visitedNodes)).join('\n');
                 const classNameStr = node.props?.className || '';
                 const styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
 
@@ -579,7 +593,7 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
                     </ng-container>
                 </div>`;
             } else {
-                return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages));
+                return generateContainerNode(node, context, (n, ctx) => generateNode(n, ctx, pages, visitedPages, depth + 1, visitedNodes));
             }
         }
         case 'text':
@@ -598,6 +612,19 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
             return generateTableViewNode(node, context, pages);
         case 'custom_component':
             return generateCustomComponentNode(node, context);
+
+        case 'subform':
+            return generateSubformNode(node, context);
+
+        case 'grid_layout':
+        case 'tabs_container':
+        case 'stat_card':
+        case 'kpi_widget':
+        case 'alert_box':
+        case 'badge_pill':
+        case 'action_group':
+        case 'search_filter_bar':
+            return generateWidgetNode(node, context, (n, ctx) => generateNode(n, ctx, pages, visitedPages, depth + 1, visitedNodes));
 
         case 'navbar': {
             return `
@@ -828,7 +855,7 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
 
             const rowVar = `row_${suffix}`;
             const innerCtx = { ...context, currentContextVar: rowVar };
-            const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx, pages)).join('\n');
+            const childrenStr = (node.children || []).map((c: any) => generateNode(c, innerCtx, pages, visitedPages, depth + 1, visitedNodes)).join('\n');
             const classNameStr = node.props?.className || 'space-y-3';
             const styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
 
@@ -845,11 +872,17 @@ export const generateNode = (node: any, context: NodeGeneratorContext, pages: an
         }
 
         case 'subpage_container': {
-            const subPage = pages?.find(p => p.id === node.props?.subPageId);
+            const subPageId = node.props?.subPageId;
+            const subPage = pages?.find(p => p.id === subPageId);
             if (!subPage) {
                 return `<div class="p-3 border border-dashed border-danger rounded text-danger italic">Subpage nicht gefunden</div>`;
             }
-            const subpageLayoutHtml = generateNode(subPage.layout, context, pages);
+            if (visitedPages.has(subPage.id) || depth >= 10) {
+                return `<!-- Subpage ${subPage.name || subPage.id} cycle/depth guard -->`;
+            }
+            const nextVisitedPages = new Set(visitedPages);
+            nextVisitedPages.add(subPage.id);
+            const subpageLayoutHtml = generateNode(subPage.layout, context, pages, nextVisitedPages, depth + 1, visitedNodes);
             return `
             <div class="w-100 bg-light border border-dashed rounded p-3 position-relative">
                 ${subpageLayoutHtml}

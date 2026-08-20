@@ -13,6 +13,10 @@ import { DropdownProperties } from './properties/DropdownProperties';
 import { TableAndRepeaterProperties } from './properties/TableAndRepeaterProperties';
 import { FormViewProperties } from './properties/FormViewProperties';
 import { SubpageContainerProperties } from './properties/SubpageContainerProperties';
+import { SubformProperties } from './properties/SubformProperties';
+import { TabsAndAccordionProperties } from './properties/TabsAndAccordionProperties';
+import { StatCardProperties } from './properties/StatCardProperties';
+import { WidgetProperties } from './properties/WidgetProperties';
 
 interface PropertiesPanelProps {
   page: CustomPage;
@@ -121,6 +125,40 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               selectedNode={selectedNode}
               updateSelectedNodeProps={updateSelectedNodeProps}
               forms={forms}
+              tables={tables}
+            />
+          )}
+
+          {/* Subform component properties */}
+          {selectedNode.type === 'subform' && (
+            <SubformProperties
+              selectedNode={selectedNode}
+              updateSelectedNodeProps={updateSelectedNodeProps}
+              tables={tables}
+            />
+          )}
+
+          {/* Tabs & Accordion component properties */}
+          {(selectedNode.type === 'tabs_container' || selectedNode.type === 'accordion') && (
+            <TabsAndAccordionProperties
+              selectedNode={selectedNode}
+              updateSelectedNodeProps={updateSelectedNodeProps}
+            />
+          )}
+
+          {/* Stat Card & KPI Widget properties */}
+          {(selectedNode.type === 'stat_card' || selectedNode.type === 'kpi_widget') && (
+            <StatCardProperties
+              selectedNode={selectedNode}
+              updateSelectedNodeProps={updateSelectedNodeProps}
+            />
+          )}
+
+          {/* Alert, Badge, Action Group, Search Bar, Grid properties */}
+          {['alert_box', 'badge_pill', 'action_group', 'search_filter_bar', 'grid_layout'].includes(selectedNode.type) && (
+            <WidgetProperties
+              selectedNode={selectedNode}
+              updateSelectedNodeProps={updateSelectedNodeProps}
               tables={tables}
             />
           )}

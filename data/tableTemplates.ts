@@ -294,5 +294,96 @@ export const BUILTIN_TABLE_TEMPLATES: TableTemplate[] = [
     sampleData: [
       { Id: 1, Datum: new Date().toISOString().slice(0, 16), Titel: 'Kick-Off Meeting Notiz', Autor: 'Admin', Kategorie: 'Projekt', Inhalt: 'Wichtige Beschlüsse aus dem Steuerungsmeeting erfasst.', Wichtig: true }
     ]
+  },
+
+  // FAKTURIERUNG & FINANZEN
+  {
+    id: 'tpl_rechnungen',
+    name: 'Rechnungen',
+    category: 'fakturierung',
+    categoryLabel: 'Fakturierung & Finanzen',
+    icon: 'Receipt',
+    description: 'Rechnungsstammdaten mit autom. RE-Nummernkreis, Zahlungsstatus und Beträgen.',
+    fields: [
+      { id: 'f_id', name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+      { id: 'f_rechnr', name: 'Rechnungsnummer', type: 'VARCHAR', length: 50, isUnique: true, isIndexed: true, sequenceConfig: { enabled: true, prefix: 'RE-2026-', padding: 4, startValue: 1001, step: 1 } },
+      { id: 'f_kundenid', name: 'KundenId', type: 'INTEGER', isIndexed: true },
+      { id: 'f_datum', name: 'Rechnungsdatum', type: 'DATE' },
+      { id: 'f_faellig', name: 'Faelligkeitsdatum', type: 'DATE' },
+      { id: 'f_status', name: 'Zahlungsstatus', type: 'ENUM', enumValues: ['Offen', 'Bezahlt', 'Ueberfaellig', 'Gemahnt', 'Teilbezahlt'], defaultValue: 'Offen' },
+      { id: 'f_netto', name: 'NettoBetrag', type: 'DECIMAL', precision: 12, scale: 2 },
+      { id: 'f_mwst', name: 'MwStBetrag', type: 'DECIMAL', precision: 12, scale: 2 },
+      { id: 'f_brutto', name: 'BruttoBetrag', type: 'DECIMAL', precision: 12, scale: 2 },
+      { id: 'f_offen', name: 'OffenerBetrag', type: 'DECIMAL', precision: 12, scale: 2 }
+    ],
+    sampleData: [
+      { Id: 1, Rechnungsnummer: 'RE-2026-1001', KundenId: 1, Rechnungsdatum: '2026-02-01', Faelligkeitsdatum: '2026-02-15', Zahlungsstatus: 'Offen', NettoBetrag: 1200.00, MwStBetrag: 228.00, BruttoBetrag: 1428.00, OffenerBetrag: 1428.00 },
+      { Id: 2, Rechnungsnummer: 'RE-2026-1002', KundenId: 2, Rechnungsdatum: '2026-01-15', Faelligkeitsdatum: '2026-01-29', Zahlungsstatus: 'Bezahlt', NettoBetrag: 3500.00, MwStBetrag: 665.00, BruttoBetrag: 4165.00, OffenerBetrag: 0.00 }
+    ]
+  },
+  {
+    id: 'tpl_angebote',
+    name: 'Angebote',
+    category: 'fakturierung',
+    categoryLabel: 'Fakturierung & Finanzen',
+    icon: 'FileText',
+    description: 'Angebotsverwaltung mit Gültigkeitsdatum, Status und automatischer Nummerierung.',
+    fields: [
+      { id: 'f_id', name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+      { id: 'f_angnr', name: 'Angebotsnummer', type: 'VARCHAR', length: 50, isUnique: true, isIndexed: true, sequenceConfig: { enabled: true, prefix: 'ANG-2026-', padding: 4, startValue: 1001, step: 1 } },
+      { id: 'f_kundenid', name: 'KundenId', type: 'INTEGER', isIndexed: true },
+      { id: 'f_datum', name: 'Angebotsdatum', type: 'DATE' },
+      { id: 'f_gueltig', name: 'GueltigBis', type: 'DATE' },
+      { id: 'f_status', name: 'Status', type: 'ENUM', enumValues: ['Entwurf', 'Versendet', 'Angenommen', 'Abgelehnt'], defaultValue: 'Versendet' },
+      { id: 'f_netto', name: 'NettoBetrag', type: 'DECIMAL', precision: 12, scale: 2 },
+      { id: 'f_brutto', name: 'BruttoBetrag', type: 'DECIMAL', precision: 12, scale: 2 }
+    ],
+    sampleData: [
+      { Id: 1, Angebotsnummer: 'ANG-2026-1001', KundenId: 1, Angebotsdatum: '2026-02-10', GueltigBis: '2026-03-10', Status: 'Versendet', NettoBetrag: 2400.00, BruttoBetrag: 2856.00 }
+    ]
+  },
+  {
+    id: 'tpl_mahnungen',
+    name: 'Mahnungen',
+    category: 'fakturierung',
+    categoryLabel: 'Fakturierung & Finanzen',
+    icon: 'AlertTriangle',
+    description: 'Mahnwesen mit Mahnstufen, Gebühren, Verzugszinsen und Fristen.',
+    fields: [
+      { id: 'f_id', name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+      { id: 'f_mahnnr', name: 'Mahnungsnummer', type: 'VARCHAR', length: 50, isUnique: true, isIndexed: true, sequenceConfig: { enabled: true, prefix: 'MAH-2026-', padding: 4, startValue: 1001, step: 1 } },
+      { id: 'f_rechnungsid', name: 'RechnungsId', type: 'INTEGER', isIndexed: true },
+      { id: 'f_kundenid', name: 'KundenId', type: 'INTEGER', isIndexed: true },
+      { id: 'f_mahndatum', name: 'MahnDatum', type: 'DATE' },
+      { id: 'f_stufe', name: 'Mahnstufe', type: 'ENUM', enumValues: ['Mahnstufe 1', 'Mahnstufe 2', 'Letzte Mahnung', 'Inkasso'], defaultValue: 'Mahnstufe 1' },
+      { id: 'f_gebuehr', name: 'Mahngebuehr', type: 'DECIMAL', precision: 8, scale: 2, defaultValue: '5.00' },
+      { id: 'f_zinsen', name: 'Verzugszinsen', type: 'DECIMAL', precision: 8, scale: 2, defaultValue: '0.00' },
+      { id: 'f_faellig', name: 'Zahlungsfrist', type: 'DATE' },
+      { id: 'f_status', name: 'Status', type: 'ENUM', enumValues: ['Offen', 'Bezahlt', 'Storniert'], defaultValue: 'Offen' }
+    ],
+    sampleData: [
+      { Id: 1, Mahnungsnummer: 'MAH-2026-1001', RechnungsId: 1, KundenId: 1, MahnDatum: '2026-02-16', Mahnstufe: 'Mahnstufe 1', Mahngebuehr: 5.00, Verzugszinsen: 0.00, Zahlungsfrist: '2026-02-26', Status: 'Offen' }
+    ]
+  },
+  {
+    id: 'tpl_gutschriften',
+    name: 'Gutschriften',
+    category: 'fakturierung',
+    categoryLabel: 'Fakturierung & Finanzen',
+    icon: 'CreditCard',
+    description: 'Gutschriften und Korrekturbelege mit Rechnungsbezug und Verrechnungsstatus.',
+    fields: [
+      { id: 'f_id', name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+      { id: 'f_gutnr', name: 'Gutschriftnummer', type: 'VARCHAR', length: 50, isUnique: true, isIndexed: true, sequenceConfig: { enabled: true, prefix: 'GUT-2026-', padding: 4, startValue: 1001, step: 1 } },
+      { id: 'f_rechnungsid', name: 'RechnungsId', type: 'INTEGER', isIndexed: true },
+      { id: 'f_kundenid', name: 'KundenId', type: 'INTEGER', isIndexed: true },
+      { id: 'f_datum', name: 'Datum', type: 'DATE' },
+      { id: 'f_status', name: 'Status', type: 'ENUM', enumValues: ['Entwurf', 'Erstellt', 'Verrechnet', 'Ausgezahlt'], defaultValue: 'Erstellt' },
+      { id: 'f_brutto', name: 'BruttoBetrag', type: 'DECIMAL', precision: 12, scale: 2 },
+      { id: 'f_grund', name: 'Grund', type: 'VARCHAR', length: 200 }
+    ],
+    sampleData: [
+      { Id: 1, Gutschriftnummer: 'GUT-2026-1001', RechnungsId: 2, KundenId: 2, Datum: '2026-01-20', Status: 'Verrechnet', BruttoBetrag: 150.00, Grund: 'Rückvergütung wegen Skontovereinbarung' }
+    ]
   }
 ];

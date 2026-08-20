@@ -69,7 +69,7 @@ export interface FormElement {
   width?: '1/12' | '1/6' | '1/4' | '1/3' | '5/12' | '1/2' | '7/12' | '2/3' | '3/4' | '5/6' | '11/12' | 'full';
   children?: FormElement[];
   dropdownItems?: DropdownItem[];
-  widgetType?: 'text' | 'textarea' | 'markdown' | 'number' | 'date' | 'checkbox' | 'switch' | 'select' | 'ad-search' | 'current-user' | 'calculated';
+  widgetType?: 'text' | 'textarea' | 'markdown' | 'number' | 'date' | 'time' | 'datetime-local' | 'checkbox' | 'switch' | 'select' | 'ad-search' | 'current-user' | 'calculated';
   calculationFormula?: string;
   isCalculated?: boolean;
   hideLabel?: boolean;
@@ -91,12 +91,15 @@ export interface FormSettings {
   isFullScreen?: boolean;
   showEditToggle?: boolean;
   showTableSplitView?: boolean;
+  splitViewDisplayFieldId?: string;
+  splitViewSubtitleFieldId?: string;
+  hideNavigation?: boolean;
 }
 
 export interface CrossFieldValidation {
   id: string;
   triggerFieldId: string;
-  condition: 'equals' | 'not_equals' | 'not_empty' | 'is_true';
+  condition: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'not_empty' | 'is_empty' | 'is_true' | 'is_false';
   triggerValue?: string;
   targetFieldId: string;
   action: 'require' | 'hide' | 'disable' | 'validate_after';
@@ -108,7 +111,7 @@ export interface Form {
   name: string;
   sourceType: 'table' | 'query';
   sourceId: string;
-  mode?: 'edit' | 'readonly';
+  mode?: 'edit' | 'readonly' | 'write';
   layout?: FormElement;
   fields: FormField[];
   subform?: Subform;

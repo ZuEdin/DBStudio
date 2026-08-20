@@ -40,7 +40,17 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({
     { id: 'p4_mp_cursor', phase: 4, task: 'Multiplayer Cursor-Simulation für Live-Sitzungen.', defaultCompleted: true, category: 'Multiplayer' },
     { id: 'p4_kanban', phase: 4, task: 'Integriertes Kanban-Ticketsystem zur Aufgabensteuerung direkt an Datenfeldern.', defaultCompleted: true, category: 'Multiplayer' },
     { id: 'p4_chat', phase: 4, task: 'Echtzeit-Team-Chat-Panel mit Benachrichtigungsdienst für Schema-Änderungen.', defaultCompleted: true, category: 'Multiplayer' },
-    { id: 'p4_git', phase: 4, task: 'Versionsverwaltung (Git-ähnlicher Commit-Verlauf für Schemata).', defaultCompleted: true, category: 'Multiplayer' }
+    { id: 'p4_git', phase: 4, task: 'Versionsverwaltung (Git-ähnlicher Commit-Verlauf für Schemata).', defaultCompleted: true, category: 'Multiplayer' },
+
+    // Phase 5: Next-Level Enterprise & Developer Features (v3.0)
+    { id: 'p5_ai_copilot', phase: 5, task: 'AI Schema- & Query-Copilot (Natural Language Schema Generator, Visual Query Builder & SQL Optimizer).', defaultCompleted: true, category: 'AI Copilot' },
+    { id: 'p5_schema_diff', phase: 5, task: 'Schema-Diff & Automatische SQL-Migrationen (Flyway & Liquibase DDL Up/Down Generator).', defaultCompleted: false, category: 'Enterprise' },
+    { id: 'p5_rls_matrix', phase: 5, task: 'Visuelle Row-Level-Security (RLS) & Rollen-Matrix (PostgreSQL Policies & Auth-Handlers).', defaultCompleted: false, category: 'Security' },
+    { id: 'p5_swagger_mock', phase: 5, task: 'Live OpenAPI / Swagger 3.1 & In-Browser Local Mock Server mit IndexedDB Testdaten.', defaultCompleted: false, category: 'API Hub' },
+    { id: 'p5_audit_trail', phase: 5, task: 'Audit-Trail & Change Data Capture (CDC / Time-Travel Datensatz-Wiederherstellung).', defaultCompleted: false, category: 'Audit' },
+    { id: 'p5_n8n_zapier', phase: 5, task: 'n8n & Zapier / Make.com No-Code Workflow JSON Generator & Event-Bridges.', defaultCompleted: false, category: 'Workflows' },
+    { id: 'p5_webhook_hub', phase: 5, task: 'Inbound Webhook & Event-Trigger Ingestion Hub mit JSON-Payload Validierung.', defaultCompleted: false, category: 'Integrations' },
+    { id: 'p5_multi_db_sync', phase: 5, task: 'Heterogene Multi-DB Synchronisation & Hybrid-Replikation (SQLite, PostgreSQL, MS SQL).', defaultCompleted: false, category: 'Database Sync' }
   ];
 
   // Load state from localStorage or default
@@ -203,8 +213,8 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({
             </p>
           </div>
 
-          {/* Phase 1-4 Accordion Checklist */}
-          {[1, 2, 3, 4].map(phaseNum => {
+          {/* Phase 1-5 Accordion Checklist */}
+          {[1, 2, 3, 4, 5].map(phaseNum => {
             const stats = getPhaseStats(phaseNum);
             return (
               <RoadmapPhaseSection

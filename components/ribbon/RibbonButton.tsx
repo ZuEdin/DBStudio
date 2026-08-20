@@ -4,13 +4,14 @@ import React from 'react';
 interface RibbonButtonProps {
   icon: React.ReactNode;
   label: string;
+  sublabel?: string;
   onClick: () => void;
   size?: 'normal' | 'large';
   className?: string;
   disabled?: boolean;
 }
 
-export const RibbonButton: React.FC<RibbonButtonProps> = ({ icon, label, onClick, size = 'normal', className = '', disabled = false }) => (
+export const RibbonButton: React.FC<RibbonButtonProps> = ({ icon, label, sublabel, onClick, size = 'normal', className = '', disabled = false }) => (
   <button 
     onClick={disabled ? undefined : onClick}
     disabled={disabled}
@@ -24,5 +25,6 @@ export const RibbonButton: React.FC<RibbonButtonProps> = ({ icon, label, onClick
       {icon}
     </div>
     <span className="text-xs text-center leading-tight">{label}</span>
+    {sublabel && <span className="text-[9px] text-slate-400 text-center leading-tight mt-0.5">{sublabel}</span>}
   </button>
 );

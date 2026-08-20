@@ -10,8 +10,8 @@ interface SaveChangesModalProps {
 
 export const SaveChangesModal: React.FC<SaveChangesModalProps> = ({ objectType, objectName, onYes, onNo, onCancel }) => {
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in-25">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+    <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in-25">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 border border-slate-200">
         <h3 className="text-lg font-bold text-slate-800">Änderungen speichern?</h3>
         <p className="mt-2 text-sm text-slate-600">
           Möchten Sie die Änderungen an {objectType} "{objectName}" speichern?

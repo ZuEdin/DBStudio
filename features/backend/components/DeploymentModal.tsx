@@ -251,7 +251,7 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                             </div>
                             <div className="pt-3 border-t border-slate-100">
                                 <label className="block text-xs font-bold text-slate-600 mb-1">Projekt-ID (Cloud Suffix)</label>
-                                <input type="text" readOnly className="w-full border border-slate-200 bg-slate-50 rounded p-2 text-xs font-mono text-slate-500" value={`cloud-${config?.projectName?.toLowerCase() || 'prod-instance'}`} />
+                                <input type="text" readOnly className="w-full border border-slate-200 bg-slate-50 rounded p-2 text-xs font-mono text-slate-500" value={`cloud-${(config as any)?.projectName?.toLowerCase() || 'prod-instance'}`} />
                             </div>
                         </div>
                     )}

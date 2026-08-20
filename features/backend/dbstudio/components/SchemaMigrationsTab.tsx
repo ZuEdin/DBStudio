@@ -6,6 +6,9 @@ import { generateMigrationScripts } from '../utils/codeGenerators';
 interface SchemaMigrationsTabProps {
   tables: Table[];
   selectedTables: Record<string, boolean>;
+  relationships?: any[];
+  queries?: any[];
+  selectedQueries?: Record<string, boolean>;
   migrationDialect: 'sql' | 'drizzle' | 'knex' | 'prisma';
   setMigrationDialect: (val: 'sql' | 'drizzle' | 'knex' | 'prisma') => void;
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;

@@ -27,7 +27,7 @@ export const generateAngularModernServices = (
       } else if (['JSON', 'JSONB'].includes(fType)) {
         tsType = 'Record<string, any>';
       }
-      const isOpt = field.isPrimaryKey ? '?' : (field.isNullable !== false ? '?' : '');
+      const isOpt = field.isPrimaryKey ? '?' : (field.allowNull !== false ? '?' : '');
       modelsContent += `  ${field.name}${isOpt}: ${tsType};\n`;
     });
     modelsContent += `}\n\n`;
@@ -36,9 +36,10 @@ export const generateAngularModernServices = (
   queries.forEach(query => {
     const qName = toPascalCase(query.name) + 'Result';
     modelsContent += `export interface ${qName} {\n`;
-    if (query.columns && query.columns.length > 0) {
-      query.columns.forEach(col => {
-        modelsContent += `  ${col.label || col.fieldName}?: any;\n`;
+    const selectQuery = query as any;
+    if (selectQuery.columns && selectQuery.columns.length > 0) {
+      selectQuery.columns.forEach((col: any) => {
+        modelsContent += `  ${col.label || col.alias || col.fieldName}?: any;\n`;
       });
     } else {
       modelsContent += `  [key: string]: any;\n`;

@@ -200,6 +200,25 @@ export const getProjectById = async (id: string): Promise<Project | undefined> =
   });
 };
 
+export const updateProjectScope = async (id: string, isCloud: boolean): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_METADATA, STORE_PAYLOAD], 'readwrite');
+    const metaStore = transaction.objectStore(STORE_METADATA);
+    const getReq = metaStore.get(id);
+
+    getReq.onsuccess = () => {
+      if (getReq.result) {
+        const updatedMeta = { ...getReq.result, isCloud, lastModified: Date.now() };
+        metaStore.put(updatedMeta);
+      }
+    };
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = (e) => reject((e.target as any).error);
+  });
+};
+
 export const deleteProjectFromStorage = async (id: string): Promise<void> => {
   const { storage } = useConfigStore.getState().config;
   

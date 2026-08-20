@@ -194,7 +194,7 @@ export class ${componentName} implements OnInit {
 
   // Form
   readonly itemForm = this.fb.group({
-    ${table.fields.filter(f => !f.isPrimaryKey).map(f => `${f.name}: [''${f.isNullable === false ? ', Validators.required' : ''}]`).join(',\n    ')}
+    ${table.fields.filter(f => !f.isPrimaryKey).map(f => `${f.name}: [''${f.allowNull === false ? ', Validators.required' : ''}]`).join(',\n    ')}
   });
 
   // Computed Search Filter with Signals
@@ -295,7 +295,7 @@ import autoTable from 'jspdf-autotable';
       <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex justify-between items-center">
         <div>
           <h1 class="text-xl font-black text-slate-800">${report.name}</h1>
-          <p class="text-xs text-slate-500 mt-1">${report.description || 'Automatisch generierter Bericht mit Aggregaten'}</p>
+          <p class="text-xs text-slate-500 mt-1">${(report as any).description || 'Automatisch generierter Bericht mit Aggregaten'}</p>
         </div>
         <button 
           (click)="exportPDF()"

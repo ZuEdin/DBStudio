@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -119,6 +119,60 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                 </button>
            </div>
         </div>
+
+        {/* Schema & Migrations Group */}
+        <RibbonGroup label="Schema & DB Ops">
+            <RibbonButton 
+                icon={<GitCommit className="text-indigo-600" />} 
+                label="Schema-Diff" 
+                onClick={() => onAction('open_schema_diff')} 
+                size="large"
+            />
+            <div className="flex flex-col gap-1">
+                <button onClick={() => onAction('open_schema_diff')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
+                    <ShieldCheck size={12} className="text-emerald-600"/> Pre-Flight Check
+                </button>
+                <button onClick={() => onAction('open_migrations')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
+                    <Database size={12} className="text-indigo-600"/> Migrationen
+                </button>
+            </div>
+        </RibbonGroup>
+
+        {/* API & Mocking Group */}
+        <RibbonGroup label="Live API & Mocking">
+            <RibbonButton 
+                icon={<Globe className="text-emerald-600" />} 
+                label="OpenAPI 3.1" 
+                onClick={() => onAction('open_openapi_mock')} 
+                size="large"
+            />
+            <div className="flex flex-col gap-1">
+                <button onClick={() => onAction('open_openapi_mock')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
+                    <Radio size={12} className="text-emerald-600"/> Mock Server
+                </button>
+                <button onClick={() => onAction('open_openapi_mock')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
+                    <FileCode size={12} className="text-orange-600"/> Postman / cURL
+                </button>
+            </div>
+        </RibbonGroup>
+
+        {/* Security & Governance Group */}
+        <RibbonGroup label="Security & Data Gov">
+            <RibbonButton 
+                icon={<ShieldAlert className="text-rose-600" />} 
+                label="RLS & Rollen" 
+                onClick={() => onAction('open_security_rls')} 
+                size="large"
+            />
+            <div className="flex flex-col gap-1">
+                <button onClick={() => onAction('open_security_rls')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
+                    <ShieldCheck size={12} className="text-emerald-600"/> CRUD Matrix
+                </button>
+                <button onClick={() => onAction('open_audit_trail')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
+                    <History size={12} className="text-purple-600"/> Audit & Time-Travel
+                </button>
+            </div>
+        </RibbonGroup>
 
         {/* Extensions Group */}
         <RibbonGroup label="Extensions">

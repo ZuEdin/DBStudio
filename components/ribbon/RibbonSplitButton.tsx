@@ -119,7 +119,7 @@ export const RibbonSplitButton: React.FC<RibbonSplitButtonProps> = ({
 
       {/* Popover Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-slate-800 dark:text-slate-100">
+        <div className="absolute top-full left-0 mt-1 w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-slate-800 dark:text-slate-100">
           
           {/* Header & Search */}
           <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">

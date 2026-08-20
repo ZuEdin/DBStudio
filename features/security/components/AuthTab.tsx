@@ -9,8 +9,8 @@ interface AuthMapping {
 interface AuthConfig {
   useWindowsAuth: boolean;
   useAdGroups: boolean;
-  adGroups: string;
-  adMapping: AuthMapping[];
+  adGroups?: string;
+  adMapping?: AuthMapping[];
   useUserLogin: boolean;
   isMobileReady: boolean;
   devBypass: boolean;
@@ -18,8 +18,8 @@ interface AuthConfig {
 }
 
 interface AuthTabProps {
-  authConfig: AuthConfig;
-  setAuthConfig: React.Dispatch<React.SetStateAction<AuthConfig>>;
+  authConfig: any;
+  setAuthConfig: React.Dispatch<React.SetStateAction<any>>;
   roles: any[];
 }
 

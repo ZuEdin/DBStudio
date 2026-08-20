@@ -5,7 +5,7 @@ import { BackendConfig, WhitelabelConfig } from '../../types/index';
 interface ThemeDesignerProps {
     config: BackendConfig;
     onUpdateConfig: (config: BackendConfig) => void;
-    showMessage: (msg: string) => void;
+    showMessage: (titleOrMsg: string, message?: string, type?: any) => void;
 }
 
 export const ThemeDesigner: React.FC<ThemeDesignerProps> = ({ config, onUpdateConfig, showMessage }) => {

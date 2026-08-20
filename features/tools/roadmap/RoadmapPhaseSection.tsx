@@ -1,5 +1,5 @@
 import React from 'react';
-import { Laptop, Server, RefreshCw, Users, CheckCircle2, Square, Ticket, Trash2 } from 'lucide-react';
+import { Laptop, Server, RefreshCw, Users, Sparkles, CheckCircle2, Square, Ticket, Trash2 } from 'lucide-react';
 import { RoadmapItem } from './types';
 
 interface RoadmapPhaseSectionProps {
@@ -24,12 +24,14 @@ export const RoadmapPhaseSection: React.FC<RoadmapPhaseSectionProps> = ({
   const phaseTitle = phaseNum === 1 ? 'Phase 1: Lokaler State & IndexedDB Sync (Local Mode)' :
                      phaseNum === 2 ? 'Phase 2: Team-Cloud Backend & API-Infrastruktur' :
                      phaseNum === 3 ? 'Phase 3: Der Interaktive Sync-Assistent (Local -> Cloud)' :
-                     'Phase 4: Team-Kollaborations-Werkzeuge (Multiplayer)';
+                     phaseNum === 4 ? 'Phase 4: Team-Kollaborations-Werkzeuge (Multiplayer)' :
+                     'Phase 5: Next-Level Enterprise & Developer Platform (v3.0)';
                      
   const phaseIcon = phaseNum === 1 ? <Laptop size={15} className="text-amber-400" /> :
                     phaseNum === 2 ? <Server size={15} className="text-indigo-400" /> :
                     phaseNum === 3 ? <RefreshCw size={15} className="text-sky-400 animate-pulse" /> :
-                    <Users size={15} className="text-emerald-400" />;
+                    phaseNum === 4 ? <Users size={15} className="text-emerald-400" /> :
+                    <Sparkles size={15} className="text-purple-400 animate-pulse" />;
 
   const phaseItems = items.filter(item => item.phase === phaseNum);
 

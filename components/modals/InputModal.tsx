@@ -30,8 +30,8 @@ export const InputModal: React.FC<InputModalProps> = ({ title, label, initialVal
   }, [value]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in-25">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in-25">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 border border-slate-200" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-slate-800">{title}</h3>
         <div className="mt-4">
           <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>

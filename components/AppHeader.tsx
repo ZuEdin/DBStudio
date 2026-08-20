@@ -4,7 +4,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { CollaborationBar } from './CollaborationBar';
 import { cloudService } from '../services/cloudService';
-import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download, Edit2, User, Settings, Shield, ChevronDown, LogOut } from 'lucide-react';
+import { Cloud, GitBranch, MessageSquare, Sun, Moon, Download, Edit2, User, Settings, Shield, ChevronDown, LogOut, Sparkles } from 'lucide-react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -123,6 +123,28 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
             </div>
         </div>
 
+        {/* AI Copilot Quick Trigger Bar (Disabled input for security + preset modal trigger) */}
+        <div 
+          onClick={() => {
+            ui.setAiCopilotTab('schema');
+            ui.setShowAiCopilotModal(true);
+          }}
+          className="hidden md:flex items-center gap-2 bg-slate-900/70 hover:bg-slate-900 border border-slate-700/80 hover:border-indigo-500/50 px-3 py-1 rounded-full cursor-pointer transition-all shadow-inner group max-w-sm"
+          title="AI Schema- & Query-Copilot öffnen (Vorbereitet)"
+        >
+          <Sparkles size={13} className="text-indigo-400 group-hover:text-indigo-300 animate-pulse shrink-0" />
+          <input 
+            type="text" 
+            disabled 
+            readOnly
+            placeholder="✨ AI Copilot: Frage oder Schema... (Vorbereitet)" 
+            className="bg-transparent text-[11px] text-slate-300 placeholder-slate-400 w-52 outline-none cursor-pointer select-none"
+          />
+          <span className="text-[8px] uppercase tracking-wider bg-indigo-950/90 text-indigo-300 font-extrabold px-1.5 py-0.5 rounded border border-indigo-500/30 whitespace-nowrap">
+            Vorbereitet
+          </span>
+        </div>
+
         <div className="flex items-center">
             {/* User Profile */}
             <div className="relative mr-2">
@@ -146,7 +168,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
                             </span>
                             <span className="text-slate-400 text-[9px] truncate mt-0.5">{user.email || user.role}</span>
                         </div>
-                        {isAdmin() && <Shield size={10} className="text-amber-400 shrink-0" title="Administrator" />}
+                        {isAdmin() && <span title="Administrator"><Shield size={10} className="text-amber-400 shrink-0" /></span>}
                         <ChevronDown size={11} className={`text-slate-400 transition-transform shrink-0 ${userMenuOpen ? 'rotate-180' : ''}`} />
                      </button>
                      

@@ -85,6 +85,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using ${safeNamespace}.Data;
 using ${safeNamespace}.Models;
 

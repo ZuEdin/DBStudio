@@ -51,17 +51,23 @@ export const generateCustomFormPage = (
   const [${listVar}_subData, set${toPascalCase(listVar)}_subData] = useState<any>({});
 
   const editSubformItem_${suffix} = (item: any) => {
-      set${toPascalCase(listVar)}_editingId(item.id || item.Id);
-      set${toPascalCase(listVar)}_subData({ ...item });
+      set${toPascalCase(listVar)}_editingId(item.id || item.Id || item.ID);
+      const normalizedItem: any = { ...item };
+      ${m.table.fields.map((f: any) => {
+          const cName = toCamelCase(f.name);
+          const pName = toPascalCase(f.name);
+          return `if (normalizedItem['${cName}'] === undefined) normalizedItem['${cName}'] = item['${f.name}'] ?? item['${pName}'];`;
+      }).join('\n      ')}
+      set${toPascalCase(listVar)}_subData(normalizedItem);
       toggleModal('${m.id}', true);
   };
 
   const deleteSubformItem_${suffix} = async (item: any) => {
       if (!window.confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
-      const itemId = item.id || item.Id;
+      const itemId = item.id || item.Id || item.ID;
       try {
           await del('${childTableCamel}', itemId);
-          set${toPascalCase(listVar)}(prev => prev.filter(x => (x.id || x.Id) !== itemId));
+          set${toPascalCase(listVar)}(prev => prev.filter(x => (x.id || x.Id || x.ID) !== itemId));
       } catch (err) {
           alert('Fehler beim Löschen');
       }
@@ -71,10 +77,29 @@ export const generateCustomFormPage = (
   const subformLoadLogic = requiredModals.filter(m => m.type === 'subform').map(m => {
         const childTablePascal = toPascalCase(m.table.name);
         const childTableCamel = toCamelCase(m.table.name);
-        const childField = m.table.fields.find(f => f.id === m.childField)?.name;
+        const childFieldObj = m.table.fields.find((f: any) => f.id === m.childField || f.name === m.childField);
+        const childFieldName = childFieldObj ? childFieldObj.name : (m.childFieldName || m.childField || 'id');
+        const childFieldCamel = toCamelCase(childFieldName);
+        const childFieldPascal = toPascalCase(childFieldName);
+        
+        const masterFieldObj = sourceTable.fields.find(f => f.id === m.masterField || f.name === m.masterField);
+        const masterFieldName = masterFieldObj ? masterFieldObj.name : (m.masterFieldName || m.masterField || 'id');
+        const masterFieldCamel = toCamelCase(masterFieldName);
+        const masterFieldPascal = toPascalCase(masterFieldName);
+
         const suffix = toSubformSuffix(m.id);
         const varName = `${childTableCamel}SubList_${suffix}`;
-        return `if(id && id!=='new') { const subRes = await get('${childTablePascal}', { pageSize: 10000 }); set${toPascalCase(varName)}((subRes.data||subRes).filter((x:any) => String(x.${toCamelCase(childField)}) === String(id))); }`;
+        return `if (id && id !== 'new') {
+            const masterVal_${suffix} = (masterRecord as any)?.['${masterFieldCamel}'] ?? (masterRecord as any)?.['${masterFieldName}'] ?? (masterRecord as any)?.['${masterFieldPascal}'] ?? id;
+            if (masterVal_${suffix} !== undefined && masterVal_${suffix} !== null && masterVal_${suffix} !== '' && masterVal_${suffix} !== 'new') {
+                const subRes = await get('${childTablePascal}', { pageSize: 10000 });
+                const allSubItems = subRes.data || subRes || [];
+                set${toPascalCase(varName)}(allSubItems.filter((x: any) => {
+                    const childVal = x?.['${childFieldCamel}'] ?? x?.['${childFieldName}'] ?? x?.['${childFieldPascal}'] ?? x?.['${m.childField}'];
+                    return childVal !== undefined && childVal !== null && String(childVal) === String(masterVal_${suffix});
+                }));
+            }
+        }`;
     }).join('\n        ');
 
   const modalJsx = requiredModals.map(m => {
@@ -84,7 +109,7 @@ export const generateCustomFormPage = (
               const name = toCamelCase(f.name);
               let input = `<input name="${name}" className="w-full border p-2 rounded" />`;
               if (f.type === 'BOOLEAN') input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" name="${name}" value="true" className="w-4 h-4" /> <span className="text-sm">Aktivieren</span></div>`;
-              else if (f.type === 'INTEGER' || f.type === 'DECIMAL') input = `<input type="number" name="${name}" className="w-full border p-2 rounded" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
+              else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') input = `<input type="number" name="${name}" className="w-full border p-2 rounded" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
               else if (f.type === 'DATE') input = `<input type="date" name="${name}" className="w-full border p-2 rounded" />`;
               else if (f.type === 'TIME') input = `<input type="time" name="${name}" className="w-full border p-2 rounded" />`;
               else if (f.type === 'DATETIME' || f.type === 'TIMESTAMP') input = `<input type="datetime-local" name="${name}" className="w-full border p-2 rounded" />`;
@@ -96,23 +121,30 @@ export const generateCustomFormPage = (
       if (m.type === 'subform') {
           const childTablePascal = toPascalCase(m.table.name);
           const childTableCamel = toCamelCase(m.table.name);
-          const childFieldObj = m.table.fields.find(f => f.id === m.childField);
-          const childFieldName = childFieldObj ? toCamelCase(childFieldObj.name) : 'id';
+          const childFieldObj = m.table.fields.find((f: any) => f.id === m.childField || f.name === m.childField);
+          const childFieldName = childFieldObj ? childFieldObj.name : (m.childFieldName || m.childField || 'id');
+          const childFieldCamel = toCamelCase(childFieldName);
+          const childFieldPascal = toPascalCase(childFieldName);
+
+          const masterFieldObj = sourceTable.fields.find(f => f.id === m.masterField || f.name === m.masterField);
+          const masterFieldName = masterFieldObj ? masterFieldObj.name : (m.masterFieldName || m.masterField || 'id');
+          const masterFieldCamel = toCamelCase(masterFieldName);
+          const masterFieldPascal = toPascalCase(masterFieldName);
+
           const suffix = toSubformSuffix(m.id);
           const listVar = `${childTableCamel}SubList_${suffix}`;
 
-          const fieldsJsx = m.table.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement).map((f: any) => {
+          const fieldsJsx = m.table.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement && f.id !== m.childField && f.name !== m.childField && toCamelCase(f.name) !== childFieldCamel).map((f: any) => {
               const label = f.name;
               const name = toCamelCase(f.name);
-              if (name === childFieldName) return '';
               let input = `<input value={${listVar}_subData['${name}'] || ''} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.value }))} className="w-full border p-2 rounded text-sm" />`;
               if (f.type === 'BOOLEAN') input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" checked={!!${listVar}_subData['${name}']} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.checked }))} className="w-4 h-4" /> <span className="text-sm">Aktivieren</span></div>`;
-              else if (f.type === 'INTEGER' || f.type === 'DECIMAL') input = `<input type="number" value={${listVar}_subData['${name}'] ?? ''} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.value === '' ? '' : Number(e.target.value) }))} className="w-full border p-2 rounded text-sm" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
+              else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') input = `<input type="number" value={${listVar}_subData['${name}'] ?? ''} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.value === '' ? '' : Number(e.target.value) }))} className="w-full border p-2 rounded text-sm" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
               else if (f.type === 'DATE') input = `<input type="date" value={${listVar}_subData['${name}'] || ''} onChange={(e) => set${toPascalCase(listVar)}_subData((prev: any) => ({ ...prev, ${name}: e.target.value }))} className="w-full border p-2 rounded text-sm" />`;
               return `<div className="mb-3"><label className="block text-xs font-bold mb-1 text-slate-700">${label}</label>${input}</div>`;
           }).join('');
 
-          return `<Modal isOpen={modals['${m.id}']} onClose={() => { toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); }} title={${listVar}_editingId ? "Eintrag bearbeiten" : "Eintrag hinzufügen"}><form onSubmit={async (e) => { e.preventDefault(); if (!id || id === 'new') { alert('Bitte erst Hauptdatensatz speichern.'); return; } const payload = { ...${listVar}_subData, ${childFieldName}: id }; try { if (${listVar}_editingId) { await put('${childTableCamel}', ${listVar}_editingId, payload); } else { await post('${childTableCamel}', payload); } const subRes = await get('${childTablePascal}', { search: '', pageSize: 10000 }); set${toPascalCase(listVar)}((subRes.data||subRes).filter((x:any) => String(x.${childFieldName}) === String(id))); toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); } catch (err) { alert('Fehler beim Speichern'); } }}><div className="space-y-2">${fieldsJsx}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => { toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); }} className="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm">Abbrechen</button><button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 text-sm">Speichern</button></div></form></Modal>`;
+          return `<Modal isOpen={modals['${m.id}']} onClose={() => { toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); }} title={${listVar}_editingId ? "Eintrag bearbeiten" : "Eintrag hinzufügen"}><form onSubmit={async (e) => { e.preventDefault(); const masterVal = data?.['${masterFieldCamel}'] ?? data?.['${masterFieldName}'] ?? data?.['${masterFieldPascal}'] ?? id; if (!masterVal || id === 'new') { alert('Bitte erst Hauptdatensatz speichern.'); return; } const payload = { ...${listVar}_subData, ${childFieldCamel}: masterVal, ['${childFieldName}']: masterVal }; try { if (${listVar}_editingId) { await put('${childTableCamel}', ${listVar}_editingId, payload); } else { await post('${childTableCamel}', payload); } const subRes = await get('${childTablePascal}', { search: '', pageSize: 10000 }); const allSubItems = subRes.data || subRes || []; set${toPascalCase(listVar)}(allSubItems.filter((x: any) => { const childVal = x?.['${childFieldCamel}'] ?? x?.['${childFieldName}'] ?? x?.['${childFieldPascal}'] ?? x?.['${m.childField}']; return childVal !== undefined && childVal !== null && String(childVal) === String(masterVal); })); toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); } catch (err) { alert('Fehler beim Speichern'); } }}><div className="space-y-2">${fieldsJsx}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => { toggleModal('${m.id}', false); set${toPascalCase(listVar)}_editingId(null); set${toPascalCase(listVar)}_subData({}); }} className="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm">Abbrechen</button><button className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 text-sm">Speichern</button></div></form></Modal>`;
       }
       if (m.type === 'user-picker') {
           return `<UserPickerModal isOpen={modals['${m.id}']} initialTab="${m.mode}" onSelect={(username, displayName) => { setData(prev => ({ ...prev, ${m.targetField}: username })); toggleModal('${m.id}', false); }} onClose={() => toggleModal('${m.id}', false)} />`;

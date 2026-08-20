@@ -27,7 +27,7 @@ export interface OfflineSyncConfig {
   enabled: boolean;
   localEngine: 'sqlite' | 'sqlcipher' | 'indexeddb' | 'powersync';
   remoteEngine: 'mysql' | 'postgres' | 'mssql' | 'mariadb';
-  autoAddMetadataColumns: boolean;
+  autoAddMetadataColumns?: boolean;
   conflictStrategy: 'last_write_wins' | 'server_wins' | 'client_wins' | 'manual_review';
   softDeleteField: string;
   updatedAtField: string;

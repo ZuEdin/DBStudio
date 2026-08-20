@@ -362,7 +362,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
           }
         } as any);
       }
-      onCreateNew(newDbType, newProjectName, config, { isCloud, owner: ownerName });
+      onCreateNew(newDbType, newProjectName, config, { isCloud, owner: ownerName } as any);
     }
   };
 

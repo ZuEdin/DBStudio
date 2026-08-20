@@ -59,7 +59,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
   }
 
   return (
-    <div className="flex gap-4 h-full items-center overflow-x-auto pb-1 max-w-full">
+    <div className="flex gap-4 h-full items-center overflow-visible pb-1 max-w-full">
       {/* Target Selection */}
       <div className="flex flex-col px-2 border-r border-slate-300 pr-4 h-full justify-center w-40 shrink-0">
           <label className="block text-[10px] text-slate-500 font-bold mb-1 uppercase">{t('ribbon.groups.target')}</label>
@@ -147,7 +147,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                  <div className="flex gap-1.5 items-center justify-between">
                      <select 
                          value={report.settings?.groupMethod || 'full'} 
-                         onChange={e => updateReportSettings({ settings: { ...(report.settings || {}), groupMethod: e.target.value } })} 
+                         onChange={e => updateReportSettings({ settings: { ...(report.settings || {}), groupMethod: e.target.value as any } })} 
                          className="border border-slate-300 rounded p-0.5 text-[9px] w-18 bg-white focus:outline-none"
                      >
                          <option value="full">Vollständig</option>
@@ -172,7 +172,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
          <div className="flex flex-col gap-1 justify-center w-28 h-full">
              <select 
                  value={report.settings?.orientation || 'portrait'} 
-                 onChange={e => updateReportSettings({ settings: { ...(report.settings || {}), orientation: e.target.value } })} 
+                 onChange={e => updateReportSettings({ settings: { ...(report.settings || {}), orientation: e.target.value as any } })} 
                  className="w-full border border-slate-300 rounded p-1 text-[11px] bg-white focus:outline-none focus:border-blue-500"
              >
                  <option value="portrait">Hochformat (Portrait)</option>

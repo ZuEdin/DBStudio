@@ -7,6 +7,7 @@ interface TableViewDesignerProps {
   updateVisualConfig: (newProps: any) => void;
   tables: any[];
   fields: any[];
+  queries?: any[];
 }
 
 export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
@@ -14,6 +15,7 @@ export const TableViewDesigner: React.FC<TableViewDesignerProps> = ({
   updateVisualConfig,
   tables,
   fields,
+  queries,
 }) => {
   return (
     <div className="space-y-6">

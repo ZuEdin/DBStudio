@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork, LayoutTemplate, FileCode, RefreshCw, Cpu } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, Wand2, Copy, Unlink, ChevronDown, PlusSquare, Trash, BarChart, GitFork, LayoutTemplate, FileCode, RefreshCw, Cpu, Sparkles } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonSplitButton } from '../RibbonSplitButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -30,13 +30,14 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
           onOpenTemplateManager={() => onAction('open_table_template_manager')}
           onSaveCurrentAsTemplate={() => onAction('save_current_as_template')}
         />
-        <RibbonButton icon={<Wand2 className="text-purple-600" />} label={`${t('ribbon.actions.ai_assist')} (Deaktiviert)`} onClick={() => {}} disabled={true} />
+        <RibbonButton icon={<Sparkles className="text-indigo-600" />} label="AI Copilot (Vorbereitet)" onClick={() => onAction('open_ai_copilot', 'schema')} />
         <RibbonButton icon={<FileCode className="text-teal-600" />} label="Projekt/SQL Import" onClick={() => onAction('import_schema')} />
       </RibbonGroup>
 
       {/* Queries Group */}
       <RibbonGroup label={t('ribbon.groups.queries')}>
         <RibbonButton icon={<Search />} label={t('ribbon.actions.query_design')} onClick={() => onAction('create_query')} />
+        <RibbonButton icon={<Sparkles className="text-indigo-600" />} label="AI Query (Vorbereitet)" onClick={() => onAction('open_ai_copilot', 'query')} />
         
         {/* Wizards Dropdown */}
         <div className="relative" onMouseLeave={() => setShowWizardDropdown(false)}>

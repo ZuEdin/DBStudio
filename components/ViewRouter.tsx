@@ -303,7 +303,7 @@ export const ViewRouter: React.FC<ViewRouterProps> = ({
             onConnect={handleConnect} 
             onDeleteRelationship={onDeleteRelationship} 
             onUpdateRelationship={onUpdateRelationship} 
-            onNodeDoubleClick={(tId) => onSetView({ type: 'table_designer', tableId: tId })}
+            onNodeDoubleClick={(tId) => onSetView({ type: 'table_edit', tableId: tId })}
             showConfirmation={showConfirmation}
         />;
       case 'query_designer':

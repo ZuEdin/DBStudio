@@ -24,7 +24,8 @@ export const DashboardDesigner: React.FC<DashboardDesignerProps> = ({ report, ta
     if (r.sourceType === 'table') {
       return tables.find(t => t.id === r.sourceId)?.fields || [];
     } else if (r.sourceType === 'query') {
-      return queries.find(q => q.id === r.sourceId)?.columns.map(c => ({
+      const q = queries.find(query => query.id === r.sourceId) as any;
+      return q?.columns?.map((c: any) => ({
         id: c.fieldId, 
         name: c.label || c.fieldName, 
         type: 'text'

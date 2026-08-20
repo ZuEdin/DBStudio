@@ -86,15 +86,15 @@ export const generateCustomPageComponents = (
       this.tempSubData = { ...item };
       this.openModal(modalId);
   }`,
-          `deleteSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
+          `deleteSubformItem(table: string, childFieldId: string, modalId: string, item: any, masterFieldId?: string) {
       if(!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
-      const itemId = item.id || item.Id;
+      const itemId = item.id || item.Id || item.ID;
       this.api.delete(table, itemId).subscribe(() => {
           const parentId = this.queryParams['selectedId'] || this.queryParams['id'];
-          this.refreshSubformList(table, childFieldId, modalId, parentId);
+          this.refreshSubformList(table, childFieldId, modalId, parentId, masterFieldId);
       });
   }`,
-          `saveSubform(table: string, childFieldId: string, modalId: string) {
+          `saveSubform(table: string, childFieldId: string, modalId: string, masterFieldId?: string) {
       const parentId = this.queryParams['selectedId'] || this.queryParams['id'];
       if(!parentId || parentId === 'new') { 
           alert('Bitte erst Hauptdatensatz speichern, bevor Sie Details hinzufügen.'); 
@@ -105,30 +105,44 @@ export const generateCustomPageComponents = (
       const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
       const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
       
-      let parsedParentId: any = parentId;
-      if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
-          const num = Number(parentId);
-          if (!isNaN(num)) parsedParentId = num;
+      let masterVal: any = parentId;
+      if (masterFieldId) {
+          for (const prop of Object.keys(this)) {
+              if (prop.startsWith('formData_') && (this as any)[prop]) {
+                  const dataObj = (this as any)[prop];
+                  const mVal = dataObj[masterFieldId] ?? dataObj[toCamelCase(masterFieldId)];
+                  if (mVal !== undefined && mVal !== null && mVal !== '') {
+                      masterVal = mVal;
+                      break;
+                  }
+              }
+          }
       }
-      this.tempSubData[childProp] = parsedParentId;
+
+      let parsedVal: any = masterVal;
+      if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
+          const num = Number(masterVal);
+          if (!isNaN(num)) parsedVal = num;
+      }
+      this.tempSubData[childProp] = parsedVal;
       if (childFieldObj && childFieldObj.name) {
-          this.tempSubData[childFieldObj.name] = parsedParentId;
+          this.tempSubData[childFieldObj.name] = parsedVal;
       }
       
       if (this.editingSubformId) {
           this.api.update(table, this.editingSubformId, this.tempSubData).subscribe(() => {
               this.editingSubformId = null;
               this.closeModal(modalId);
-              this.refreshSubformList(table, childFieldId, modalId, parentId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId, masterFieldId);
           });
       } else {
           this.api.create(table, this.tempSubData).subscribe(() => {
               this.closeModal(modalId);
-              this.refreshSubformList(table, childFieldId, modalId, parentId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId, masterFieldId);
           });
       }
   }`,
-          `refreshSubformList(table: string, childFieldId: string, modalId: string, parentId: any) {
+          `refreshSubformList(table: string, childFieldId: string, modalId: string, parentId: any, masterFieldId?: string) {
       this.api.getAll(table, 1, 10000).subscribe((res: any) => {
           const listKeyPrefix = table + 'SubList_';
           const modalHash = modalId.replace('sub_','').substring(0,8);
@@ -138,8 +152,26 @@ export const generateCustomPageComponents = (
               const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
               const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
               const originalName = childFieldObj ? childFieldObj.name : childProp;
-              const allItems = res.data || res;
-              (this as any)[targetKey] = allItems.filter((x:any) => String(x[childProp]) === String(parentId) || String(x[originalName]) === String(parentId));
+
+              let masterVal: any = parentId;
+              if (masterFieldId) {
+                  for (const prop of Object.keys(this)) {
+                      if (prop.startsWith('formData_') && (this as any)[prop]) {
+                          const dataObj = (this as any)[prop];
+                          const mVal = dataObj[masterFieldId] ?? dataObj[toCamelCase(masterFieldId)];
+                          if (mVal !== undefined && mVal !== null && mVal !== '') {
+                              masterVal = mVal;
+                              break;
+                          }
+                      }
+                  }
+              }
+
+              const allItems = res.data || res || [];
+              (this as any)[targetKey] = allItems.filter((x: any) => {
+                const cVal = x?.[childProp] ?? x?.[originalName] ?? x?.[childFieldId];
+                return cVal !== undefined && cVal !== null && String(cVal) === String(masterVal);
+              });
           }
       });
   }`

@@ -574,7 +574,7 @@ namespace ${safeNamespace}.Controllers
             }
 
             var dbTypeStr = type.ToUpper();
-            var statementsCount = string.IsNullOrWhiteSpace(ddl) ? 0 : ddl.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l.Trim())).Count();
+            var statementsCount = string.IsNullOrWhiteSpace(ddl) ? 0 : ddl.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Where(l => !string.IsNullOrWhiteSpace(l.Trim())).Count();
 
             _logs.Add(new {
                 timestamp = DateTime.Now.ToString("o"),

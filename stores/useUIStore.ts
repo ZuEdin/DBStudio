@@ -15,6 +15,12 @@ interface UIStore {
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
   
+  // MS Access Backstage State
+  isBackstageOpen: boolean;
+  setIsBackstageOpen: (open: boolean) => void;
+  backstageActiveTab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen';
+  setBackstageActiveTab: (tab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen') => void;
+  
   // Navigation State
   currentView: ViewType;
   setCurrentView: (view: ViewType) => void;
@@ -34,6 +40,12 @@ interface UIStore {
   setRelationshipNodes: (nodes: TableNode[]) => void;
   formActionTrigger: { action: string, timestamp: number } | undefined;
   setFormActionTrigger: (trigger: { action: string, timestamp: number } | undefined) => void;
+  pageActionTrigger: { action: string; payload?: any; timestamp: number } | undefined;
+  setPageActionTrigger: (trigger: { action: string; payload?: any; timestamp: number } | undefined) => void;
+  isPageToolboxOpen: boolean;
+  setIsPageToolboxOpen: (open: boolean) => void;
+  isPagePropertiesOpen: boolean;
+  setIsPagePropertiesOpen: (open: boolean) => void;
   
   // Toasts
   toasts: ToastInfo[];
@@ -93,6 +105,20 @@ interface UIStore {
   saveTableAsTemplateModal: { show: boolean; table?: Table } | null;
   setSaveTableAsTemplateModal: (modal: { show: boolean; table?: Table } | null) => void;
   
+  showAiCopilotModal: boolean;
+  setShowAiCopilotModal: (show: boolean) => void;
+  aiCopilotTab: 'schema' | 'query' | 'optimizer';
+  setAiCopilotTab: (tab: 'schema' | 'query' | 'optimizer') => void;
+
+  showSchemaDiffModal: boolean;
+  setShowSchemaDiffModal: (show: boolean) => void;
+  showOpenApiModal: boolean;
+  setShowOpenApiModal: (show: boolean) => void;
+  showSecurityRlsModal: boolean;
+  setShowSecurityRlsModal: (show: boolean) => void;
+  showAuditTrailModal: boolean;
+  setShowAuditTrailModal: (show: boolean) => void;
+  
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
 }
@@ -120,6 +146,11 @@ export const useUIStore = create<UIStore>((set) => ({
   isChatOpen: false,
   setIsChatOpen: (open) => set({ isChatOpen: open }),
 
+  isBackstageOpen: false,
+  setIsBackstageOpen: (open) => set({ isBackstageOpen: open }),
+  backstageActiveTab: 'startseite',
+  setBackstageActiveTab: (tab) => set({ backstageActiveTab: tab }),
+
   currentView: { type: 'welcome' },
   setCurrentView: (view) => set({ currentView: view }),
   activeTab: 'home',
@@ -136,6 +167,12 @@ export const useUIStore = create<UIStore>((set) => ({
   setRelationshipNodes: (relationshipNodes) => set({ relationshipNodes }),
   formActionTrigger: undefined,
   setFormActionTrigger: (formActionTrigger) => set({ formActionTrigger }),
+  pageActionTrigger: undefined,
+  setPageActionTrigger: (pageActionTrigger) => set({ pageActionTrigger }),
+  isPageToolboxOpen: false, // Default collapsed to maximize canvas space
+  setIsPageToolboxOpen: (isPageToolboxOpen) => set({ isPageToolboxOpen }),
+  isPagePropertiesOpen: true,
+  setIsPagePropertiesOpen: (isPagePropertiesOpen) => set({ isPagePropertiesOpen }),
 
   toasts: [],
   addToast: (message, type = 'success') => {
@@ -192,6 +229,20 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowTableTemplateManager: (showTableTemplateManager) => set({ showTableTemplateManager }),
   saveTableAsTemplateModal: null,
   setSaveTableAsTemplateModal: (saveTableAsTemplateModal) => set({ saveTableAsTemplateModal }),
+
+  showAiCopilotModal: false,
+  setShowAiCopilotModal: (showAiCopilotModal) => set({ showAiCopilotModal }),
+  aiCopilotTab: 'schema',
+  setAiCopilotTab: (aiCopilotTab) => set({ aiCopilotTab }),
+
+  showSchemaDiffModal: false,
+  setShowSchemaDiffModal: (showSchemaDiffModal) => set({ showSchemaDiffModal }),
+  showOpenApiModal: false,
+  setShowOpenApiModal: (showOpenApiModal) => set({ showOpenApiModal }),
+  showSecurityRlsModal: false,
+  setShowSecurityRlsModal: (showSecurityRlsModal) => set({ showSecurityRlsModal }),
+  showAuditTrailModal: false,
+  setShowAuditTrailModal: (showAuditTrailModal) => set({ showAuditTrailModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

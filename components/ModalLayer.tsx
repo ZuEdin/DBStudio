@@ -27,6 +27,11 @@ import { SchemaImportWizard } from '../features/tools/SchemaImportWizard';
 import { MessageModal } from './modals/MessageModal';
 import { ButtonInfoModal } from './modals/ButtonInfoModal';
 import { TableTemplateManagerModal } from '../features/tables/TableTemplateManagerModal';
+import { AiSchemaQueryCopilotModal } from '../features/ai/AiSchemaQueryCopilotModal';
+import { SchemaDiffModal } from '../features/schema-diff/SchemaDiffModal';
+import { OpenApiMockServerModal } from '../features/openapi/OpenApiMockServerModal';
+import { SecurityRlsModal } from '../features/security/SecurityRlsModal';
+import { AuditTrailModal } from '../features/audit-trail/AuditTrailModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
@@ -335,6 +340,55 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             ui.setIsDirty(true);
             addToast(`Tabelle "${newTable.name}" aus Vorlage "${template.name}" erfolgreich erstellt.`, 'success');
           }}
+        />
+      )}
+
+      {ui.showAiCopilotModal && (
+        <AiSchemaQueryCopilotModal 
+          onClose={() => ui.setShowAiCopilotModal(false)}
+          initialTab={ui.aiCopilotTab}
+          onSetView={onSetView || ((v) => setCurrentView(v))}
+        />
+      )}
+
+      {ui.showSchemaDiffModal && (
+        <SchemaDiffModal 
+          currentTables={tables}
+          lastSnapshot={lastSnapshot}
+          dbType={backendConfig?.dbType || DbType.SQL}
+          onSnapshot={snapshot}
+          onClose={() => ui.setShowSchemaDiffModal(false)}
+        />
+      )}
+
+      {ui.showOpenApiModal && (
+        <OpenApiMockServerModal 
+          tables={tables}
+          updateTable={updateTable}
+          onClose={() => ui.setShowOpenApiModal(false)}
+        />
+      )}
+
+      {ui.showSecurityRlsModal && (
+        <SecurityRlsModal 
+          tables={tables}
+          existingConfig={(backendConfig as any)?.securityRls}
+          onSaveConfig={(cfg) => {
+            setBackendConfig({
+              ...backendConfig,
+              securityRls: cfg
+            } as any);
+            ui.addToast("RLS-Sicherheitsregeln erfolgreich im Projekt gespeichert.", "success");
+          }}
+          onClose={() => ui.setShowSecurityRlsModal(false)}
+        />
+      )}
+
+      {ui.showAuditTrailModal && (
+        <AuditTrailModal 
+          tables={tables}
+          updateTable={updateTable}
+          onClose={() => ui.setShowAuditTrailModal(false)}
         />
       )}
 

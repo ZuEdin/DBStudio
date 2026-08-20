@@ -46,12 +46,16 @@ export const generateHtmlForLayout = (
     dataObjName: string = "data", 
     queries: any[] = [],
     isBootstrap: boolean = false,
-    ignoredFieldIds: string[] = []
+    ignoredFieldIds: string[] = [],
+    visitedForms: Set<string> = new Set(),
+    depth: number = 0,
+    visitedElements: Set<any> = new Set()
 ): string => {
-    if (!element) return '';
+    if (!element || depth > 12 || visitedElements.has(element)) return '';
+    visitedElements.add(element);
 
     if (element.type === 'container') {
-        const children = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
+        const children = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds, visitedForms, depth + 1, visitedElements)).join('\n') || '';
         const defaultClass = isBootstrap ? 'row g-3' : 'space-y-4';
         const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
         let className = element.className || defaultClass;
@@ -74,7 +78,7 @@ export const generateHtmlForLayout = (
                 </li>
             `).join('\n');
             const pagesHtml = tabPages.map(tab => {
-                const content = tab.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
+                const content = tab.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds, visitedForms, depth + 1, visitedElements)).join('\n') || '';
                 return `
                 <div *ngIf="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" class="p-3">
                     ${content}
@@ -98,7 +102,7 @@ export const generateHtmlForLayout = (
                 </button>
             `).join('\n');
             const pagesHtml = tabPages.map(tab => {
-                const content = tab.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
+                const content = tab.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds, visitedForms, depth + 1, visitedElements)).join('\n') || '';
                 return `
                 <div *ngIf="(tabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}'" class="p-4 bg-white">
                     ${content}
@@ -114,7 +118,7 @@ export const generateHtmlForLayout = (
         }
     }
     if (element.type === 'tab_page') {
-        const content = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds)).join('\n') || '';
+        const content = element.children?.map(c => generateHtmlForLayout(c, tables, forms, dataObjName, queries, isBootstrap, ignoredFieldIds, visitedForms, depth + 1, visitedElements)).join('\n') || '';
         return `<div class="${element.className || 'space-y-4'}">\n${content}\n</div>`;
     }
     if (element.type === 'label') {
@@ -494,12 +498,38 @@ export const generateHtmlForLayout = (
         
         if (subTable) {
             const modalId = `sub_${element.id}`;
-            const subFormHtml = subFormDef?.layout ? generateHtmlForLayout(subFormDef.layout, tables, forms, "tempSubData", queries, isBootstrap, [element.subform.childLinkFieldId]) : '<p>Leer</p>';
+            let subFormHtml = '<p class="text-muted p-2">Leer</p>';
+            if (subFormDef && subFormDef.layout) {
+                if (visitedForms.has(subFormDef.id) || depth >= 8) {
+                    subFormHtml = `<!-- Subform ${subFormDef.name || subTable.name} cycle/depth guard -->`;
+                } else {
+                    const nextVisitedForms = new Set(visitedForms);
+                    nextVisitedForms.add(subFormDef.id);
+                    subFormHtml = generateHtmlForLayout(
+                        subFormDef.layout, 
+                        tables, 
+                        forms, 
+                        "tempSubData", 
+                        queries, 
+                        isBootstrap, 
+                        [element.subform.childLinkFieldId],
+                        nextVisitedForms,
+                        depth + 1,
+                        visitedElements
+                    );
+                }
+            }
             const subTableCamel = toCamelCase(subTable.name);
             const listVariable = `${subTableCamel}SubList_${element.id.substring(0,8)}`;
             const widthClass = isBootstrap ? getBootstrapWidthClass(element.width) : getTailwindWidthClass(element.width);
 
-            const displayFields = subTable.fields.filter(f => !f.isPrimaryKey).slice(0, 4);
+            let displayFields = subTable.fields.filter(f => !f.isPrimaryKey && f.id !== element.subform?.childLinkFieldId && f.name !== element.subform?.childLinkFieldId && f.id !== element.subform?.masterLinkFieldId).slice(0, 5);
+            if (displayFields.length === 0) {
+                displayFields = subTable.fields.filter(f => !f.isPrimaryKey).slice(0, 4);
+            }
+            if (displayFields.length === 0) {
+                displayFields = subTable.fields.slice(0, 4);
+            }
 
             if (isBootstrap) {
                 const subModal = `
@@ -516,7 +546,7 @@ export const generateHtmlForLayout = (
                             </div>
                             <div class="modal-footer bg-light">
                                 <button type="button" (click)="closeModal('${modalId}')" class="btn btn-secondary">Abbrechen</button>
-                                <button type="button" (click)="saveSubform('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}')" class="btn btn-primary">Speichern</button>
+                                <button type="button" (click)="saveSubform('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', '${element.subform.masterLinkFieldId}')" class="btn btn-primary">Speichern</button>
                             </div>
                         </div>
                     </div>
@@ -543,10 +573,10 @@ export const generateHtmlForLayout = (
                             </thead>
                             <tbody>
                                 <tr *ngFor="let item of ${listVariable}">
-                                    ${displayFields.map(f => `<td class="px-3">{{item.${toCamelCase(f.name)}}}</td>`).join('')}
+                                    ${displayFields.map(f => `<td class="px-3">{{item['${toCamelCase(f.name)}'] ?? item['${f.name}'] ?? item['${toPascalCase(f.name)}'] ?? '-'}}</td>`).join('')}
                                     <td class="text-end px-3 text-nowrap">
                                         ${element.subform.canEdit !== false ? `<button type="button" (click)="editSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="btn btn-sm btn-link text-primary p-0 me-2">Bearbeiten</button>` : ''}
-                                        ${element.subform.canDelete !== false ? `<button type="button" (click)="deleteSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="btn btn-sm btn-link text-danger p-0">Löschen</button>` : ''}
+                                        ${element.subform.canDelete !== false ? `<button type="button" (click)="deleteSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item, '${element.subform.masterLinkFieldId}')" class="btn btn-sm btn-link text-danger p-0">Löschen</button>` : ''}
                                     </td>
                                 </tr>
                                 <tr *ngIf="!${listVariable}?.length"><td colSpan="${displayFields.length + 1}" class="p-4 text-center text-muted fst-italic">Keine Einträge vorhanden.</td></tr>
@@ -566,7 +596,7 @@ export const generateHtmlForLayout = (
                         </div>
                         <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
                             <button type="button" (click)="closeModal('${modalId}')" class="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm">Abbrechen</button>
-                            <button type="button" (click)="saveSubform('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm">Speichern</button>
+                            <button type="button" (click)="saveSubform('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', '${element.subform.masterLinkFieldId}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold shadow-sm">Speichern</button>
                         </div>
                     </div>
                 </div>`;
@@ -592,10 +622,10 @@ export const generateHtmlForLayout = (
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 <tr *ngFor="let item of ${listVariable}" class="hover:bg-slate-50">
-                                    ${displayFields.map(f => `<td class="p-3 text-slate-700">{{item.${toCamelCase(f.name)}}}</td>`).join('')}
+                                    ${displayFields.map(f => `<td class="p-3 text-slate-700">{{item['${toCamelCase(f.name)}'] ?? item['${f.name}'] ?? item['${toPascalCase(f.name)}'] ?? '-'}}</td>`).join('')}
                                     <td class="p-3 text-right whitespace-nowrap space-x-2">
                                         ${element.subform.canEdit !== false ? `<button type="button" (click)="editSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="text-blue-600 hover:underline text-xs font-semibold">Bearbeiten</button>` : ''}
-                                        ${element.subform.canDelete !== false ? `<button type="button" (click)="deleteSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item)" class="text-rose-600 hover:underline text-xs font-semibold">Löschen</button>` : ''}
+                                        ${element.subform.canDelete !== false ? `<button type="button" (click)="deleteSubformItem('${subTableCamel}', '${element.subform.childLinkFieldId}', '${modalId}', item, '${element.subform.masterLinkFieldId}')" class="text-rose-600 hover:underline text-xs font-semibold">Löschen</button>` : ''}
                                     </td>
                                 </tr>
                                 <tr *ngIf="!${listVariable}?.length"><td colSpan="${displayFields.length + 1}" class="p-6 text-center text-slate-400 italic">Keine Einträge vorhanden.</td></tr>

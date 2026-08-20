@@ -42,6 +42,7 @@ export const RoadmapCustomTaskForm: React.FC<RoadmapCustomTaskFormProps> = ({
             <option value={2}>Phase 2 (Cloud DB)</option>
             <option value={3}>Phase 3 (Sync)</option>
             <option value={4}>Phase 4 (Team)</option>
+            <option value={5}>Phase 5 (v3.0 Enterprise)</option>
           </select>
         </div>
         <div className="md:col-span-3">

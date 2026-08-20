@@ -101,7 +101,9 @@ export const VersionControlBranchSelector: React.FC<VersionControlBranchSelector
                 <GitBranch size={12} className={isActive ? 'text-amber-500' : 'text-slate-400'} />
                 <span className="truncate">{b.name}</span>
                 {b.isProtected && (
-                  <ShieldCheck size={12} className="text-indigo-500 shrink-0" title="Geschützter Hauptzweig" />
+                  <span title="Geschützter Hauptzweig">
+                    <ShieldCheck size={12} className="text-indigo-500 shrink-0" />
+                  </span>
                 )}
               </span>
 

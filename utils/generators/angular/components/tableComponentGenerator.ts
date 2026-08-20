@@ -36,9 +36,11 @@ const collectAngularLookups = (
   element: FormElement | undefined,
   tables: Table[],
   queries: Query[] = [],
-  accumulated: Map<string, any> = new Map()
+  accumulated: Map<string, any> = new Map(),
+  visitedNodes: Set<any> = new Set()
 ): any[] => {
-  if (!element) return Array.from(accumulated.values());
+  if (!element || visitedNodes.has(element)) return Array.from(accumulated.values());
+  visitedNodes.add(element);
   
   if (element.widgetType === 'select' && element.lookup?.tableId) {
       const table = tables.find(t => t.id === element.lookup!.tableId);
@@ -73,7 +75,7 @@ const collectAngularLookups = (
       }
   }
   if (element.children) {
-      element.children.forEach(child => collectAngularLookups(child, tables, queries, accumulated));
+      element.children.forEach(child => collectAngularLookups(child, tables, queries, accumulated, visitedNodes));
   }
   return Array.from(accumulated.values());
 };
@@ -83,22 +85,27 @@ const collectAngularSubforms = (
   element: FormElement | undefined,
   tables: Table[],
   forms: Form[],
-  accumulated: any[] = []
+  accumulated: any[] = [],
+  visitedNodes: Set<any> = new Set()
 ): any[] => {
-  if (!element) return accumulated;
+  if (!element || visitedNodes.has(element)) return accumulated;
+  visitedNodes.add(element);
   if (element.type === 'subform' && element.subform) {
       const subFormDef = forms.find(f => f.id === element.subform!.formId);
       const subTable = tables.find(t => t.id === subFormDef?.sourceId);
       if (subTable) {
+          const childFieldObj = subTable.fields.find(f => f.id === element.subform!.childLinkFieldId || f.name === element.subform!.childLinkFieldId);
           accumulated.push({ 
               id: element.id, 
               tableName: subTable.name, 
-              childField: tables.find(t => t.id === subFormDef!.sourceId)?.fields.find(f => f.id === element.subform!.childLinkFieldId)?.name 
+              childField: childFieldObj?.name || element.subform!.childLinkFieldId,
+              childFieldId: element.subform!.childLinkFieldId,
+              masterFieldId: element.subform!.masterLinkFieldId
           });
       }
   }
   if (element.children) {
-      element.children.forEach(child => collectAngularSubforms(child, tables, forms, accumulated));
+      element.children.forEach(child => collectAngularSubforms(child, tables, forms, accumulated, visitedNodes));
   }
   return accumulated;
 };
@@ -470,14 +477,16 @@ export class ${pascalName}ListComponent implements OnInit {
 
       if (linkedForm && linkedForm.layout) {
           const dropdownActionsMap: Record<string, any[]> = {};
-          const extractDropdownActions = (el: any) => {
+          const extractDropdownActions = (el: any, visited: Set<any> = new Set()) => {
+              if (!el || visited.has(el)) return;
+              visited.add(el);
               if (el.type === 'dropdown_button' && el.dropdownItems) {
                   el.dropdownItems.forEach((item: any) => {
                       dropdownActionsMap[item.id] = item.actions || [];
                   });
               }
               if (el.children) {
-                  el.children.forEach(extractDropdownActions);
+                  el.children.forEach((c: any) => extractDropdownActions(c, visited));
               }
           };
           extractDropdownActions(linkedForm.layout);
@@ -639,10 +648,22 @@ ${recalculateMethod}`;
               const tPascal = toPascalCase(s.tableName);
               const tName = toCamelCase(s.tableName);
               const fName = toCamelCase(s.childField);
+              const fPascal = toPascalCase(s.childField);
+              const fRaw = s.childField;
               const listVar = `${tName}SubList_${s.id.substring(0,8)}`;
+
+              const masterFieldObj = table.fields.find(f => f.id === s.masterFieldId || f.name === s.masterFieldId);
+              const mFieldCamel = masterFieldObj ? toCamelCase(masterFieldObj.name) : 'id';
+              const mFieldRaw = masterFieldObj ? masterFieldObj.name : 'id';
+              const mFieldPascal = masterFieldObj ? toPascalCase(masterFieldObj.name) : 'Id';
+
               return `    if(id && id!=='new') this.api.getAll('${tPascal}', 1, 10000).subscribe((res: any) => {
-      const allItems = res.data || res;
-      this.${listVar} = allItems.filter((x:any) => String(x.${fName}) === String(id) || String(x['${s.childField}']) === String(id));
+      const allItems = res.data || res || [];
+      const masterVal = (this.data as any)?.['${mFieldCamel}'] ?? (this.data as any)?.['${mFieldRaw}'] ?? (this.data as any)?.['${mFieldPascal}'] ?? id;
+      this.${listVar} = allItems.filter((x: any) => {
+        const childVal = x?.['${fName}'] ?? x?.['${fRaw}'] ?? x?.['${fPascal}'] ?? x?.['${s.childFieldId}'];
+        return childVal !== undefined && childVal !== null && String(childVal) === String(masterVal);
+      });
     });`;
           }).join('\n');
           
@@ -656,21 +677,21 @@ ${recalculateMethod}`;
   }
 
   editSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
-      this.editingSubformId = item.id || item.Id;
+      this.editingSubformId = item.id || item.Id || item.ID;
       this.tempSubData = { ...item };
       this.openModal(modalId);
   }
 
-  deleteSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
+  deleteSubformItem(table: string, childFieldId: string, modalId: string, item: any, masterFieldId?: string) {
       if(!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
-      const itemId = item.id || item.Id;
+      const itemId = item.id || item.Id || item.ID;
       this.api.delete(table, itemId).subscribe(() => {
           const parentId = this.route.snapshot.paramMap.get('id');
-          this.refreshSubformList(table, childFieldId, modalId, parentId);
+          this.refreshSubformList(table, childFieldId, modalId, parentId, masterFieldId);
       });
   }
 
-  saveSubform(table: string, childFieldId: string, modalId: string) {
+  saveSubform(table: string, childFieldId: string, modalId: string, masterFieldId?: string) {
       const parentId = this.route.snapshot.paramMap.get('id');
       if(!parentId || parentId === 'new') { alert('Bitte erst Hauptdatensatz speichern, bevor Sie Details hinzufügen.'); return; }
       
@@ -678,31 +699,35 @@ ${recalculateMethod}`;
       const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
       const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
       
-      let parsedParentId: any = parentId;
+      const masterFieldObj = masterFieldId ? (this.allTables?.find((t: any) => t.id === this.data?.sourceId)?.fields?.find((f: any) => f.id === masterFieldId || f.name === masterFieldId)) : null;
+      const masterProp = masterFieldObj ? masterFieldObj.camelName : null;
+      const masterVal = (masterProp ? (this.data as any)?.[masterProp] : null) ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? parentId;
+
+      let parsedVal: any = masterVal;
       if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
-          const num = Number(parentId);
-          if (!isNaN(num)) parsedParentId = num;
+          const num = Number(masterVal);
+          if (!isNaN(num)) parsedVal = num;
       }
-      this.tempSubData[childProp] = parsedParentId;
+      this.tempSubData[childProp] = parsedVal;
       if (childFieldObj && childFieldObj.name) {
-          this.tempSubData[childFieldObj.name] = parsedParentId;
+          this.tempSubData[childFieldObj.name] = parsedVal;
       }
       
       if (this.editingSubformId) {
           this.api.update(table, this.editingSubformId, this.tempSubData).subscribe(() => {
               this.editingSubformId = null;
               this.closeModal(modalId);
-              this.refreshSubformList(table, childFieldId, modalId, parentId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId, masterFieldId);
           });
       } else {
           this.api.create(table, this.tempSubData).subscribe(() => {
               this.closeModal(modalId);
-              this.refreshSubformList(table, childFieldId, modalId, parentId);
+              this.refreshSubformList(table, childFieldId, modalId, parentId, masterFieldId);
           });
       }
   }
 
-  refreshSubformList(table: string, childFieldId: string, modalId: string, parentId: any) {
+  refreshSubformList(table: string, childFieldId: string, modalId: string, parentId: any, masterFieldId?: string) {
       this.api.getAll(table, 1, 10000).subscribe((res: any) => {
           const listKeyPrefix = table + 'SubList_';
           const modalHash = modalId.replace('sub_','').substring(0,8);
@@ -712,8 +737,16 @@ ${recalculateMethod}`;
               const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
               const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
               const originalName = childFieldObj ? childFieldObj.name : childProp;
-              const allItems = res.data || res;
-              (this as any)[targetKey] = allItems.filter((x:any) => String(x[childProp]) === String(parentId) || String(x[originalName]) === String(parentId));
+
+              const masterFieldObj = masterFieldId ? (this.allTables?.find((t: any) => t.id === this.data?.sourceId)?.fields?.find((f: any) => f.id === masterFieldId || f.name === masterFieldId)) : null;
+              const masterProp = masterFieldObj ? masterFieldObj.camelName : null;
+              const masterVal = (masterProp ? (this.data as any)?.[masterProp] : null) ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? parentId;
+
+              const allItems = res.data || res || [];
+              (this as any)[targetKey] = allItems.filter((x: any) => {
+                const cVal = x?.[childProp] ?? x?.[originalName] ?? x?.[childFieldId];
+                return cVal !== undefined && cVal !== null && String(cVal) === String(masterVal);
+              });
           }
       });
   }`;

@@ -88,7 +88,7 @@ export const SubReportRenderer: React.FC<SubReportRendererProps> = ({
                       <td key={col.fieldId} className="p-2 border-r border-slate-200 last:border-r-0">
                         <ReportCellRenderer
                           value={row[fieldName]}
-                          renderType={col.renderType || 'text'}
+                          renderType={(col as any).renderType || 'text'}
                         />
                       </td>
                     );

@@ -200,45 +200,45 @@ Folgende Punkte sind für die nächste Entwicklungsphase geplant und im System h
 Diese 8 High-Impact Features heben **DB Studio Pro** auf das Niveau marktführender Enterprise Low-Code- und Developer-Plattformen:
 
 ### 🤖 1. AI Schema- & Query-Copilot (Natural Language zu DB)
-- [ ] **Natural Language to Schema Generator:**
+- [x] **Natural Language to Schema Generator:**
   - Eingabe: *"Erstelle ein Datenmodell für ein Hotel-Buchungssystem mit Zimmern, Gästen, Reservierungen und Rechnungsstatus."*
   - Automatische Generierung aller Tabellen, Primär-/Fremdschlüssel, Datentypen und visuellen ERD-Kopplungen.
-- [ ] **Natural Language to Visual Query Builder:**
+- [x] **Natural Language to Visual Query Builder:**
   - Eingabe: *"Finde alle Kunden aus Linz, die seit 6 Monaten nichts bestellt haben."*
   - Automatische Konfiguration von Joins, Aggregationen, Kriterienfiltern und HAVING-Klauseln im visuellen Abfrage-Editor.
-- [ ] **Copilot Explainer & SQL Optimizer:**
+- [x] **Copilot Explainer & SQL Optimizer:**
   - Erklärt komplexe SQL-Queries in einfacher Sprache und schlägt Index-Optimierungen für langsame Queries vor.
 
 ### 🔄 2. Schema-Diff & Automatische SQL-Migrationen (Up/Down)
-- [ ] **Visueller Schema-Diff Inspektor:**
+- [x] **Visueller Schema-Diff Inspektor:**
   - Erkennt Schema-Änderungen in Echtzeit (z. B. *"Spalte 'email' in Tabelle 'kunden' hinzugefügt, 'plz' zu VARCHAR(10) geändert"*).
-- [ ] **Flyway & Liquibase Generator:**
+- [x] **Flyway & Liquibase Generator:**
   - Generiert automatisch versionierte Migrationsdateien (`V001__init.sql`, `V002__add_email.sql`, `U002__undo_add_email.sql`).
-- [ ] **Migration Pre-Flight Check:**
+- [x] **Migration Pre-Flight Check:**
   - Prüft vor Ausführung auf Datenverlust (z. B. Spaltenlöschungen oder Type-Casting mit potenzieller Kürzung).
 
 ### 🔒 3. Visuelle Row-Level-Security (RLS) & Rollen-Matrix
-- [ ] **Visuelle Berechtigungs-Matrix:**
+- [x] **Visuelle Berechtigungs-Matrix:**
   - Tabellen- und spaltenbasierte CRUD-Rechte pro Benutzerrolle (Admin, Manager, Sachbearbeiter, Gast).
-- [ ] **Zeilenbasierte Filter-Regeln (Row-Level Security):**
+- [x] **Zeilenbasierte Filter-Regeln (Row-Level Security):**
   - Regel-Definition per visueller Formel (z. B. `vertrieb.owner_id === auth.userId` oder `mitarbeiter.filiale_id === auth.filiale_id`).
-- [ ] **Multi-Target RLS Export:**
+- [x] **Multi-Target RLS Export:**
   - Generierung von nativen **PostgreSQL RLS-Policies** (`CREATE POLICY ... USING (...)`) und **ASP.NET Core Authorization Handlers**.
 
 ### 📡 4. Live OpenAPI / Swagger & In-Browser Mock-Server
-- [ ] **Automatischer OpenAPI 3.1 / Swagger-Generator:**
+- [x] **Automatischer OpenAPI 3.1 / Swagger-Generator:**
   - Erzeugt zu jedem Schema eine interaktive Swagger-UI mit allen CRUD-Endpunkten (`GET`, `POST`, `PUT`, `DELETE`).
-- [ ] **In-Browser Local Mock Server:**
+- [x] **In-Browser Local Mock Server:**
   - Ermöglicht das Testen von REST-Aufrufen direkt im Studio mit echten IndexedDB-Testdaten ohne externes Backend.
-- [ ] **Postman Collection & cURL Export:**
+- [x] **Postman Collection & cURL Export:**
   - Export aller generierten Routen als importierbare Postman-Collection oder cURL-Befehlszeilen.
 
 ### 📜 5. Audit-Trail & Change Data Capture (CDC / Time-Travel)
-- [ ] **Lückenloses Änderungs-Protokoll (Audit Log):**
+- [x] **Lückenloses Änderungs-Protokoll (Audit Log):**
   - Automatische Erfassung von: Wer, Wann, Welche Tabelle, Welches Feld, Alter Wert ➔ Neuer Wert.
-- [ ] **Time-Travel Datensatz-Wiederherstellung:**
+- [x] **Time-Travel Datensatz-Wiederherstellung:**
   - Ein-Klick-Rollback eines Datensatzes auf einen beliebigen historischen Zeitstempel (Point-in-Time Restore).
-- [ ] **Diff-Vergleichsansicht:**
+- [x] **Diff-Vergleichsansicht:**
   - Side-by-Side Vergleich zwischen dem aktuellen Datensatz und einer früheren Version.
 
 ### ⚡ 6. n8n & Zapier Workflow-Export

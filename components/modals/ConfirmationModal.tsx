@@ -25,8 +25,8 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   confirmClass = 'bg-red-600 hover:bg-red-700 text-white'
 }) => {
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in-25">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in-25">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 border border-slate-200" onClick={e => e.stopPropagation()}>
         <div className="flex items-start gap-4">
           <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
             <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />

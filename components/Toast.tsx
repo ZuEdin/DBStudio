@@ -1,11 +1,11 @@
 
 import React, { useEffect } from 'react';
-import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 
 export interface ToastInfo {
   id: number;
   message: string;
-  type: 'success' | 'error' | 'warning';
+  type: 'success' | 'error' | 'warning' | 'info';
 }
 
 interface ToastProps {
@@ -29,7 +29,8 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
           case 'success': return { bg: 'bg-green-600', icon: CheckCircle };
           case 'error': return { bg: 'bg-red-600', icon: XCircle };
           case 'warning': return { bg: 'bg-orange-500', icon: AlertTriangle };
-          default: return { bg: 'bg-blue-600', icon: CheckCircle };
+          case 'info': return { bg: 'bg-indigo-600', icon: Info };
+          default: return { bg: 'bg-blue-600', icon: Info };
       }
   };
 
@@ -53,7 +54,7 @@ interface ToastContainerProps {
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed bottom-4 right-4 z-[100] space-y-2">
+    <div className="fixed bottom-4 right-4 z-[200] space-y-2">
       {toasts.map(toast => (
         <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}

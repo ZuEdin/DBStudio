@@ -253,7 +253,7 @@ export const LogicDesigner: React.FC<LogicDesignerProps> = ({ config, onUpdateCo
                                                                             const updatedSteps = selectedMacro.steps.map(s => s.id === step.id ? { 
                                                                               ...s, 
                                                                               type: newType,
-                                                                              ...(newType === 'EXPORT_REPORT' && !s.exportConfig ? { exportConfig: { sourceType: 'report', sourceId: '', format: 'PDF', title: 'Bericht' } } : {})
+                                                                              ...(newType === 'EXPORT_REPORT' && !s.exportConfig ? { exportConfig: { sourceType: 'report' as const, sourceId: '', format: 'PDF' as const, title: 'Bericht' } } : {})
                                                                             } : s);
                                                                             const updated = { ...selectedMacro, steps: updatedSteps };
                                                                             setMacros(prev => prev.map(m => m.id === selectedMacro.id ? updated : m));

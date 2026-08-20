@@ -8,6 +8,8 @@ import { generateOpenApiSpec, generatePostmanCollection } from '../utils/codeGen
 interface ApiPlaygroundTabProps {
   tables: Table[];
   selectedTables: Record<string, boolean>;
+  queries?: any[];
+  selectedQueries?: Record<string, boolean>;
   apiSpecTab: 'playground' | 'openapi' | 'postman';
   setApiSpecTab: (val: 'playground' | 'openapi' | 'postman') => void;
   playgroundTable: string;
@@ -17,14 +19,15 @@ interface ApiPlaygroundTabProps {
   playgroundPayload: string;
   setPlaygroundPayload: (val: string) => void;
   isExecutingApiReq: boolean;
-  handleExecuteApiRequest: () => void;
+  handleExecuteApiRequest?: () => void;
+  executeApiRequest?: () => void;
   playgroundResponse: {
     status: number;
     statusText: string;
     timeMs: number;
     data: any;
   } | null;
-  implementGoal: string;
+  implementGoal?: string;
   remoteServerUrl: string;
   showMessage: (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
 }
@@ -42,8 +45,9 @@ export const ApiPlaygroundTab: React.FC<ApiPlaygroundTabProps> = ({
   setPlaygroundPayload,
   isExecutingApiReq,
   handleExecuteApiRequest,
+  executeApiRequest,
   playgroundResponse,
-  implementGoal,
+  implementGoal = '',
   remoteServerUrl,
   showMessage,
 }) => {
@@ -131,7 +135,7 @@ export const ApiPlaygroundTab: React.FC<ApiPlaygroundTabProps> = ({
               )}
 
               <button
-                onClick={handleExecuteApiRequest}
+                onClick={handleExecuteApiRequest || executeApiRequest}
                 disabled={isExecutingApiReq}
                 className="w-full py-3 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all border border-emerald-400/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >

@@ -854,6 +854,18 @@ export const useAppController = () => {
 
   const handleRibbonAction = async (action: string, payload?: any) => {
     try {
+      if (action.startsWith('page_')) {
+          if (action === 'page_live_preview' && currentView.type === 'page_designer') {
+              const pId = (currentView as any).pageId;
+              if (pId) {
+                  handleSetView({ type: 'page_view', pageId: pId });
+                  return;
+              }
+          }
+          ui.setPageActionTrigger({ action, payload, timestamp: Date.now() });
+          return;
+      }
+
       if (action === 'backend_generate' || action === 'backend_export' || action.startsWith('form_') || action === 'export_form') {
           ui.setFormActionTrigger({ action, timestamp: Date.now() });
           if ((action === 'backend_generate' || action === 'backend_export') && currentView.type !== 'backend_generator') {
@@ -1219,9 +1231,29 @@ export const useAppController = () => {
         case 'theme_designer':
         case 'open_whitelabel': ui.setShowWhitelabelModal(true); break;
         
+        case 'open_ai_copilot':
+        case 'ai_copilot': {
+            if (payload === 'query') {
+              ui.setAiCopilotTab('query');
+            } else if (payload === 'optimizer') {
+              ui.setAiCopilotTab('optimizer');
+            } else {
+              ui.setAiCopilotTab('schema');
+            }
+            ui.setShowAiCopilotModal(true);
+            break;
+        }
+        
         case 'open_integrations': ui.setShowIntegrationsModal(true); break;
         case 'open_envs': ui.setShowEnvModal(true); break;
         case 'open_migrations': ui.setShowMigrationModal(true); break;
+        case 'open_schema_diff': ui.setShowSchemaDiffModal(true); break;
+        case 'open_openapi_mock':
+        case 'open_swagger': ui.setShowOpenApiModal(true); break;
+        case 'open_security_rls':
+        case 'open_rls': ui.setShowSecurityRlsModal(true); break;
+        case 'open_audit_trail':
+        case 'open_audit': ui.setShowAuditTrailModal(true); break;
         case 'open_deployment_modal': ui.setShowDeploymentModal(true); break;
         case 'open_offline_sync': ui.setShowOfflineSyncModal(true); break;
         

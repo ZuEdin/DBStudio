@@ -58,7 +58,43 @@ export interface CustomPage {
   expectedParams?: string[];
 }
 
-export type PageComponentType = 'container' | 'text' | 'button' | 'table_view' | 'form_view' | 'image' | 'divider' | 'dropdown' | 'chart_view' | 'html' | 'list_repeater' | 'subpage_container' | 'row' | 'column' | 'card' | 'custom_component' | 'hero_section' | 'feature_grid' | 'testimonial' | 'pricing_table' | 'footer' | 'navbar';
+export type PageComponentType = 
+  | 'container' 
+  | 'row' 
+  | 'column' 
+  | 'card' 
+  | 'grid_layout'
+  | 'tabs_container'
+  | 'tab_panel'
+  | 'accordion'
+  | 'accordion_section'
+  | 'subform'
+  | 'subpage_container'
+  | 'list_repeater'
+  | 'stat_card'
+  | 'kpi_widget'
+  | 'alert_box'
+  | 'badge_pill'
+  | 'action_group'
+  | 'search_filter_bar'
+  | 'progress_bar'
+  | 'timeline_feed'
+  | 'text' 
+  | 'button' 
+  | 'table_view' 
+  | 'form_view' 
+  | 'chart_view'
+  | 'image' 
+  | 'divider' 
+  | 'dropdown' 
+  | 'html' 
+  | 'custom_component' 
+  | 'hero_section' 
+  | 'feature_grid' 
+  | 'testimonial' 
+  | 'pricing_table' 
+  | 'footer' 
+  | 'navbar';
 
 export interface PageComponent {
   id: string;
@@ -83,6 +119,7 @@ export interface ProjectData {
   lastSnapshot?: Table[];
   tickets?: any[];
   chats?: any[];
+  records?: Record<string, any[]>;
 }
 
 export interface GitConfig {

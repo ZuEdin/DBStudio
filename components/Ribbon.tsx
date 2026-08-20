@@ -18,6 +18,7 @@ import { ReportDesignTab } from './ribbon/tabs/ReportDesignTab';
 import { WorkflowDesignTab } from './ribbon/tabs/WorkflowDesignTab';
 import { ERDiagramTab } from './ribbon/tabs/ERDiagramTab';
 import { ProjectsTab } from './ribbon/tabs/ProjectsTab';
+import { PageDesignTab } from './ribbon/tabs/PageDesignTab';
 
 interface RibbonProps {
   onAction: (action: string, payload?: any) => void;
@@ -44,6 +45,8 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
       setActiveTab('report_design');
     } else if (currentView.type === 'workflow_designer') {
       setActiveTab('workflow_design');
+    } else if (currentView.type === 'page_designer') {
+      setActiveTab('page_design');
     } else if (currentView.type === 'relationships') {
       setActiveTab('er_diagram');
     }
@@ -59,6 +62,8 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
         return <CreateTab onAction={onAction} />;
       case 'pages':
         return <PagesTab onAction={onAction} />;
+      case 'page_design':
+        return <PageDesignTab onAction={onAction} />;
       case 'external':
         return <ExternalDataTab onAction={onAction} />;
       case 'deploy':
@@ -87,15 +92,19 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
   };
 
   return (
-    <div className="flex flex-col bg-slate-100 border-b border-slate-300 select-none relative z-20 transition-all duration-300 print:hidden">
+    <div className="flex flex-col bg-slate-100 border-b border-slate-300 select-none relative z-[100] transition-all duration-300 print:hidden">
       {/* Tab Headers and Toggle */}
       <div className="flex bg-slate-800 text-white pt-1 px-2 gap-1 overflow-x-auto items-end justify-between">
         <div className="flex gap-1">
             <button 
-            onClick={() => setActiveTab('file')}
-            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap ${activeTab === 'file' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
+              onClick={() => {
+                ui.setIsBackstageOpen(true);
+                ui.setBackstageActiveTab('startseite');
+              }}
+              className="px-4 py-1 rounded-t-lg text-sm whitespace-nowrap bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
+              title="Datei-Menü & Startseite (DB Studio Backstage View)"
             >
-            {t('ribbon.file')}
+              <span>{t('ribbon.file')}</span>
             </button>
             <button 
             onClick={() => setActiveTab('home')}
@@ -157,6 +166,14 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
                 className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-emerald-500 ${activeTab === 'workflow_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-emerald-900 hover:bg-emerald-800'}`}
             >
                 Workflow Design
+            </button>
+            )}
+            {currentView.type === 'page_designer' && (
+            <button 
+                onClick={() => setActiveTab('page_design')}
+                className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-indigo-400 ${activeTab === 'page_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-indigo-950 text-indigo-200 hover:bg-indigo-900'}`}
+            >
+                Page Design (Entwurf)
             </button>
             )}
             {currentView.type === 'relationships' && (

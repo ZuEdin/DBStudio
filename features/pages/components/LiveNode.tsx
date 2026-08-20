@@ -4,6 +4,7 @@ import { useProjectStore } from '../../../stores/useProjectStore';
 import { executeSelectQuery } from '../../queries/utils/queryExecution';
 import { LiveTable } from './LiveTable';
 import { LiveForm } from './LiveForm';
+import { LiveSubform } from './LiveSubform';
 import { CustomComponentRunner } from './runner/CustomComponentRunner';
 import { exportDataToFile } from '../../../utils/exportHelper';
 import { 
@@ -13,7 +14,7 @@ import {
     resolvePlaceholders, 
     getRowLabelAndValue 
 } from '../utils/pageViewUtils';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, TrendingUp, CheckCircle, Tag, Search, Download, Check, Plus, Trash2, ArrowRight } from 'lucide-react';
 
 interface LiveNodeProps {
     node: PageComponent;
@@ -34,6 +35,7 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
 
     const [fetchedData, setFetchedData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState<string>('');
 
     // Load data binding or query records
     useEffect(() => {
@@ -138,6 +140,195 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
     let content = null;
 
     switch (node.type) {
+        case 'grid_layout': {
+            const cols = node.props.columns || 3;
+            const gap = node.props.gap || 4;
+            const gridColClass = cols === 2 ? 'grid-cols-1 md:grid-cols-2' : cols === 4 ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4' : cols === 6 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6' : 'grid-cols-1 md:grid-cols-3';
+            content = (
+                <div className={`grid ${gridColClass} gap-${gap} w-full ${node.props.className || ''}`} style={node.props.style}>
+                    {node.children?.map(c => <LiveNode key={c.id} node={c} context={context} />)}
+                </div>
+            );
+            break;
+        }
+
+        case 'tabs_container': {
+            const tabs = node.props.tabs || [
+                { id: 'tab1', label: 'Tab 1' },
+                { id: 'tab2', label: 'Tab 2' }
+            ];
+            const currentTab = activeTab || node.props.defaultTab || tabs[0]?.id || 'tab1';
+            content = (
+                <div className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-full ${node.props.className || ''}`} style={node.props.style}>
+                    <div className="flex border-b border-slate-200 bg-slate-50 px-2 pt-2 gap-1">
+                        {tabs.map((tab: any) => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`px-4 py-2 text-xs font-bold rounded-t-lg transition border-t border-x ${
+                                    currentTab === tab.id 
+                                        ? 'bg-white border-slate-200 border-b-transparent text-indigo-700 -mb-[1px]' 
+                                        : 'bg-transparent border-transparent text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="p-4">
+                        {node.children?.map(c => <LiveNode key={c.id} node={c} context={context} />)}
+                    </div>
+                </div>
+            );
+            break;
+        }
+
+        case 'subform': {
+            content = <LiveSubform node={node} context={context} />;
+            break;
+        }
+
+        case 'stat_card':
+        case 'kpi_widget': {
+            const colorsMap: Record<string, { bg: string, text: string, ring: string, iconBg: string }> = {
+                indigo: { bg: 'bg-indigo-50/50', text: 'text-indigo-700', ring: 'border-indigo-100', iconBg: 'bg-indigo-100 text-indigo-700' },
+                emerald: { bg: 'bg-emerald-50/50', text: 'text-emerald-700', ring: 'border-emerald-100', iconBg: 'bg-emerald-100 text-emerald-700' },
+                amber: { bg: 'bg-amber-50/50', text: 'text-amber-700', ring: 'border-amber-100', iconBg: 'bg-amber-100 text-amber-700' },
+                rose: { bg: 'bg-rose-50/50', text: 'text-rose-700', ring: 'border-rose-100', iconBg: 'bg-rose-100 text-rose-700' },
+                blue: { bg: 'bg-blue-50/50', text: 'text-blue-700', ring: 'border-blue-100', iconBg: 'bg-blue-100 text-blue-700' },
+            };
+            const cTheme = colorsMap[node.props.accentColor || 'indigo'] || colorsMap.indigo;
+            const resolvedValue = resolvePlaceholders(node.props.value || '0', context, params);
+            const resolvedLabel = resolvePlaceholders(node.props.label || 'KPI Kennzahl', context, params);
+
+            content = (
+                <div className={`p-4 rounded-xl bg-white border ${cTheme.ring} shadow-sm w-full flex items-center justify-between ${node.props.className || ''}`} style={node.props.style}>
+                    <div>
+                        <div className="text-xs font-semibold text-slate-500">{resolvedLabel}</div>
+                        <div className="text-2xl font-bold text-slate-900 mt-1 flex items-baseline gap-1">
+                            {resolvedValue}
+                            {node.props.unit && <span className="text-sm font-semibold text-slate-500">{node.props.unit}</span>}
+                        </div>
+                        {node.props.trend && (
+                            <div className="flex items-center gap-1 mt-1 text-[11px]">
+                                <span className={`font-bold ${node.props.trendDirection === 'down' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {node.props.trend}
+                                </span>
+                                {node.props.trendLabel && <span className="text-slate-400">{node.props.trendLabel}</span>}
+                            </div>
+                        )}
+                    </div>
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${cTheme.iconBg} shrink-0`}>
+                        <TrendingUp size={22} />
+                    </div>
+                </div>
+            );
+            break;
+        }
+
+        case 'alert_box': {
+            const typesMap: Record<string, { bg: string, border: string, text: string, icon: any }> = {
+                info: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900', icon: AlertCircle },
+                success: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-900', icon: CheckCircle },
+                warning: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900', icon: AlertCircle },
+                danger: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900', icon: AlertCircle },
+            };
+            const aTheme = typesMap[node.props.alertType || 'info'] || typesMap.info;
+            const IconComp = aTheme.icon;
+
+            content = (
+                <div className={`p-3.5 rounded-xl border ${aTheme.border} ${aTheme.bg} ${aTheme.text} w-full flex items-start gap-2.5 ${node.props.className || ''}`} style={node.props.style}>
+                    <IconComp size={18} className="shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        {node.props.title && <div className="font-bold text-xs">{resolvePlaceholders(node.props.title, context, params)}</div>}
+                        <div className="text-xs mt-0.5 text-slate-700">{resolvePlaceholders(node.props.message || '', context, params)}</div>
+                    </div>
+                </div>
+            );
+            break;
+        }
+
+        case 'badge_pill': {
+            const pillColors: Record<string, string> = {
+                emerald: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                amber: 'bg-amber-100 text-amber-800 border-amber-200',
+                rose: 'bg-rose-100 text-rose-800 border-rose-200',
+                indigo: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+                blue: 'bg-blue-100 text-blue-800 border-blue-200',
+                slate: 'bg-slate-100 text-slate-800 border-slate-200',
+            };
+            const cClass = pillColors[node.props.colorScheme || 'emerald'] || pillColors.emerald;
+            const lbl = resolvePlaceholders(node.props.label || 'Status: Aktiv', context, params);
+
+            content = (
+                <div className="inline-block">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${cClass}`}>
+                        <Tag size={12} /> {lbl}
+                    </span>
+                </div>
+            );
+            break;
+        }
+
+        case 'action_group': {
+            const actions = node.props.actions || [
+                { label: 'Exportieren', icon: 'Download', variant: 'secondary' },
+                { label: 'Speichern', icon: 'Check', variant: 'primary' }
+            ];
+            content = (
+                <div className={`flex flex-wrap items-center gap-2 ${node.props.className || ''}`}>
+                    {actions.map((act: any, idx: number) => (
+                        <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                                if (act.action === 'export') {
+                                    exportDataToFile({
+                                        title: 'Export',
+                                        data: fetchedData.length > 0 ? fetchedData : (tables[0]?.data || []),
+                                        format: 'CSV' as any,
+                                        filename: `Export_${Date.now()}`
+                                    });
+                                } else if (act.action === 'navigate' && act.targetPageId) {
+                                    navigate(act.targetPageId, params);
+                                }
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition ${
+                                act.variant === 'primary' 
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                                    : act.variant === 'danger'
+                                    ? 'bg-rose-600 text-white hover:bg-rose-700'
+                                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                        >
+                            {act.label}
+                        </button>
+                    ))}
+                </div>
+            );
+            break;
+        }
+
+        case 'search_filter_bar':
+            content = (
+                <div className={`p-3 bg-white border border-slate-200 rounded-xl shadow-xs w-full space-y-2 ${node.props.className || ''}`}>
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                            <input
+                                type="text"
+                                value={params.searchTerm || ''}
+                                onChange={(e) => setParam('searchTerm', e.target.value)}
+                                placeholder={node.props.placeholder || 'Suche nach Datensätzen...'}
+                                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+            break;
+
         case 'row': {
              content = (
                   <div className={`w-full flex flex-row ${node.props.gap ? `gap-${node.props.gap}` : 'gap-4'} ${node.props.wrap ? 'flex-wrap' : ''} ${node.props.alignItems ? `items-${node.props.alignItems}` : 'items-start'} ${node.props.justifyContent ? `justify-${node.props.justifyContent}` : 'justify-start'} ${node.props.className || ''}`} style={node.props.style}>

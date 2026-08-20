@@ -64,7 +64,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         e.preventDefault();
         if (filteredItems[selectedIndex]) {
           const item = filteredItems[selectedIndex];
-          if (item.action === 'create_table') {
+          if ((item.action as string) === 'create_table') {
               const newName = search.substring(15).trim();
               if (onCreateTable) onCreateTable(newName);
           } else {

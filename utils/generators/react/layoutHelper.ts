@@ -158,13 +158,17 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             const modalId = `sub_${suffix}`;
             // Register Modal Requirement
             if (!modals.find(m => m.id === modalId)) {
+                const masterFieldObj = tables.find(t => t.fields.some(f => f.id === element.subform!.masterLinkFieldId))?.fields.find(f => f.id === element.subform!.masterLinkFieldId);
+                const childFieldObj = subTable.fields.find(f => f.id === element.subform!.childLinkFieldId);
                 modals.push({ 
                     id: modalId, 
                     type: 'subform', 
                     form: subformDef,
                     table: subTable,
                     masterField: element.subform.masterLinkFieldId,
-                    childField: element.subform.childLinkFieldId
+                    masterFieldName: masterFieldObj?.name,
+                    childField: element.subform.childLinkFieldId,
+                    childFieldName: childFieldObj?.name
                 });
             }
 
@@ -172,8 +176,16 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             const camelSubTable = toCamelCase(subTable.name);
             const listVar = `${camelSubTable}SubList_${suffix}`; 
             
-            // Simplified display: Just list first few fields or use form fields
-            const displayFields = subTable.fields.filter(f => !f.isPrimaryKey).slice(0, 3);
+            // Display form fields or non-PK, non-FK fields
+            const formFieldIds = (subformDef.fields || []).map(ff => ff.fieldId);
+            let displayFields = subTable.fields.filter(f => !f.isPrimaryKey && f.id !== element.subform!.childLinkFieldId && f.name !== element.subform!.childLinkFieldId);
+            if (formFieldIds.length > 0) {
+                const matched = subTable.fields.filter(f => formFieldIds.includes(f.id) && f.id !== element.subform!.childLinkFieldId && f.name !== element.subform!.childLinkFieldId);
+                if (matched.length > 0) displayFields = matched;
+            }
+            if (displayFields.length > 6) {
+                displayFields = displayFields.slice(0, 6);
+            }
 
             const widthClass = getTailwindWidthClass(element.width);
             return `
@@ -202,7 +214,12 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                         <tbody>
                             {${listVar} && ${listVar}.length > 0 ? ${listVar}.map((item: any, idx: number) => (
                                 <tr key={idx} className="border-b dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                    ${displayFields.map(f => `<td className="p-2">{item.${toCamelCase((f as any).name || (f as any).alias || (f as any).fieldName)}}</td>`).join('')}
+                                    ${displayFields.map(f => {
+                                        const fCamel = toCamelCase((f as any).name || (f as any).alias || (f as any).fieldName || '');
+                                        const fPascal = toPascalCase((f as any).name || (f as any).alias || (f as any).fieldName || '');
+                                        const fRaw = (f as any).name || (f as any).alias || (f as any).fieldName || '';
+                                        return `<td className="p-2">{String(item?.['${fCamel}'] ?? item?.['${fRaw}'] ?? item?.['${fPascal}'] ?? '')}</td>`;
+                                    }).join('')}
                                     <td className="p-2 text-right whitespace-nowrap space-x-2">
                                         ${element.subform.canEdit !== false ? `<button type="button" onClick={() => editSubformItem_${suffix}(item)} className="text-blue-600 dark:text-blue-400 hover:underline text-xs font-semibold">Bearbeiten</button>` : ''}
                                         ${element.subform.canDelete !== false ? `<button type="button" onClick={() => deleteSubformItem_${suffix}(item)} className="text-rose-600 dark:text-rose-400 hover:underline text-xs font-semibold">Löschen</button>` : ''}
