@@ -43,6 +43,23 @@ const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
     };
 };
 
+const getRecordValue = (item: Record<string, any>, fieldName?: string, label?: string) => {
+    if (!item) return undefined;
+    if (fieldName && item[fieldName] !== undefined) return item[fieldName];
+    if (label && item[label] !== undefined) return item[label];
+    
+    const searchKeys = [fieldName, label].filter(Boolean) as string[];
+    const lowerKeys = searchKeys.map(k => k.toLowerCase());
+    
+    for (const key of Object.keys(item)) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKeys.includes(lowerKey) || lowerKeys.some(lk => lowerKey.endsWith('.' + lk))) {
+            return item[key];
+        }
+    }
+    return undefined;
+};
+
 export const ReportView: React.FC<ReportViewProps> = ({ 
   report, 
   data, 
@@ -458,13 +475,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
                                     return (
                                       <React.Fragment key={itemIndex}>
                                         <tr className={`transition-colors ${isZebra ? 'bg-slate-50/80' : 'bg-white'} hover:bg-blue-50/50`}>
-                                            {displayColumns.map(col => (
-                                                <td key={col.id} className={`p-2.5 whitespace-nowrap ${report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''}`} style={getCellStyle(item[col.fieldName], { ...col } as any)}>
+                                            {displayColumns.map(col => {
+                                                const val = getRecordValue(item, col.fieldName, col.label);
+                                                return (
+                                                <td key={col.id} className={`p-2.5 whitespace-nowrap ${report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''}`} style={getCellStyle(val, { ...col } as any)}>
                                                     <div className="flex items-center gap-2">
-                                                        <ReportCellRenderer value={item[col.fieldName]} renderType={col.renderType || 'text'} />
-                                                        {col.isFK && col.targetTableId && item[col.fieldName] && (
+                                                        <ReportCellRenderer value={val} renderType={col.renderType || 'text'} />
+                                                        {col.isFK && col.targetTableId && val && (
                                                             <button 
-                                                                onClick={() => setDetailView({ targetTableId: col.targetTableId!, recordId: item[col.fieldName] })}
+                                                                onClick={() => setDetailView({ targetTableId: col.targetTableId!, recordId: val })}
                                                                 className="text-blue-500 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
                                                                 title="Details anzeigen"
                                                             >
@@ -473,7 +492,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                                                         )}
                                                     </div>
                                                 </td>
-                                            ))}
+                                                );
+                                            })}
                                         </tr>
 
                                         {/* Nested Sub-Report if configured */}

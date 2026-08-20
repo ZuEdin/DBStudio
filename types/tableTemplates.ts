@@ -1,6 +1,6 @@
 import { Field } from './database';
 
-export type TemplateCategory = 'crm' | 'pm' | 'finance' | 'lookup' | 'org' | 'custom';
+export type TemplateCategory = 'crm' | 'pm' | 'finance' | 'fakturierung' | 'lookup' | 'org' | 'custom';
 
 export interface TableTemplate {
   id: string;

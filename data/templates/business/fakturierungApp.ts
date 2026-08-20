@@ -335,7 +335,7 @@ export const getFakturierungApp = (lang: string): ProjectTemplate => {
                 { id: 'qc2', tableId: 't_kunden', fieldId: 'k3', tableName: t.t_kunden, fieldName: 'Firmenname', sort: 'ASC', show: true, criteria: [''] },
                 { id: 'qc3', tableId: 't_rechnungen', fieldId: 'r6', tableName: t.t_rechnungen, fieldName: 'FaelligDatum', sort: 'ASC', show: true, criteria: [''] },
                 { id: 'qc4', tableId: 't_rechnungen', fieldId: 'r7', tableName: t.t_rechnungen, fieldName: 'ZahlungsStatus', sort: 'ASC', show: true, criteria: ['Offen', 'Gemahnt', 'Ueberfaellig'] },
-                { id: 'qc5', tableId: 't_rechnungen', fieldId: 'r11', tableName: t.t_rechnungen, fieldName: 'OffenerBetrag', sort: 'DESC', show: true, criteria: ['> 0'], aggregate: 'SUM' }
+                { id: 'qc5', tableId: 't_rechnungen', fieldId: 'r11', tableName: t.t_rechnungen, fieldName: 'OffenerBetrag', sort: 'DESC', show: true, criteria: ['> 0'] }
               ]
             }
           ],
@@ -548,6 +548,19 @@ export const getFakturierungApp = (lang: string): ProjectTemplate => {
                 { fieldId: 'r7', label: 'Status', visible: true, order: 3 },
                 { fieldId: 'r10', label: 'Brutto (€)', visible: true, order: 4 },
                 { fieldId: 'r11', label: 'Offen (€)', visible: true, order: 5 }
+              ]
+            },
+            {
+              id: 'r_offene_rechnungen', name: t.q_offene_rechnungen, sourceType: 'query', sourceId: 'q_offene_rechnungen',
+              summaries: [
+                { fieldId: 'r11', fieldName: 'OffenerBetrag', calculation: 'SUM' }
+              ],
+              columns: [
+                { fieldId: 'qc1', label: 'RechnungsNr', visible: true, order: 0 },
+                { fieldId: 'qc2', label: 'Firmenname', visible: true, order: 1 },
+                { fieldId: 'qc3', label: 'FaelligDatum', visible: true, order: 2 },
+                { fieldId: 'qc4', label: 'ZahlungsStatus', visible: true, order: 3 },
+                { fieldId: 'qc5', label: 'OffenerBetrag', visible: true, order: 4 }
               ]
             }
           ],

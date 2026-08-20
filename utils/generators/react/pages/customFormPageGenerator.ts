@@ -368,7 +368,8 @@ export const ${compName} = () => {
             }`).join('\n            ')}
             if (id && id !== 'new') {
                 const res = await get(\`${sourceTablePascal}/\${id}\`);
-                setData(res.data || res);
+                const masterRecord = res.data || res;
+                setData(masterRecord);
                 ${subformLoadLogic}
             } else {
                 setData(${initialDataObjStr});

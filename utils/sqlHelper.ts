@@ -143,6 +143,17 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
             if (upper === 'NULL') return `${fieldRef} IS NULL`;
             if (upper === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
             if (upper === 'IS NULL' || upper === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
+
+            const startsWithOp = /^(?:=|>|<|>=|<=|!=|<>|LIKE\s|IN\s|NOT\s|BETWEEN\s|IS\s)/i.test(criteria);
+            if (!startsWithOp) {
+                if (/^\d+(\.\d+)?$/.test(criteria)) {
+                    criteria = `= ${criteria}`;
+                } else {
+                    const cleanStr = criteria.replace(/^['"]|['"]$/g, '');
+                    criteria = `= '${cleanStr.replace(/'/g, "''")}'`;
+                }
+            }
+
             return `${fieldRef} ${criteria}`; 
         }).filter(Boolean);
         return conditions.length > 0 ? (conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0]) : null;
@@ -154,18 +165,24 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     const hasAggregation = columns.some(c => c.aggregate && !['GROUP_BY', 'EXPRESSION'].includes(c.aggregate));
     const groupByColumns = columns.filter(c => c.aggregate === 'GROUP_BY');
     let groupByClause = '';
-    if (hasAggregation && groupByColumns.length > 0) {
-        const groups = groupByColumns.map(c => {
-            if (c.isCalculated) return `(${c.expression})`;
-            let nodeAlias = '';
-            if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
-            else {
-                const node = nodes.find(n => n.tableId === c.tableId);
-                nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
-            }
-            return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
-        }).join(', ');
-        groupByClause = `\nGROUP BY ${groups}`;
+    if (hasAggregation) {
+        let groupCols = groupByColumns;
+        if (groupCols.length === 0) {
+            groupCols = columns.filter(c => (c.show || c.sort) && (!c.aggregate || c.aggregate === 'GROUP_BY' || c.aggregate === 'EXPRESSION'));
+        }
+        if (groupCols.length > 0) {
+            const groups = groupCols.map(c => {
+                if (c.isCalculated) return `(${c.expression})`;
+                let nodeAlias = '';
+                if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
+                else {
+                    const node = nodes.find(n => n.tableId === c.tableId);
+                    nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
+                }
+                return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
+            }).join(', ');
+            groupByClause = `\nGROUP BY ${groups}`;
+        }
     }
 
 

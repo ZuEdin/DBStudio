@@ -138,7 +138,8 @@ export const ${compName} = () => {
                                     ${report.columns?.filter(c=>c.visible).map(c => {
                                         const foundField = fields.find(f => f.name === c.label);
                                         const prop = foundField ? foundField.prop : toCamelCase(c.label);
-                                        return `<td className="py-2">{item.${prop}}</td>`;
+                                        const pascalProp = toPascalCase(c.label);
+                                        return `<td className="py-2">{item['${prop}'] ?? item['${pascalProp}'] ?? item['${c.label}'] ?? ''}</td>`;
                                     }).join('')}
                                 </tr>
                             ))}
