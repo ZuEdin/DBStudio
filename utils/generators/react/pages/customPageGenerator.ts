@@ -317,7 +317,7 @@ export const generateCustomPage = (
 
               // Register lookup states if layout is present
               const requiredModals: any[] = [];
-              const lookups = fObj.layout ? collectLookups(fObj.layout, tables, queries) : [];
+              const lookups = fObj.layout ? collectLookups(fObj.layout, tables, queries, [], forms) : [];
               
               lookups.forEach(l => {
                   const varName = l.variableName;

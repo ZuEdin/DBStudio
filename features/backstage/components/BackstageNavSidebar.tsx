@@ -11,7 +11,8 @@ import {
   XSquare, 
   UserCircle2, 
   Sliders, 
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 
 export type BackstageTabType = 
@@ -19,6 +20,7 @@ export type BackstageTabType =
   | 'neu' 
   | 'oeffnen' 
   | 'info' 
+  | 'ueber_db_studio'
   | 'speichern' 
   | 'speichern_unter' 
   | 'drucken' 
@@ -105,6 +107,18 @@ export const BackstageNavSidebar: React.FC<BackstageNavSidebarProps> = ({
           >
             <FolderOpen size={16} className={activeTab === 'oeffnen' ? 'text-indigo-400' : 'text-neutral-400'} />
             <span>Öffnen</span>
+          </button>
+
+          <button
+            onClick={() => onSelectTab('ueber_db_studio')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+              activeTab === 'ueber_db_studio'
+                ? 'bg-[#333333] text-white border-l-3 border-indigo-500 font-semibold'
+                : 'hover:bg-[#2c2c2c] hover:text-white text-neutral-300'
+            }`}
+          >
+            <Sparkles size={16} className={activeTab === 'ueber_db_studio' ? 'text-indigo-400' : 'text-neutral-400'} />
+            <span>Über DB Studio</span>
           </button>
 
           {/* Project Specific Actions */}

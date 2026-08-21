@@ -416,7 +416,7 @@ export const generateCustomComponentNode = (node: any, ctx: GeneratorContext): s
            <div className="p-2 w-full text-left">
                ${conf.label ? `<label className="block text-xs font-semibold text-slate-600 mb-1">${conf.label}</label>` : ''}
                <select 
-                   className="border border-slate-300 rounded px-3 py-2 bg-white w-full max-w-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs text-slate-800"
+                   className="border border-slate-300 dark:border-slate-700 rounded px-3 py-2 bg-white dark:bg-slate-800 w-full max-w-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs text-slate-800 dark:text-slate-100"
                    onChange={(e) => console.log('Dropdown changed: ' + e.target.value)}
                >
                    <option value="">${conf.placeholder || '-- Bitte wählen --'}</option>

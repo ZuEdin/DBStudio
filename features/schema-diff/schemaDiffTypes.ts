@@ -45,4 +45,10 @@ export interface GeneratedMigrations {
   liquibaseXml: string;
   liquibaseYaml: string;
   liquibaseSql: string;
+  // Extended ORM & Framework Migration formats
+  prismaMigrationSql: string;
+  efCoreUpCSharp: string;
+  drizzleTsUp: string;
+  knexJsUp: string;
+  sqliteRebuildApplied?: boolean;
 }

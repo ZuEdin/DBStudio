@@ -1,6 +1,7 @@
 
 import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery } from '../../../types/index';
 import { resolveType, toPascalCase, toCamelCase } from '../common';
+import { detectJunctionTables, generateDotNetManyToManyEndpoints } from '../manyToManyGenerator';
 
 export const generateControllers = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -211,6 +212,14 @@ namespace ${safeNamespace}.Controllers
             }\n`;
                       }
                   }
+              } else if (f.type === 'DECIMAL') {
+                  const numVal = parseFloat(f.defaultValue);
+                  if (!isNaN(numVal)) {
+                      defaultValuesLogic += `            if (item.${fieldPascal} == null || item.${fieldPascal} == 0m)
+            {
+                item.${fieldPascal} = ${numVal}m;
+            }\n`;
+                  }
               } else if (['VARCHAR', 'TEXT', 'EMAIL', 'PHONE', 'URL'].includes(f.type)) {
                   defaultValuesLogic += `            if (string.IsNullOrEmpty(item.${fieldPascal}))
             {
@@ -295,6 +304,21 @@ ${auditFields.createdBy ? `            item.${getPropName(auditFields.createdBy)
         
         [HttpDelete("{id}")]
         public async Task<ActionResult> Delete(${resolveType(pkField, 'csharp')} id) { var i = await _context.${safeName}s.FindAsync(id); if(i!=null) { _context.Remove(i); await _context.SaveChangesAsync(); } return Ok(); }
+
+        // Many-to-Many Sync Endpoints (deduplicated by target model)
+${(() => {
+    const emittedTargets = new Set<string>();
+    return detectJunctionTables(tables, relationships)
+      .filter(j => j.leftTable.id === table.id)
+      .filter(j => {
+        const key = j.rightTable.id || j.rightTable.name;
+        if (emittedTargets.has(key)) return false;
+        emittedTargets.add(key);
+        return true;
+      })
+      .map(j => generateDotNetManyToManyEndpoints(j))
+      .join('\n');
+})()}
     }
 }`;
       files.push({ name: `${safeName}Controller.cs`, path: `${root}/Controllers/${safeName}Controller.cs`, content: content, language: 'csharp' });
@@ -574,7 +598,7 @@ namespace ${safeNamespace}.Controllers
             }
 
             var dbTypeStr = type.ToUpper();
-            var statementsCount = string.IsNullOrWhiteSpace(ddl) ? 0 : ddl.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Where(l => !string.IsNullOrWhiteSpace(l.Trim())).Count();
+            var statementsCount = string.IsNullOrWhiteSpace(ddl) ? 0 : ddl.Split(new[] { '\\r', '\\n' }, StringSplitOptions.RemoveEmptyEntries).Where(l => !string.IsNullOrWhiteSpace(l.Trim())).Count();
 
             _logs.Add(new {
                 timestamp = DateTime.Now.ToString("o"),
@@ -592,6 +616,111 @@ namespace ${safeNamespace}.Controllers
     }
 }`;
   files.push({ name: 'DatabaseSyncController.cs', path: `${root}/Controllers/DatabaseSyncController.cs`, content: dbSyncControllerContent, language: 'csharp' });
+
+  // Inbound Webhook & Event-Trigger Hub Controller
+  const inboundWebhooksControllerContent = `using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+
+namespace ${safeNamespace}.Controllers
+{
+    [Route("api/webhooks/inbound")]
+    [ApiController]
+    public class InboundWebhooksController : ControllerBase
+    {
+        private static readonly List<object> _events = new List<object>();
+
+        [HttpGet("channels")]
+        public IActionResult GetChannels()
+        {
+            return Ok(new[]
+            {
+                new { Id = "stripe", Name = "Stripe Payments & Invoices", Provider = "Stripe", EndpointPath = "/api/webhooks/inbound/stripe" },
+                new { Id = "github", Name = "GitHub Git Commits & PRs", Provider = "GitHub", EndpointPath = "/api/webhooks/inbound/github" },
+                new { Id = "iot", Name = "IoT Sensor & Telemetrie Hub", Provider = "IoT Telemetry", EndpointPath = "/api/webhooks/inbound/iot" },
+                new { Id = "n8n", Name = "n8n Automation Event Bridge", Provider = "n8n", EndpointPath = "/api/webhooks/inbound/n8n" },
+                new { Id = "custom", Name = "Custom JSON Webhook Endpoint", Provider = "Generic", EndpointPath = "/api/webhooks/inbound/custom" }
+            });
+        }
+
+        [HttpGet("events")]
+        public IActionResult GetEvents([FromQuery] int limit = 50)
+        {
+            lock (_events)
+            {
+                return Ok(_events);
+            }
+        }
+
+        [HttpPost("stripe")]
+        public IActionResult HandleStripe([FromBody] JsonElement payload, [FromHeader(Name = "Stripe-Signature")] string? signature)
+        {
+            var ev = new
+            {
+                id = Guid.NewGuid().ToString("n"),
+                provider = "Stripe",
+                signature = signature ?? "whsec_stripe_sample",
+                timestamp = DateTime.UtcNow.ToString("o"),
+                status = "PROCESSED",
+                payload = payload
+            };
+            lock (_events) { _events.Insert(0, ev); if (_events.Count > 100) _events.RemoveAt(_events.Count - 1); }
+            return Ok(new { received = true, provider = "Stripe", eventId = ev.id, status = "PROCESSED" });
+        }
+
+        [HttpPost("github")]
+        public IActionResult HandleGitHub([FromBody] JsonElement payload, [FromHeader(Name = "X-GitHub-Event")] string? gitHubEvent, [FromHeader(Name = "X-Hub-Signature-256")] string? signature)
+        {
+            var ev = new
+            {
+                id = Guid.NewGuid().ToString("n"),
+                provider = "GitHub",
+                gitHubEvent = gitHubEvent ?? "push",
+                signature = signature,
+                timestamp = DateTime.UtcNow.ToString("o"),
+                status = "PROCESSED",
+                payload = payload
+            };
+            lock (_events) { _events.Insert(0, ev); if (_events.Count > 100) _events.RemoveAt(_events.Count - 1); }
+            return Ok(new { received = true, provider = "GitHub", gitHubEvent = ev.gitHubEvent, eventId = ev.id, status = "PROCESSED" });
+        }
+
+        [HttpPost("iot")]
+        public IActionResult HandleIoT([FromBody] JsonElement payload, [FromHeader(Name = "X-Device-Id")] string? deviceId)
+        {
+            var ev = new
+            {
+                id = Guid.NewGuid().ToString("n"),
+                provider = "IoT Telemetry",
+                deviceId = deviceId ?? "IOT_SENSOR_001",
+                timestamp = DateTime.UtcNow.ToString("o"),
+                status = "PROCESSED",
+                payload = payload
+            };
+            lock (_events) { _events.Insert(0, ev); if (_events.Count > 100) _events.RemoveAt(_events.Count - 1); }
+            return Ok(new { received = true, provider = "IoT", eventId = ev.id, status = "PROCESSED" });
+        }
+
+        [HttpPost("{channel}")]
+        public IActionResult HandleCustomChannel(string channel, [FromBody] JsonElement payload, [FromHeader(Name = "X-Webhook-Secret")] string? secret)
+        {
+            var ev = new
+            {
+                id = Guid.NewGuid().ToString("n"),
+                channel = channel,
+                secret = secret,
+                timestamp = DateTime.UtcNow.ToString("o"),
+                status = "PROCESSED",
+                payload = payload
+            };
+            lock (_events) { _events.Insert(0, ev); if (_events.Count > 100) _events.RemoveAt(_events.Count - 1); }
+            return Ok(new { received = true, channel = channel, eventId = ev.id, status = "PROCESSED" });
+        }
+    }
+}`;
+  files.push({ name: 'InboundWebhooksController.cs', path: `${root}/Controllers/InboundWebhooksController.cs`, content: inboundWebhooksControllerContent, language: 'csharp' });
 
   return files;
 };

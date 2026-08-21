@@ -67,7 +67,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
       return (
           <div className={mergedClassName}>
               <div className="flex justify-between items-center mb-1">
-                  {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700">{label}</label>}
+                  {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</label>}
                   {element.hideLabel && <div className="flex-1" />}
                   <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300/50 flex items-center gap-1 font-mono">
                       ⚡ Berechnet {element.calculationFormula ? `(${element.calculationFormula})` : ''}
@@ -80,7 +80,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                     readOnly
                     value={value !== undefined && value !== null ? String(value) : ''}
                     onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                    className="w-full border border-amber-200 bg-amber-50/60 text-amber-950 font-bold rounded-lg p-2.5 text-sm font-mono cursor-default focus:outline-none shadow-inner"
+                    className="w-full border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 text-amber-950 dark:text-amber-200 font-bold rounded-lg p-2.5 text-sm font-mono cursor-default focus:outline-none shadow-inner"
                     placeholder="(Berechnung ausstehend)"
                   />
               </div>
@@ -92,17 +92,17 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   if (widget === 'current-user') {
       return (
           <div className={mergedClassName}>
-              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>}
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">{label}</label>}
               <div className="flex gap-2">
                   <div className="relative flex-1">
-                      <User className="absolute left-2 top-2 text-emerald-600" size={16} />
+                      <User className="absolute left-2 top-2 text-emerald-600 dark:text-emerald-400" size={16} />
                       <input
                         id={elementId}
                         type="text"
                         readOnly
                         value={value || ''}
                         onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                        className="w-full border border-emerald-300 bg-emerald-50 text-emerald-900 rounded p-2 pl-8 text-sm font-mono cursor-default focus:outline-none"
+                        className="w-full border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 rounded p-2 pl-8 text-sm font-mono cursor-default focus:outline-none"
                         placeholder="(Leer)"
                       />
                   </div>
@@ -131,10 +131,10 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   if (widget === 'ad-search') {
       return (
           <div className={mergedClassName}>
-              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>}
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">{label}</label>}
               <div className="flex gap-2">
                   <div className="relative flex-1">
-                      <Search className="absolute left-2 top-2 text-blue-500" size={16} />
+                      <Search className="absolute left-2 top-2 text-blue-500 dark:text-blue-400" size={16} />
                       <input
                         id={elementId}
                         type="text"
@@ -142,7 +142,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                         value={value || ''} 
                         onChange={(e) => onChange(fieldName, e.target.value)}
                         onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                        className="w-full border border-blue-200 bg-white rounded p-2 pl-8 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                        className="w-full border border-blue-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded p-2 pl-8 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
                         placeholder="Benutzer auswählen..."
                       />
                   </div>
@@ -201,7 +201,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                       />
                   )}
                   {!element.hideLabel && (
-                      <label htmlFor={elementId} className="text-sm font-semibold text-slate-700 cursor-pointer">{label}</label>
+                      <label htmlFor={elementId} className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">{label}</label>
                   )}
               </div>
           </div>
@@ -212,7 +212,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
       const options = element.lookup ? getLookupOptions(element.lookup) : [{ value: '', label: '(Keine Datenquelle konfiguriert)' }];
       return (
           <div className={mergedClassName}>
-              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>}
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{label}</label>}
               <div className="flex gap-2">
                 <select
                     id={elementId}
@@ -221,11 +221,11 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                     onChange={e => onChange(fieldName, e.target.value)}
                     onFocus={() => onFocusField && onFocusField(fieldName)}
                     onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                    className="flex-1 shrink-0 appearance-none bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
+                    className="flex-1 shrink-0 appearance-none bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm disabled:bg-slate-50 dark:disabled:bg-slate-900 disabled:text-slate-400 dark:disabled:text-slate-500"
                 >
-                    <option value="">Auswählen...</option>
+                    <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Auswählen...</option>
                     {options.map((opt, idx) => (
-                        <option key={`${opt.value}-${idx}`} value={opt.value}>{opt.label}</option>
+                        <option key={`${opt.value}-${idx}`} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{opt.label}</option>
                     ))}
                 </select>
                 {element.lookup && element.lookup.allowQuickCreate && onOpenLookupModal && !isReadOnly && (
@@ -273,7 +273,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   if (widget === 'textarea') {
        return (
           <div className={mergedClassName}>
-              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>}
+              {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">{label}</label>}
               <textarea
                   id={elementId}
                   readOnly={isReadOnly}
@@ -281,7 +281,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                   onChange={(e) => onChange(fieldName, e.target.value)}
                   onFocus={() => onFocusField && onFocusField(fieldName)}
                   onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                  className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs"
+                  className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs"
                   rows={3}
               />
           </div>
@@ -309,7 +309,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
 
   return (
       <div className={mergedClassName}>
-          {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700 mb-1">{label}</label>}
+          {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">{label}</label>}
           <input
             id={elementId}
             type={finalType}
@@ -318,7 +318,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
             onChange={(e) => onChange(fieldName, e.target.value)}
             onFocus={() => onFocusField && onFocusField(fieldName)}
             onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-            className={`w-full bg-white text-slate-900 font-medium border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${field?.isAutoIncrement ? 'bg-slate-50' : ''}`}
+            className={`w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${field?.isAutoIncrement ? 'bg-slate-50 dark:bg-slate-900' : ''}`}
           />
       </div>
   );

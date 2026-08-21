@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 
 export function generateWebhooksController(zip: JSZip) {
+  // Outbound Webhooks Controller
   zip.file("Controllers/WebhooksController.cs", `using Microsoft.AspNetCore.Mvc;
 using DBStudioBackend.Services;
 using System.Text.Json;
@@ -43,6 +44,78 @@ namespace DBStudioBackend.Controllers
 }
 `);
 
+  // Inbound Webhooks & Event-Trigger Hub Controller
+  zip.file("Controllers/InboundWebhooksController.cs", `using Microsoft.AspNetCore.Mvc;
+using DBStudioBackend.Services;
+using System.Text.Json;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace DBStudioBackend.Controllers
+{
+    [ApiController]
+    [Route("api/webhooks/inbound")]
+    public class InboundWebhooksController : ControllerBase {
+        private readonly InboundWebhookService _inboundService;
+        public InboundWebhooksController(InboundWebhookService inboundService) => _inboundService = inboundService;
+
+        [HttpGet("channels")]
+        public IActionResult GetChannels() => Ok(_inboundService.GetChannels());
+
+        [HttpGet("events")]
+        public IActionResult GetRecentEvents([FromQuery] int limit = 50) => Ok(_inboundService.GetRecentEvents(limit));
+
+        [HttpPost("stripe")]
+        public async Task<IActionResult> HandleStripeWebhook([FromBody] JsonElement payload, [FromHeader(Name = "Stripe-Signature")] string? signature) {
+            var ev = await _inboundService.IngestEventAsync("stripe", payload, signature ?? "simulated_stripe_signature");
+            return Ok(new {
+                received = true,
+                provider = "Stripe",
+                eventId = ev.Id,
+                status = "PROCESSED",
+                dispatchedAt = ev.Timestamp
+            });
+        }
+
+        [HttpPost("github")]
+        public async Task<IActionResult> HandleGitHubWebhook([FromBody] JsonElement payload, [FromHeader(Name = "X-GitHub-Event")] string? gitHubEvent, [FromHeader(Name = "X-Hub-Signature-256")] string? signature) {
+            var ev = await _inboundService.IngestEventAsync("github", payload, signature, gitHubEvent ?? "push");
+            return Ok(new {
+                received = true,
+                provider = "GitHub",
+                gitHubEvent = gitHubEvent ?? "push",
+                eventId = ev.Id,
+                status = "PROCESSED"
+            });
+        }
+
+        [HttpPost("iot")]
+        public async Task<IActionResult> HandleIoTTelemetry([FromBody] JsonElement payload, [FromHeader(Name = "X-Device-Id")] string? deviceId) {
+            var ev = await _inboundService.IngestEventAsync("iot", payload, deviceId, "telemetry");
+            return Ok(new {
+                received = true,
+                provider = "IoT Sensor Hub",
+                eventId = ev.Id,
+                status = "PROCESSED"
+            });
+        }
+
+        [HttpPost("{channel}")]
+        public async Task<IActionResult> HandleCustomChannel(string channel, [FromBody] JsonElement payload, [FromHeader(Name = "X-Webhook-Secret")] string? secret) {
+            var ev = await _inboundService.IngestEventAsync(channel, payload, secret, "custom");
+            return Ok(new {
+                received = true,
+                channel = channel,
+                eventId = ev.Id,
+                status = "PROCESSED"
+            });
+        }
+    }
+}
+`);
+
+  // Outbound Dispatcher Service
   zip.file("Services/WebhookDispatcher.cs", `using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -125,6 +198,72 @@ namespace DBStudioBackend.Services
             }
 
             return results;
+        }
+    }
+}
+`);
+
+  // Inbound Service
+  zip.file("Services/InboundWebhookService.cs", `using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace DBStudioBackend.Services
+{
+    public class InboundWebhookEvent {
+        public string Id { get; set; } = Guid.NewGuid().ToString("n");
+        public string Channel { get; set; } = "custom";
+        public string EventType { get; set; } = "payload";
+        public string? Signature { get; set; }
+        public JsonElement Payload { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public string Status { get; set; } = "PROCESSED";
+    }
+
+    public class InboundWebhookChannel {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Provider { get; set; } = "";
+        public string EndpointPath { get; set; } = "";
+        public string Secret { get; set; } = "";
+        public bool IsEnabled { get; set; } = true;
+    }
+
+    public class InboundWebhookService {
+        private static readonly List<InboundWebhookEvent> _events = new List<InboundWebhookEvent>();
+        private static readonly List<InboundWebhookChannel> _channels = new List<InboundWebhookChannel> {
+            new InboundWebhookChannel { Id = "stripe_live", Name = "Stripe Payment & Invoices", Provider = "Stripe", EndpointPath = "/api/webhooks/inbound/stripe", Secret = "whsec_stripe_live_demo" },
+            new InboundWebhookChannel { Id = "github_ci", Name = "GitHub Git Commits & PRs", Provider = "GitHub", EndpointPath = "/api/webhooks/inbound/github", Secret = "gh_secret_token_123" },
+            new InboundWebhookChannel { Id = "iot_telemetry", Name = "IoT Sensordaten Hub", Provider = "IoT Telemetry", EndpointPath = "/api/webhooks/inbound/iot", Secret = "iot_telemetry_key_99" },
+            new InboundWebhookChannel { Id = "n8n_bridge", Name = "n8n Automation Ingest", Provider = "n8n", EndpointPath = "/api/webhooks/inbound/n8n", Secret = "n8n_secret_ingest_token" }
+        };
+
+        public List<InboundWebhookChannel> GetChannels() => _channels;
+
+        public List<InboundWebhookEvent> GetRecentEvents(int limit = 50) {
+            lock (_events) {
+                return _events.OrderByDescending(e => e.Timestamp).Take(limit).ToList();
+            }
+        }
+
+        public Task<InboundWebhookEvent> IngestEventAsync(string channel, JsonElement payload, string? signature = null, string eventType = "payload") {
+            var ev = new InboundWebhookEvent {
+                Channel = channel,
+                EventType = eventType,
+                Signature = signature,
+                Payload = payload,
+                Timestamp = DateTime.UtcNow,
+                Status = "PROCESSED"
+            };
+
+            lock (_events) {
+                _events.Add(ev);
+                if (_events.Count > 500) _events.RemoveAt(0);
+            }
+
+            return Task.FromResult(ev);
         }
     }
 }

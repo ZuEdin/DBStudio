@@ -2,6 +2,7 @@
 import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery, ValidationRule, DbType } from '../../../types/index';
 import { DATA_TYPES } from '../../../config/dataTypes';
 import { resolveType, toPascalCase, isNullable } from '../common';
+import { detectJunctionTables, generateEfCoreManyToManyFluent } from '../manyToManyGenerator';
 
 export const getRelationshipNames = (relationships: Relationship[], tables: Table[], currentRel: Relationship) => {
     const parentTable = tables.find(t => t.id === currentRel.fromTableId);
@@ -175,6 +176,9 @@ ${queryMappings}
             // Relationships
 ${relationshipConfigs}
 
+            // Many-to-Many Relationships (.NET 10 EF Core UsingEntity)
+${generateEfCoreManyToManyFluent(detectJunctionTables(tables, relationships))}
+
             // Multi-Tenancy Filters
 ${tenantFilters}
         }
@@ -282,9 +286,31 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
 
       // Explicit Default Values override
       if (f.defaultValue) {
-          if (type.startsWith('string')) initializer = ` = "${f.defaultValue}";`;
-          else if (type.includes('bool')) initializer = ` = ${f.defaultValue.toLowerCase() === 'true' ? 'true' : 'false'};`;
-          else if (!type.startsWith('DateTime')) initializer = ` = ${f.defaultValue};`;
+          if (type.startsWith('string')) {
+              initializer = ` = "${f.defaultValue}";`;
+          } else if (type.includes('bool')) {
+              initializer = ` = ${f.defaultValue.toLowerCase() === 'true' ? 'true' : 'false'};`;
+          } else if (type.startsWith('decimal')) {
+              const val = f.defaultValue.trim();
+              if (val.toLowerCase().endsWith('m')) {
+                  initializer = ` = ${val};`;
+              } else if (!isNaN(Number(val))) {
+                  initializer = ` = ${val}m;`;
+              } else {
+                  initializer = ` = ${val};`;
+              }
+          } else if (type.startsWith('float') || type.startsWith('double')) {
+              const val = f.defaultValue.trim();
+              if (val.toLowerCase().endsWith('f') || val.toLowerCase().endsWith('d')) {
+                  initializer = ` = ${val};`;
+              } else if (!isNaN(Number(val))) {
+                  initializer = ` = ${val};`;
+              } else {
+                  initializer = ` = ${val};`;
+              }
+          } else if (!type.startsWith('DateTime')) {
+              initializer = ` = ${f.defaultValue};`;
+          }
       }
 
       const indent = "        "; 
@@ -340,7 +366,34 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
         return `        [ForeignKey("${toPascalCase(fkField.name)}")]\n        public virtual ${toPascalCase(parentTable.name)}? ${navName} { get; set; }`;
     }).join('\n\n');
 
-    const combinedProps = [props, tenantProp, childProps, parentProps].filter(p => p).join('\n\n');
+    // Many-to-Many Navigation Properties
+    const allJunctions = detectJunctionTables(tables, relationships);
+    const nmProps: string[] = [];
+    const seenNmTargets = new Set<string>();
+
+    allJunctions.filter(j => j.leftTable.id === table.id).forEach(j => {
+        const rightName = toPascalCase(j.rightTable.name);
+        const pluralSuffix = rightName.endsWith('s') || rightName.endsWith('en') ? '' : 's';
+        const propName = `${rightName}${pluralSuffix}`;
+        if (!seenNmTargets.has(propName)) {
+            seenNmTargets.add(propName);
+            nmProps.push(`        public virtual ICollection<${rightName}> ${propName} { get; set; } = new List<${rightName}>();`);
+        }
+    });
+
+    allJunctions.filter(j => j.rightTable.id === table.id).forEach(j => {
+        const leftName = toPascalCase(j.leftTable.name);
+        const pluralSuffix = leftName.endsWith('s') || leftName.endsWith('en') ? '' : 's';
+        const propName = `${leftName}${pluralSuffix}`;
+        if (!seenNmTargets.has(propName)) {
+            seenNmTargets.add(propName);
+            nmProps.push(`        public virtual ICollection<${leftName}> ${propName} { get; set; } = new List<${leftName}>();`);
+        }
+    });
+
+    const nmPropBlock = nmProps.join('\n\n');
+
+    const combinedProps = [props, tenantProp, childProps, parentProps, nmPropBlock].filter(p => p).join('\n\n');
     
     const validationMethod = hasValidation ? generateValidationLogic(table.validationRules!, table) : '';
     const interfaceDecl = hasValidation ? ' : IValidatableObject' : '';

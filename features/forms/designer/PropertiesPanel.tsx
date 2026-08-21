@@ -239,48 +239,95 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </div>
                 )}
                 {selectedElement.widgetType === 'calculated' && (
-                    <div className="p-2.5 bg-amber-50 text-amber-900 text-xs rounded border border-amber-300/80 space-y-2">
-                        <div className="font-bold text-amber-950 flex items-center gap-1">⚡ Formel-Editor</div>
+                    <div className="p-2.5 bg-amber-50 text-amber-900 text-xs rounded border border-amber-300/80 space-y-2.5">
+                        <div className="font-bold text-amber-950 flex items-center justify-between">
+                            <span className="flex items-center gap-1">⚡ Formel-Editor (Ausdrücke)</span>
+                            <span className="text-[10px] font-mono text-amber-800 bg-amber-200/60 px-1.5 py-0.5 rounded">Access / Excel Math</span>
+                        </div>
                         <div>
                             <label className="block text-[10px] font-bold text-amber-800 mb-1">Berechnungsformel:</label>
                             <textarea
                                 value={selectedElement.calculationFormula || ''}
                                 onChange={e => onPropertyChange('calculationFormula', e.target.value)}
-                                rows={2}
-                                placeholder="z.B. AGE([Geburtsdatum]) oder [Preis] * [Menge]"
+                                rows={3}
+                                placeholder="z.B. [Preis] * [Menge] oder IIF([Status] = 'Aktiv', 100, 0)"
                                 className="w-full border border-amber-300 rounded p-1.5 font-mono text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
                             />
                         </div>
+
+                        {sourceTable?.fields && sourceTable.fields.length > 0 && (
+                          <div>
+                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Feld einfügen:</label>
+                            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1 bg-white/60 rounded border border-amber-200">
+                              {sourceTable.fields.map(f => (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const current = selectedElement.calculationFormula || '';
+                                    onPropertyChange('calculationFormula', current ? `${current} [${f.name}]` : `[${f.name}]`);
+                                  }}
+                                  className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 rounded text-[10px] font-mono transition-colors"
+                                  title={`Feld [${f.name}] an Formel anhängen`}
+                                >
+                                  + [{f.name}]
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         <div>
-                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Schnell-Vorlagen:</label>
-                            <div className="grid grid-cols-1 gap-1">
+                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Schnell-Vorlagen & Funktionen:</label>
+                            <div className="grid grid-cols-1 gap-1 max-h-36 overflow-y-auto pr-0.5">
                                 <button
                                     type="button"
                                     onClick={() => onPropertyChange('calculationFormula', 'AGE([Geburtsdatum])')}
                                     className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
                                 >
-                                    🎂 AGE([Geburtsdatum])
+                                    🎂 Alter: AGE([Geburtsdatum])
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => onPropertyChange('calculationFormula', '[Preis] * [Menge]')}
                                     className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
                                 >
-                                    🧮 [Preis] * [Menge]
+                                    🧮 Multiplikation: [Preis] * [Menge]
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => onPropertyChange('calculationFormula', "[Vorname] + ' ' + [Nachname]")}
+                                    onClick={() => onPropertyChange('calculationFormula', "CONCAT([Vorname], ' ', [Nachname])")}
                                     className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
                                 >
-                                    👤 [Vorname] + ' ' + [Nachname]
+                                    👤 Text: CONCAT([Vorname], ' ', [Nachname])
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => onPropertyChange('calculationFormula', 'ROUND([Netto] * 1.19, 2)')}
                                     className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
                                 >
-                                    🏷️ ROUND([Netto] * 1.19, 2)
+                                    🏷️ MwSt / Brutto: ROUND([Netto] * 1.19, 2)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('calculationFormula', "IIF([Menge] > 10, [Preis] * 0.9, [Preis])")}
+                                    className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
+                                >
+                                    🔀 Bedingung: IIF([Menge] &gt; 10, Rabatt, Normal)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('calculationFormula', "SUM([Positionen.Gesamtpreis])")}
+                                    className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
+                                >
+                                    📊 Subform Summe: SUM([Positionen.Gesamtpreis])
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('calculationFormula', "DATEDIFF('day', [Startdatum], [Enddatum])")}
+                                    className="text-left px-2 py-1 bg-white hover:bg-amber-100 border border-amber-200 rounded text-[11px] font-mono text-amber-900 transition-colors"
+                                >
+                                    📅 Tage: DATEDIFF('day', [Startdatum], [Enddatum])
                                 </button>
                             </div>
                         </div>
@@ -907,32 +954,124 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <div className="font-bold text-emerald-800 flex items-center gap-1">
                   <Shield size={12}/> Validierungsregeln
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {(selectedElement.validationRules || []).map((rule, rIdx) => (
-                    <div key={rule.id || rIdx} className="bg-white p-2 rounded border border-emerald-200 space-y-1">
+                    <div key={rule.id || rIdx} className="bg-white p-2.5 rounded border border-emerald-200 space-y-2 shadow-2xs">
                       <div className="flex justify-between items-center font-bold text-[11px] text-slate-700">
-                        <span>Typ: {rule.type}</span>
+                        <span className="text-emerald-800 font-mono">Regel #{rIdx + 1}</span>
                         <button 
                           onClick={() => {
                             const updated = (selectedElement.validationRules || []).filter((_, i) => i !== rIdx);
                             onPropertyChange('validationRules', updated);
                           }}
-                          className="text-rose-500 hover:text-rose-700"
+                          className="text-rose-500 hover:text-rose-700 p-0.5 rounded hover:bg-rose-50"
+                          title="Regel löschen"
                         >
                           <Trash2 size={12} />
                         </button>
                       </div>
-                      <input 
-                        type="text"
-                        placeholder="Fehlermeldung"
-                        value={rule.errorMessage || ''}
-                        onChange={e => {
-                          const updated = [...(selectedElement.validationRules || [])];
-                          updated[rIdx] = { ...updated[rIdx], errorMessage: e.target.value };
-                          onPropertyChange('validationRules', updated);
-                        }}
-                        className="w-full border p-1 rounded text-[11px]"
-                      />
+
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-600">Regel-Typ:</label>
+                        <select
+                          value={rule.type}
+                          onChange={e => {
+                            const updated = [...(selectedElement.validationRules || [])];
+                            updated[rIdx] = { ...updated[rIdx], type: e.target.value as any };
+                            onPropertyChange('validationRules', updated);
+                          }}
+                          className="w-full border border-slate-300 rounded p-1 text-[11px] bg-white text-slate-800 font-medium"
+                        >
+                          <option value="required">Pflichtfeld (Required)</option>
+                          <option value="min">Mindestwert (Min Value)</option>
+                          <option value="max">Höchstwert (Max Value)</option>
+                          <option value="regex">Regulärer Ausdruck (RegEx)</option>
+                          <option value="custom_js">Benutzerdefiniertes JS (Custom JS)</option>
+                        </select>
+                      </div>
+
+                      {rule.type === 'min' && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Mindestwert:</label>
+                          <input 
+                            type="number"
+                            placeholder="z.B. 0 oder 18"
+                            value={rule.minValue !== undefined ? rule.minValue : ''}
+                            onChange={e => {
+                              const updated = [...(selectedElement.validationRules || [])];
+                              updated[rIdx] = { ...updated[rIdx], minValue: e.target.value === '' ? undefined : Number(e.target.value) };
+                              onPropertyChange('validationRules', updated);
+                            }}
+                            className="w-full border border-slate-300 p-1 rounded text-[11px]"
+                          />
+                        </div>
+                      )}
+
+                      {rule.type === 'max' && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Höchstwert:</label>
+                          <input 
+                            type="number"
+                            placeholder="z.B. 100 oder 9999"
+                            value={rule.maxValue !== undefined ? rule.maxValue : ''}
+                            onChange={e => {
+                              const updated = [...(selectedElement.validationRules || [])];
+                              updated[rIdx] = { ...updated[rIdx], maxValue: e.target.value === '' ? undefined : Number(e.target.value) };
+                              onPropertyChange('validationRules', updated);
+                            }}
+                            className="w-full border border-slate-300 p-1 rounded text-[11px]"
+                          />
+                        </div>
+                      )}
+
+                      {rule.type === 'regex' && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">RegEx Muster:</label>
+                          <input 
+                            type="text"
+                            placeholder="z.B. ^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"
+                            value={rule.regexPattern || ''}
+                            onChange={e => {
+                              const updated = [...(selectedElement.validationRules || [])];
+                              updated[rIdx] = { ...updated[rIdx], regexPattern: e.target.value };
+                              onPropertyChange('validationRules', updated);
+                            }}
+                            className="w-full border border-slate-300 p-1 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {rule.type === 'custom_js' && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">JS-Prüfcode (return true/false):</label>
+                          <textarea 
+                            rows={2}
+                            placeholder="return value && value.length >= 5;"
+                            value={rule.customJsCode || ''}
+                            onChange={e => {
+                              const updated = [...(selectedElement.validationRules || [])];
+                              updated[rIdx] = { ...updated[rIdx], customJsCode: e.target.value };
+                              onPropertyChange('validationRules', updated);
+                            }}
+                            className="w-full border border-slate-300 p-1 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Fehlermeldung:</label>
+                        <input 
+                          type="text"
+                          placeholder="Benutzerdefinierte Fehlermeldung"
+                          value={rule.errorMessage || ''}
+                          onChange={e => {
+                            const updated = [...(selectedElement.validationRules || [])];
+                            updated[rIdx] = { ...updated[rIdx], errorMessage: e.target.value };
+                            onPropertyChange('validationRules', updated);
+                          }}
+                          className="w-full border border-slate-300 p-1 rounded text-[11px]"
+                        />
+                      </div>
                     </div>
                   ))}
                   <button
@@ -945,7 +1084,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       };
                       onPropertyChange('validationRules', [...(selectedElement.validationRules || []), newRule]);
                     }}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded p-1 text-[11px] font-bold shadow-2xs"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded p-1.5 text-[11px] font-bold shadow-2xs transition-colors"
                   >
                     + Validierungsregel hinzufügen
                   </button>
@@ -953,32 +1092,81 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             </div>
 
             <div className="border border-amber-200 bg-amber-50 rounded p-2 text-xs space-y-2">
-                <div className="font-bold text-amber-800 flex items-center gap-1"><Settings2 size={12}/> Bedingte Anzeige</div>
-                <div className="space-y-1">
-                    <input 
-                        type="text" 
-                        placeholder="Abhängige Feld ID (z.B. field_123)"
-                        value={selectedElement.visibilityCondition?.fieldId || ''} 
-                        onChange={e => onPropertyChange('visibilityCondition', { ...selectedElement.visibilityCondition, fieldId: e.target.value, operator: selectedElement.visibilityCondition?.operator || 'eq', value: selectedElement.visibilityCondition?.value || '' })}
-                        className="w-full border p-1 rounded" 
-                    />
-                    <div className="flex gap-1">
-                        <select 
-                            value={selectedElement.visibilityCondition?.operator || 'eq'} 
-                            onChange={e => onPropertyChange('visibilityCondition', { ...selectedElement.visibilityCondition, operator: e.target.value, fieldId: selectedElement.visibilityCondition?.fieldId || '', value: selectedElement.visibilityCondition?.value || '' })}
-                            className="w-1/3 border p-1 rounded"
-                        >
-                            <option value="eq">=</option>
-                            <option value="neq">!=</option>
-                        </select>
-                        <input 
-                            type="text" 
-                            placeholder="Wert (z.B. Ja)"
-                            value={selectedElement.visibilityCondition?.value || ''} 
-                            onChange={e => onPropertyChange('visibilityCondition', { ...selectedElement.visibilityCondition, value: e.target.value, fieldId: selectedElement.visibilityCondition?.fieldId || '', operator: selectedElement.visibilityCondition?.operator || 'eq' })}
-                            className="w-2/3 border p-1 rounded" 
-                        />
+                <div className="font-bold text-amber-800 flex items-center justify-between">
+                  <span className="flex items-center gap-1"><Settings2 size={12}/> Bedingte Anzeige (Sichtbarkeit)</span>
+                  {selectedElement.visibilityCondition && (
+                    <button
+                      onClick={() => onPropertyChange('visibilityCondition', undefined)}
+                      className="text-rose-500 hover:text-rose-700 font-normal text-[10px]"
+                    >
+                      Zurücksetzen
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-amber-900 mb-0.5">Abhängiges Quellfeld:</label>
+                      <select
+                        value={selectedElement.visibilityCondition?.fieldId || ''}
+                        onChange={e => onPropertyChange('visibilityCondition', { 
+                          fieldId: e.target.value, 
+                          operator: selectedElement.visibilityCondition?.operator || 'eq', 
+                          value: selectedElement.visibilityCondition?.value || '' 
+                        })}
+                        className="w-full border border-amber-300 rounded p-1 text-[11px] bg-white text-slate-800"
+                      >
+                        <option value="">-- Kein abhängiges Feld --</option>
+                        {sourceTable?.fields.map(f => (
+                          <option key={f.id} value={f.id}>{f.name} ({f.type})</option>
+                        ))}
+                      </select>
                     </div>
+
+                    {selectedElement.visibilityCondition?.fieldId && (
+                      <>
+                        <div>
+                          <label className="block text-[10px] font-bold text-amber-900 mb-0.5">Bedingung / Operator:</label>
+                          <select 
+                            value={selectedElement.visibilityCondition?.operator || 'eq'} 
+                            onChange={e => onPropertyChange('visibilityCondition', { 
+                              ...selectedElement.visibilityCondition, 
+                              operator: e.target.value as any, 
+                              fieldId: selectedElement.visibilityCondition?.fieldId || '', 
+                              value: selectedElement.visibilityCondition?.value || '' 
+                            })}
+                            className="w-full border border-amber-300 p-1 rounded text-[11px] bg-white text-slate-800"
+                          >
+                            <option value="eq">Gleich (=)</option>
+                            <option value="neq">Ungleich (!=)</option>
+                            <option value="contains">Enthält Text</option>
+                            <option value="gt">Größer als (&gt;)</option>
+                            <option value="gte">Größer oder gleich (&gt;=)</option>
+                            <option value="lt">Kleiner als (&lt;)</option>
+                            <option value="lte">Kleiner oder gleich (&lt;=)</option>
+                            <option value="empty">Ist leer (NULL/leer)</option>
+                            <option value="not_empty">Ist nicht leer</option>
+                          </select>
+                        </div>
+
+                        {selectedElement.visibilityCondition?.operator !== 'empty' && selectedElement.visibilityCondition?.operator !== 'not_empty' && (
+                          <div>
+                            <label className="block text-[10px] font-bold text-amber-900 mb-0.5">Vergleichswert:</label>
+                            <input 
+                              type="text" 
+                              placeholder="z.B. Ja, Aktiv, 100, etc."
+                              value={selectedElement.visibilityCondition?.value || ''} 
+                              onChange={e => onPropertyChange('visibilityCondition', { 
+                                ...selectedElement.visibilityCondition, 
+                                value: e.target.value, 
+                                fieldId: selectedElement.visibilityCondition?.fieldId || '', 
+                                operator: selectedElement.visibilityCondition?.operator || 'eq' 
+                              })}
+                              className="w-full border border-amber-300 p-1 rounded text-[11px] bg-white" 
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
                 </div>
             </div>
 

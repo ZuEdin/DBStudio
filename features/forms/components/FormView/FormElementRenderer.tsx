@@ -299,7 +299,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
     const canEdit = el.subform.canEdit !== false;
     const canDelete = el.subform.canDelete !== false;
 
-    const handleOpenSubformModalLocal = () => {
+    const handleOpenSubformModalLocal = (recordToEdit?: Record<string, any>) => {
       if (!sourceTable || !currentRecord) return;
       const masterLinkField = sourceTable.fields.find((f) => f.id === el.subform!.masterLinkFieldId);
       if (masterLinkField) {
@@ -311,9 +311,53 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
           parentField: el.subform!.masterLinkFieldId,
           childField: el.subform!.childLinkFieldId,
           linkValue,
+          recordToEdit,
         });
       }
     };
+
+    const handleDeleteSubformRowLocal = (rowItem: Record<string, any>) => {
+      if (!subTable) return;
+      showConfirmation(
+        'Eintrag löschen',
+        'Möchten Sie diesen Positionseintrag wirklich löschen?',
+        () => {
+          const rowId = rowItem.id ?? rowItem.Id;
+          const updatedData = (subTable.data || []).filter((r) => (r.id ?? r.Id) !== rowId);
+          onTableChange({
+            ...subTable,
+            data: updatedData,
+          });
+        },
+        'Löschen',
+        'bg-rose-600 hover:bg-rose-700'
+      );
+    };
+
+    const getSubLayoutFieldEls = (container: FormElement, acc: FormElement[] = []): FormElement[] => {
+      if (container.type === 'field' && container.fieldId) {
+        acc.push(container);
+      }
+      if (container.children) {
+        container.children.forEach((c) => getSubLayoutFieldEls(c, acc));
+      }
+      return acc;
+    };
+
+    const subLayoutFields = subDef.layout ? getSubLayoutFieldEls(subDef.layout) : [];
+    const childLinkFieldObj = subTable ? subTable.fields.find((f) => f.id === el.subform!.childLinkFieldId) : null;
+
+    const subColumns = (
+      subLayoutFields.length > 0
+        ? subLayoutFields
+        : (subTable?.fields || []).map((f) => ({ type: 'field' as const, id: f.id, fieldId: f.id, label: f.name }))
+    ).filter((colEl) => {
+      if (!subTable) return false;
+      const f = subTable.fields.find((field) => field.id === colEl.fieldId);
+      if (!f || f.isPrimaryKey) return false;
+      if (childLinkFieldObj && (f.id === childLinkFieldObj.id || f.name === childLinkFieldObj.name)) return false;
+      return true;
+    });
 
     return (
       <div
@@ -327,35 +371,104 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
           </span>
           {!isReadOnly && canAdd && (
             <button
-              onClick={handleOpenSubformModalLocal}
-              className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 rounded px-2 py-1 text-xs font-semibold flex items-center gap-1 shadow-sm transition-colors"
+              type="button"
+              onClick={() => handleOpenSubformModalLocal()}
+              className="bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 rounded px-2.5 py-1 text-xs font-semibold flex items-center gap-1 shadow-2xs transition-colors"
             >
               <Plus size={12} strokeWidth={3} /> Eintrag hinzufügen
             </button>
           )}
         </div>
-        <div className="p-2 bg-slate-50/50">
+        <div className="p-0 bg-white">
           {subformData.length > 0 ? (
-            <FormViewComponent
-              form={subDef}
-              allForms={allForms}
-              allTables={allTables}
-              queries={queries}
-              executeQuery={executeQuery}
-              onTableChange={onTableChange}
-              showConfirmation={showConfirmation}
-              isSubform={true}
-              filteredData={subformData}
-              parentRecord={currentRecord}
-              linkConfig={{ masterFieldId: el.subform!.masterLinkFieldId, childFieldId: el.subform!.childLinkFieldId }}
-              subformPermissions={{ canAdd, canEdit, canDelete }}
-            />
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                  <tr>
+                    {subColumns.map((col) => {
+                      const f = subTable?.fields.find((field) => field.id === col.fieldId);
+                      return (
+                        <th key={col.id || col.fieldId} className="p-2.5 px-3 font-semibold whitespace-nowrap">
+                          {col.label || f?.name}
+                        </th>
+                      );
+                    })}
+                    {!isReadOnly && (canEdit || canDelete) && (
+                      <th className="p-2.5 px-3 text-right font-semibold whitespace-nowrap w-28">Aktionen</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {subformData.map((rowItem, rowIdx) => (
+                    <tr key={rowItem.id || rowIdx} className="hover:bg-slate-50/80 transition-colors">
+                      {subColumns.map((col) => {
+                        const f = subTable?.fields.find((field) => field.id === col.fieldId);
+                        const fieldName = f?.name || '';
+                        const rawVal = rowItem[fieldName];
+
+                        let cellDisplay = rawVal !== undefined && rawVal !== null ? String(rawVal) : '';
+
+                        if ((col as any).widgetType === 'select' && (col as any).lookup) {
+                          const opts = getLookupOptions((col as any).lookup);
+                          const foundOpt = opts.find((o) => String(o.value) === String(rawVal));
+                          if (foundOpt) cellDisplay = foundOpt.label;
+                        } else if (f) {
+                          const layoutEl = subLayoutFields.find((e) => e.fieldId === f.id);
+                          if (layoutEl && layoutEl.widgetType === 'select' && layoutEl.lookup) {
+                            const opts = getLookupOptions(layoutEl.lookup);
+                            const foundOpt = opts.find((o) => String(o.value) === String(rawVal));
+                            if (foundOpt) cellDisplay = foundOpt.label;
+                          } else if ((f as any).isFK || (f as any).isForeignKey || (f as any).targetTableId) {
+                            const targetT = allTables.find((t) => t.id === (f as any).targetTableId);
+                            if (targetT) {
+                              const targetRow = (targetT.data || []).find((r) => String(r.id || Object.values(r)[0]) === String(rawVal));
+                              if (targetRow) {
+                                cellDisplay = Object.values(targetRow).slice(1, 3).join(' ') || String(rawVal);
+                              }
+                            }
+                          }
+                        }
+
+                        return (
+                          <td key={col.id || col.fieldId} className="p-2.5 px-3 whitespace-nowrap">
+                            {cellDisplay}
+                          </td>
+                        );
+                      })}
+                      {!isReadOnly && (canEdit || canDelete) && (
+                        <td className="p-2.5 px-3 text-right whitespace-nowrap space-x-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenSubformModalLocal(rowItem)}
+                              className="text-blue-600 hover:text-blue-800 font-semibold hover:underline"
+                            >
+                              Bearbeiten
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubformRowLocal(rowItem)}
+                              className="text-rose-600 hover:text-rose-800 font-semibold hover:underline"
+                            >
+                              Löschen
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="p-6 text-center">
               <p className="text-slate-400 text-sm mb-3">Keine Einträge vorhanden.</p>
               {!isReadOnly && canAdd && (
                 <button
-                  onClick={handleOpenSubformModalLocal}
+                  type="button"
+                  onClick={() => handleOpenSubformModalLocal()}
                   className="bg-blue-50 text-blue-600 px-4 py-2 rounded text-sm font-medium hover:bg-blue-100 transition-colors mx-auto flex items-center gap-2"
                 >
                   <Plus size={14} /> Ersten Eintrag erstellen

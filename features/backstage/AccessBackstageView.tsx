@@ -8,6 +8,7 @@ import { StartseiteTab } from './components/StartseiteTab';
 import { NeuTab } from './components/NeuTab';
 import { OeffnenTab } from './components/OeffnenTab';
 import { InfoTab } from './components/InfoTab';
+import { UeberDbStudioTab } from './components/UeberDbStudioTab';
 import { KontoTab } from './components/KontoTab';
 import { OptionenTab } from './components/OptionenTab';
 import { NewDatabaseModal } from './components/NewDatabaseModal';
@@ -546,7 +547,17 @@ export const AccessBackstageView: React.FC<AccessBackstageViewProps> = ({
           />
         )}
 
-        {activeSubTab === 'info' && <InfoTab />}
+        {activeSubTab === 'info' && (
+          <InfoTab
+            onSelectTab={(tab) => {
+              setActiveSubTab(tab);
+              ui.setBackstageActiveTab(tab);
+            }}
+          />
+        )}
+        {activeSubTab === 'ueber_db_studio' && (
+          <UeberDbStudioTab onOpenNewModal={() => setIsNewModalOpen(true)} />
+        )}
         {activeSubTab === 'konto' && <KontoTab />}
         {activeSubTab === 'optionen' && <OptionenTab />}
 

@@ -5,6 +5,7 @@ import { Table, Query, Relationship } from '../../types/index';
 import { LiveSyncTab } from './dbstudio/components/LiveSyncTab';
 import { SchemaMigrationsTab } from './dbstudio/components/SchemaMigrationsTab';
 import { ApiPlaygroundTab } from './dbstudio/components/ApiPlaygroundTab';
+import { InboundWebhooksTab } from './dbstudio/components/InboundWebhooksTab';
 import { SecurityRbacTab } from './dbstudio/components/SecurityRbacTab';
 import { LiveMonitorTab } from './dbstudio/components/LiveMonitorTab';
 import { MetadataSchemaTab } from './dbstudio/components/MetadataSchemaTab';
@@ -271,6 +272,13 @@ export const DbstudioBackendView: React.FC<DbstudioBackendViewProps> = ({
             playgroundResponse={playgroundResponse}
             isExecutingApiReq={isExecutingApiReq}
             executeApiRequest={handleTestServerConnection}
+            showMessage={showMessage}
+          />
+        )}
+
+        {mainSectionTab === 'webhooks' && (
+          <InboundWebhooksTab
+            remoteServerUrl={remoteServerUrl}
             showMessage={showMessage}
           />
         )}

@@ -18,8 +18,8 @@ interface UIStore {
   // MS Access Backstage State
   isBackstageOpen: boolean;
   setIsBackstageOpen: (open: boolean) => void;
-  backstageActiveTab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen';
-  setBackstageActiveTab: (tab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen') => void;
+  backstageActiveTab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'ueber_db_studio' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen';
+  setBackstageActiveTab: (tab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'ueber_db_studio' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen') => void;
   
   // Navigation State
   currentView: ViewType;

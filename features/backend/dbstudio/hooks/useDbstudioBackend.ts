@@ -49,7 +49,7 @@ export const useDbstudioBackend = ({
   const [includeWwwroot, setIncludeWwwroot] = useState<boolean>(true);
   const [showSelfHostConfigModal, setShowSelfHostConfigModal] = useState<boolean>(false);
 
-  const [mainSectionTab, setMainSectionTab] = useState<'sync' | 'migrations' | 'api_playground' | 'security' | 'monitor' | 'self_host' | 'team' | 'deploy'>('sync');
+  const [mainSectionTab, setMainSectionTab] = useState<'sync' | 'migrations' | 'api_playground' | 'webhooks' | 'security' | 'monitor' | 'self_host' | 'team' | 'deploy'>('sync');
 
   // --- DEPLOY Tab States ---
   const [deployedPort, setDeployedPort] = useState<number | null>(null);
@@ -82,7 +82,7 @@ export const useDbstudioBackend = ({
   const [migrationDialect, setMigrationDialect] = useState<'sql' | 'drizzle' | 'knex' | 'prisma'>('sql');
 
   // --- API PLAYGROUND Tab States ---
-  const [apiSpecTab, setApiSpecTab] = useState<'playground' | 'openapi' | 'postman'>('playground');
+  const [apiSpecTab, setApiSpecTab] = useState<'playground' | 'e2e_tests' | 'openapi' | 'postman'>('playground');
   const [playgroundTable, setPlaygroundTable] = useState<string>(tables[0]?.name || 'sys_projects');
   const [playgroundMethod, setPlaygroundMethod] = useState<'GET' | 'POST' | 'PUT' | 'DELETE'>('GET');
   const [playgroundPayload, setPlaygroundPayload] = useState<string>('{\n  "name": "Neuer Testeintrag",\n  "status": "AKTIV"\n}');

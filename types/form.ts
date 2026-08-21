@@ -78,7 +78,7 @@ export interface FormElement {
   actions?: ActionFlow[];
   eventHandlers?: FormEventHandler[];
   allowedRoles?: string[];
-  visibilityCondition?: { fieldId: string; operator: 'eq' | 'neq'; value: string };
+  visibilityCondition?: { fieldId: string; operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains' | 'empty' | 'not_empty'; value: string };
   validationRules?: FormValidationRule[];
 }
 

@@ -158,10 +158,10 @@ export const generateWidgetNode = (node: any, ctx: GeneratorContext): string => 
     case 'search_filter_bar': {
       imports.add('Search');
       return `
-      <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-xs w-full space-y-2 my-2">
+      <div className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs w-full space-y-2 my-2">
           <div className="flex items-center gap-2">
               <div className="relative flex-1">
-                  <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                  <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400 dark:text-slate-500" />
                   <input
                       type="text"
                       value={searchParams.get('searchTerm') || ''}
@@ -172,7 +172,7 @@ export const generateWidgetNode = (node: any, ctx: GeneratorContext): string => 
                           return next;
                       })}
                       placeholder="${props.placeholder || 'Suche nach Datensätzen...'}"
-                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-400 dark:placeholder-slate-500"
                   />
               </div>
           </div>

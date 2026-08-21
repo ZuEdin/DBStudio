@@ -36,9 +36,11 @@ import {
   Sliders, 
   Sparkles,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Share2
 } from 'lucide-react';
 import { WorkflowExecutionEngine } from '../logic/WorkflowEngine';
+import { N8nExportModal } from './components/N8nExportModal';
 
 interface WorkflowDesignerProps {
   workflow: Workflow;
@@ -58,6 +60,7 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showConsole, setShowConsole] = useState<boolean>(false);
+  const [showN8nExport, setShowN8nExport] = useState<boolean>(false);
 
   // Transform our store nodes to React Flow nodes
   const initialNodes: Node[] = useMemo(() => (workflow.nodes || []).map(n => ({
@@ -365,6 +368,17 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
             <span>{workflow.active ? 'Workflow Aktiv' : 'Inaktiv'}</span>
           </button>
 
+          {/* n8n Export Button */}
+          <button
+            type="button"
+            onClick={() => setShowN8nExport(true)}
+            className="bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+            title="Diesen visuellen Workflow als n8n Workflow-JSON exportieren"
+          >
+            <Share2 size={13} className="text-orange-600" />
+            <span>n8n Export (.json)</span>
+          </button>
+
           {/* Test Run Button */}
           <button
             type="button"
@@ -449,6 +463,15 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
         onClose={() => setShowConsole(false)}
         onShowToast={onShowToast}
       />
+
+      {/* n8n Export Modal */}
+      {showN8nExport && (
+        <N8nExportModal
+          workflow={workflow}
+          onClose={() => setShowN8nExport(false)}
+          onShowToast={onShowToast}
+        />
+      )}
 
     </div>
   );

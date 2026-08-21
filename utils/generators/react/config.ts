@@ -103,6 +103,12 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    @apply bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-700;
+  }
+}
+
 body {
   @apply bg-gray-50 text-slate-900 dark:bg-gray-900 dark:text-slate-100;
 }`, language: 'css' });

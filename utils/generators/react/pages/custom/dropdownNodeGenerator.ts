@@ -45,7 +45,7 @@ export const generateDropdownNode = (node: any, ctx: GeneratorContext): string =
   
   return `
               <div className="p-2 ${classNameStr}" style={${styleStr}}>
-                  <select className="border border-slate-300 rounded px-3 py-2 bg-white w-full max-w-xs">
+                  <select className="border border-slate-300 dark:border-slate-700 rounded px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white w-full max-w-xs focus:ring-2 focus:ring-indigo-500 outline-none">
                       <option value="">${node.props?.placeholder || 'Bitte wählen...'}</option>
                       {${loadingState} && <option disabled>Lade Daten...</option>}
                       {!${loadingState} && ${stateName}.map((row, idx) => {

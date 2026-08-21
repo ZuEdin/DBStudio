@@ -20,7 +20,8 @@ const dict: Record<string, any> = {
         f_auftrag_form: 'Auftragserfassung',
         f_mahnung_form: 'Mahnungserfassung',
         f_gutschrift_form: 'Gutschrifterfassung',
-        q_offene_rechnungen: 'Offene Rechnungen & Mahnstufen',
+        q_offene_rechnungen: 'Offene Rechnungen',
+        q_mahnstufen: 'Mahnstufen & Offene Mahnungen',
         r_rechnungsbuch: 'Rechnungsjournal & Umsätze'
     },
     en: {
@@ -42,7 +43,8 @@ const dict: Record<string, any> = {
         f_auftrag_form: 'Order Entry',
         f_mahnung_form: 'Dunning Entry',
         f_gutschrift_form: 'Credit Note Entry',
-        q_offene_rechnungen: 'Open Invoices & Dunning',
+        q_offene_rechnungen: 'Open Invoices',
+        q_mahnstufen: 'Dunning Levels & Open Reminders',
         r_rechnungsbuch: 'Invoice Journal & Revenue'
     }
 };
@@ -337,6 +339,24 @@ export const getFakturierungApp = (lang: string): ProjectTemplate => {
                 { id: 'qc4', tableId: 't_rechnungen', fieldId: 'r7', tableName: t.t_rechnungen, fieldName: 'ZahlungsStatus', sort: 'ASC', show: true, criteria: ['Offen', 'Gemahnt', 'Ueberfaellig'] },
                 { id: 'qc5', tableId: 't_rechnungen', fieldId: 'r11', tableName: t.t_rechnungen, fieldName: 'OffenerBetrag', sort: 'DESC', show: true, criteria: ['> 0'] }
               ]
+            },
+            {
+              id: 'q_mahnstufen', type: 'SELECT', name: t.q_mahnstufen,
+              nodes: [
+                { id: 'mn1', tableId: 't_kunden', x: 50, y: 50 },
+                { id: 'mn2', tableId: 't_rechnungen', x: 300, y: 50 },
+                { id: 'mn3', tableId: 't_mahnungen', x: 550, y: 50 }
+              ],
+              columns: [
+                { id: 'mq1', tableId: 't_mahnungen', fieldId: 'm2', tableName: t.t_mahnungen, fieldName: 'MahnungsNr', sort: 'ASC', show: true, criteria: [''] },
+                { id: 'mq2', tableId: 't_mahnungen', fieldId: 'm6', tableName: t.t_mahnungen, fieldName: 'Mahnstufe', sort: 'ASC', show: true, criteria: [''] },
+                { id: 'mq3', tableId: 't_mahnungen', fieldId: 'm5', tableName: t.t_mahnungen, fieldName: 'MahnDatum', sort: 'DESC', show: true, criteria: [''] },
+                { id: 'mq4', tableId: 't_mahnungen', fieldId: 'm9', tableName: t.t_mahnungen, fieldName: 'FaelligBis', sort: 'ASC', show: true, criteria: [''] },
+                { id: 'mq5', tableId: 't_rechnungen', fieldId: 'r2', tableName: t.t_rechnungen, fieldName: 'RechnungsNr', sort: 'ASC', show: true, criteria: [''] },
+                { id: 'mq6', tableId: 't_kunden', fieldId: 'k3', tableName: t.t_kunden, fieldName: 'Firmenname', sort: 'ASC', show: true, criteria: [''] },
+                { id: 'mq7', tableId: 't_rechnungen', fieldId: 'r11', tableName: t.t_rechnungen, fieldName: 'OffenerBetrag', sort: 'DESC', show: true, criteria: [''] },
+                { id: 'mq8', tableId: 't_mahnungen', fieldId: 'm7', tableName: t.t_mahnungen, fieldName: 'Mahngebuehr', sort: 'ASC', show: true, criteria: [''] }
+              ]
             }
           ],
 
@@ -561,6 +581,20 @@ export const getFakturierungApp = (lang: string): ProjectTemplate => {
                 { fieldId: 'qc3', label: 'FaelligDatum', visible: true, order: 2 },
                 { fieldId: 'qc4', label: 'ZahlungsStatus', visible: true, order: 3 },
                 { fieldId: 'qc5', label: 'OffenerBetrag', visible: true, order: 4 }
+              ]
+            },
+            {
+              id: 'r_mahnstufen', name: t.q_mahnstufen, sourceType: 'query', sourceId: 'q_mahnstufen',
+              summaries: [],
+              columns: [
+                { fieldId: 'mq1', label: 'MahnungsNr', visible: true, order: 0 },
+                { fieldId: 'mq2', label: 'Mahnstufe', visible: true, order: 1 },
+                { fieldId: 'mq3', label: 'MahnDatum', visible: true, order: 2 },
+                { fieldId: 'mq4', label: 'FaelligBis', visible: true, order: 3 },
+                { fieldId: 'mq5', label: 'RechnungsNr', visible: true, order: 4 },
+                { fieldId: 'mq6', label: 'Firmenname', visible: true, order: 5 },
+                { fieldId: 'mq7', label: 'OffenerBetrag', visible: true, order: 6 },
+                { fieldId: 'mq8', label: 'Mahngebuehr', visible: true, order: 7 }
               ]
             }
           ],

@@ -649,6 +649,45 @@ app.post('/api/auth/login-sso', (req, res) => {
 ${routes}
 ${queryEndpoints}
 
+// Inbound Webhooks & Event-Trigger Hub
+const _inboundEvents = [];
+app.get('/api/webhooks/inbound/channels', (req, res) => {
+    res.json([
+        { id: "stripe", name: "Stripe Payments & Invoices", provider: "Stripe", endpointPath: "/api/webhooks/inbound/stripe" },
+        { id: "github", name: "GitHub Git Commits & PRs", provider: "GitHub", endpointPath: "/api/webhooks/inbound/github" },
+        { id: "iot", name: "IoT Sensor & Telemetrie Hub", provider: "IoT Telemetry", endpointPath: "/api/webhooks/inbound/iot" },
+        { id: "n8n", name: "n8n Automation Event Bridge", provider: "n8n", endpointPath: "/api/webhooks/inbound/n8n" },
+        { id: "custom", name: "Custom JSON Webhook Endpoint", provider: "Generic", endpointPath: "/api/webhooks/inbound/custom" }
+    ]);
+});
+
+app.get('/api/webhooks/inbound/events', (req, res) => {
+    res.json(_inboundEvents);
+});
+
+app.post('/api/webhooks/inbound/:channel', (req, res) => {
+    const channel = req.params.channel || 'generic';
+    const ev = {
+        id: "evt_" + Math.random().toString(36).substring(2, 9),
+        channel: channel,
+        provider: channel.toUpperCase(),
+        signature: req.headers['stripe-signature'] || req.headers['x-hub-signature-256'] || req.headers['x-webhook-secret'] || null,
+        timestamp: new Date().toISOString(),
+        status: "PROCESSED",
+        payload: req.body
+    };
+    _inboundEvents.unshift(ev);
+    if (_inboundEvents.length > 100) _inboundEvents.pop();
+    
+    res.json({
+        received: true,
+        channel: channel,
+        eventId: ev.id,
+        status: "PROCESSED",
+        timestamp: ev.timestamp
+    });
+});
+
 // Upload Route
 app.post('/api/upload', upload.single('file'), (req, res) => {
     res.json({ file: req.file });

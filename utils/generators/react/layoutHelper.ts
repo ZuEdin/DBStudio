@@ -2,7 +2,7 @@ import { Table, FormElement, Form } from '../../../types/index';
 import { toCamelCase, toPascalCase, toSubformSuffix } from '../common';
 import { Plus, Layout, User, Search } from 'lucide-react';
 
-export const collectLookups = (element: FormElement, tables: Table[], queries: any[] = [], accumulated: any[] = []) => {
+export const collectLookups = (element: FormElement, tables: Table[], queries: any[] = [], accumulated: any[] = [], forms: Form[] = []) => {
     if (element.widgetType === 'select' && element.lookup && element.lookup.tableId) {
         let table: any = tables.find(t => t.id === element.lookup!.tableId);
         let isQuery = false;
@@ -23,8 +23,14 @@ export const collectLookups = (element: FormElement, tables: Table[], queries: a
             }
         }
     }
+    if (element.type === 'subform' && element.subform && forms.length > 0) {
+        const subDef = forms.find(f => f.id === element.subform!.formId) || forms.find(f => f.sourceId === element.subform!.formId);
+        if (subDef && subDef.layout) {
+            collectLookups(subDef.layout, tables, queries, accumulated, forms);
+        }
+    }
     if (element.children) {
-        element.children.forEach(child => collectLookups(child, tables, queries, accumulated));
+        element.children.forEach(child => collectLookups(child, tables, queries, accumulated, forms));
     }
     return accumulated;
 };
@@ -176,6 +182,13 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             const camelSubTable = toCamelCase(subTable.name);
             const listVar = `${camelSubTable}SubList_${suffix}`; 
             
+            const getSubLayoutFieldEls = (container: FormElement, acc: FormElement[] = []): FormElement[] => {
+                if (container.type === 'field' && container.fieldId) acc.push(container);
+                if (container.children) container.children.forEach(c => getSubLayoutFieldEls(c, acc));
+                return acc;
+            };
+            const subLayoutEls = subformDef.layout ? getSubLayoutFieldEls(subformDef.layout) : [];
+
             // Display form fields or non-PK, non-FK fields
             const formFieldIds = (subformDef.fields || []).map(ff => ff.fieldId);
             let displayFields = subTable.fields.filter(f => !f.isPrimaryKey && f.id !== element.subform!.childLinkFieldId && f.name !== element.subform!.childLinkFieldId);
@@ -183,8 +196,8 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                 const matched = subTable.fields.filter(f => formFieldIds.includes(f.id) && f.id !== element.subform!.childLinkFieldId && f.name !== element.subform!.childLinkFieldId);
                 if (matched.length > 0) displayFields = matched;
             }
-            if (displayFields.length > 6) {
-                displayFields = displayFields.slice(0, 6);
+            if (displayFields.length > 8) {
+                displayFields = displayFields.slice(0, 8);
             }
 
             const widthClass = getTailwindWidthClass(element.width);
@@ -207,8 +220,12 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                     <table className="w-full text-left text-sm">
                         <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500">
                             <tr>
-                                ${displayFields.map(f => `<th className="p-2 font-medium">${f.name}</th>`).join('')}
-                                <th className="p-2"></th>
+                                ${displayFields.map(f => {
+                                    const matchingSubEl = subLayoutEls.find(e => e.fieldId === f.id);
+                                    const headerLabel = matchingSubEl?.label || f.name;
+                                    return `<th className="p-2 font-medium">${headerLabel}</th>`;
+                                }).join('')}
+                                <th className="p-2 text-right">Aktionen</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -218,6 +235,36 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
                                         const fCamel = toCamelCase((f as any).name || (f as any).alias || (f as any).fieldName || '');
                                         const fPascal = toPascalCase((f as any).name || (f as any).alias || (f as any).fieldName || '');
                                         const fRaw = (f as any).name || (f as any).alias || (f as any).fieldName || '';
+
+                                        const matchingSubEl = subLayoutEls.find(e => e.fieldId === f.id);
+                                        if (matchingSubEl?.widgetType === 'select' && matchingSubEl?.lookup) {
+                                            let lTable: any = tables.find(t => t.id === matchingSubEl.lookup!.tableId) || queries.find((q: any) => q.id === matchingSubEl.lookup!.tableId);
+                                            if (lTable) {
+                                                const lVar = `${toCamelCase(lTable.name)}List`;
+                                                const labelFields = matchingSubEl.lookup.labelFields || [];
+                                                let labelNames = labelFields.map((fid: string) => {
+                                                    const lf = (lTable.fields || lTable.columns)?.find((field: any) => field.id === fid);
+                                                    return lf ? (lf.name || lf.alias || lf.fieldName) : '';
+                                                }).filter(Boolean);
+
+                                                if (labelNames.length === 0) {
+                                                    labelNames = ['bezeichnung', 'name', 'titel', 'title'];
+                                                }
+
+                                                const valField = (lTable.fields || lTable.columns)?.find((x: any) => x.id === matchingSubEl.lookup!.valueFieldId || x.isPrimaryKey);
+                                                const valFieldName = valField ? (valField.name || valField.alias || valField.fieldName) : 'id';
+                                                const valFieldCamel = toCamelCase(valFieldName);
+
+                                                return `<td className="p-2">{(() => {
+                                                    const rawVal = item?.['${fCamel}'] ?? item?.['${fRaw}'] ?? item?.['${fPascal}'];
+                                                    if (rawVal === undefined || rawVal === null || rawVal === '') return '';
+                                                    const match = ${lVar}?.find((r: any) => String(r.id ?? r.Id ?? r['${valFieldCamel}'] ?? r['${valFieldName}']) === String(rawVal));
+                                                    if (!match) return String(rawVal);
+                                                    return [${labelNames.map((n: string) => `match['${toCamelCase(n)}'] ?? match['${n}']`).join(', ')}].filter(Boolean).join(' ') || String(rawVal);
+                                                })()}</td>`;
+                                            }
+                                        }
+
                                         return `<td className="p-2">{String(item?.['${fCamel}'] ?? item?.['${fRaw}'] ?? item?.['${fPascal}'] ?? '')}</td>`;
                                     }).join('')}
                                     <td className="p-2 text-right whitespace-nowrap space-x-2">
@@ -262,7 +309,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         const uxRequired = `isFieldRequired('${element.fieldId}')`;
 
         const labelClass = "block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5";
-        const inputClass = `w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-slate-400 \${${uxDisabled} ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''}`;
+        const inputClass = `w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500 \${${uxDisabled} ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900' : ''}`;
         const widthClass = getTailwindWidthClass(element.width);
         const wrapperClass = `${element.className || ""} ${widthClass} ${uxHidden}`.trim();
 

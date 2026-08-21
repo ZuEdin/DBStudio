@@ -1,14 +1,21 @@
 import React from 'react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { useUIStore } from '../../../stores/useUIStore';
+import { BackstageTabType } from './BackstageNavSidebar';
 import { 
   Wrench, 
   FileCode, 
   ShieldCheck, 
-  HardDrive
+  HardDrive,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 
-export const InfoTab: React.FC = () => {
+interface InfoTabProps {
+  onSelectTab?: (tab: BackstageTabType) => void;
+}
+
+export const InfoTab: React.FC<InfoTabProps> = ({ onSelectTab }) => {
   const store = useProjectStore();
   const ui = useUIStore();
 
@@ -33,6 +40,36 @@ export const InfoTab: React.FC = () => {
         <p className="text-xs text-neutral-400">
           Status, Speicherort, Datenbank-Objekte und Wartungstools in DB Studio
         </p>
+      </div>
+
+      {/* DB Studio Promo Banner */}
+      <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-indigo-950/80 via-[#322a4d] to-[#333333] border border-indigo-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider bg-indigo-950/90 px-2 py-0.5 rounded border border-indigo-700/60 flex items-center gap-1">
+              <Sparkles size={11} className="text-amber-400" /> Über DB Studio
+            </span>
+            <span className="text-xs text-emerald-400 font-semibold">MS Access &amp; Low-Code Alternative</span>
+          </div>
+          <h2 className="text-sm font-bold text-white">
+            Was ist DB Studio und was kann es?
+          </h2>
+          <p className="text-xs text-neutral-300 mt-0.5 max-w-2xl">
+            Erfahren Sie mehr über die Funktionsweise, Spezifikationen, den Quellcode-Export (.NET, Node.js, Angular) und warum DB Studio die ideale Zukunftslösung für Datenbank-Projekte ist.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            if (onSelectTab) {
+              onSelectTab('ueber_db_studio');
+            } else {
+              ui.setBackstageActiveTab('ueber_db_studio');
+            }
+          }}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0 shadow-md flex items-center gap-1.5"
+        >
+          <Sparkles size={14} /> Über DB Studio öffnen <ArrowRight size={14} />
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

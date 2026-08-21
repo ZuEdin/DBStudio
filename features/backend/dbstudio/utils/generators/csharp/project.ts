@@ -130,8 +130,9 @@ builder.Services.AddTransient<IClaimsTransformation, AdRoleTransformer>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 
-// Register Webhook Dispatcher Service
+// Register Webhook Dispatcher & Inbound Services
 builder.Services.AddSingleton<WebhookDispatcher>();
+builder.Services.AddSingleton<InboundWebhookService>();
 
 // CORS konfiguriert für Credentials & dynamische Origins (React App, Swagger, Localhost)
 builder.Services.AddCors(options => {

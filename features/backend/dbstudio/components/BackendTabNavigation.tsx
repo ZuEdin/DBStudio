@@ -1,9 +1,9 @@
 import React from 'react';
-import { Radio, FileText, PlayCircle, Shield, Activity, Layers, Users } from 'lucide-react';
+import { Radio, FileText, PlayCircle, Shield, Activity, Layers, Users, Zap } from 'lucide-react';
 
 interface BackendTabNavigationProps {
-  mainSectionTab: 'sync' | 'migrations' | 'api_playground' | 'security' | 'monitor' | 'self_host' | 'team' | 'deploy';
-  setMainSectionTab: (tab: 'sync' | 'migrations' | 'api_playground' | 'security' | 'monitor' | 'self_host' | 'team' | 'deploy') => void;
+  mainSectionTab: 'sync' | 'migrations' | 'api_playground' | 'webhooks' | 'security' | 'monitor' | 'self_host' | 'team' | 'deploy';
+  setMainSectionTab: (tab: 'sync' | 'migrations' | 'api_playground' | 'webhooks' | 'security' | 'monitor' | 'self_host' | 'team' | 'deploy') => void;
   serverHealth: { connected: boolean; service?: string; version?: string; latency?: number } | null;
   runnerStatus: 'IDLE' | 'RUNNING' | 'STOPPED' | 'ERROR';
   teamMembersCount: number;
@@ -44,7 +44,16 @@ export const BackendTabNavigation: React.FC<BackendTabNavigationProps> = ({
           className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${mainSectionTab === 'api_playground' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}`}
         >
           <PlayCircle size={14} />
-          <span>Punkt 3: REST API Tester & OpenAPI</span>
+          <span>Punkt 3: REST API Test Suite & E2E</span>
+        </button>
+
+        <button
+          id="tab_punkt_webhooks"
+          onClick={() => setMainSectionTab('webhooks')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${mainSectionTab === 'webhooks' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'}`}
+        >
+          <Zap size={14} className={mainSectionTab === 'webhooks' ? 'text-amber-300' : 'text-amber-400'} />
+          <span>⚡ Inbound Webhook Hub</span>
         </button>
 
         <button

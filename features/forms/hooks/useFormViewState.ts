@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Table, Query } from '../../../types/index';
+import { Form, Table, Query, FormValidationRule, FormElement } from '../../../types/index';
 import { evaluateFormFormula } from '../../../utils/formulaEvaluator';
 import { generateNextSequenceValue } from '../../../utils/sequenceHelper';
 import { logAuditTrail } from '../../../utils/auditTrail';
@@ -84,6 +84,7 @@ export const useFormViewState = ({
     parentField: string;
     childField: string;
     linkValue: any;
+    recordToEdit?: Record<string, any>;
   } | null>(null);
 
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -436,12 +437,26 @@ export const useFormViewState = ({
       }
     }
 
-    if (form.validationRules) {
-      for (const rule of form.validationRules) {
+    if (form.validationRules || form.layout) {
+      // Gather validation rules from both form-level and recursive element-level
+      const allRules: FormValidationRule[] = [...(form.validationRules || [])];
+      
+      const collectElementRules = (el?: FormElement) => {
+        if (!el) return;
+        if (el.validationRules && el.validationRules.length > 0) {
+          allRules.push(...el.validationRules);
+        }
+        if (el.children) {
+          el.children.forEach(collectElementRules);
+        }
+      };
+      collectElementRules(form.layout);
+
+      for (const rule of allRules) {
         const fieldName = getFieldName(rule.fieldId);
         const val = record[fieldName];
 
-        if (rule.type === 'required' && (!val || String(val).trim() === '')) {
+        if (rule.type === 'required' && (val === undefined || val === null || String(val).trim() === '')) {
           setValidationError(rule.errorMessage || `Feld '${fieldName}' ist erforderlich.`);
           return false;
         }
@@ -458,17 +473,30 @@ export const useFormViewState = ({
           }
         }
 
-        if (rule.type === 'min' && rule.minValue !== undefined && val !== undefined) {
+        if (rule.type === 'min' && rule.minValue !== undefined && val !== undefined && val !== null && String(val).trim() !== '') {
           if (Number(val) < rule.minValue) {
             setValidationError(rule.errorMessage || `Feld '${fieldName}' muss mindestens ${rule.minValue} sein.`);
             return false;
           }
         }
 
-        if (rule.type === 'max' && rule.maxValue !== undefined && val !== undefined) {
+        if (rule.type === 'max' && rule.maxValue !== undefined && val !== undefined && val !== null && String(val).trim() !== '') {
           if (Number(val) > rule.maxValue) {
             setValidationError(rule.errorMessage || `Feld '${fieldName}' darf höchstens ${rule.maxValue} sein.`);
             return false;
+          }
+        }
+
+        if (rule.type === 'custom_js' && rule.customJsCode) {
+          try {
+            const evalFn = new Function('record', 'value', 'fieldName', rule.customJsCode);
+            const isValid = evalFn(record, val, fieldName);
+            if (isValid === false) {
+              setValidationError(rule.errorMessage || `Validierung für Feld '${fieldName}' fehlgeschlagen.`);
+              return false;
+            }
+          } catch (e) {
+            console.error('Error executing custom JS validation rule', e);
           }
         }
       }
@@ -735,9 +763,35 @@ export const useFormViewState = ({
 
     const val = currentRecord[targetField.name];
     const checkVal = el.visibilityCondition.value;
+    const op = el.visibilityCondition.operator || 'eq';
 
-    if (el.visibilityCondition.operator === 'eq') return String(val || '') === String(checkVal || '');
-    if (el.visibilityCondition.operator === 'neq') return String(val || '') !== String(checkVal || '');
+    if (op === 'empty') {
+      return val === undefined || val === null || String(val).trim() === '';
+    }
+    if (op === 'not_empty') {
+      return val !== undefined && val !== null && String(val).trim() !== '';
+    }
+    if (op === 'eq') {
+      return String(val || '').toLowerCase() === String(checkVal || '').toLowerCase();
+    }
+    if (op === 'neq') {
+      return String(val || '').toLowerCase() !== String(checkVal || '').toLowerCase();
+    }
+    if (op === 'contains') {
+      return String(val || '').toLowerCase().includes(String(checkVal || '').toLowerCase());
+    }
+    if (op === 'gt') {
+      return Number(val) > Number(checkVal);
+    }
+    if (op === 'lt') {
+      return Number(val) < Number(checkVal);
+    }
+    if (op === 'gte') {
+      return Number(val) >= Number(checkVal);
+    }
+    if (op === 'lte') {
+      return Number(val) <= Number(checkVal);
+    }
 
     return true;
   };
