@@ -25,9 +25,9 @@ export const HonestArchitectureOverview: React.FC = () => {
       </div>
 
       {/* Core Architecture Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* 1. Client-Side Metamodel */}
-        <div className="bg-[#242424] border border-[#383838] rounded-xl p-4.5 space-y-3">
+        <div className="bg-[#242424] border border-[#383838] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
           <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
             <FileJson size={16} /> 1. JSON-Metamodell
           </div>
@@ -35,7 +35,7 @@ export const HonestArchitectureOverview: React.FC = () => {
           <p className="text-xs text-neutral-300 leading-relaxed">
             Sämtliche Tabellenstrukturen, Spaltendefinitionen, Relationen, Formularlayouts, Abfragen und Berichte werden in einem einheitlichen, serialisierbaren <strong>JSON-Datenmodell</strong> verwaltet.
           </p>
-          <div className="text-[11px] text-neutral-400 bg-[#1c1c1c] p-2.5 rounded-lg border border-[#333333] space-y-1">
+          <div className="text-xs text-neutral-400 bg-[#1c1c1c] p-3 rounded-xl border border-[#333333] space-y-1.5">
             <div>• Kein proprietäres Binärformat (.accdb/.mdb)</div>
             <div>• Vollständig versionskompatibel und exportierbar</div>
             <div>• Zustand-Store mit LocalStorage / IndexedDB Sync</div>
@@ -43,7 +43,7 @@ export const HonestArchitectureOverview: React.FC = () => {
         </div>
 
         {/* 2. In-Memory Relational Engine */}
-        <div className="bg-[#242424] border border-[#383838] rounded-xl p-4.5 space-y-3">
+        <div className="bg-[#242424] border border-[#383838] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
           <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
             <Database size={16} /> 2. Lokale Relationale Engine
           </div>
@@ -51,7 +51,7 @@ export const HonestArchitectureOverview: React.FC = () => {
           <p className="text-xs text-neutral-300 leading-relaxed">
             Im Browser läuft eine JavaScript/TypeScript-Engine, die relationale Integrität (Primärschlüssel, Foreign Keys, 1:n Kaskaden, AutoWert-Inkremente und Filter) zur Entwurfszeit direkt im Speicher simuliert.
           </p>
-          <div className="text-[11px] text-neutral-400 bg-[#1c1c1c] p-2.5 rounded-lg border border-[#333333] space-y-1">
+          <div className="text-xs text-neutral-400 bg-[#1c1c1c] p-3 rounded-xl border border-[#333333] space-y-1.5">
             <div>• Schnelle, latenzfreie Vorschau aller Daten</div>
             <div>• Integrierter Mock-Datengenerator</div>
             <div>• Daten bleiben lokal im Browser des Nutzers</div>
@@ -59,7 +59,7 @@ export const HonestArchitectureOverview: React.FC = () => {
         </div>
 
         {/* 3. Deterministic Code Generators */}
-        <div className="bg-[#242424] border border-[#383838] rounded-xl p-4.5 space-y-3">
+        <div className="bg-[#242424] border border-[#383838] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
           <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
             <Code2 size={16} /> 3. Code-Generatoren
           </div>
@@ -67,7 +67,7 @@ export const HonestArchitectureOverview: React.FC = () => {
           <p className="text-xs text-neutral-300 leading-relaxed">
             Spezifische Generator-Module übersetzen das JSON-Metamodell in echten, sauberen Quellcode für Backends (C#, Express, PHP) und Frontends (React, Angular) inklusive SQL-DDL-Skripten.
           </p>
-          <div className="text-[11px] text-neutral-400 bg-[#1c1c1c] p-2.5 rounded-lg border border-[#333333] space-y-1">
+          <div className="text-xs text-neutral-400 bg-[#1c1c1c] p-3 rounded-xl border border-[#333333] space-y-1.5">
             <div>• Echter Quellcode, kein verschlüsselter Bytecode</div>
             <div>• ZIP-Export mit fertiger Ordnerstruktur</div>
             <div>• Vollständig außerhalb von DB Studio kompilierbar</div>
@@ -76,7 +76,7 @@ export const HonestArchitectureOverview: React.FC = () => {
       </div>
 
       {/* Honest Summary Callout */}
-      <div className="bg-[#222222] border border-[#3a3a3a] rounded-xl p-5 space-y-3">
+      <div className="bg-[#222222] border border-[#3a3a3a] rounded-2xl p-5 md:p-6 space-y-3">
         <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
           <AlertTriangle size={16} /> Was bedeutet das in der Praxis?
         </div>

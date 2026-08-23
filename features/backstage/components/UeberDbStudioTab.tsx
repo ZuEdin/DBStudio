@@ -68,34 +68,34 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
       <div className="bg-gradient-to-r from-indigo-950 via-[#272738] to-[#1c1c1c] border-b border-[#383838] px-6 lg:px-10 py-7">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-emerald-600/40 text-emerald-200 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm">
-              <CheckCircle2 size={13} className="text-emerald-400" /> Produktionsreife Fullstack- &amp; DevOps-Plattform
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-sm">
+              <Sparkles size={13} className="text-amber-400" /> Vor-1.0 Entwicklungsphase (v0.8.5 Beta)
             </span>
             <span className="text-xs text-neutral-500">|</span>
-            <span className="text-xs text-emerald-300 font-bold flex items-center gap-1">
-              <Sparkles size={14} className="text-amber-400" /> Reifegrad: 100% (Integrierte Local Bridge v3.0 &amp; Relay)
+            <span className="text-xs text-indigo-300 font-bold flex items-center gap-1">
+              <CheckCircle2 size={14} className="text-indigo-400" /> Reifegrad: ~80% (Ehrlicher Status • Local Bridge v0.9.2)
             </span>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                Über DB Studio Pro <span className="text-xs font-bold px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Enterprise &amp; DevOps Ready</span>
+                Über DB Studio Pro <span className="text-xs font-bold px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">v0.8.5 Beta • Be Honest</span>
               </h1>
               <p className="text-xs md:text-sm text-neutral-300 max-w-3xl leading-relaxed mt-1">
-                Die visuelle Low-Code Suite für <strong>schnelle Modellierung und nahtlose DevOps-Ausführung</strong>: Entwerfen Sie relationale Schemata, Formulare und Abfragen im Browser – und führen Sie diese per 1-Klick auf Ihrem PC, per Git-Sync oder per Webserver-Deploy produktiv aus.
+                Die visuelle Low-Code Suite für <strong>schnelle Modellierung und nahtlose DevOps-Ausführung</strong>: Sehr viele Kernfunktionen laufen bereits stabil – gleichzeitig werden beim praktischen Testen kontinuierlich Details nachjustiert und optimiert.
               </p>
             </div>
 
             {/* Reifegrad Card */}
-            <div className="bg-[#242432]/90 border border-emerald-500/40 rounded-xl p-3.5 px-4 shrink-0 flex items-center gap-3 shadow-md">
-              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <CheckCircle2 size={22} className="text-emerald-400" />
+            <div className="bg-[#242432]/90 border border-indigo-500/40 rounded-xl p-3.5 px-4 shrink-0 flex items-center gap-3 shadow-md">
+              <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <BarChart3 size={22} className="text-indigo-400" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-neutral-400">Gesamt-Reifegrad</div>
-                <div className="text-sm font-black text-emerald-400 flex items-center gap-1">
-                  100% Vollständig <span className="text-xs font-normal text-neutral-300">(Produktionsreif)</span>
+                <div className="text-[10px] uppercase font-bold text-neutral-400">Reifegrad (Ehrlich bewertet)</div>
+                <div className="text-sm font-black text-amber-300 flex items-center gap-1">
+                  ~80% Funktional <span className="text-xs font-normal text-neutral-300">(Aktiver Beta-Test)</span>
                 </div>
               </div>
             </div>
@@ -121,7 +121,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Server size={14} className="text-emerald-400" /> 2. Local Bridge &amp; DevOps (100%)
+              <Server size={14} className="text-indigo-400" /> 2. Local Bridge &amp; DevOps (v0.9.2)
             </button>
             <button
               onClick={() => setActiveSection('maturity')}
@@ -131,7 +131,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BarChart3 size={14} className="text-emerald-400" /> 3. Reifegrad-Index (100%)
+              <BarChart3 size={14} className="text-amber-400" /> 3. Reifegrad-Index (~80%)
             </button>
             <button
               onClick={() => setActiveSection('prototyping')}

@@ -25,10 +25,10 @@ export const RealCapabilitiesMatrix: React.FC = () => {
     <div className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <CheckCircle2 className="text-emerald-400" size={20} /> Leistungs-Matrix: DB Studio Pro (Web-Suite) vs. DB Studio Local Bridge (v3.0.0)
+          <CheckCircle2 className="text-indigo-400" size={20} /> Leistungs-Matrix: DB Studio Pro (v0.8.5 Beta) vs. DB Studio Local Bridge (v0.9.2 Beta)
         </h2>
         <p className="text-xs text-neutral-400">
-          Vollständige Übersicht aller Module und deren ideale architektonische Zuordnung:
+          Ehrliche Übersicht aller Module und deren ideale architektonische Zuordnung (Be-Honest Methode):
         </p>
       </div>
 
@@ -40,7 +40,7 @@ export const RealCapabilitiesMatrix: React.FC = () => {
               <Layers size={18} className="text-indigo-400" /> DB Studio Pro (Visuelle Web-Suite)
             </div>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
-              100% Bereit
+              v0.8.5 (Beta-Betrieb)
             </span>
           </div>
 
@@ -86,20 +86,20 @@ export const RealCapabilitiesMatrix: React.FC = () => {
                 <FileCode size={15} className="text-indigo-400" /> .dbsp Projekt- &amp; Workflow-Management
               </div>
               <p className="text-[11px] text-neutral-400">
-                Öffnet, editiert und speichert native <code>.dbsp</code>-Projektdateien. 100% kompatibel mit den Bridge-Exporten alter Access-Datenbanken.
+                Öffnet, editiert und speichert native <code>.dbsp</code>-Projektdateien. Kompatibel mit den Bridge-Exporten alter Access-Datenbanken.
               </p>
             </div>
           </div>
         </div>
 
         {/* DB STUDIO LOCAL BRIDGE: Native Host Daemon */}
-        <div className="bg-[#242424] border border-emerald-900/50 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-emerald-950">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-              <Server size={18} className="text-emerald-400" /> DB Studio Local Bridge (v3.0.0 Daemon)
+        <div className="bg-[#242424] border border-amber-900/50 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-amber-950">
+            <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+              <Server size={18} className="text-amber-400" /> DB Studio Local Bridge (v0.9.2 Beta Daemon)
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-              100% Bereit
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">
+              v0.9.2 (Pre-1.0)
             </span>
           </div>
 
@@ -142,7 +142,7 @@ export const RealCapabilitiesMatrix: React.FC = () => {
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <ShieldCheck size={15} className="text-emerald-400" /> 5. PHP Relay (2.0.0), Ports &amp; Autostart
+                <ShieldCheck size={15} className="text-emerald-400" /> 5. PHP Relay (v0.9), Ports &amp; Autostart
               </div>
               <p className="text-[11px] text-neutral-400">
                 HTTPS-Relay für Firewalls, `killProcessTree` Port-Freigabe (Port 5050/5000/3000) und Windows Task Scheduler Autostart.

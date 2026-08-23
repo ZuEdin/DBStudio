@@ -27,30 +27,30 @@ export const DevelopmentStatusRoadmap: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-[#383838]">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-xs">
-                <CheckCircle2 size={12} className="text-emerald-400" /> 100% Einsatzbereit
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-xs">
+                <Sparkles size={12} className="text-amber-400" /> Vor-1.0 Phase (v0.8.5 Beta)
               </span>
               <span className="text-xs text-neutral-400 font-medium">Reifegrad-Index:</span>
-              <span className="text-xs font-black text-emerald-400">100% Produktionsreif</span>
+              <span className="text-xs font-black text-amber-300">~80% (Be-Honest Methode)</span>
             </div>
             <h3 className="text-base font-bold text-white">
               Status &amp; Reifegrad des DB Studio Ökosystems
             </h3>
             <p className="text-xs text-neutral-300 max-w-3xl leading-relaxed">
-              Architektur-Review und Praxis-Status: Sowohl das <strong>visuelle Modellieren &amp; No-Code Query-Designing in DB Studio Pro (100%)</strong>, die <strong>Code-Generierung inklusive ORM &amp; Migrations (100%)</strong> als auch die <strong>DB Studio Local Bridge (v3.0.0) mit allen 10 Kernfähigkeiten (100%)</strong> sind vollständig abgeschlossen.
+              Architektur-Review und Praxis-Status: Die <strong>„Be Honest“-Methode</strong> zeigt den tatsächlichen Entwicklungsstand ohne Beschönigungen. Sehr viele Kernmodule laufen stabil, während im aktiven Praxistest kontinuierlich Feinjustierungen erfolgen: <strong>DB Studio Pro v0.8.5 (~85%)</strong> und <strong>Local Bridge v0.9.2 Beta (~75%)</strong>.
             </p>
           </div>
 
-          <div className="bg-[#1c1c1c] border border-emerald-500/40 rounded-xl p-4 min-w-[240px] shrink-0 text-center">
+          <div className="bg-[#1c1c1c] border border-amber-500/40 rounded-xl p-4 min-w-[240px] shrink-0 text-center">
             <div className="text-xs text-neutral-400 font-semibold mb-1">Entwicklungsfortschritt</div>
-            <div className="text-2xl font-black text-emerald-400">100%</div>
+            <div className="text-2xl font-black text-amber-300">~80%</div>
             {/* Progress bar */}
             <div className="w-full bg-neutral-700 h-2.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-gradient-to-r from-indigo-500 via-emerald-500 to-emerald-400 h-full rounded-full w-[100%]" />
+              <div className="bg-gradient-to-r from-indigo-500 via-amber-500 to-amber-400 h-full rounded-full w-[80%]" />
             </div>
             <div className="text-[10px] text-neutral-400 mt-1.5 flex justify-between">
-              <span>DB Studio Pro (100%)</span>
-              <span>Local Bridge v3.0 (100%)</span>
+              <span>Studio v0.8.5 (~85%)</span>
+              <span>Bridge v0.9.2 (~75%)</span>
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@ export const DevelopmentStatusRoadmap: React.FC = () => {
           {/* DB Studio Pro Web Suite */}
           <div className="bg-[#1e1e1e] border border-indigo-900/40 rounded-xl p-4.5 space-y-3">
             <div className="flex items-center gap-2 text-indigo-300 font-bold text-xs uppercase tracking-wider pb-2 border-b border-indigo-950">
-              <Layers size={16} className="text-indigo-400" /> 1. DB Studio Pro Web-Suite (100%)
+              <Layers size={16} className="text-indigo-400" /> 1. DB Studio Pro Web-Suite (v0.8.5 Beta • ~85%)
             </div>
             <ul className="space-y-2.5 text-xs text-neutral-300">
               <li className="flex items-start gap-2">
@@ -86,10 +86,10 @@ export const DevelopmentStatusRoadmap: React.FC = () => {
             </ul>
           </div>
 
-          {/* Local Bridge v3.0 */}
-          <div className="bg-[#1e1e1e] border border-emerald-900/40 rounded-xl p-4.5 space-y-3">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider pb-2 border-b border-emerald-950">
-              <Server size={16} className="text-emerald-400" /> 2. DB Studio Local Bridge v3.0 (100%)
+          {/* Local Bridge v0.9.2 */}
+          <div className="bg-[#1e1e1e] border border-amber-900/40 rounded-xl p-4.5 space-y-3">
+            <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider pb-2 border-b border-amber-950">
+              <Server size={16} className="text-amber-400" /> 2. DB Studio Local Bridge (v0.9.2 Beta • ~75%)
             </div>
             <ul className="space-y-2.5 text-xs text-neutral-300">
               <li className="flex items-start gap-2">
@@ -110,7 +110,7 @@ export const DevelopmentStatusRoadmap: React.FC = () => {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>DevOps, Git &amp; PHP Relay:</strong> Docker Compose, GitHub/GitLab Push, FTP-Upload und HTTPS-Relay 2.0.0.</span>
+                <span><strong>DevOps, Git &amp; PHP Relay:</strong> Docker Compose, GitHub/GitLab Push, FTP-Upload und HTTPS-Relay.</span>
               </li>
             </ul>
           </div>

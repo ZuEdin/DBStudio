@@ -43,24 +43,24 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Hero Header */}
-      <div className="bg-[#242432] border border-indigo-500/40 rounded-2xl p-6 space-y-4">
+      <div className="bg-[#242432] border border-amber-500/40 rounded-2xl p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-xs">
-              <CheckCircle2 size={13} className="text-emerald-400" /> 100% Implementiert &amp; Einsatzbereit
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-xs">
+              <Sparkles size={13} className="text-amber-400" /> Vor-1.0 Entwicklungsphase (Beta)
             </span>
             <span className="text-xs text-neutral-400 font-medium">Local Bridge &amp; DevOps Engine</span>
           </div>
           <div className="text-xs font-black px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-            Version 3.0.0 (Vollversion)
+            Version 0.9.2 Beta (Pre-1.0)
           </div>
         </div>
 
         <h2 className="text-xl font-black text-white flex items-center gap-2.5">
-          <Server className="text-indigo-400" size={22} /> DB Studio Local Bridge – Handbuch &amp; Kernfähigkeiten
+          <Server className="text-indigo-400" size={22} /> DB Studio Local Bridge (v0.9.2 Beta) – Handbuch &amp; Kernfähigkeiten
         </h2>
         <p className="text-xs md:text-sm text-neutral-300 leading-relaxed max-w-4xl">
-          Die <strong>DB Studio Local Bridge</strong> ist der leistungsfähige, lokale Hintergrunddienst (Host-Daemon) für Windows. Sie fungiert als intelligentes Bindeglied zwischen der visuellen Web-Suite <strong>DB Studio Pro</strong> und dem Betriebssystem für <strong>Hardware-Zugriff, OLEDB-Treiber, Desktop-Kompilierung, Migrationen und DevOps</strong>.
+          Die <strong>DB Studio Local Bridge</strong> ist der leistungsfähige, lokale Hintergrunddienst (Host-Daemon) für Windows. Sie fungiert als intelligentes Bindeglied zwischen der visuellen Web-Suite <strong>DB Studio Pro (v0.8.5)</strong> und dem Betriebssystem für <strong>Hardware-Zugriff, OLEDB-Treiber, Desktop-Kompilierung, Migrationen und DevOps</strong>.
         </p>
       </div>
 
@@ -127,10 +127,10 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Zap className="text-amber-400" size={17} /> Die 10 Kernfähigkeiten der DB Studio Local Bridge (v3.0.0)
+            <Zap className="text-amber-400" size={17} /> Die 10 Kernfähigkeiten der DB Studio Local Bridge (v0.9.2 Beta)
           </h3>
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-            10 von 10 Modulen vollendet
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
+            10 Module implementiert (Praxistest)
           </span>
         </div>
 
@@ -141,7 +141,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-amber-300">
                 <Database size={16} className="text-amber-400" /> 1. 🗃️ MS Access Migration Engine (.accdb &amp; .mdb)
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 border border-amber-800/40 px-2 py-0.5 rounded">Betriebsbereit (Feinschliff)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Drag &amp; Drop von Access-Dateien (Access 97 bis 2024 / Office 365). 64-Bit OLEDB-Inspektion (`Microsoft.ACE.OLEDB.16.0`), Auto-Typentranspiler und Übersetzung von VBA-Funktionen (<code>NZ()</code> ➔ <code>COALESCE</code>, <code>IIF()</code> ➔ <code>CASE WHEN</code>, <code>Format()</code>, <code>Date()</code>, <code>&amp;</code>).
@@ -154,7 +154,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-indigo-300">
                 <FileCode size={16} className="text-indigo-400" /> 2. 📦 Natives .dbsp Projekt-Export
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/40 px-2 py-0.5 rounded">Implementiert (Aktiv)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Generiert mit 1-Klick eine vollwertige <code>.dbsp</code>-Projektdatei inklusive aller Tabellenstrukturen, echten Datensätzen, 1:n Beziehungen und fertig vorberechneten <code>x/y</code>-Koordinaten für das ER-Diagramm in DB Studio Pro.
@@ -167,7 +167,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-cyan-300">
                 <RefreshCw size={16} className="text-cyan-400" /> 3. 🔄 Live Data-Sync &amp; Batch-Migration
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded">Funktional (Praxistest)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               <strong>Topologische Sortierung (Dependency Graph):</strong> Ermittelt die exakte mathematische Reihenfolge (Eltern vor Kindern), damit Fremdschlüssel-Constraints nie scheitern. Erzeugt Multi-Row SQL-Dumps oder befüllt direkt lokale SQLite <code>.db</code>-Dateien.
@@ -180,7 +180,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-purple-300">
                 <Laptop size={16} className="text-purple-400" /> 4. 🔨 Nativer Desktop-Installer Builder
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded">Implementiert (Beta)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Kompiliert <strong>Tauri 2.0 MSI &amp; NSIS Installer</strong>, <strong>Electron Setup.exe</strong> und <strong>.NET 10 Single-File Releases</strong> mit nativer Icon-Injektion und 1-Klick Start / Explorer-Markierung.
@@ -193,7 +193,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-emerald-300">
                 <HardDrive size={16} className="text-emerald-400" /> 5. 📦 Shared Dependencies &amp; Symlink Cache
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded">Betriebsbereit (Aktiv)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Zentraler Paket-Speicher in <code>Shared_Dependencies</code>. NPM- und NuGet-Module werden per NTFS-Symlinks verknüpft – spart bis zu 80% Speicherplatz und beschleunigt Builds auf wenige Sekunden.
@@ -206,7 +206,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-blue-300">
                 <Workflow size={16} className="text-blue-400" /> 6. 🐳 Docker Compose Multi-Container Orchestrierung
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-blue-300 bg-blue-950/60 border border-blue-800/40 px-2 py-0.5 rounded">Implementiert (Presets)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Vordefinierte Presets für MySQL 8.0, PostgreSQL 16, Redis 7 und Mailpit. Automatische Erstellung der <code>docker-compose.yml</code> sowie Steuerung von <code>docker compose up -d</code> und <code>down</code>.
@@ -219,7 +219,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-orange-300">
                 <GitBranch size={16} className="text-orange-400" /> 7. 🐙 Git-Integration &amp; CI/CD Actions
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-orange-300 bg-orange-950/60 border border-orange-800/40 px-2 py-0.5 rounded">Funktional (GitHub/GitLab)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               GitHub &amp; GitLab Dual-Provider (Cloud &amp; On-Premise). Live-Verbindungstest, automatisches <code>git init</code>, Remote-Repo-Erstellung, Push und Erzeugung von <code>.github/workflows</code> &amp; <code>.gitlab-ci.yml</code>.
@@ -232,7 +232,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-emerald-300">
                 <UploadCloud size={16} className="text-emerald-400" /> 8. 🌐 FTP, FTPS &amp; SFTP Deployment Engine
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded">Betriebsbereit (Streaming)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Server-Verbindungstest mit Latenzmessung. Erkennt automatisch kompilierte Build-Artefakte (<code>dist/</code>, <code>publish/</code>) und lädt diese per Stream auf den Ziel-Webserver hoch.
@@ -242,10 +242,10 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
           {/* 9. PHP Remote Relay */}
           <div className="bg-[#1e1e24] border border-[#383848] rounded-xl p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-xs font-bold text-emerald-300">
-                <ShieldCheck size={16} className="text-emerald-400" /> 9. 🛡️ PHP Remote Relay Gateway (2.0.0)
+              <span className="flex items-center gap-2 text-xs font-bold text-indigo-300">
+                <ShieldCheck size={16} className="text-indigo-400" /> 9. 🛡️ PHP Remote Relay Gateway (v0.9)
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-indigo-300 bg-indigo-950/60 border border-indigo-800/40 px-2 py-0.5 rounded">Funktional (Tunnel)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Sicherer Tunnel hinter Firewalls &amp; NAT via HTTPS (<code>bridge_relay.php</code>). 1-Klick Download direkt in den Windows Downloads-Ordner und Explorer-Öffnung.
@@ -258,7 +258,7 @@ export const DevOpsAndBridgeShowcase: React.FC = () => {
               <span className="flex items-center gap-2 text-xs font-bold text-amber-300">
                 <Zap size={16} className="text-amber-400" /> 10. ⚡ Port-Kollisionsschutz &amp; Windows Autostart
               </span>
-              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded">100% FERTIG</span>
+              <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 border border-amber-800/40 px-2 py-0.5 rounded">Implementiert (Port 5050+)</span>
             </div>
             <p className="text-[11px] text-neutral-300 leading-relaxed">
               Prüft beim Start Port 5050 und weicht bei Bedarf automatisch aus. Unterprozesse werden via <code>killProcessTree</code> restlos beendet. 1-Klick Windows Task Scheduler Einrichtung für automatischen Hintergrundstart.

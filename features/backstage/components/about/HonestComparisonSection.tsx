@@ -28,7 +28,7 @@ export const HonestComparisonSection: React.FC = () => {
           <thead>
             <tr className="bg-[#1a1a1a] text-neutral-300 border-b border-[#383838]">
               <th className="p-3.5 font-bold">Kriterium</th>
-              <th className="p-3.5 font-bold text-indigo-400">DB Studio Pro + Local Bridge (v3.0)</th>
+              <th className="p-3.5 font-bold text-indigo-400">DB Studio Pro + Local Bridge (v0.8.5 / v0.9.2 Beta)</th>
               <th className="p-3.5 font-bold text-neutral-400">MS Access / FileMaker</th>
               <th className="p-3.5 font-bold text-neutral-400">Reines Hand-Coding</th>
               <th className="p-3.5 font-bold text-neutral-400">Cloud No-Code (Airtable etc.)</th>
@@ -140,7 +140,7 @@ export const HonestComparisonSection: React.FC = () => {
           Fazit &amp; Positionierung
         </h4>
         <p className="text-xs text-neutral-300 leading-relaxed">
-          DB Studio schließt die Lücke zwischen der <strong>hohen Produktivität visueller RAD-Tools</strong> (wie MS Access) und der <strong>Zukunftssicherheit moderner Web- &amp; DevOps-Technologien</strong>. Mit der integrierten <strong>Local Bridge (v3.0.0)</strong>, dem <strong>PHP Relay Gateway</strong> und 1-Klick Git/FTP-Deployments erhalten Entwickler und Teams eine vollständige Enterprise-Lösung ohne Vendor Lock-in.
+          DB Studio schließt die Lücke zwischen der <strong>hohen Produktivität visueller RAD-Tools</strong> (wie MS Access) und der <strong>Zukunftssicherheit moderner Web- &amp; DevOps-Technologien</strong>. Mit der integrierten <strong>Local Bridge (v0.9.2 Beta)</strong>, dem <strong>PHP Relay Gateway</strong> und 1-Klick Git/FTP-Deployments erhalten Entwickler und Teams ein flexibles Werkzeug für schnelles Prototyping und sauberen Quellcode-Export ohne Vendor Lock-in.
         </p>
       </div>
     </div>

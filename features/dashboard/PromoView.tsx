@@ -178,7 +178,7 @@ export class UserService {
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-400 bg-clip-text text-transparent">DB STUDIO PRO</h1>
-              <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest bg-indigo-950/80 px-2 py-0.5 rounded-full border border-indigo-900">V2.0 ENTERPRISE</span>
+              <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest bg-indigo-950/80 px-2 py-0.5 rounded-full border border-indigo-900">V3.0 LOCAL-FIRST</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -616,45 +616,48 @@ export class UserService {
           </div>
         </div>
 
-        {/* Dynamic Trust Factor / Testimonials */}
+        {/* Local-First & Developer Transparency Section */}
         <div className="bg-gradient-to-br from-indigo-950/30 to-purple-950/20 border border-indigo-900/40 rounded-3xl p-8 md:p-12 max-w-5xl mx-auto space-y-8 flex flex-col md:flex-row gap-8 items-center justify-between">
           <div className="space-y-4 max-w-xl">
-            <div className="flex gap-1 text-amber-400">
-              {[...Array(5)].map((_, i) => <Star key={i} size={14} className="fill-amber-400" />)}
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-xs text-emerald-300 font-bold">
+              <CheckCircle2 size={13} className="text-emerald-400" />
+              <span>100% Echte Softwareentwicklung &amp; Local-First</span>
             </div>
-            <h3 className="text-2xl font-black text-white leading-tight">Von Softwarehäusern & Startups weltweit geschätzt</h3>
+            <h3 className="text-2xl font-black text-white leading-tight">Volle Kontrolle über Daten &amp; Quellcode</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              "DB Studio Pro hat unseren MVP-Prozess um 80% beschleunigt. Wir entwerfen die Datenstrukturen in Workshops zusammen mit Kunden und drücken am Ende einfach auf Download, um mit dem Backend-Dev-Team loszulegen."
+              DB Studio Pro ist ein unabhängiges Entwicklungs- und Modellierungswerkzeug. Ihre Schemata, Formulardefinitionen und Datensätze verbleiben lokal in Ihrem Browser und auf Ihrem PC. Kein Zwang zu proprietären Cloud-Abos, keine versteckten Kosten und 100% Quellcode-Eigentum bei jedem Export.
             </p>
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-300 border border-slate-700">
-                M.S.
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
+              <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
+                <CheckCircle2 size={14} className="text-emerald-400" /> Keine Lizenzgebühren
               </div>
-              <div>
-                <span className="block text-xs font-bold text-white">Markus Schütz</span>
-                <span className="block text-[10px] text-slate-400">CTO, DevCore Solution GmbH</span>
+              <div className="flex items-center gap-1.5 text-indigo-300 font-semibold">
+                <CheckCircle2 size={14} className="text-indigo-400" /> Standard .NET / Node / PHP Code
+              </div>
+              <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
+                <CheckCircle2 size={14} className="text-amber-400" /> Native Local Bridge
               </div>
             </div>
           </div>
 
           <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-4 w-full md:w-80 shadow-lg">
-            <h4 className="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Erhöhe die Conversion Rate</h4>
+            <h4 className="text-xs font-extrabold uppercase text-slate-400 tracking-wider">Kernvorteile auf einen Blick</h4>
             <div className="space-y-2 text-xs">
               <div className="flex gap-2 items-center text-slate-300">
                 <CheckCircle2 size={14} className="text-emerald-400" />
-                <span>Interaktiver pitchbarer Showcase</span>
+                <span>100% quelloffener Code-Export</span>
               </div>
               <div className="flex gap-2 items-center text-slate-300">
                 <CheckCircle2 size={14} className="text-emerald-400" />
-                <span>Client-spezifischer Export</span>
+                <span>Kein Vendor Lock-in</span>
               </div>
               <div className="flex gap-2 items-center text-slate-300">
                 <CheckCircle2 size={14} className="text-emerald-400" />
-                <span>100% responsive auf jedem Device</span>
+                <span>Offline-fähig dank IndexedDB &amp; Bridge</span>
               </div>
               <div className="flex gap-2 items-center text-slate-300">
                 <CheckCircle2 size={14} className="text-emerald-400" />
-                <span>Einsparung von Onboarding-Kosten</span>
+                <span>Natives .dbsp Projektformat</span>
               </div>
             </div>
             <button 
@@ -669,7 +672,7 @@ export class UserService {
         {/* Footer */}
         <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            © 2026 DB Studio Pro Inc. Alle Rechte vorbehalten. Visuelle Softwareentwicklung der Zukunft.
+            © 2026 DB Studio Pro. Alle Rechte vorbehalten. Visuelle Softwareentwicklung &amp; Code-Generierung.
           </div>
           <div className="flex gap-4">
             <a href="#interactive-showroom" className="hover:text-slate-300 transition-colors">Spezifikation</a>
