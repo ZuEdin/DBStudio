@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History, Laptop, Terminal, Layers } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
+import { useBridgeStore } from '../../../stores/useBridgeStore';
 
 interface DeployTabProps {
   onAction: (action: string) => void;
@@ -28,6 +29,12 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
   const { t } = useTranslation();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'backend' | 'frontend' | 'connection'>('backend');
+
+  const { 
+    config: bridgeConfig, 
+    isOnline: isBridgeOnline, 
+    isChecking: isBridgeChecking 
+  } = useBridgeStore();
 
   const getDbLabel = (type: DbType) => {
     switch(type) {
@@ -198,6 +205,34 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
             <RibbonButton icon={<RefreshCw className="text-emerald-600" />} label="Offline Sync" onClick={() => onAction('open_offline_sync')} />
             <RibbonButton icon={<Server className="text-teal-600" />} label="Umgebungen" onClick={() => onAction('open_envs')} />
             <RibbonButton icon={<UploadCloud className="text-indigo-600" />} label="Deployment" onClick={() => onAction('open_deployment_modal')} />
+        </RibbonGroup>
+
+        {/* Lokale Bridge (PC Execution Runner) Group */}
+        <RibbonGroup label="Lokale Ausführung & Bridge">
+            <RibbonButton 
+                icon={<Laptop className={isBridgeOnline ? "text-emerald-600 animate-pulse" : "text-slate-400"} />} 
+                label="Auf PC ausführen" 
+                sublabel={isBridgeOnline ? `Online (Port ${bridgeConfig.port})` : `Offline (Port ${bridgeConfig.port})`}
+                onClick={() => onAction('deploy_to_bridge')} 
+                size="large"
+                className={isBridgeOnline ? "ring-2 ring-emerald-500/30 bg-emerald-50/50" : "opacity-80"}
+            />
+            <div className="flex flex-col gap-1">
+                <button 
+                  onClick={() => onAction('open_bridge_runner')} 
+                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
+                  title="Live Terminal & Logs der lokalen Bridge öffnen"
+                >
+                    <Terminal size={12} className="text-indigo-600"/> Live-Konsole
+                </button>
+                <button 
+                  onClick={() => onAction('open_bridge_options')} 
+                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
+                  title="Bridge Einstellungen & Shared Dependencies"
+                >
+                    <Layers size={12} className="text-emerald-600"/> Shared Store (Aktiv)
+                </button>
+            </div>
         </RibbonGroup>
 
         {/* Export Group */}

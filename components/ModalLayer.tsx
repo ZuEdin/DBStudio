@@ -32,8 +32,10 @@ import { SchemaDiffModal } from '../features/schema-diff/SchemaDiffModal';
 import { OpenApiMockServerModal } from '../features/openapi/OpenApiMockServerModal';
 import { SecurityRlsModal } from '../features/security/SecurityRlsModal';
 import { AuditTrailModal } from '../features/audit-trail/AuditTrailModal';
+import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useBridgeStore } from '../stores/useBridgeStore';
 import { useUIStore } from '../stores/useUIStore';
 import { DbType } from '../types/index';
 
@@ -50,6 +52,7 @@ interface ModalLayerProps {
 export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
   const store = useProjectStore();
   const ui = useUIStore();
+  const { isRunnerModalOpen, setRunnerModalOpen } = useBridgeStore();
   
   const { 
     tables, queries, reports, forms, backendConfig, setBackendConfig,
@@ -400,6 +403,16 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
           onClose={onCloseMessage}
         />
       )}
+
+      {/* Local Execution Bridge Runner & Live Console Modal */}
+      <BridgeRunnerModal 
+        isOpen={isRunnerModalOpen}
+        onClose={() => setRunnerModalOpen(false)}
+        onOpenSettings={() => {
+          ui.setIsBackstageOpen(true);
+          ui.setBackstageActiveTab('optionen');
+        }}
+      />
     </>
   );
 };

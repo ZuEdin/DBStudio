@@ -14,9 +14,11 @@ const generateVueTemplateForLayout = (element: any, tables: Table[]): string => 
     if (element.type === 'field' && element.fieldId) {
         let fieldName = '';
         let inputType = 'text';
+        let foundField: any = null;
         for (const t of tables) {
             const f = t.fields.find(field => field.id === element.fieldId);
             if (f) {
+                foundField = f;
                 fieldName = f.name;
                 if (f.type === 'INTEGER' || f.type === 'DECIMAL') inputType = 'number';
                 if (f.type === 'DATE') inputType = 'date';
@@ -28,6 +30,22 @@ const generateVueTemplateForLayout = (element: any, tables: Table[]): string => 
         if (!fieldName) return `<!-- Field not found -->`;
         const bindProp = toCamelCase(fieldName);
         
+        if (foundField?.type === 'ENUM' || (foundField?.enumValues && foundField.enumValues.length > 0)) {
+            const enumOptions = (foundField?.enumValues && foundField.enumValues.length > 0) ? foundField.enumValues : ['Option 1', 'Option 2'];
+            const optHtml = enumOptions.map((o: string) => `<option value="${o.replace(/"/g, '&quot;')}">${o}</option>`).join('\n                ');
+            return `
+        <!-- ENUM DROPDOWN: ${fieldName} -->
+        <!-- 1. Frontend: Add <option> here to add more choices -->
+        <!-- 2. Database: Run ALTER TABLE or modify enum in DB Studio -->
+        <div class="${element.className || 'mb-4'}">
+            <label class="block text-sm font-bold mb-1">${element.label} <span class="text-xs text-indigo-500 font-normal">(Auswahl)</span></label>
+            <select v-model="data.${bindProp}" class="w-full border rounded p-2 bg-white">
+                <option value="">-- Bitte wählen (${element.label}) --</option>
+                ${optHtml}
+            </select>
+        </div>`;
+        }
+
         return `<div class="${element.className || 'mb-4'}">
             <label class="block text-sm font-bold mb-1">${element.label}</label>
             <input v-model="data.${bindProp}" type="${inputType}" class="w-full border rounded p-2" />

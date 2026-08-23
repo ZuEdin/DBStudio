@@ -8,6 +8,10 @@ import { sanitizeProjectName } from '../utils/nameUtils';
 import { cloudService } from '../services/cloudService'; 
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { WorkflowExecutionEngine } from '../features/logic/WorkflowEngine';
+import { generateBackendCode } from '../utils/backendGenerators';
+import { generateDeploymentScripts } from '../utils/generators/deploymentGenerator';
+import { getSavedMacros } from '../features/logic/MacroEngine';
+import { useBridgeStore } from '../stores/useBridgeStore';
 import * as XLSX from 'xlsx';
 
 // Import Sub-Hooks
@@ -1256,6 +1260,90 @@ export const useAppController = () => {
         case 'open_audit': ui.setShowAuditTrailModal(true); break;
         case 'open_deployment_modal': ui.setShowDeploymentModal(true); break;
         case 'open_offline_sync': ui.setShowOfflineSyncModal(true); break;
+
+        case 'open_bridge_runner': {
+            useBridgeStore.getState().setRunnerModalOpen(true);
+            break;
+        }
+
+        case 'open_bridge_options': {
+            ui.setIsBackstageOpen(true);
+            ui.setBackstageActiveTab('optionen');
+            break;
+        }
+
+        case 'deploy_to_bridge': {
+            const bridgeStore = useBridgeStore.getState();
+            const isOnline = await bridgeStore.checkHealth();
+            
+            if (!isOnline) {
+                ui.addToast("Lokale Bridge ist nicht aktiv (Port 5050). Bitte starten Sie die Bridge auf Ihrem PC.", "warning");
+                bridgeStore.addLog({
+                    type: 'stderr',
+                    timestamp: new Date().toISOString(),
+                    service: 'Bridge',
+                    message: `⚠️ Lokale Bridge (${bridgeStore.config.host}:${bridgeStore.config.port}) ist nicht erreichbar. Bitte starten Sie die Bridge lokal auf Ihrem PC.`
+                });
+                bridgeStore.setRunnerModalOpen(true);
+                break;
+            }
+
+            ui.addToast("Generiere Anwendungscode und übertrage an lokale Bridge...", "info");
+
+            try {
+                const macros = getSavedMacros();
+                const cleanProjectName = sanitizeProjectName(store.projectName || 'MyProject');
+                let files = generateBackendCode(
+                    store.tables,
+                    store.relationships,
+                    store.queries,
+                    store.backendConfig,
+                    store.forms,
+                    store.reports,
+                    store.pages,
+                    store.customComponents,
+                    macros
+                );
+
+                if (store.backendConfig.deploymentConfig) {
+                    const deployFiles = generateDeploymentScripts(store.backendConfig, `Backend/${cleanProjectName}`);
+                    files = [...files, ...deployFiles];
+                }
+
+                const payload = {
+                    projectId: sanitizeProjectName(store.projectId || store.projectName || 'my-project'),
+                    projectName: store.projectName || 'MyProject',
+                    stack: {
+                        backendType: store.backendConfig.language || 'dotnet',
+                        frontendType: store.backendConfig.frontendFramework || 'react',
+                        databaseType: store.backendConfig.dbType || 'SQLite'
+                    },
+                    ports: {
+                        backendPort: store.backendConfig.port || 5000,
+                        frontendPort: store.backendConfig.frontendPort || 3000
+                    },
+                    options: {
+                        useSharedDependencies: bridgeStore.config.useSharedDependencies !== false, // shared dependencies enabled to prevent disk pollution
+                        autoInstall: bridgeStore.config.autoInstall,
+                        autoMigrateDb: bridgeStore.config.autoMigrateDb,
+                        autoRun: bridgeStore.config.autoRun
+                    },
+                    files: files.map(f => ({ path: f.path, content: f.content }))
+                };
+
+                await bridgeStore.deployProject(payload);
+                ui.addToast("Projekt erfolgreich an die lokale Bridge übertragen!", "success");
+            } catch (err: any) {
+                ui.addToast(`Fehler bei der Bereitstellung: ${err.message}`, "error");
+                bridgeStore.addLog({
+                    type: 'stderr',
+                    timestamp: new Date().toISOString(),
+                    service: 'GeneratorError',
+                    message: `Generierungsfehler: ${err.message}`
+                });
+            }
+            break;
+        }
         
         case 'project_backup': {
             const project = {

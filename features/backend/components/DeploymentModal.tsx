@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { DeploymentConfig, DeploymentTarget } from '../../../types/index';
-import { X, Upload, Server, Cloud, Globe, Ship, Github, MonitorPlay, ArrowRight, Database, Terminal, Cpu, Layers, Settings, GitBranch, Play, CheckCircle2, DollarSign, Building, FileText, RefreshCw } from 'lucide-react';
+import { X, Upload, Server, Cloud, Globe, Ship, Github, ArrowRight, Database, Terminal, Cpu, Layers, Settings, GitBranch, Play, CheckCircle2, DollarSign, Building, FileText, RefreshCw, Key, ShieldCheck } from 'lucide-react';
 
 interface DeploymentModalProps {
   config: DeploymentConfig | undefined;
@@ -11,7 +11,9 @@ interface DeploymentModalProps {
 }
 
 export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave, onClose, onDeploy }) => {
-  const [target, setTarget] = useState<DeploymentTarget>(config?.target || 'docker');
+  // Ensure default target is valid cloud target
+  const initialTarget = (config?.target === 'electron' || config?.target === 'tauri') ? 'docker' : (config?.target || 'docker');
+  const [target, setTarget] = useState<DeploymentTarget>(initialTarget);
   
   // Docker
   const [dockerImage, setDockerImage] = useState(config?.dockerImageName || 'myapp:latest');
@@ -39,8 +41,8 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
       case 'docker':
         return {
           cost: '$15 - $35 / Monat',
-          provider: 'Self-Hosted VPS / Container Registry',
-          infraFiles: ['Dockerfile', 'docker-compose.yml'],
+          provider: 'Self-Hosted VPS / Container Registry / Docker Compose',
+          infraFiles: ['Dockerfile', 'docker-compose.yml', '.dockerignore'],
           nodes: [
             { id: 'src', label: 'Source Code', type: 'Local workspace', active: true },
             { id: 'build', label: 'Docker Build', type: 'Local Engine', active: true },
@@ -51,67 +53,43 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
       case 'github':
         return {
           cost: '$0.00 / Monat (Kostenloses Limit)',
-          provider: 'GitHub Infrastructure',
-          infraFiles: ['.github/workflows/main.yml'],
+          provider: 'GitHub Actions / CI/CD Workflow Pipeline',
+          infraFiles: ['.github/workflows/main.yml', '.github/workflows/docker.yml'],
           nodes: [
             { id: 'src', label: 'Commit Push', type: 'GitHub Repo', active: true },
-            { id: 'build', label: 'GitHub Actions Runner', type: 'CI/CD Pipeline', active: true },
-            { id: 'test', label: 'Linting & Unit Tests', type: 'Verification Step', active: true },
-            { id: 'deploy', label: 'Artifact Generation', type: 'Production Build', active: true }
-          ]
-        };
-      case 'electron':
-        return {
-          cost: '$0.00 / Monat (Lokaler Desktop Build)',
-          provider: 'Offline Desktop Native Wrapper',
-          infraFiles: ['main.js', 'preload.js', 'dist/index.html', 'README_ELECTRON.md'],
-          nodes: [
-            { id: 'src', label: 'Web Source', type: 'React Framework', active: true },
-            { id: 'wrapper', label: 'Electron Main/Preload', type: 'Chromium / Node.js Engine', active: true },
-            { id: 'build', label: 'electron-builder', type: 'Local Package Compiler', active: true },
-            { id: 'asset', label: 'Desktop App Bundles', type: '.exe / .dmg / .deb', active: true }
-          ]
-        };
-      case 'tauri':
-        return {
-          cost: '$0.00 / Monat (Performance Desktop Rust)',
-          provider: 'High-Performance Rust-Native App Wrapper (Tauri v1)',
-          infraFiles: ['src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/src/main.rs', 'README_TAURI.md'],
-          nodes: [
-            { id: 'src', label: 'Web SourceCode', type: 'React Client', active: true },
-            { id: 'wrapper', label: 'Lightweight App Webview', type: 'OS Webview (WebKit/WebView2)', active: true },
-            { id: 'build', label: 'Tauri command handl', type: 'Rust high performance core', active: true },
-            { id: 'asset', label: 'Standalone Binary', type: 'Kompiliertes Rust Executable', active: true }
+            { id: 'build', label: 'GitHub Runner', type: 'CI/CD Pipeline', active: true },
+            { id: 'test', label: 'Linting & Tests', type: 'Verification Step', active: true },
+            { id: 'deploy', label: 'Artifacts', type: 'Production Build', active: true }
           ]
         };
       case 'ftp':
         return {
           cost: '$3 - $8 / Monat',
-          provider: 'Shared Web Host / Managed Server',
-          infraFiles: ['deploy_ftp.sh / FileZilla script'],
+          provider: 'Shared Web Host / Managed SFTP Server',
+          infraFiles: ['deploy_sftp.sh', 'dist/.htaccess', 'package.json (build script)'],
           nodes: [
-            { id: 'src', label: 'Build Folder', type: 'Static artifacts', active: true },
-            { id: 'ftp', label: 'FTP Client', type: 'Credentials verification', active: true },
-            { id: 'remote', label: 'Shared Server', type: '/public_html target', active: true },
+            { id: 'src', label: 'Build Folder', type: 'Static dist/ assets', active: true },
+            { id: 'ftp', label: 'Bridge SFTP', type: 'Secure Local Upload', active: true },
+            { id: 'remote', label: 'Web Server', type: '/public_html target', active: true },
             { id: 'web', label: 'Live Server', type: 'Apache / Nginx Host', active: true }
           ]
         };
       case 'azure':
         return {
-          cost: '$45 - $80 / Monat (Inkl. Flexible DB)',
-          provider: 'Microsoft Azure Cloud (ASP + Flexible Server Postgres)',
+          cost: '$45 - $80 / Monat (Inkl. Managed DB)',
+          provider: 'Microsoft Azure Cloud (ASP + Flexible Server Postgres/MySQL)',
           infraFiles: ['infrastructure/terraform/main.tf', 'infrastructure/bicep/main.bicep', '.github/workflows/main.yml'],
           nodes: [
             { id: 'src', label: 'Git Hub Repo', type: 'Source Version', active: true },
-            { id: 'pipeline', label: 'Azure Webapps deploy', type: 'Github Pipeline Workflow', active: true },
-            { id: 'cloud', label: 'App Service Plan', type: 'Azure Flexible Linux', active: true },
-            { id: 'db', label: 'Postgres Flexible Server', type: 'Azure Managed Database', active: true }
+            { id: 'pipeline', label: 'Azure Webapps', type: 'Github Pipeline Workflow', active: true },
+            { id: 'cloud', label: 'App Service', type: 'Azure Flexible Linux', active: true },
+            { id: 'db', label: 'Managed DB', type: 'Azure Database', active: true }
           ]
         };
       case 'offline_sync':
         return {
           cost: '$0 - $15 / Monat (Lokale SQLite kostenlos)',
-          provider: 'Hybrid: SQLite (Client) ➔ MySQL (Cloud)',
+          provider: 'Hybrid: SQLite (Client) ➔ MySQL / Postgres (Cloud)',
           infraFiles: [
             '01_sqlite_local_schema.sql',
             '02_mysql_remote_schema.sql',
@@ -123,7 +101,7 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
             { id: 'src', label: 'SQLite Client', type: 'Lokale Edge DB', active: true },
             { id: 'wrapper', label: 'Sync Worker', type: 'Delta Push/Pull', active: true },
             { id: 'service', label: 'Sync API', type: 'REST Gateway', active: true },
-            { id: 'db', label: 'MySQL Server', type: 'Cloud Master DB', active: true }
+            { id: 'db', label: 'Master DB', type: 'Cloud Server DB', active: true }
           ]
         };
       default:
@@ -145,7 +123,7 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
         {/* Sidebar */}
         <div className="w-64 bg-slate-800 text-white p-6 flex flex-col">
             <h2 className="text-lg font-bold mb-1 flex items-center gap-2"><Globe className="text-blue-400"/> Infrastructure</h2>
-            <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-6">Phase 7 Setup</div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-6">Cloud & Server Deployment</div>
             
             <div className="space-y-1.5 flex-1">
                 <button onClick={() => setTarget('docker')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'docker' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
@@ -157,27 +135,21 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                 <button onClick={() => setTarget('github')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'github' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
                     <Github size={16} /> GitHub Actions
                 </button>
-                <button onClick={() => setTarget('electron')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'electron' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
-                    <MonitorPlay size={16} /> Electron Desktop
-                </button>
-                <button onClick={() => setTarget('tauri')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'tauri' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
-                    <Terminal size={16} className="text-amber-400" /> Tauri Desktop (Rust)
-                </button>
                 <button onClick={() => setTarget('offline_sync')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'offline_sync' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
-                    <RefreshCw size={16} className="text-emerald-400" /> Offline-First (SQLite ➔ MySQL)
+                    <RefreshCw size={16} className="text-emerald-400" /> Offline-First (SQLite ➔ Cloud)
                 </button>
                 <div className="h-4 border-t border-slate-700/50 my-2"></div>
                 <button onClick={() => setTarget('ftp')} className={`w-full text-left py-2.5 px-3 rounded flex items-center gap-3 text-sm transition-colors ${target === 'ftp' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'hover:bg-slate-700 text-slate-300'}`}>
-                    <Upload size={16} /> FTP Server
+                    <Upload size={16} /> SFTP / Webhosting
                 </button>
             </div>
 
             <div className="mt-auto pt-4 border-t border-slate-700 text-xs text-slate-400">
                 <div className="flex items-center gap-1.5 text-blue-400 font-semibold mb-1">
-                  <CheckCircle2 size={12} />
-                  <span>IaC Engine Active</span>
+                  <ShieldCheck size={12} className="text-emerald-400" />
+                  <span>Sicherheits-Standard</span>
                 </div>
-                <span>Phase 7 Auto-Deployment is ready for production export.</span>
+                <span className="text-[11px] leading-tight">Passwörter & API-Keys werden sicher lokal auf Ihrer Bridge verwaltet.</span>
             </div>
         </div>
 
@@ -189,8 +161,7 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                     {target === 'docker' && <Ship size={18} />}
                     {target === 'azure' && <Cloud size={18} />}
                     {target === 'github' && <Github size={18} />}
-                    {target === 'electron' && <MonitorPlay size={18} />}
-                    {target === 'tauri' && <Terminal size={18} className="text-amber-600" />}
+                    {target === 'offline_sync' && <RefreshCw size={18} className="text-emerald-600" />}
                     {target === 'ftp' && <Upload size={18} />}
                   </span>
                   <div>
@@ -207,23 +178,23 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                 {/* Parameter Column */}
                 <div className="w-1/2 p-6 overflow-y-auto border-r border-slate-200 bg-white">
                     <h4 className="text-xs uppercase tracking-wider font-bold text-slate-400 mb-4 flex items-center gap-1.5">
-                      <Settings size={12} /> Konfigurationen & Variablen
+                      <Settings size={12} /> Konfigurationen & Parameter
                     </h4>
 
                     {target === 'docker' && (
                         <div className="space-y-5 animate-in slide-in-from-right-2">
                             <div className="bg-blue-50/70 border border-blue-100 p-3.5 rounded-lg text-blue-900 text-xs leading-relaxed">
-                                Erstellt ein multi-stage <code>Dockerfile</code> und ein lokales <code>docker-compose.yml</code>. Ideal für containerisierte Deployments oder Kubernetes orchestrations.
+                                Erstellt ein multi-stage <code>Dockerfile</code> und ein lokales <code>docker-compose.yml</code>. Ideal für containerisierte Deployments oder Kubernetes Orchestrations.
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 mb-1">Image Name</label>
                                 <input type="text" value={dockerImage} onChange={e => setDockerImage(e.target.value)} className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="mycompany/myapp:latest" />
-                                <span className="text-[10px] text-slate-400 mt-1 block">Repository-Name für Docker Hub oder AWS ECR</span>
+                                <span className="text-[10px] text-slate-400 mt-1 block">Repository-Name für Docker Hub oder Container Registry</span>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 mb-1">Exposed Port (Host)</label>
                                 <input type="number" value={dockerPort} onChange={e => setDockerPort(parseInt(e.target.value))} className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-                                <span className="text-[10px] text-slate-400 mt-1 block">Der interne Port im Container (wird auf den DB Studio Standard gemappt)</span>
+                                <span className="text-[10px] text-slate-400 mt-1 block">Der interne Port im Container (wird auf den Host gemappt)</span>
                             </div>
                         </div>
                     )}
@@ -238,14 +209,14 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                                 <div className="p-1 bg-sky-100 text-sky-700 rounded mt-0.5"><Layers size={12} /></div>
                                 <div>
                                   <p className="font-bold text-slate-700">Terraform Standard (AWS)</p>
-                                  <p className="text-slate-500 text-[11px]">Erschafft VPC, Subnetze, AWS App Runner & PostgreSQL flexible RDS Database.</p>
+                                  <p className="text-slate-500 text-[11px]">Erschafft VPC, Subnetze, AWS App Runner & PostgreSQL RDS Database.</p>
                                 </div>
                               </div>
                               <div className="flex items-start gap-2 text-xs">
                                 <div className="p-1 bg-violet-100 text-violet-700 rounded mt-0.5"><Cloud size={12} /></div>
                                 <div>
                                   <p className="font-bold text-slate-700">Azure Web App & flexible DB</p>
-                                  <p className="text-slate-500 text-[11px]">Generiert Bicep manifest für vollautomatisiertes Azure Resource Management.</p>
+                                  <p className="text-slate-500 text-[11px]">Generiert Bicep Manifest für vollautomatisiertes Azure Resource Management.</p>
                                 </div>
                               </div>
                             </div>
@@ -265,55 +236,11 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                               <p className="font-bold text-slate-700 flex items-center gap-1.5"><Terminal size={12} /> Automatisch integrierte Schritte:</p>
                               <ul className="list-disc pl-4 space-y-1 text-slate-600 text-[11px]">
                                 <li><strong>Repository Checkout</strong></li>
-                                <li><strong>Node.js Environment Setup (18.x)</strong></li>
+                                <li><strong>Node.js Environment Setup (18.x / 20.x)</strong></li>
                                 <li><strong>Dependency caching & npm install</strong></li>
                                 <li><strong>Build Generation (static & server bundle)</strong></li>
                                 <li><strong>Automatisches Testing (Unit & End-to-End)</strong></li>
                               </ul>
-                            </div>
-                        </div>
-                    )}
-
-                    {target === 'electron' && (
-                        <div className="space-y-4 animate-in slide-in-from-right-2">
-                            <div className="bg-indigo-50 border border-indigo-100 p-3.5 rounded-lg text-indigo-900 text-xs leading-relaxed">
-                                Konvertiert Ihr generiertes Web-Projekt in ein vollwertiges **Electron Desktop App** Projekt. Packt alle Web-Assets lokal und richtet unkompilierte APIs ein.
-                            </div>
-                            <div className="space-y-2 text-xs">
-                                <span className="font-bold text-slate-700 text-[11px] block">Desktop Feature Support:</span>
-                                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
-                                  <div className="p-1 px-2 bg-slate-100 rounded">✓ Windows App Build</div>
-                                  <div className="p-1 px-2 bg-slate-100 rounded">✓ macOS DMG ready</div>
-                                  <div className="p-1 px-2 bg-slate-100 rounded">✓ Linux Desktop native</div>
-                                  <div className="p-1 px-2 bg-slate-100 rounded">✓ Context Isolation Mode</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {target === 'tauri' && (
-                        <div className="space-y-4 animate-in slide-in-from-right-2">
-                            <div className="bg-amber-50/70 border border-amber-200/50 p-3.5 rounded-lg text-amber-950 text-xs leading-relaxed">
-                                <p className="font-bold text-amber-900 mb-1 flex items-center gap-1.5">⚡ Rust-Powered High Performance Studio</p>
-                                Kompiliert das Frontend in ein natives, extrem ressourcenschonendes C- oder Rust-Executable. Ersetzt Node.js im Client-Betrieb.
-                            </div>
-                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-2.5">
-                              <div>
-                                <p className="font-bold text-slate-700 text-[11px]">Vorteile vs. Electron:</p>
-                                <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-600 mt-1">
-                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> App-Größe &lt; 15MB</div>
-                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> RAM-Verbrauch &lt; 40MB</div>
-                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> Rust Native Memory-Safety</div>
-                                  <div className="flex items-center gap-1"><span className="text-emerald-500 font-bold">✓</span> Keine lokale Node-Runtime</div>
-                                </div>
-                              </div>
-                              <div className="pt-2 border-t border-slate-200/60">
-                                <p className="font-bold text-slate-700 text-[11px] mb-1">Integrierte IPC-Befehle (Rust-Commands):</p>
-                                <div className="space-y-1 font-mono text-[9px] text-slate-500 bg-slate-900 text-slate-200 p-2 rounded">
-                                  <div>- #[tauri::command] execute_local_query</div>
-                                  <div>- #[tauri::command] check_database_latency</div>
-                                </div>
-                              </div>
                             </div>
                         </div>
                     )}
@@ -351,31 +278,32 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                     {target === 'ftp' && (
                         <div className="space-y-4 animate-in slide-in-from-right-2">
                             <div className="bg-orange-50 border border-orange-100 p-3.5 rounded-lg text-orange-900 text-xs leading-relaxed">
-                                Generiert ein Deploy Script für klassische Webhosting Server (z.B. All-Inklusiv, Host Europe, Strato). Ideal für flache PHP APIs oder statische React Frontends.
+                                Generiert Deploy-Skripte für klassische Webhoster (z.B. All-Inkl, Host Europe, Strato, Hetzner). Die Bridge baut das Projekt lokal und überträgt nur die <code>dist/</code>-Dateien.
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 mb-1">FTP Host</label>
-                                <input type="text" value={ftpHost} onChange={e => setFtpHost(e.target.value)} className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="ftp.mycompany.de" />
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Server Hostname</label>
+                                <input type="text" value={ftpHost} onChange={e => setFtpHost(e.target.value)} className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="sftp.meine-domain.at" />
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-600 mb-1">Benutzername</label>
-                                  <input type="text" value={ftpUser} onChange={e => setFtpUser(e.target.value)} className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="ftp_web_user" />
-                              </div>
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-600 mb-1">Passwort</label>
-                                  <input type="password" disabled className="w-full border border-slate-200 bg-slate-50 rounded p-2 text-sm text-slate-400 cursor-not-allowed" placeholder="••••••••" />
-                              </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Benutzername</label>
+                                <input type="text" value={ftpUser} onChange={e => setFtpUser(e.target.value)} className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="web_deploy_user" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 mb-1">Zielpfad (Remote Path)</label>
                                 <input type="text" value={ftpPath} onChange={e => setFtpPath(e.target.value)} className="w-full border border-slate-300 rounded p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" placeholder="/public_html" />
                             </div>
+                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-start gap-2.5 text-xs text-slate-600">
+                              <Key size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-bold text-slate-800 text-[11px]">Sichere Passwort-Verwaltung</p>
+                                <p className="text-[10px] text-slate-500">Passwörter und SFTP-Keys werden nicht in der Cloud gespeichert, sondern ausschließlich lokal in der Bridge (<code>.env</code> / Vault) hinterlegt.</p>
+                              </div>
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* VISUALIZER Column (THE BURNER!) */}
+                {/* VISUALIZER Column */}
                 <div className="w-1/2 p-6 flex flex-col bg-slate-900 text-slate-100">
                     <h4 className="text-xs uppercase tracking-wider font-bold text-slate-400 mb-4 flex items-center justify-between">
                       <span className="flex items-center gap-1.5"><Terminal size={12} className="text-blue-400" /> Live-Architektur Visualisierung</span>
@@ -401,12 +329,10 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                               {node.id === 'build' && <Cpu size={16} />}
                               {node.id === 'pipeline' && <Cpu size={16} />}
                               {node.id === 'container' && <Layers size={16} />}
-                              {node.id === 'wrapper' && <MonitorPlay size={16} />}
                               {node.id === 'remote' && <Upload size={16} />}
                               {node.id === 'web' && <Globe size={16} />}
                               {node.id === 'test' && <CheckCircle2 size={16} />}
                               {node.id === 'deploy' && <Play size={16} />}
-                              {node.id === 'asset' && <FileText size={16} />}
                               {node.id === 'service' && <Server size={16} />}
                               {node.id === 'cloud' && <Cloud size={16} />}
                               {node.id === 'db' && <Database size={16} />}
@@ -457,7 +383,7 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
                 <button onClick={onClose} className="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 text-xs transition-all font-semibold">Abbrechen</button>
                 <button 
                     onClick={() => { handleSave(); onDeploy(); }} 
-                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded font-bold hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all flex items-center gap-2 text-xs"
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-xs"
                 >
                     <Upload size={14} /> Blueprint-Dateien generieren
                 </button>

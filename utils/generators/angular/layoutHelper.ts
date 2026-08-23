@@ -133,10 +133,12 @@ export const generateHtmlForLayout = (
         }
         let fieldName = '';
         let inputType = 'text';
+        let foundField: any = null;
         
         for (const t of tables) {
             const f = t.fields.find(field => field.id === element.fieldId);
             if (f) {
+                foundField = f;
                 fieldName = ((f as any).name || (f as any).alias || (f as any).fieldName);
                 if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') inputType = 'number';
                 if (f.type === 'DATE') inputType = 'date';
@@ -399,6 +401,48 @@ export const generateHtmlForLayout = (
             return `<div class="${wrapperClass}">
                 <label class="${labelClass}">${element.label}</label>
                 <app-markdown-editor [(value)]="${dataObjName}['${bindProp}']" [placeholder]="'${element.label || 'Markdown-Inhalt hier eingeben...'}'"></app-markdown-editor>
+            </div>`;
+        }
+
+        // Enum Dropdown Field
+        if (foundField?.type === 'ENUM' || (foundField?.enumValues && foundField.enumValues.length > 0) || (element.widgetType === 'select' && (!element.lookup || !element.lookup.tableId))) {
+            const enumOptions = (foundField?.enumValues && foundField.enumValues.length > 0) 
+                ? foundField.enumValues 
+                : ['Option 1', 'Option 2'];
+            const parentTable = tables.find(t => t.fields.some(f => f.id === element.fieldId));
+            const tableName = parentTable ? parentTable.name : 'table';
+            const optHtml = enumOptions.map((opt: string) => `<option value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('\n                ');
+
+            if (isBootstrap) {
+                return `
+                <!-- ============================================================= -->
+                <!-- ENUM DROPDOWN: ${fieldName} (${tableName}) -->
+                <!-- 1. Frontend: Add <option> here or update options in component -->
+                <!-- 2. Database: ALTER TABLE \`${tableName}\` MODIFY COLUMN \`${fieldName}\` ENUM(...) -->
+                <!-- ============================================================= -->
+                <div class="${wrapperClass}">
+                    <label class="${labelClass}">${element.label} <span class="badge bg-light text-primary border">Auswahl</span></label>
+                    <select class="form-select" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler}>
+                        <option value="">-- Bitte wählen (${element.label}) --</option>
+                        ${optHtml}
+                    </select>
+                </div>`;
+            }
+
+            return `
+            <!-- ============================================================= -->
+            <!-- ENUM DROPDOWN: ${fieldName} (${tableName}) -->
+            <!-- 1. Frontend: Add <option> here or update options in component -->
+            <!-- 2. Database: ALTER TABLE \`${tableName}\` MODIFY COLUMN \`${fieldName}\` ENUM(...) -->
+            <!-- ============================================================= -->
+            <div class="${wrapperClass}">
+                <label class="${labelClass}">${element.label} <span class="text-xs text-indigo-500 font-normal">(Auswahl)</span></label>
+                <div class="relative">
+                    <select class="${inputClass} bg-white appearance-none pr-8 cursor-pointer" [(ngModel)]="${dataObjName}['${bindProp}']" name="${dataObjName}_${bindProp}" ${changeHandler}>
+                        <option value="">-- Bitte wählen (${element.label}) --</option>
+                        ${optHtml}
+                    </select>
+                </div>
             </div>`;
         }
 

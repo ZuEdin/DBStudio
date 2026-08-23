@@ -59,6 +59,35 @@ export const generateFormPage = (table: Table, root: string): VirtualFile => {
               onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
               className="w-full border rounded-lg p-2 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
           />`;
+      } else if (f.type === 'ENUM' || (f.enumValues && f.enumValues.length > 0)) {
+          const enumOptions = (f.enumValues && f.enumValues.length > 0) ? f.enumValues : ['Option 1', 'Option 2'];
+          const optionsJsx = enumOptions.map(opt => `                  <option value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('\n');
+          inputJsx = `
+          {/* ========================================================================= */}
+          {/* ENUM DROPDOWN: ${f.name} (${table.name}) */}
+          {/* 1. FRONTEND: To add/modify options here, add new <option value="..."> tags */}
+          {/* 2. DATABASE: To alter enum in DB, update DB Studio or run: */}
+          {/*    MySQL:      ALTER TABLE \`${table.name}\` MODIFY COLUMN \`${f.name}\` ENUM(${enumOptions.map(o => `'${o.replace(/'/g, "\\'")}'`).join(', ')}); */}
+          {/*    PostgreSQL: ALTER TYPE enum_${table.name.toLowerCase()}_${f.name.toLowerCase()} ADD VALUE 'NEW_VALUE'; */}
+          {/*    SQL Server: ALTER TABLE [${table.name}] DROP CONSTRAINT CK_... ; ALTER TABLE [${table.name}] ADD CHECK ([${f.name}] IN (${enumOptions.map(o => `'${o.replace(/'/g, "''")}'`).join(', ')})); */}
+          {/* ========================================================================= */}
+          <label className="block text-sm font-semibold mb-1 text-slate-700 dark:text-slate-300">
+              ${label} <span className="text-xs text-indigo-500 font-normal">(Auswahl)</span>
+          </label>
+          <div className="relative">
+              <select 
+                  id="${fCamel}"
+                  value={data.${fCamel} ?? ''} 
+                  onChange={e => setData({ ...data, ${fCamel}: e.target.value })}
+                  className="w-full border rounded-lg p-2.5 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none pr-8 cursor-pointer"
+              >
+                  <option value="">-- Bitte wählen (${label}) --</option>
+${optionsJsx}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-500">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+          </div>`;
       } else if (f.rendererType === 'markdown' || (f.type === 'TEXT' && f.comment?.toLowerCase().includes('markdown'))) {
           inputJsx = `
           <div className="flex justify-between items-center mb-1">

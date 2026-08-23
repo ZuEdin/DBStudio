@@ -385,6 +385,39 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
             </div>`;
         }
 
+        // Enum Dropdown Field (Standalone enum / fixed options)
+        if (foundField?.type === 'ENUM' || (foundField?.enumValues && foundField.enumValues.length > 0) || (element.widgetType === 'select' && (!element.lookup || !element.lookup.tableId))) {
+            const enumOptions = (foundField?.enumValues && foundField.enumValues.length > 0) 
+                ? foundField.enumValues 
+                : ['Option 1', 'Option 2'];
+            const optionsJsx = enumOptions.map((opt: string) => `                    <option key="${opt}" value="${opt.replace(/"/g, '&quot;')}">${opt}</option>`).join('\n');
+            const parentTable = tables.find(t => t.fields.some(f => f.id === element.fieldId));
+            const tableName = parentTable ? parentTable.name : 'table';
+
+            return `
+            <div className={\`${wrapperClass}\`}>
+                {/* ENUM DROPDOWN: ${fieldName} (${tableName}) */}
+                {/* 1. FRONTEND: To add/modify options, add <option value="..."> tags below */}
+                {/* 2. DATABASE: To alter enum in DB, update DB Studio or run: */}
+                {/*    ALTER TABLE \`${tableName}\` MODIFY COLUMN \`${fieldName}\` ENUM(${enumOptions.map((o: string) => `'${o.replace(/'/g, "\\'")}'`).join(', ')}); */}
+                <label className="${labelClass}">${element.label} {${uxRequired} && <span className="text-red-500">*</span>}</label>
+                <div className="relative">
+                    <select 
+                        disabled={${uxDisabled}} required={${uxRequired}}
+                        className={\`${inputClass} appearance-none pr-8 cursor-pointer\`}
+                        value={${dataVar}.${bindProp} ?? ''}
+                        onChange={e => setData({...${dataVar}, ${bindProp}: e.target.value})}
+                    >
+                        <option value="">-- Bitte wählen (${element.label}) --</option>
+${optionsJsx}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+                </div>
+            </div>`;
+        }
+
         // Select / Lookup
         if (element.widgetType === 'select' && element.lookup) {
              let lookupTable: any = tables.find(t => t.id === element.lookup!.tableId);

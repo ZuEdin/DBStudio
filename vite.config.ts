@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
     return {
       build: {
         outDir: 'dist',
+        chunkSizeWarningLimit: 5000,
       },
       server: {
         port: 3000,

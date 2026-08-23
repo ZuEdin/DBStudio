@@ -149,7 +149,24 @@ import * as XLSX from 'xlsx';
 
             <form [formGroup]="itemForm" (ngSubmit)="saveItem()" class="space-y-3.5">
               <div class="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto pr-1">
-                ${table.fields.filter(f => !f.isPrimaryKey).map(f => `
+                ${table.fields.filter(f => !f.isPrimaryKey).map(f => {
+                  if (f.type === 'ENUM' || (f.enumValues && f.enumValues.length > 0)) {
+                    const enumOptions = (f.enumValues && f.enumValues.length > 0) ? f.enumValues : ['Option 1', 'Option 2'];
+                    const optHtml = enumOptions.map(o => `<option value="${o.replace(/"/g, '&quot;')}">${o}</option>`).join('');
+                    return `
+                <!-- ENUM: ${f.name} (Add <option> in template or ALTER TABLE in DB) -->
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-600 mb-1">${f.name} <span class="text-indigo-500 font-normal">(Auswahl)</span></label>
+                  <select 
+                    formControlName="${f.name}"
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                  >
+                    <option value="">-- Bitte wählen (${f.name}) --</option>
+                    ${optHtml}
+                  </select>
+                </div>`;
+                  }
+                  return `
                 <div>
                   <label class="block text-[11px] font-bold text-slate-600 mb-1">${f.name}</label>
                   <input 
@@ -157,7 +174,8 @@ import * as XLSX from 'xlsx';
                     formControlName="${f.name}"
                     class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                   />
-                </div>`).join('')}
+                </div>`;
+                }).join('')}
               </div>
 
               <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">

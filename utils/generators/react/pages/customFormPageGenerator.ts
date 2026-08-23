@@ -109,6 +109,11 @@ export const generateCustomFormPage = (
               const name = toCamelCase(f.name);
               let input = `<input name="${name}" className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 text-slate-900 dark:text-white bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />`;
               if (f.type === 'BOOLEAN') input = `<div className="flex items-center gap-2 mt-2"><input type="checkbox" name="${name}" value="true" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700" /> <span className="text-sm text-slate-700 dark:text-slate-300">Aktivieren</span></div>`;
+              else if (f.type === 'ENUM' || (f.enumValues && f.enumValues.length > 0)) {
+                  const enumOptions = (f.enumValues && f.enumValues.length > 0) ? f.enumValues : ['Option 1', 'Option 2'];
+                  const optHtml = enumOptions.map((o: string) => `<option value="${o.replace(/"/g, '&quot;')}">${o}</option>`).join('');
+                  input = `<select name="${name}" className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 text-slate-900 dark:text-white bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 outline-none"><option value="">-- Bitte wählen --</option>${optHtml}</select>`;
+              }
               else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') input = `<input type="number" name="${name}" className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 text-slate-900 dark:text-white bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" step="${f.type === 'INTEGER' ? '1' : '0.01'}" />`;
               else if (f.type === 'DATE') input = `<input type="date" name="${name}" className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 text-slate-900 dark:text-white bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />`;
               else if (f.type === 'TIME') input = `<input type="time" name="${name}" className="w-full border border-slate-300 dark:border-slate-600 rounded p-2 text-slate-900 dark:text-white bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />`;

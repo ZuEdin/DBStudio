@@ -764,6 +764,20 @@ ${recalculateMethod}`;
                           <input type="checkbox" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="form-check-input" id="check_${fieldProp}"/>
                           <label class="form-check-label fw-bold text-secondary small" for="check_${fieldProp}">${f.name}</label>
                       </div>`;
+                  } else if (f.type === 'ENUM' || (f.enumValues && f.enumValues.length > 0)) {
+                      const enumOptions = (f.enumValues && f.enumValues.length > 0) ? f.enumValues : ['Option 1', 'Option 2'];
+                      input = `
+                      <!-- ============================================================= -->
+                      <!-- ENUM DROPDOWN: ${f.name} (${table.name}) -->
+                      <!-- 1. Frontend: Edit ${fieldProp}Options array in component.ts or add <option> -->
+                      <!-- 2. Database: Update DB Studio or run: -->
+                      <!--    ALTER TABLE \`${table.name}\` MODIFY COLUMN \`${f.name}\` ENUM(${enumOptions.map(o => `'${o.replace(/'/g, "\\'")}'`).join(', ')}); -->
+                      <!-- ============================================================= -->
+                      <label class="form-label fw-bold text-secondary small mb-1">${f.name} <span class="badge bg-light text-primary border">Auswahl</span></label>
+                      <select [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="form-select">
+                          <option value="">-- Bitte wählen (${f.name}) --</option>
+                          <option *ngFor="let opt of ${fieldProp}Options" [value]="opt">{{ opt }}</option>
+                      </select>`;
                   } else {
                       let type = 'text';
                       if (f.type === 'INTEGER' || f.type === 'DECIMAL') type = 'number';
@@ -784,7 +798,7 @@ ${recalculateMethod}`;
                     <div class="card-body p-4">
                         <form (ngSubmit)="save()">
                             ${formFields}
-                            <div class="mt-4 pt-4 border-top d-flex justify-content-end gap-2">
+                            <div class="mt-4 pt-4 border-top d-flex justify-end gap-2">
                                 <a routerLink="/${camelName}" class="btn btn-outline-secondary px-4">Abbrechen</a>
                                 <button class="btn btn-primary px-4">Speichern</button>
                             </div>
@@ -799,6 +813,20 @@ ${recalculateMethod}`;
                   const fieldProp = toCamelCase(f.name);
                   if (f.type === 'BOOLEAN') {
                       input = `<div class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="w-4 h-4 rounded" /> <label>${f.name}</label></div>`;
+                  } else if (f.type === 'ENUM' || (f.enumValues && f.enumValues.length > 0)) {
+                      const enumOptions = (f.enumValues && f.enumValues.length > 0) ? f.enumValues : ['Option 1', 'Option 2'];
+                      input = `
+                      <!-- ============================================================= -->
+                      <!-- ENUM DROPDOWN: ${f.name} (${table.name}) -->
+                      <!-- 1. Frontend: Edit ${fieldProp}Options in component.ts or add <option> -->
+                      <!-- 2. Database: Update DB Studio or run: -->
+                      <!--    ALTER TABLE \`${table.name}\` MODIFY COLUMN \`${f.name}\` ENUM(${enumOptions.map(o => `'${o.replace(/'/g, "\\'")}'`).join(', ')}); -->
+                      <!-- ============================================================= -->
+                      <label class="block text-sm font-bold mb-1 text-slate-700">${f.name} <span class="text-xs text-indigo-500 font-normal">(Auswahl)</span></label>
+                      <select [(ngModel)]="data.${fieldProp}" name="${fieldProp}" class="w-full border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
+                          <option value="">-- Bitte wählen (${f.name}) --</option>
+                          <option *ngFor="let opt of ${fieldProp}Options" [value]="opt">{{ opt }}</option>
+                      </select>`;
                   } else {
                       let type = 'text';
                       if (f.type === 'INTEGER' || f.type === 'DECIMAL') type = 'number';
@@ -931,6 +959,14 @@ ${recalculateMethod}`;
           }).filter(Boolean).join('\n');
       }
 
+      const enumDeclarations = table.fields
+          .filter(f => f.type === 'ENUM' || (f.enumValues && f.enumValues.length > 0))
+          .map(f => {
+              const fCamel = toCamelCase(f.name);
+              const enumOptions = (f.enumValues && f.enumValues.length > 0) ? f.enumValues : ['Option 1', 'Option 2'];
+              return `  // ENUM Options: ${f.name} - Add new values here for frontend, or ALTER TABLE in database\n  public ${fCamel}Options: string[] = [${enumOptions.map(o => `'${o.replace(/'/g, "\\'")}'`).join(', ')}];`;
+          }).join('\n');
+
       const formTs = `import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -966,7 +1002,7 @@ export class ${pascalName}FormComponent implements OnInit {
 
   private allTables: any[] = ${JSON.stringify(tables.map(t => ({ name: t.name, camelName: toCamelCase(t.name), fields: t.fields.map(f => ({ id: f.id, name: f.name, camelName: toCamelCase(f.name), type: f.type })) })))};
 
-${listDeclarations}
+${enumDeclarations ? enumDeclarations + '\n' : ''}${listDeclarations}
 ${subformDeclarations}
 
   constructor(private api: ApiService, private route: ActivatedRoute, private router: Router, private macroService: MacroService) {}
