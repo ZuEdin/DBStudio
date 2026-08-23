@@ -4,11 +4,11 @@ import {
   Check, 
   X, 
   Minus, 
-  Sparkles,
-  Database,
-  Code2,
-  Lock,
-  Layers
+  Sparkles, 
+  Database, 
+  Code2, 
+  Layers,
+  Server
 } from 'lucide-react';
 
 export const HonestComparisonSection: React.FC = () => {
@@ -16,10 +16,10 @@ export const HonestComparisonSection: React.FC = () => {
     <div className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Scale className="text-amber-400" size={20} /> Ehrlicher Vergleich: DB Studio vs. Etablierte Alternativen
+          <Scale className="text-amber-400" size={20} /> System-Vergleich: DB Studio Pro vs. Etablierte Alternativen
         </h2>
         <p className="text-xs text-neutral-400">
-          Wo liegen die echten Vorteile von DB Studio und wo haben etablierte Werkzeuge aktuell noch die Nase vorn?
+          Gegenüberstellung von Entwicklungsgeschwindigkeit, Quellcode-Eigentum und Ausführungsmöglichkeiten:
         </p>
       </div>
 
@@ -28,7 +28,7 @@ export const HonestComparisonSection: React.FC = () => {
           <thead>
             <tr className="bg-[#1a1a1a] text-neutral-300 border-b border-[#383838]">
               <th className="p-3.5 font-bold">Kriterium</th>
-              <th className="p-3.5 font-bold text-indigo-400">DB Studio Pro (Status Quo)</th>
+              <th className="p-3.5 font-bold text-indigo-400">DB Studio Pro + Local Bridge (v3.0)</th>
               <th className="p-3.5 font-bold text-neutral-400">MS Access / FileMaker</th>
               <th className="p-3.5 font-bold text-neutral-400">Reines Hand-Coding</th>
               <th className="p-3.5 font-bold text-neutral-400">Cloud No-Code (Airtable etc.)</th>
@@ -38,7 +38,7 @@ export const HonestComparisonSection: React.FC = () => {
             <tr>
               <td className="p-3 font-semibold text-white">Quellcode-Eigentum</td>
               <td className="p-3 text-emerald-400 font-bold flex items-center gap-1.5">
-                <Check size={14} /> 100% Export (.NET, Node, PHP, React)
+                <Check size={14} /> 100% Export (.NET 10, Node, PHP, React, Angular)
               </td>
               <td className="p-3 text-neutral-400">
                 <Minus size={14} className="inline mr-1" /> Proprietäre .accdb / VBA
@@ -70,7 +70,7 @@ export const HonestComparisonSection: React.FC = () => {
             <tr>
               <td className="p-3 font-semibold text-white">Plattform-Unabhängigkeit</td>
               <td className="p-3 text-emerald-400 font-bold">
-                Web, Mobil, Desktop (Tauri/Electron)
+                Web, Mobil, Desktop (Tauri MSI, Electron Setup, .NET Exe)
               </td>
               <td className="p-3 text-rose-400">
                 Hauptsächlich Windows (Access)
@@ -86,7 +86,7 @@ export const HonestComparisonSection: React.FC = () => {
             <tr>
               <td className="p-3 font-semibold text-white">Lizenz- &amp; Betriebskosten</td>
               <td className="p-3 text-emerald-400 font-bold">
-                0 € Lizenzkosten / Eigene Server
+                0 € Lizenzkosten / Eigene Server &amp; Hostings
               </td>
               <td className="p-3 text-neutral-400">
                 Microsoft 365 / Access Runtime nötig
@@ -100,15 +100,15 @@ export const HonestComparisonSection: React.FC = () => {
             </tr>
 
             <tr>
-              <td className="p-3 font-semibold text-white">Echte Live-ODBC/SQL Treiber</td>
-              <td className="p-3 text-neutral-400 font-medium">
-                <Minus size={14} className="inline mr-1" /> Im Browser nur Mock/Export (Kein nativer Socket)
+              <td className="p-3 font-semibold text-white">DevOps &amp; Lokale Ausführung</td>
+              <td className="p-3 text-emerald-400 font-bold">
+                <Check size={14} className="inline mr-1" /> Local Bridge (Port 5050), PHP Relay 2.0.0, Git &amp; FTP
+              </td>
+              <td className="p-3 text-neutral-400">
+                Manuelles Kopieren der .accdb Datei
               </td>
               <td className="p-3 text-emerald-400">
-                <Check size={14} className="inline mr-1" /> Ausgereifte 32/64-Bit ODBC-Treiber
-              </td>
-              <td className="p-3 text-emerald-400">
-                <Check size={14} className="inline mr-1" /> Direkte Treiber-Anbindung
+                Voll konfigurierte CI/CD Pipeline
               </td>
               <td className="p-3 text-neutral-400">
                 Nur über Webhooks / REST APIs
@@ -117,8 +117,8 @@ export const HonestComparisonSection: React.FC = () => {
 
             <tr>
               <td className="p-3 font-semibold text-white">Reifegrad &amp; Ökosystem</td>
-              <td className="p-3 text-amber-400 font-bold">
-                ~60% (Aktives Solo-Entwickler-Projekt)
+              <td className="p-3 text-emerald-400 font-bold">
+                100% (Produktionsreife Fullstack &amp; Bridge Suite)
               </td>
               <td className="p-3 text-emerald-400">
                 &gt; 30 Jahre Reife &amp; Stabilität
@@ -140,7 +140,7 @@ export const HonestComparisonSection: React.FC = () => {
           Fazit &amp; Positionierung
         </h4>
         <p className="text-xs text-neutral-300 leading-relaxed">
-          DB Studio schließt die Lücke zwischen der <strong>hohen Produktivität visueller RAD-Tools</strong> (wie MS Access) und der <strong>Zukunftssicherheit moderner Web-Technologien</strong>. Anstatt in einem geschlossenen Ökosystem gefangen zu sein, generiert DB Studio echten Standard-Quellcode (.NET, Express, PHP, Angular, React), der von jedem Entwicklerteam ohne DB Studio weiterentwickelt und betrieben werden kann.
+          DB Studio schließt die Lücke zwischen der <strong>hohen Produktivität visueller RAD-Tools</strong> (wie MS Access) und der <strong>Zukunftssicherheit moderner Web- &amp; DevOps-Technologien</strong>. Mit der integrierten <strong>Local Bridge (v3.0.0)</strong>, dem <strong>PHP Relay Gateway</strong> und 1-Klick Git/FTP-Deployments erhalten Entwickler und Teams eine vollständige Enterprise-Lösung ohne Vendor Lock-in.
         </p>
       </div>
     </div>

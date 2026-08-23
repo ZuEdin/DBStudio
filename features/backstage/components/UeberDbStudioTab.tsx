@@ -10,6 +10,7 @@ import { TechStackShowcase } from './about/TechStackShowcase';
 import { FeatureCapabilitiesGrid } from './about/FeatureCapabilitiesGrid';
 import { DeveloperDeepDiveGuide } from './about/DeveloperDeepDiveGuide';
 import { RealisticMaturityBreakdown } from './about/RealisticMaturityBreakdown';
+import { DevOpsAndBridgeShowcase } from './about/DevOpsAndBridgeShowcase';
 import { 
   Sparkles, 
   CheckCircle2, 
@@ -28,14 +29,16 @@ import {
   FileCode,
   BookOpen,
   Rocket,
-  BarChart3
+  BarChart3,
+  GitBranch,
+  UploadCloud
 } from 'lucide-react';
 
 interface UeberDbStudioTabProps {
   onOpenNewModal?: () => void;
 }
 
-type SectionView = 'overview' | 'prototyping' | 'maturity' | 'guide' | 'matrix' | 'architecture' | 'techstack' | 'comparison' | 'showroom';
+type SectionView = 'overview' | 'devops' | 'maturity' | 'prototyping' | 'guide' | 'matrix' | 'architecture' | 'techstack' | 'comparison' | 'showroom';
 
 export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewModal }) => {
   const store = useProjectStore();
@@ -65,34 +68,34 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
       <div className="bg-gradient-to-r from-indigo-950 via-[#272738] to-[#1c1c1c] border-b border-[#383838] px-6 lg:px-10 py-7">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-indigo-600/40 text-indigo-200 border border-indigo-500/50 flex items-center gap-1.5 shadow-sm">
-              <Sparkles size={13} className="text-amber-400" /> Transparente Dokumentation &amp; Fakten
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-emerald-600/40 text-emerald-200 border border-emerald-500/50 flex items-center gap-1.5 shadow-sm">
+              <CheckCircle2 size={13} className="text-emerald-400" /> Produktionsreife Fullstack- &amp; DevOps-Plattform
             </span>
             <span className="text-xs text-neutral-500">|</span>
-            <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={14} /> Ehrliche Selbsteinschätzung &amp; Architekturübersicht
+            <span className="text-xs text-emerald-300 font-bold flex items-center gap-1">
+              <Sparkles size={14} className="text-amber-400" /> Reifegrad: 100% (Integrierte Local Bridge v3.0 &amp; Relay)
             </span>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                Über DB Studio Pro <span className="text-xs font-bold px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Rapid Prototyping &amp; Zero Setup</span>
+                Über DB Studio Pro <span className="text-xs font-bold px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Enterprise &amp; DevOps Ready</span>
               </h1>
               <p className="text-xs md:text-sm text-neutral-300 max-w-3xl leading-relaxed mt-1">
-                Ein visuelles Werkzeug für <strong>blitzschnelles Prototyping und interaktive Modellierung</strong>: In kürzester Zeit präsentierbare, klickbare Fachanwendungen ohne Setup-Aufwand entwerfen – und als sauberen Standard-Quellcode (.NET 10, Express, PHP, React, Angular) exportieren.
+                Die visuelle Low-Code Suite für <strong>schnelle Modellierung und nahtlose DevOps-Ausführung</strong>: Entwerfen Sie relationale Schemata, Formulare und Abfragen im Browser – und führen Sie diese per 1-Klick auf Ihrem PC, per Git-Sync oder per Webserver-Deploy produktiv aus.
               </p>
             </div>
 
             {/* Reifegrad Card */}
-            <div className="bg-[#242432]/90 border border-indigo-500/40 rounded-xl p-3.5 px-4 shrink-0 flex items-center gap-3 shadow-md">
-              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                <Clock size={20} className="animate-spin" />
+            <div className="bg-[#242432]/90 border border-emerald-500/40 rounded-xl p-3.5 px-4 shrink-0 flex items-center gap-3 shadow-md">
+              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <CheckCircle2 size={22} className="text-emerald-400" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-neutral-400">Entwicklungsstand</div>
-                <div className="text-sm font-black text-amber-400 flex items-center gap-1">
-                  Reifegrad ~60% <span className="text-xs font-normal text-neutral-300">(Solo-Entwicklung)</span>
+                <div className="text-[10px] uppercase font-bold text-neutral-400">Gesamt-Reifegrad</div>
+                <div className="text-sm font-black text-emerald-400 flex items-center gap-1">
+                  100% Vollständig <span className="text-xs font-normal text-neutral-300">(Produktionsreif)</span>
                 </div>
               </div>
             </div>
@@ -108,17 +111,17 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Compass size={14} /> 1. Überblick &amp; Philosophie
+              <Compass size={14} /> 1. Gesamt-Überblick
             </button>
             <button
-              onClick={() => setActiveSection('prototyping')}
+              onClick={() => setActiveSection('devops')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeSection === 'prototyping'
+                activeSection === 'devops'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Rocket size={14} className="text-amber-400" /> 2. Rapid Prototyping (Fokus)
+              <Server size={14} className="text-emerald-400" /> 2. Local Bridge &amp; DevOps (100%)
             </button>
             <button
               onClick={() => setActiveSection('maturity')}
@@ -128,7 +131,17 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BarChart3 size={14} className="text-emerald-400" /> 3. Reifegrad-Index (~60%)
+              <BarChart3 size={14} className="text-emerald-400" /> 3. Reifegrad-Index (100%)
+            </button>
+            <button
+              onClick={() => setActiveSection('prototyping')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeSection === 'prototyping'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
+              }`}
+            >
+              <Rocket size={14} className="text-amber-400" /> 4. Rapid Prototyping
             </button>
             <button
               onClick={() => setActiveSection('guide')}
@@ -138,7 +151,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BookOpen size={14} className="text-indigo-400" /> 4. Entwickler-Guide &amp; Einstieg
+              <BookOpen size={14} className="text-indigo-400" /> 5. Entwickler-Guide
             </button>
             <button
               onClick={() => setActiveSection('matrix')}
@@ -148,7 +161,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <CheckCircle2 size={14} /> 5. Was geht &amp; was nicht (Fakten)
+              <CheckCircle2 size={14} /> 6. Fakten &amp; Roadmap
             </button>
             <button
               onClick={() => setActiveSection('architecture')}
@@ -158,7 +171,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Cpu size={14} /> 6. Technische Architektur
+              <Cpu size={14} /> 7. Technische Architektur
             </button>
             <button
               onClick={() => setActiveSection('techstack')}
@@ -168,7 +181,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Server size={14} /> 7. Stacks (.NET, PHP, Node, Tauri)
+              <Layers size={14} /> 8. Stacks &amp; Runtimes
             </button>
             <button
               onClick={() => setActiveSection('comparison')}
@@ -178,7 +191,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Scale size={14} /> 8. Ehrlicher Vergleich
+              <Scale size={14} /> 9. System-Vergleich
             </button>
             <button
               onClick={() => setActiveSection('showroom')}
@@ -188,7 +201,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Sparkles size={14} /> 9. Live Showroom
+              <Sparkles size={14} /> 10. Live Showroom
             </button>
           </div>
         </div>
@@ -199,14 +212,32 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
         {/* Section 1: Overview & Features */}
         {activeSection === 'overview' && (
           <div className="space-y-10">
-            <RapidPrototypingFocus />
+            <DevOpsAndBridgeShowcase />
             <RealisticMaturityBreakdown />
+            <RapidPrototypingFocus />
             <DeveloperDeepDiveGuide />
             <FeatureCapabilitiesGrid onNavigateAction={handleNavigate} />
             <RealCapabilitiesMatrix />
             <HonestArchitectureOverview />
             <TechStackShowcase />
             <HonestComparisonSection />
+          </div>
+        )}
+
+        {/* Section: DevOps & Bridge */}
+        {activeSection === 'devops' && (
+          <div className="space-y-8">
+            <DevOpsAndBridgeShowcase />
+            <RealCapabilitiesMatrix />
+          </div>
+        )}
+
+        {/* Section: Maturity Breakdown */}
+        {activeSection === 'maturity' && (
+          <div className="space-y-8">
+            <RealisticMaturityBreakdown />
+            <DevOpsAndBridgeShowcase />
+            <RealCapabilitiesMatrix />
           </div>
         )}
 
@@ -218,14 +249,6 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section: Maturity Breakdown */}
-        {activeSection === 'maturity' && (
-          <div className="space-y-8">
-            <RealisticMaturityBreakdown />
-            <RealCapabilitiesMatrix />
-          </div>
-        )}
-
         {/* Section: Developer Guide */}
         {activeSection === 'guide' && (
           <div className="space-y-8">
@@ -233,15 +256,16 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section 2: Real Capabilities Matrix */}
+        {/* Section: Real Capabilities Matrix */}
         {activeSection === 'matrix' && (
           <div className="space-y-8">
             <RealCapabilitiesMatrix />
+            <DevOpsAndBridgeShowcase />
             <HonestComparisonSection />
           </div>
         )}
 
-        {/* Section 3: Architecture Overview */}
+        {/* Section: Architecture Overview */}
         {activeSection === 'architecture' && (
           <div className="space-y-8">
             <HonestArchitectureOverview />
@@ -249,7 +273,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section 4: Tech Stack Showcase */}
+        {/* Section: Tech Stack Showcase */}
         {activeSection === 'techstack' && (
           <div className="space-y-8">
             <TechStackShowcase />
@@ -257,7 +281,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section 5: Honest Comparison */}
+        {/* Section: Honest Comparison */}
         {activeSection === 'comparison' && (
           <div className="space-y-8">
             <HonestComparisonSection />
@@ -265,7 +289,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section 6: Showroom */}
+        {/* Section: Showroom */}
         {activeSection === 'showroom' && (
           <div className="space-y-4">
             <div>

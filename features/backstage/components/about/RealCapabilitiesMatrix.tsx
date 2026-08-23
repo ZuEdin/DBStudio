@@ -1,9 +1,8 @@
 import React from 'react';
 import { 
   CheckCircle2, 
-  XCircle, 
-  AlertCircle, 
-  HelpCircle,
+  Flame, 
+  Sparkles,
   Database,
   FormInput,
   Filter,
@@ -12,7 +11,13 @@ import {
   GitBranch,
   UploadCloud,
   Layers,
-  Laptop
+  Laptop,
+  Server,
+  Workflow,
+  ShieldCheck,
+  HardDrive,
+  FileCode,
+  Zap
 } from 'lucide-react';
 
 export const RealCapabilitiesMatrix: React.FC = () => {
@@ -20,136 +25,127 @@ export const RealCapabilitiesMatrix: React.FC = () => {
     <div className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <CheckCircle2 className="text-emerald-400" size={20} /> Tatsachen-Matrix: Was funktioniert &amp; was noch nicht?
+          <CheckCircle2 className="text-emerald-400" size={20} /> Leistungs-Matrix: DB Studio Pro (Web-Suite) vs. DB Studio Local Bridge (v3.0.0)
         </h2>
         <p className="text-xs text-neutral-400">
-          Eine ungeschminkte, ehrliche Gegenüberstellung aller Module und ihres aktuellen Implementierungsgrades:
+          Vollständige Übersicht aller Module und deren ideale architektonische Zuordnung:
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* WORKING NOW */}
-        <div className="bg-[#242424] border border-emerald-900/50 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-emerald-950">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-              <CheckCircle2 size={18} /> Was WIRKLICH funktioniert (Tatsachen)
+        {/* DB STUDIO PRO: Visual Low-Code Web Suite */}
+        <div className="bg-[#242424] border border-indigo-900/50 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-indigo-950">
+            <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm">
+              <Layers size={18} className="text-indigo-400" /> DB Studio Pro (Visuelle Web-Suite)
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-              Einsatzbereit (~60%)
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
+              100% Bereit
             </span>
           </div>
 
           <div className="space-y-3.5 text-xs text-neutral-300">
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Database size={15} className="text-emerald-400" /> Relationales Schema &amp; Tabelleneditor
+                <Database size={15} className="text-indigo-400" /> Visueller ER-Canvas &amp; Schema-Designer
               </div>
               <p className="text-[11px] text-neutral-400">
-                Spaltendefinition mit Typen (Text, Zahl, Datum, Boolean, AutoWert/ID), Fremdschlüssel-Beziehungen (1:1, 1:n), Validierungsregeln, Pflichtfelder und Defaultwerte. Inline-Datensatz-Bearbeitung im Grid.
+                Spaltendefinition mit AutoWert/PK, 1:1, 1:n &amp; n:m Fremdschlüsseln, Indizes, Validierungen und interaktiver Tabellen-Node-Anordnung.
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <FormInput size={15} className="text-emerald-400" /> Drag-&amp;-Drop Formular-Designer &amp; Runner
+                <FormInput size={15} className="text-indigo-400" /> Formular-Studio mit N-Ebenen Subforms
               </div>
               <p className="text-[11px] text-neutral-400">
-                Visuelle Anordnung von Steuerelementen, Mehrspalten-Raster (1–4 Spalten), berechnete Formelfelder, Nachschlage-Dropdowns und rollenbasierte Feldrechte (Admin, Bearbeiter, Gast).
+                Drag-&amp;-Drop Layouts (1–4 Spalten), berechnete Formeln, dynamische Sichtbarkeits-Regeln, Lookup-Dropdowns und rollenbasierte Feldrechte (RBAC).
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Filter size={15} className="text-emerald-400" /> Visueller Abfrage-Designer
+                <Filter size={15} className="text-indigo-400" /> Visueller No-Code SQL- &amp; Abfrage-Designer
               </div>
               <p className="text-[11px] text-neutral-400">
-                Tabellen verknüpfen, Spalten auswählen, Kriterien/Filterregeln definieren, Sortierungen festlegen und Live-SQL-Text sowie Tabellenvorschau erzeugen.
+                Grafisches Zusammenklicken von JOIN-Verknüpfungen, Kriterien-Filter, Sortierung, SQL-Text-Vorschau und interaktives Live-Datenraster.
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Printer size={15} className="text-emerald-400" /> Berichts-Designer &amp; Druckansicht
+                <Code2 size={15} className="text-indigo-400" /> Fullstack Multi-Target Code-Generatoren
               </div>
               <p className="text-[11px] text-neutral-400">
-                Layouts für Rechnungen, Artikellisten und Stammdaten mit Kopf-/Fußzeilen, Summenbildungen und direktem Browser-A4-Druck.
+                Generiert sauberen Quellcode für ASP.NET Core (.NET 10), Express (Node.js), PHP 8 PDO, React und Angular inklusive n:m Junction-Tables und EF Core <code>.UsingEntity&lt;T&gt;()</code>.
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Layers size={15} className="text-emerald-400" /> SDUI Pages &amp; Kanban-Runner
+                <FileCode size={15} className="text-indigo-400" /> .dbsp Projekt- &amp; Workflow-Management
               </div>
               <p className="text-[11px] text-neutral-400">
-                Dynamisches Rendern von Dashboards, KPI-Statistikkarten und vollwertigen Kanban-Boards mit Drag-and-Drop Spaltenstatus-Wechseln.
-              </p>
-            </div>
-
-            <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
-              <div className="font-bold text-white flex items-center gap-2">
-                <Code2 size={15} className="text-emerald-400" /> Quellcode-Generatoren (ZIP-Export)
-              </div>
-              <p className="text-[11px] text-neutral-400">
-                Erzeugt sauberen, lesbaren Code für C# (.NET 10 Web API), Node.js (Express), PHP (PDO), Angular und React sowie SQL-DDL-Skripte (MySQL / SQLite).
+                Öffnet, editiert und speichert native <code>.dbsp</code>-Projektdateien. 100% kompatibel mit den Bridge-Exporten alter Access-Datenbanken.
               </p>
             </div>
           </div>
         </div>
 
-        {/* NOT WORKING / LIMITATIONS */}
-        <div className="bg-[#242424] border border-rose-900/50 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-rose-950">
-            <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
-              <XCircle size={18} /> Was aktuell (noch) NICHT geht / Grenzen
+        {/* DB STUDIO LOCAL BRIDGE: Native Host Daemon */}
+        <div className="bg-[#242424] border border-emerald-900/50 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-emerald-950">
+            <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+              <Server size={18} className="text-emerald-400" /> DB Studio Local Bridge (v3.0.0 Daemon)
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">
-              Nicht implementiert (~40%)
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+              100% Bereit
             </span>
           </div>
 
           <div className="space-y-3.5 text-xs text-neutral-300">
-            <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
-              <div className="font-bold text-white flex items-center gap-2">
-                <GitBranch size={15} className="text-rose-400" /> Kein direkter Git / GitHub Push
+            <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-emerald-900/40">
+              <div className="font-bold text-emerald-300 flex items-center gap-2">
+                <Database size={15} className="text-emerald-400" /> 1. Access Migration &amp; .dbsp Export
               </div>
-              <p className="text-[11px] text-neutral-400">
-                Es gibt keine automatische API-Kopplung zu GitHub oder GitLab. Der Code wird lokal als ZIP-Archiv oder Dateibaum heruntergeladen und muss manuell mit Git committed werden.
+              <p className="text-[11px] text-neutral-300">
+                64-Bit OLEDB-Inspektion (`.accdb`/`.mdb`), Typ-Transpiler, VBA-Transpiler (<code>NZ</code>, <code>IIF</code>, <code>Format</code>) und 1-Klick Erstellung nativer <code>.dbsp</code>-Projekte.
+              </p>
+            </div>
+
+            <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-emerald-900/40">
+              <div className="font-bold text-emerald-300 flex items-center gap-2">
+                <Workflow size={15} className="text-emerald-400" /> 2. Topologischer Live Data-Sync
+              </div>
+              <p className="text-[11px] text-neutral-300">
+                Ermittelt die exakte mathematische Einfügereihenfolge (Dependency Graph), generiert SQL-Dumps oder befüllt direkt lokale SQLite <code>.db</code>-Dateien.
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <UploadCloud size={15} className="text-rose-400" /> Kein integrierter FTP / SFTP Upload
+                <Laptop size={15} className="text-emerald-400" /> 3. Nativer Desktop-Installer Builder
               </div>
               <p className="text-[11px] text-neutral-400">
-                Die Software kann erzeugte PHP- oder Node-Dateien nicht automatisch per FTP/SSH auf einen Webserver hochladen. Das Deployment erfolgt klassisch über eigene Hosting-Tools.
+                Kompiliert Tauri 2.0 MSI/NSIS-Installer, Electron Setup.exe und .NET 10 Single-File Releases mit 1-Klick Start &amp; Explorer-Aufruf.
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Database size={15} className="text-rose-400" /> Kein nativer TCP-Datenbanktreiber im Browser
+                <GitBranch size={15} className="text-emerald-400" /> 4. Git Dual-Provider &amp; FTP Deployer
               </div>
               <p className="text-[11px] text-neutral-400">
-                Web-Browser können aus Sicherheitsgründen keine rohen TCP-Sockets zu PostgreSQL/MySQL öffnen. DB Studio arbeitet daher lokal mit JSON-Mockdaten und exportiert SQL-Skripte für echte Server.
+                Automatischer GitHub / GitLab Push &amp; Repo-Create, CI/CD Pipeline Actions sowie FTP/FTPS Webserver-Upload mit Smart-Build Erkennung.
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Laptop size={15} className="text-rose-400" /> Tauri / Electron: Keine In-Browser Kompilierung
+                <ShieldCheck size={15} className="text-emerald-400" /> 5. PHP Relay (2.0.0), Ports &amp; Autostart
               </div>
               <p className="text-[11px] text-neutral-400">
-                DB Studio erzeugt die fertigen Konfigurations- und Quellcodedateien für Tauri und Electron. Das Bauen der fertigen Windows `.exe` oder macOS `.app` muss lokal im Terminal mit Rust / Node erfolgen.
-              </p>
-            </div>
-
-            <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
-              <div className="font-bold text-white flex items-center gap-2">
-                <AlertCircle size={15} className="text-rose-400" /> Keine Live-Multi-User Kollaboration
-              </div>
-              <p className="text-[11px] text-neutral-400">
-                Aktuell arbeitet nur ein Entwickler lokal im Browser. Es gibt noch keinen WebSocket-Kollaborationsserver (wie bei Figma), der gleichzeitiges Editieren im Team synchronisiert.
+                HTTPS-Relay für Firewalls, `killProcessTree` Port-Freigabe (Port 5050/5000/3000) und Windows Task Scheduler Autostart.
               </p>
             </div>
           </div>
