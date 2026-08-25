@@ -422,13 +422,17 @@ ${validationMethod}
       const props = selectQ.columns.filter(c => c.show || (c.criteria && c.criteria.some(cr => cr && cr.trim() !== ''))).map(c => {
           const table = tables.find(t => t.id === c.tableId);
           const field = table?.fields.find(f => f.id === c.fieldId);
-          let type = 'string';
+          let type = 'string?';
           if (field) {
               type = resolveType(field, 'csharp');
-              if (field.allowNull) type += '?';
           }
           if (c.aggregate === 'COUNT') type = 'int';
-          if (c.aggregate === 'SUM' && type === 'int') type = 'long?';
+          if (c.aggregate === 'SUM' && (type === 'int' || type === 'int?')) type = 'long';
+          
+          // In SQL Views and Queries (especially with LEFT JOINs), columns can always be NULL
+          if (!type.endsWith('?')) {
+              type += '?';
+          }
           
           let propName = toPascalCase(c.alias || c.fieldName);
           let colAttr = '';
@@ -450,12 +454,7 @@ ${validationMethod}
           }
           usedNames.add(propName);
 
-          let initializer = '';
-          if (type === 'string') {
-              initializer = ' = string.Empty;';
-          }
-
-          return `${colAttr}        public ${type} ${propName} { get; set; }${initializer}`;
+          return `${colAttr}        public ${type} ${propName} { get; set; }`;
       }).join('\n\n');
 
       const content = `using System.ComponentModel.DataAnnotations.Schema;

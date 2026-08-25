@@ -1,6 +1,7 @@
 import { DbType } from './database';
+import { WordPressPluginConfig } from './wordpress';
 
-export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron' | 'python' | 'tauri';
+export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron' | 'python' | 'tauri' | 'wordpress';
 export type FrontendFramework = 'react' | 'angular' | 'angular-modern' | 'blazor' | 'vue' | 'electron' | 'maui' | 'maui-native' | 'none' | 'tauri';
 export type StylingFramework = 'tailwind' | 'bootstrap' | 'none';
 
@@ -21,7 +22,7 @@ export interface ElectronSettings {
   targetUrl?: string;
 }
 
-export type DeploymentTarget = 'docker' | 'ftp' | 'azure' | 'aws' | 'github' | 'electron' | 'tauri' | 'offline_sync';
+export type DeploymentTarget = 'docker' | 'ftp' | 'azure' | 'aws' | 'github' | 'electron' | 'tauri' | 'offline_sync' | 'wordpress_plugin';
 
 export interface OfflineSyncConfig {
   enabled: boolean;
@@ -216,4 +217,5 @@ export interface BackendConfig {
   globalStates?: GlobalStateVariable[];
   productTours?: ProductTour[];
   offlineSync?: OfflineSyncConfig;
+  wordpressPlugin?: WordPressPluginConfig;
 }

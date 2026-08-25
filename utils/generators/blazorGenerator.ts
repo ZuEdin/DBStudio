@@ -11,9 +11,9 @@ export const generateBlazor = (tables: Table[], relationships: Relationship[], q
   const useAuth = config.authConfig?.useUserLogin;
   const clientPort = config.port + 2;
 
-  let version = config.backendVersion || '9.0';
-  if (parseFloat(version) > 9.0) {
-    version = '9.0';
+  let version = config.backendVersion || '10.0';
+  if (parseFloat(version) > 10.0) {
+    version = '10.0';
   }
   const targetFramework = `net${version}`;
   const packageVersion = `${version}.0`; 

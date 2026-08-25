@@ -41,6 +41,15 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   const { layout, tableGroups } = useProjectStore();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  // Close on Escape
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const saveAuthChanges = () => {
       if (backendConfig && onUpdateBackendConfig) {
           onUpdateBackendConfig({ ...backendConfig, authConfig });
@@ -240,8 +249,13 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   // If system tables don't exist, show initialization screen
   if (!rolesTable || !permTable) {
       return (
-          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25">
-              <div className="bg-white rounded-lg p-8 max-w-md text-center shadow-2xl border border-slate-200">
+          <div 
+            className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-4 animate-in fade-in-25 backdrop-blur-sm"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) onClose();
+            }}
+          >
+              <div className="bg-white rounded-lg p-8 max-w-md text-center shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
                   <div className="flex justify-center mb-6 text-blue-600">
                       <div className="bg-blue-100 p-4 rounded-full">
                         <Shield size={48}/>
@@ -477,8 +491,13 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[90vw] h-[90vh] flex flex-col border border-slate-300 overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-3 sm:p-6 animate-in fade-in-25 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[92vw] max-h-[92vh] h-full flex flex-col border border-slate-300 overflow-hidden animate-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 bg-slate-800 text-white shrink-0">

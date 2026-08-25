@@ -15,7 +15,7 @@ export const generateMauiProjectFiles = (
   const csprojContent = `<Project Sdk="Microsoft.NET.Sdk.Razor">
   <PropertyGroup>
     <TargetFrameworks>${targetFramework}-android;${targetFramework}-ios;${targetFramework}-maccatalyst</TargetFrameworks>
-    ${targetFramework === 'net8.0' ? '<TargetFrameworks Condition="\'$(MSBuildProjectExtension)\' == \'.csproj\'">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>' : '<TargetFrameworks Condition="\'$(MSBuildProjectExtension)\' == \'.csproj\'">$(TargetFrameworks);net9.0-windows10.0.19041.0</TargetFrameworks>'}
+    ${targetFramework === 'net8.0' ? '<TargetFrameworks Condition="\'$(MSBuildProjectExtension)\' == \'.csproj\'">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>' : targetFramework === 'net10.0' ? '<TargetFrameworks Condition="\'$(MSBuildProjectExtension)\' == \'.csproj\'">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>' : '<TargetFrameworks Condition="\'$(MSBuildProjectExtension)\' == \'.csproj\'">$(TargetFrameworks);net9.0-windows10.0.19041.0</TargetFrameworks>'}
     <!-- Platforms: Android, iOS, Mac Catalyst, Windows -->
     <OutputType>Exe</OutputType>
     <RootNamespace>${namespace}</RootNamespace>
@@ -39,8 +39,10 @@ export const generateMauiProjectFiles = (
     <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == '${targetFramework}-android'">21.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'">10.0.17763.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net9.0-windows10.0.19041.0'">10.0.17763.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net9.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
+    <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
   </PropertyGroup>
 
   <ItemGroup>

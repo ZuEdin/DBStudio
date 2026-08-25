@@ -239,22 +239,24 @@ const closeDetails = () => { selectedItem.value = null; };
         <h1 class="text-2xl font-bold">${table.name}</h1>
         <router-link to="/${c}/new" class="bg-primary text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={16}/> Neu</router-link>
     </div>
-    <div class="bg-white rounded shadow overflow-hidden">
-        <table class="w-full text-left">
-            <thead class="bg-gray-50 border-b">
-                <tr>${table.fields.map(f => `<th class="p-4 font-bold text-sm text-gray-600">${f.name}</th>`).join('')}<th class="p-4">Aktionen</th></tr>
-            </thead>
-            <tbody>
-                <tr v-for="i in items" :key="i.${pk}" class="border-b hover:bg-gray-50">
-                    ${table.fields.map(f => `<td class="p-4 text-sm">{{i.${toCamelCase(f.name)}}}</td>`).join('')}
-                    <td class="p-4 text-right flex justify-end gap-3">
-                        <button @click="viewDetails(i)" class="text-indigo-600 hover:text-indigo-800" title="Details"><Eye size={16}/></button>
-                        <router-link :to="'/${c}/' + i.${pk}" class="text-blue-600 hover:text-blue-800" title="Bearbeiten"><Edit size={16}/></router-link>
-                        <button @click="del(i.${pk})" class="text-red-600 hover:text-red-800" title="Löschen"><Trash2 size={16}/></button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+        <div class="overflow-x-auto w-full">
+            <table class="min-w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>${table.fields.map(f => `<th class="p-4 font-bold text-sm text-gray-600 whitespace-nowrap">${f.name}</th>`).join('')}<th class="p-4 font-bold text-sm text-gray-600 text-right whitespace-nowrap">Aktionen</th></tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr v-for="i in items" :key="i.${pk}" class="border-b hover:bg-gray-50 transition-colors">
+                        ${table.fields.map(f => `<td class="p-4 text-sm text-slate-700 whitespace-nowrap">{{i.${toCamelCase(f.name)}}}</td>`).join('')}
+                        <td class="p-4 text-right flex justify-end gap-3 whitespace-nowrap">
+                            <button @click="viewDetails(i)" class="text-indigo-600 hover:text-indigo-800 p-1" title="Details"><Eye size={16}/></button>
+                            <router-link :to="'/${c}/' + i.${pk}" class="text-blue-600 hover:text-blue-800 p-1" title="Bearbeiten"><Edit size={16}/></router-link>
+                            <button @click="del(i.${pk})" class="text-red-600 hover:text-red-800 p-1" title="Löschen"><Trash2 size={16}/></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Details Modal -->

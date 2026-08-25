@@ -19,6 +19,7 @@ import { generateMarkdownApiDocs } from "./generators/markdownApiGenerator";
 import { generateDatabaseScripts } from './generators/databaseGenerator';
 import { generateSolution } from './generators/dotnet/solution';
 import { generateOfflineSyncFiles } from './generators/offlineSyncGenerator';
+import { generateWordPressPlugin } from './generators/wordpressGenerator';
 
 // Main Generator Function
 export const generateBackendCode = (
@@ -74,6 +75,14 @@ export const generateBackendCode = (
     files = generateLaravel(tables, relationships, queries, activeConfig);
   } else if (activeConfig.language === 'python') {
     files = generatePython(tables, relationships, queries, activeConfig);
+  } else if (activeConfig.language === 'wordpress') {
+    files = generateWordPressPlugin(tables, forms, reports, pages, queries, activeConfig.wordpressPlugin, activeConfig);
+  }
+
+  // Generate WordPress Plugin files if selected as deployment target or explicitly configured
+  if (activeConfig.language !== 'wordpress' && (activeConfig.deploymentConfig?.target === 'wordpress_plugin' || activeConfig.wordpressPlugin)) {
+    const wpFiles = generateWordPressPlugin(tables, forms, reports, pages, queries, activeConfig.wordpressPlugin, activeConfig);
+    files = [...files, ...wpFiles];
   }
 
   // 2. Generate Database Schema/Scripts (Common for all backends)

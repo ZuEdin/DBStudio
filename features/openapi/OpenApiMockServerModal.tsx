@@ -30,9 +30,23 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
     setLogs(prev => [log, ...prev.slice(0, 49)]); // Keep last 50 logs
   };
 
+  // Close on Escape
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 animate-in fade-in backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[780px]">
+    <div 
+      className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-3 sm:p-6 animate-in fade-in backdrop-blur-xs"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[min(92vh,780px)] h-full animate-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="bg-slate-900 text-white p-4.5 flex justify-between items-center shrink-0 border-b border-slate-800">
@@ -58,6 +72,7 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+            title="Schließen (Esc)"
           >
             <X size={20} />
           </button>

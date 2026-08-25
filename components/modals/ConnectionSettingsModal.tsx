@@ -76,18 +76,38 @@ export const ConnectionSettingsModal: React.FC<ConnectionSettingsModalProps> = (
       onClose();
   };
 
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in-25">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md border border-slate-300">
-        <div className="flex justify-between items-center p-4 bg-slate-100 border-b border-slate-200">
+    <div 
+      className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-4 animate-in fade-in-25 backdrop-blur-xs"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-slate-300 flex flex-col max-h-[min(92vh,680px)] overflow-hidden animate-in zoom-in-95 duration-150">
+        <div className="flex justify-between items-center p-4 bg-slate-100 border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-2">
             <Server className="text-blue-600" size={20} />
             <h2 className="text-lg font-bold text-slate-800">Verbindung konfigurieren</h2>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-800"><X size={20} /></button>
+          <button 
+            onClick={onClose} 
+            className="text-slate-500 hover:text-slate-800 p-1 rounded hover:bg-slate-200 transition-colors"
+            title="Schließen (Esc)"
+          >
+            <X size={20} />
+          </button>
         </div>
         
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 flex-1 overflow-y-auto">
           <div className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">{dbType} Einstellungen</div>
           
           {dbType === DbType.SQLite ? (

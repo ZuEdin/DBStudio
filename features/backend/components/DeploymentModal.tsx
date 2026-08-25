@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DeploymentConfig, DeploymentTarget } from '../../../types/index';
 import { X, Upload, Server, Cloud, Globe, Ship, Github, ArrowRight, Database, Terminal, Cpu, Layers, Settings, GitBranch, Play, CheckCircle2, DollarSign, Building, FileText, RefreshCw, Key, ShieldCheck } from 'lucide-react';
 
@@ -116,9 +116,23 @@ export const DeploymentModal: React.FC<DeploymentModalProps> = ({ config, onSave
 
   const currentStats = getArchitectureStats();
 
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl border border-slate-300 flex overflow-hidden h-[630px]">
+    <div 
+      className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-3 sm:p-6 backdrop-blur-xs animate-in fade-in-25"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl border border-slate-300 flex overflow-hidden max-h-[min(92vh,680px)] h-full animate-in zoom-in-95 duration-150">
         
         {/* Sidebar */}
         <div className="w-64 bg-slate-800 text-white p-6 flex flex-col">

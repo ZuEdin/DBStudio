@@ -222,6 +222,9 @@ function launchProjectArchitecture(cleanProjectFolder, payload) {
   const currentPid = projectEntry.projectId;
 
   // Inspect directory structure
+  const isWordPress = (stack && stack.backendType === 'wordpress') || 
+                      fs.existsSync(path.join(cleanProjectFolder, 'readme.txt')) ||
+                      (fs.readdirSync(cleanProjectFolder).some(f => f.endsWith('.php')));
   const srcTauriDir = path.join(cleanProjectFolder, 'src-tauri');
   const hasTauri = fs.existsSync(srcTauriDir) || fs.existsSync(path.join(cleanProjectFolder, 'Frontend', 'src-tauri'));
   const hasElectron = fs.existsSync(path.join(cleanProjectFolder, 'main.js')) || 
@@ -230,8 +233,22 @@ function launchProjectArchitecture(cleanProjectFolder, payload) {
   const backendDir = path.join(cleanProjectFolder, 'Backend');
   const frontendDir = path.join(cleanProjectFolder, 'Frontend');
 
+  // 0. WORDPRESS Plugin Architecture
+  if (isWordPress && !fs.existsSync(backendDir) && !fs.existsSync(frontendDir)) {
+    projectEntry.desktopType = 'wordpress';
+    broadcastLog(currentPid, {
+      type: 'system',
+      service: 'WordPress',
+      message: \`🔌 WordPress Plugin-Architektur erkannt: "\${projectEntry.projectName}". Alle Plugin-Dateien (PHP, JS, CSS, SQL) wurden in \${cleanProjectFolder} bereitgestellt.\`
+    });
+    broadcastLog(currentPid, {
+      type: 'stdout',
+      service: 'WordPress',
+      message: \`ℹ️ Das Plugin kann direkt in Ihren lokalen WordPress Ordner (z.B. wp-content/plugins/\${projectEntry.projectId}) kopiert oder verlinkt werden.\`
+    });
+  }
   // 1. TAURI Desktop Native Launch
-  if (hasTauri) {
+  else if (hasTauri) {
     projectEntry.desktopType = 'tauri';
     broadcastLog(currentPid, {
       type: 'system',
@@ -474,20 +491,44 @@ app.post('/api/deploy', requireToken, async (req, res) => {
   }
 });
 
-// Robust Process Actions (Start, Stop, Restart)
-const processActionRoutes = ['/api/process/action', '/api/process/control', '/api/process', '/api/stop', '/api/restart', '/api/start'];
-app.post(processActionRoutes, requireToken, (req, res) => {
-  let { projectId, action } = req.body || {};
+// Robust Process Actions (Start, Stop, Restart, Cancel)
+const processActionRoutes = [
+  '/api/process/action', 
+  '/api/process/control', 
+  '/api/process', 
+  '/api/process/:action', 
+  '/api/stop', 
+  '/api/restart', 
+  '/api/start',
+  '/api/cancel',
+  '/api/abbrechen',
+  '/api/neustart'
+];
+app.all(processActionRoutes, requireToken, (req, res) => {
+  let { projectId, action, command } = req.body || {};
   
-  // Extract action from path if called via /api/stop etc.
-  if (!action) {
-    if (req.path.includes('stop')) action = 'stop';
-    else if (req.path.includes('restart')) action = 'restart';
+  if (!action && command) action = command;
+  if (!action && req.params && req.params.action) action = req.params.action;
+  if (!action && req.query && req.query.action) action = req.query.action;
+  if (!action && req.query && req.query.command) action = req.query.command;
+
+  // Extract action from path if called via /api/stop, /api/process/stop etc.
+  if (!action || action === 'action') {
+    if (req.path.includes('stop') || req.path.includes('cancel') || req.path.includes('abbrechen')) action = 'stop';
+    else if (req.path.includes('restart') || req.path.includes('neustart')) action = 'restart';
     else if (req.path.includes('start')) action = 'start';
+    else if (req.query && req.query.action && req.query.action !== 'action') action = req.query.action;
     else action = 'restart';
   }
 
-  // If no projectId provided, fallback to any running project or default
+  // Normalize aliases
+  if (action === 'cancel' || action === 'abbrechen') action = 'stop';
+  if (action === 'neustart') action = 'restart';
+
+  // If no projectId provided, fallback to query, then any running project or default
+  if (!projectId) {
+    projectId = (req.query && req.query.projectId) || '';
+  }
   if (!projectId) {
     const keys = Array.from(runningProcesses.keys());
     if (keys.length > 0) projectId = keys[0];
@@ -544,7 +585,7 @@ app.post(processActionRoutes, requireToken, (req, res) => {
     });
   }
 
-  res.json({ success: true, message: \`Aktion \${action} ausgeführt.\` });
+  res.json({ success: true, status: 'RUNNING', message: \`Aktion \${action} ausgeführt.\` });
 });
 
 // WebSocket Log Stream

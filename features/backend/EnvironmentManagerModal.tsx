@@ -23,12 +23,32 @@ export const EnvironmentManagerModal: React.FC<EnvironmentManagerModalProps> = (
       setEnvs(newEnvs);
   };
 
+  // Close on Escape
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl border border-slate-300 overflow-hidden flex flex-col h-[700px]">
-        <div className="bg-slate-800 text-white p-5 flex justify-between items-center">
+    <div 
+      className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-3 sm:p-6 animate-in fade-in-25 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl border border-slate-300 overflow-hidden flex flex-col max-h-[min(92vh,720px)] h-full animate-in zoom-in-95 duration-150">
+        <div className="bg-slate-800 text-white p-5 flex justify-between items-center shrink-0">
             <h2 className="text-xl font-bold flex items-center gap-2"><Globe className="text-teal-400"/> Umgebungskonfiguration</h2>
-            <button onClick={onClose}><X size={20}/></button>
+            <button 
+              onClick={onClose} 
+              className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-700 transition-colors"
+              title="Schließen (Esc)"
+            >
+              <X size={20}/>
+            </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50 space-y-6">

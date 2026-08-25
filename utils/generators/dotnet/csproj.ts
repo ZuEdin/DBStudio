@@ -2,9 +2,9 @@
 import { BackendConfig, DbType, VirtualFile } from '../../../types/index';
 
 export const generateCsproj = (config: BackendConfig, root: string): VirtualFile => {
-  let version = config.backendVersion || '9.0';
-  if (parseFloat(version) > 9.0) {
-    version = '9.0';
+  let version = config.backendVersion || '10.0';
+  if (parseFloat(version) > 10.0) {
+    version = '10.0';
   }
   const targetFramework = `net${version}`;
   const packageVersion = `${version}.0`; 
@@ -12,6 +12,7 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
   let openApiVersion = '8.0.0';
   if (version === '10.0') openApiVersion = '10.0.0';
   else if (version === '9.0') openApiVersion = '9.0.0';
+  else if (version === '8.0') openApiVersion = '8.0.0';
   else if (version === '7.0') openApiVersion = '7.0.0';
   else if (version === '6.0') openApiVersion = '6.0.0';
 

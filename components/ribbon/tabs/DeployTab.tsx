@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History, Laptop, Terminal, Layers } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History, Laptop, Terminal, Layers, Package } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -231,6 +231,32 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                   title="Bridge Einstellungen & Shared Dependencies"
                 >
                     <Layers size={12} className="text-emerald-600"/> Shared Store (Aktiv)
+                </button>
+            </div>
+        </RibbonGroup>
+
+        {/* WordPress Plugin Generator Group */}
+        <RibbonGroup label="WordPress">
+            <RibbonButton 
+                icon={<Package className="text-blue-600" />} 
+                label="WP Plugin Generator" 
+                sublabel="Forms, Views & REST"
+                onClick={() => onAction('open_wordpress_generator')} 
+                size="large"
+                className="hover:bg-blue-50"
+            />
+            <div className="flex flex-col gap-1">
+                <button 
+                  onClick={() => onAction('open_wordpress_generator')} 
+                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
+                >
+                    <Download size={12} className="text-blue-600"/> Plugin ZIP
+                </button>
+                <button 
+                  onClick={() => onAction('open_wordpress_generator')} 
+                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
+                >
+                    <FileCode size={12} className="text-emerald-600"/> Shortcodes
                 </button>
             </div>
         </RibbonGroup>

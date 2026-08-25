@@ -14,6 +14,15 @@ interface WhitelabelModalProps {
 export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, multiTenancy, licensing, onSave, onClose }) => {
   const [activeTab, setActiveTab] = useState<'branding' | 'tenancy' | 'license' | 'css'>('branding');
 
+  // Close on Escape
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // Local State
   const [wlConfig, setWlConfig] = useState<WhitelabelConfig>(() => {
       const defaultWl = {
@@ -64,8 +73,13 @@ export const WhitelabelModal: React.FC<WhitelabelModalProps> = ({ whitelabel, mu
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl border border-slate-300 flex flex-col h-[650px] overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-3 sm:p-6 animate-in fade-in-25 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl border border-slate-300 flex flex-col max-h-[min(92vh,700px)] h-full overflow-hidden animate-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 bg-indigo-900 text-white shrink-0">

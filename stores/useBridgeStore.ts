@@ -81,14 +81,18 @@ export function buildBridgeApiUrl(config: BridgeConfig, path: string): string {
   // Check if it's a PHP relay script (e.g. https://dbstudiopro.edv-knowhow.at/api/bridge_relay.php or bridge_relay.php)
   if (cleanHost.endsWith('.php')) {
     // Determine action from path (e.g. /api/status -> action=status, /api/deploy -> action=deploy)
-    let action = 'status';
-    if (path.includes('deploy')) action = 'deploy';
-    else if (path.includes('process') || path.includes('action')) action = 'action';
-    else if (path.includes('status')) action = 'status';
-    else if (path.includes('pull')) action = 'pull_jobs';
+    let actionParam = 'status';
+    if (path.includes('deploy')) actionParam = 'deploy';
+    else if (path.includes('stop') || path.includes('cancel') || path.includes('abbrechen')) actionParam = 'stop';
+    else if (path.includes('restart') || path.includes('neustart')) actionParam = 'restart';
+    else if (path.includes('start')) actionParam = 'start';
+    else if (path.includes('status')) actionParam = 'status';
+    else if (path.includes('pull')) actionParam = 'pull_jobs';
+    else if (path.includes('log')) actionParam = 'get_logs';
+    else if (path.includes('process') || path.includes('action')) actionParam = 'action';
     
     const separator = cleanHost.includes('?') ? '&' : '?';
-    return `${cleanHost}${separator}action=${action}`;
+    return `${cleanHost}${separator}action=${actionParam}`;
   }
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
@@ -422,9 +426,20 @@ export const useBridgeStore = create<BridgeStoreState>()(
       sendProcessAction: async (projectId, action) => {
         const { config, addLog } = get();
         const effectivePid = projectId || get().activeProject.projectId || 'default';
-        const actionUrl = buildBridgeApiUrl(config, '/api/process/action');
+        
+        const actionStr = String(action).toLowerCase();
+        let normalizedAction: 'start' | 'stop' | 'restart' = 'restart';
+        if (actionStr === 'stop' || actionStr === 'cancel' || actionStr === 'abbrechen') {
+          normalizedAction = 'stop';
+        } else if (actionStr === 'start') {
+          normalizedAction = 'start';
+        } else {
+          normalizedAction = 'restart';
+        }
 
-        const actionName = action === 'stop' ? 'STOPPEN' : action === 'restart' ? 'NEUSTART' : 'STARTEN';
+        const actionUrl = buildBridgeApiUrl(config, `/api/process/${normalizedAction}`);
+
+        const actionName = normalizedAction === 'stop' ? 'STOPPEN' : normalizedAction === 'restart' ? 'NEUSTART' : 'STARTEN';
 
         addLog({
           type: 'system',
@@ -434,11 +449,11 @@ export const useBridgeStore = create<BridgeStoreState>()(
         });
 
         // Optimistically update status for instant UI responsiveness
-        if (action === 'stop') {
+        if (normalizedAction === 'stop') {
           set((state) => ({
             activeProject: { ...state.activeProject, status: 'stopped' }
           }));
-        } else if (action === 'restart' || action === 'start') {
+        } else if (normalizedAction === 'restart' || normalizedAction === 'start') {
           set((state) => ({
             activeProject: { ...state.activeProject, status: 'running' }
           }));
@@ -452,7 +467,11 @@ export const useBridgeStore = create<BridgeStoreState>()(
               'X-Bridge-Token': config.token || '',
               'bypass-tunnel-reminder': 'true'
             },
-            body: JSON.stringify({ projectId: effectivePid, action })
+            body: JSON.stringify({ 
+              projectId: effectivePid, 
+              action: normalizedAction,
+              command: normalizedAction
+            })
           });
 
           if (response.ok) {
@@ -462,9 +481,9 @@ export const useBridgeStore = create<BridgeStoreState>()(
             } catch (_) {}
 
             const successMsg = resData.message || (
-              action === 'stop' 
+              normalizedAction === 'stop' 
                 ? '⏹️ Prozesse (Backend & Frontend) wurden erfolgreich gestoppt und Ports freigegeben.' 
-                : action === 'restart' 
+                : normalizedAction === 'restart' 
                 ? '🔄 Prozesse wurden erfolgreich neu gestartet.' 
                 : '🟢 Prozesse wurden erfolgreich gestartet.'
             );
@@ -476,11 +495,11 @@ export const useBridgeStore = create<BridgeStoreState>()(
               message: `✅ ${successMsg}`
             });
 
-            if (resData.status === 'STOPPED' || action === 'stop') {
+            if (resData.status === 'STOPPED' || normalizedAction === 'stop') {
               set((state) => ({
                 activeProject: { ...state.activeProject, status: 'stopped' }
               }));
-            } else if (resData.status === 'RUNNING' || action === 'start' || action === 'restart') {
+            } else if (resData.status === 'RUNNING' || normalizedAction === 'start' || normalizedAction === 'restart') {
               set((state) => ({
                 activeProject: { ...state.activeProject, status: 'running' }
               }));

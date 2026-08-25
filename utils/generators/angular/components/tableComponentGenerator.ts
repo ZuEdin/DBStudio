@@ -36,6 +36,7 @@ const collectAngularLookups = (
   element: FormElement | undefined,
   tables: Table[],
   queries: Query[] = [],
+  forms: Form[] = [],
   accumulated: Map<string, any> = new Map(),
   visitedNodes: Set<any> = new Set()
 ): any[] => {
@@ -74,8 +75,15 @@ const collectAngularLookups = (
           });
       }
   }
+  // Also collect lookups from nested subforms
+  if (element.type === 'subform' && element.subform?.formId) {
+      const subFormDef = forms.find(f => f.id === element.subform!.formId);
+      if (subFormDef && subFormDef.layout) {
+          collectAngularLookups(subFormDef.layout, tables, queries, forms, accumulated, visitedNodes);
+      }
+  }
   if (element.children) {
-      element.children.forEach(child => collectAngularLookups(child, tables, queries, accumulated, visitedNodes));
+      element.children.forEach(child => collectAngularLookups(child, tables, queries, forms, accumulated, visitedNodes));
   }
   return Array.from(accumulated.values());
 };
@@ -146,7 +154,7 @@ export const generateTableComponents = (
       let listHtml = '';
       if (isBootstrap) {
           listHtml = `
-      <div class="container py-4">
+      <div class="container-fluid py-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 text-dark">${table.name}</h1>
             <div class="d-flex gap-2 align-items-center">
@@ -156,17 +164,17 @@ export const generateTableComponents = (
         </div>
         <div class="card shadow-sm border">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 text-nowrap">
                     <thead class="table-light border-bottom">
                         <tr>
-                            ${table.fields.map(f => `<th class="px-4 py-3 text-muted fw-bold small text-uppercase">${f.name}</th>`).join('')}
-                            <th class="px-4 py-3 text-muted fw-bold small text-uppercase">Aktionen</th>
+                            ${table.fields.map(f => `<th class="px-4 py-3 text-muted fw-bold small text-uppercase text-nowrap">${f.name}</th>`).join('')}
+                            <th class="px-4 py-3 text-muted fw-bold small text-uppercase text-nowrap text-end">Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr *ngFor="let item of items" class="align-middle" (dblclick)="viewDetails(item)" style="cursor: pointer;">
-                            ${table.fields.map(f => `<td class="px-4 py-3">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
-                            <td class="px-4 py-3">
+                            ${table.fields.map(f => `<td class="px-4 py-3 text-nowrap">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
+                            <td class="px-4 py-3 text-nowrap text-end">
                                 <button (click)="viewDetails(item)" class="btn btn-sm btn-link text-decoration-none me-2 p-0" title="Details"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/></svg></button>
                                 <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="btn btn-sm btn-link text-decoration-none me-2 p-0" title="Edit"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg></a>
                                 <button (click)="delete(getFieldValue(item, '${pkField}'))" class="btn btn-sm btn-link text-danger text-decoration-none p-0" title="Delete"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/></svg></button>
@@ -239,45 +247,47 @@ export const generateTableComponents = (
       </div>`;
       } else {
           listHtml = `
-      <div class="p-8">
-        <div class="flex justify-between items-center mb-6">
+      <div class="w-full space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h1 class="text-3xl font-bold text-slate-800">${table.name}</h1>
-            <div class="flex gap-4">
-                <input type="text" [(ngModel)]="search" (input)="page=1;load()" placeholder="Suche..." class="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                <a routerLink="/${camelName}/new" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Neu</a>
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <input type="text" [(ngModel)]="search" (input)="page=1;load()" placeholder="Suche..." class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64" />
+                <a routerLink="/${camelName}/new" class="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 font-medium whitespace-nowrap transition-colors">Neu</a>
             </div>
         </div>
-        <div class="bg-white rounded shadow overflow-hidden border border-slate-200">
-            <table class="w-full text-left">
-                <thead class="bg-slate-50 border-b">
-                    <tr>
-                        ${table.fields.map(f => `<th class="p-4 font-bold text-slate-600">${f.name}</th>`).join('')}
-                        <th class="p-4">Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr *ngFor="let item of items" class="border-b hover:bg-slate-50 cursor-pointer" (dblclick)="viewDetails(item)">
-                        ${table.fields.map(f => `<td class="p-4">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
-                        <td class="p-4 whitespace-nowrap">
-                            <div class="flex items-center gap-1">
-                                <button (click)="viewDetails(item)" class="text-slate-500 hover:bg-slate-100 p-1.5 rounded" title="Details"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></button>
-                                <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>
-                                <button (click)="delete(getFieldValue(item, '${pkField}'))" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr *ngIf="items.length === 0">
-                        <td class="p-6 text-center text-slate-400" colspan="${table.fields.length + 1}">Keine Einträge.</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+            <div class="overflow-x-auto w-full">
+                <table class="min-w-full text-left divide-y divide-slate-200">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            ${table.fields.map(f => `<th class="p-4 font-bold text-xs uppercase tracking-wider text-slate-600 whitespace-nowrap">${f.name}</th>`).join('')}
+                            <th class="p-4 font-bold text-xs uppercase tracking-wider text-slate-600 text-right whitespace-nowrap">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        <tr *ngFor="let item of items" class="hover:bg-slate-50 cursor-pointer transition-colors" (dblclick)="viewDetails(item)">
+                            ${table.fields.map(f => `<td class="p-4 text-sm text-slate-700 whitespace-nowrap">{{getFieldValue(item, '${f.name}')}}</td>`).join('')}
+                            <td class="p-4 whitespace-nowrap text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button (click)="viewDetails(item)" class="text-slate-500 hover:bg-slate-100 p-1.5 rounded transition" title="Details"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg></button>
+                                    <a [routerLink]="['/${camelName}', getFieldValue(item, '${pkField}')]" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></a>
+                                    <button (click)="delete(getFieldValue(item, '${pkField}'))" class="text-red-600 hover:bg-red-50 p-1.5 rounded transition" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr *ngIf="items.length === 0">
+                            <td class="p-6 text-center text-slate-400" colspan="${table.fields.length + 1}">Keine Einträge.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             
             <!-- Pagination -->
-            <div class="p-4 border-t flex justify-between items-center bg-slate-50">
+            <div class="p-4 border-t border-slate-100 flex justify-between items-center bg-slate-50">
                 <span class="text-sm text-slate-500">Seite {{page}} von {{totalPages}} ({{total}} Einträge)</span>
                 <div class="flex gap-2">
-                    <button (click)="changePage(page - 1)" [disabled]="page <= 1" class="px-3 py-1 border rounded bg-white hover:bg-slate-100 disabled:opacity-50">Zurück</button>
-                    <button (click)="changePage(page + 1)" [disabled]="page >= totalPages" class="px-3 py-1 border rounded bg-white hover:bg-slate-100 disabled:opacity-50">Weiter</button>
+                    <button (click)="changePage(page - 1)" [disabled]="page <= 1" class="px-3 py-1 border rounded bg-white hover:bg-slate-100 disabled:opacity-50 text-sm">Zurück</button>
+                    <button (click)="changePage(page + 1)" [disabled]="page >= totalPages" class="px-3 py-1 border rounded bg-white hover:bg-slate-100 disabled:opacity-50 text-sm">Weiter</button>
                 </div>
             </div>
         </div>
@@ -545,7 +555,7 @@ export class ${pascalName}ListComponent implements OnInit {
               </div>`;
           }
 
-          lookups = collectAngularLookups(linkedForm.layout, tables, queries);
+          lookups = collectAngularLookups(linkedForm.layout, tables, queries, forms);
           listDeclarations = lookups.map((l: any) => `  public ${toCamelCase(l.name)}List: any[] = [];`).join('\n');
           
           lookupMethodsCode = lookups.map((l: any) => {

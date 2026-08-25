@@ -16,7 +16,7 @@ export const generateLayoutComponents = (
             layoutHtml = `
 <div class="min-vh-100 bg-light d-flex flex-column">
     <app-topnav></app-topnav>
-    <main class="flex-grow-1 p-4 overflow-auto">
+    <main class="flex-grow-1 p-4 overflow-auto w-100 min-vw-0">
         <router-outlet></router-outlet>
     </main>
 </div>
@@ -25,7 +25,7 @@ export const generateLayoutComponents = (
             layoutHtml = `
 <div class="min-h-screen bg-slate-50 flex flex-col">
     <app-topnav></app-topnav>
-    <main class="flex-1 p-8 max-w-7xl mx-auto w-full overflow-auto">
+    <main class="flex-1 p-6 sm:p-8 w-full min-w-0 overflow-auto">
         <router-outlet></router-outlet>
     </main>
 </div>
@@ -36,11 +36,11 @@ export const generateLayoutComponents = (
             layoutHtml = `
 <div class="d-flex min-vh-100 bg-light">
     <app-sidebar></app-sidebar>
-    <div class="flex-grow-1 d-flex flex-column" style="margin-left: 280px; min-height: 100vh;">
+    <div class="flex-grow-1 d-flex flex-column min-w-0" style="margin-left: 280px; min-height: 100vh;">
         <header class="bg-white shadow-sm border-bottom d-flex align-items-center px-4" style="height: 64px;">
             <h1 class="h5 mb-0 text-muted fw-semibold">Dashboard</h1>
         </header>
-        <main class="flex-grow-1 p-4 overflow-auto">
+        <main class="flex-grow-1 p-4 overflow-auto w-100">
             <router-outlet></router-outlet>
         </main>
     </div>
@@ -50,11 +50,11 @@ export const generateLayoutComponents = (
             layoutHtml = `
 <div class="flex min-h-screen bg-slate-50">
     <app-sidebar></app-sidebar>
-    <div class="flex-1 ml-64 flex flex-col">
+    <div class="flex-1 ml-64 flex flex-col min-w-0">
         <header class="bg-white shadow-sm border-b border-slate-200 h-16 flex items-center px-8">
             <h1 class="text-lg font-semibold text-slate-700">Dashboard</h1>
         </header>
-        <main class="flex-1 p-8 overflow-auto">
+        <main class="flex-1 p-6 sm:p-8 overflow-auto w-full min-w-0">
             <router-outlet></router-outlet>
         </main>
     </div>

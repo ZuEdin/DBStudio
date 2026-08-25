@@ -39,9 +39,23 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ config, on
   };
   const removeWebhook = (idx: number) => setWebhooks(webhooks.filter((_, i) => i !== idx));
 
+  // Close on Escape
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl border border-slate-300 flex flex-col h-[700px] overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-3 sm:p-6 animate-in fade-in-25 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl border border-slate-300 flex flex-col max-h-[min(92vh,720px)] h-full overflow-hidden animate-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 bg-slate-900 text-white shrink-0">
@@ -51,7 +65,11 @@ export const IntegrationsModal: React.FC<IntegrationsModalProps> = ({ config, on
             </h2>
             <p className="text-slate-400 text-sm mt-1">Verbinden Sie Ihre App mit der Außenwelt.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition-colors"
+            title="Schließen (Esc)"
+          >
             <X size={24} />
           </button>
         </div>

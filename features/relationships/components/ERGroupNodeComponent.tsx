@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { LocalInput, LocalTextarea } from './LocalInput';
+import { LocalInput, LocalTextarea } from '../../../components/canvas/LocalInputs';
 
 export const ERGroupNodeComponent = ({ data }: any) => {
   const { group, width, height, onNameChange, onCommentChange, onSelectMembers, onToggleCollapse, tablesInGroup, onColorChange } = data;

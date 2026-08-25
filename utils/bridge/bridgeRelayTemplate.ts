@@ -94,13 +94,22 @@ if ($action === 'deploy' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// 3. Process Action: Start, Stop, Neustart
-if (($action === 'action' || $action === 'process_action' || $action === 'process' || $action === 'stop' || $action === 'start' || $action === 'restart') && $_SERVER['REQUEST_METHOD'] === 'POST') {
+// 3. Process Action: Start, Stop, Neustart, Abbrechen
+if (($action === 'action' || $action === 'process_action' || $action === 'process' || $action === 'process_control' || $action === 'stop' || $action === 'cancel' || $action === 'abbrechen' || $action === 'start' || $action === 'restart' || $action === 'neustart' || (!in_array($action, ['status', 'deploy', 'pull_jobs', 'push_logs', 'get_logs']) && $_SERVER['REQUEST_METHOD'] === 'POST')) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');
     $actionData = json_decode($rawInput, true) ?: [];
     
     // Determine action type (from JSON body or query param)
-    $actionType = $actionData['action'] ?? (in_array($action, ['start', 'stop', 'restart']) ? $action : 'restart');
+    $rawAction = $actionData['action'] ?? $actionData['command'] ?? $_GET['processAction'] ?? $action;
+    $actionType = 'restart';
+    if ($rawAction === 'stop' || $rawAction === 'cancel' || $rawAction === 'abbrechen') {
+        $actionType = 'stop';
+    } else if ($rawAction === 'start') {
+        $actionType = 'start';
+    } else {
+        $actionType = 'restart';
+    }
+    
     $projectId = $actionData['projectId'] ?? ($_GET['projectId'] ?? 'default');
 
     $actionId = 'action_' . time() . '_' . substr(md5(uniqid()), 0, 8);

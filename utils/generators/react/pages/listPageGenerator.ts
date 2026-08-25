@@ -197,8 +197,8 @@ export const ${listName} = () => {
   }, [data.data, columnFilters, sortField, sortDir]);
 
   return (
-    <div className="p-8 max-w-[95%] mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+    <div className="w-full space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold dark:text-white flex items-center gap-2">${table.name}</h1>
           <div className="flex gap-4 w-full sm:w-auto">
               ${table.enableMassUpdates ? `
@@ -234,8 +234,8 @@ export const ${listName} = () => {
       </div>
       
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col">
-        <div className="overflow-x-auto">
-            <table className="w-full text-left">
+        <div className="overflow-x-auto w-full">
+            <table className="min-w-full text-left">
                 <thead className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-700 text-slate-500 uppercase text-xs font-semibold">
                     <tr>
                         ${table.enableMassUpdates ? `<th className="p-4 w-12"><input type="checkbox" onChange={(e) => { const ids = e.target.checked ? data.data.map(i => i.${pk}) : []; setSelectedIds(ids); }} /></th>` : ''}

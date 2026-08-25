@@ -16,9 +16,9 @@ export const generateMauiNative = (
   const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   const namespace = `${safeNamespace}.MauiNative`;
   
-  let version = config.backendVersion || '9.0';
-  if (parseFloat(version) > 9.0) {
-    version = '9.0';
+  let version = config.backendVersion || '10.0';
+  if (parseFloat(version) > 10.0) {
+    version = '10.0';
   }
   const targetFramework = `net${version}`;
 

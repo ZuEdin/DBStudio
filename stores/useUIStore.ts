@@ -118,6 +118,8 @@ interface UIStore {
   setShowSecurityRlsModal: (show: boolean) => void;
   showAuditTrailModal: boolean;
   setShowAuditTrailModal: (show: boolean) => void;
+  showWordPressModal: boolean;
+  setShowWordPressModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -243,6 +245,8 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowSecurityRlsModal: (showSecurityRlsModal) => set({ showSecurityRlsModal }),
   showAuditTrailModal: false,
   setShowAuditTrailModal: (showAuditTrailModal) => set({ showAuditTrailModal }),
+  showWordPressModal: false,
+  setShowWordPressModal: (showWordPressModal) => set({ showWordPressModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

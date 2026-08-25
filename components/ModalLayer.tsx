@@ -32,6 +32,7 @@ import { SchemaDiffModal } from '../features/schema-diff/SchemaDiffModal';
 import { OpenApiMockServerModal } from '../features/openapi/OpenApiMockServerModal';
 import { SecurityRlsModal } from '../features/security/SecurityRlsModal';
 import { AuditTrailModal } from '../features/audit-trail/AuditTrailModal';
+import { WordPressGeneratorModal } from '../features/wordpress/WordPressGeneratorModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -392,6 +393,12 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
           tables={tables}
           updateTable={updateTable}
           onClose={() => ui.setShowAuditTrailModal(false)}
+        />
+      )}
+
+      {ui.showWordPressModal && (
+        <WordPressGeneratorModal 
+          onClose={() => ui.setShowWordPressModal(false)}
         />
       )}
 

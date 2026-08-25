@@ -14,3 +14,4 @@ export * from './config';
 export * from './macro';
 export * from './tableTemplates';
 export * from './bridge';
+export * from './wordpress';
