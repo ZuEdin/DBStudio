@@ -78,7 +78,7 @@ const collectAngularLookups = (
       }
   }
   if (element.children) {
-      element.children.forEach((c: any) => collectAngularLookups(c, tables, queries, accumulated));
+      element.children.forEach((c: any) => collectAngularLookups(c, tables, queries, accumulated, visitedNodes));
   }
   return Array.from(accumulated.values());
 };

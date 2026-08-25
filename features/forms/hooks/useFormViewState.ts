@@ -353,12 +353,17 @@ export const useFormViewState = ({
     onTableChange({ ...sourceTable, data: newData });
   };
 
-  const getFieldName = (fieldId: string) => {
+  const getFieldObj = (fieldIdOrName: string) => {
     for (const t of allTables) {
-      const f = t.fields.find((field) => field.id === fieldId);
-      if (f) return f.name;
+      const f = t.fields.find((field) => field.id === fieldIdOrName || field.name === fieldIdOrName || field.name?.toLowerCase() === (fieldIdOrName || '').toLowerCase());
+      if (f) return f;
     }
-    return '';
+    return null;
+  };
+
+  const getFieldName = (fieldId: string) => {
+    const f = getFieldObj(fieldId);
+    return f ? f.name : (fieldId || '');
   };
 
   const prepareNewRecord = (table: Table, masterFieldId?: string, childFieldId?: string, parentVal?: any) => {
@@ -389,9 +394,9 @@ export const useFormViewState = ({
     }, {} as Record<string, any>);
 
     if (masterFieldId && childFieldId && parentVal !== undefined) {
-      const childFieldName = table.fields.find((f) => f.id === childFieldId)?.name;
-      if (childFieldName) {
-        initialData[childFieldName] = parentVal;
+      const childField = table.fields.find((f) => f.id === childFieldId || f.name === childFieldId || f.name?.toLowerCase() === (childFieldId || '').toLowerCase());
+      if (childField) {
+        initialData[childField.name] = parentVal;
       }
     }
     return initialData;
@@ -404,13 +409,15 @@ export const useFormViewState = ({
     let initialData = prepareNewRecord(sourceTable);
 
     if (parentRecord && linkConfig) {
-      const masterFieldName = getFieldName(linkConfig.masterFieldId);
-      if (masterFieldName && parentRecord[masterFieldName] !== undefined) {
+      const masterFieldObj = getFieldObj(linkConfig.masterFieldId);
+      const masterFieldName = masterFieldObj ? masterFieldObj.name : linkConfig.masterFieldId;
+      const masterVal = parentRecord[masterFieldName] ?? (masterFieldObj ? parentRecord[masterFieldObj.name.toLowerCase()] : undefined) ?? parentRecord[linkConfig.masterFieldId] ?? parentRecord.id ?? parentRecord.Id;
+      if (masterVal !== undefined) {
         initialData = prepareNewRecord(
           sourceTable,
           linkConfig.masterFieldId,
           linkConfig.childFieldId,
-          parentRecord[masterFieldName]
+          masterVal
         );
       }
     }
@@ -510,11 +517,14 @@ export const useFormViewState = ({
     const recordToSave = { ...tempRecord };
 
     if (parentRecord && linkConfig) {
-      const masterFieldName = getFieldName(linkConfig.masterFieldId);
-      const childFieldName = sourceTable.fields.find((f) => f.id === linkConfig.childFieldId)?.name;
-      if (masterFieldName && childFieldName && parentRecord[masterFieldName] !== undefined) {
+      const masterFieldObj = getFieldObj(linkConfig.masterFieldId);
+      const masterFieldName = masterFieldObj ? masterFieldObj.name : linkConfig.masterFieldId;
+      const childFieldObj = sourceTable.fields.find((f) => f.id === linkConfig.childFieldId || f.name === linkConfig.childFieldId || f.name?.toLowerCase() === (linkConfig.childFieldId || '').toLowerCase());
+      const childFieldName = childFieldObj ? childFieldObj.name : linkConfig.childFieldId;
+      const masterVal = parentRecord[masterFieldName] ?? (masterFieldObj ? parentRecord[masterFieldObj.name.toLowerCase()] : undefined) ?? parentRecord[linkConfig.masterFieldId] ?? parentRecord.id ?? parentRecord.Id;
+      if (masterVal !== undefined && childFieldName) {
         if (recordToSave[childFieldName] === undefined || recordToSave[childFieldName] === '') {
-          recordToSave[childFieldName] = parentRecord[masterFieldName];
+          recordToSave[childFieldName] = masterVal;
         }
       }
     }

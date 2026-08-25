@@ -1,8 +1,9 @@
-import { Table, Relationship, Query, BackendConfig, VirtualFile, Form, Report } from '../../../types/index';
+import { Table, Relationship, Query, BackendConfig, VirtualFile, Form, Report, DbType } from '../../../types/index';
 import { generateElectronFrontend } from './frontend';
 import { generateElectronBackend } from './backend';
 import { generateElectronConfigs } from './config';
 import { generateElectronScripts } from './scripts';
+import { generateDatabaseScripts } from '../databaseGenerator';
 
 export const generateElectron = (
   tables: Table[], 
@@ -40,10 +41,30 @@ export const generateElectron = (
 
   const scriptFiles = generateElectronScripts(config, root, bePort, dbTypeStr);
 
+  // Generate database schema and seed data for SQLite / SQL in Electron
+  const dbScripts = generateDatabaseScripts(safeTables, safeRelationships, { ...config, dbType: DbType.SQLite }, safeQueries);
+  const sqlFile = dbScripts.find(f => f.name === 'schema.sql');
+  const dbFiles: VirtualFile[] = [];
+  if (sqlFile) {
+    dbFiles.push({
+      name: 'seed.sql',
+      path: `${root}/seed.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+    dbFiles.push({
+      name: 'seed.sql',
+      path: `${root}/Backend/seed.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+  }
+
   return [
     ...frontendFiles,
     ...backendFiles,
     ...configFiles,
-    ...scriptFiles
+    ...scriptFiles,
+    ...dbFiles
   ];
 };

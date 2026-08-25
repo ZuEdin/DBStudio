@@ -21,8 +21,10 @@ export const generateSubformNode = (node: any, context: NodeGeneratorContext): s
   const showModalVar = `showSubModal_${subSuffix}`;
 
   const fkField = props.foreignKeyField || props.childLinkFieldId || 'parent_id';
-  const fkFieldCamel = toCamelCase(fkField);
-  const fkFieldPascal = toPascalCase(fkField);
+  const childFieldObj = targetTable.fields.find((f: any) => f.id === fkField || f.name === fkField || toCamelCase(f.name) === fkField || f.name?.toLowerCase() === fkField.toLowerCase());
+  const childName = childFieldObj ? childFieldObj.name : fkField;
+  const childNameCamel = childFieldObj ? toCamelCase(childFieldObj.name) : toCamelCase(fkField);
+  const childNamePascal = childFieldObj ? toPascalCase(childFieldObj.name) : toPascalCase(fkField);
 
   const parentField = props.parentField || props.masterKeyField || props.masterLinkFieldId || props.parentKeyField || 'id';
   const parentFieldCamel = toCamelCase(parentField);
@@ -54,8 +56,8 @@ export const generateSubformNode = (node: any, context: NodeGeneratorContext): s
       next: (res: any) => {
         const items = res.data || res || [];
         this.${listVar} = items.filter((item: any) => {
-          const childVal = item?.['${fkField}'] ?? item?.['${fkFieldCamel}'] ?? item?.['${fkFieldPascal}'];
-          return childVal !== undefined && childVal !== null && String(childVal) === String(pId);
+          const childVal = item?.['${childName}'] ?? item?.['${childNameCamel}'] ?? item?.['${childNamePascal}'] ?? item?.['${fkField}'] ?? item?.['${childNameCamel}'];
+          return childVal !== undefined && childVal !== null && String(childVal).trim().toLowerCase() === String(pId).trim().toLowerCase();
         });
         this.${loadingVar} = false;
       },
@@ -74,7 +76,10 @@ export const generateSubformNode = (node: any, context: NodeGeneratorContext): s
       alert('Bitte zuerst den übergeordneten Hauptdatensatz anlegen oder auswählen.');
       return;
     }
-    const payload = { ...this.${formDataVar}, ${fkField}: pId, ${fkFieldCamel}: pId };
+    const payload: any = { ...this.${formDataVar} };
+    payload['${fkField}'] = pId;
+    payload['${childName}'] = pId;
+    payload['${childNameCamel}'] = pId;
     
     if (this.${editingIdVar}) {
       this.api.update('${tablePascal}', this.${editingIdVar}, payload).subscribe({
@@ -119,7 +124,7 @@ export const generateSubformNode = (node: any, context: NodeGeneratorContext): s
     });
   }`);
 
-  const visibleFields = targetTable.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement && f.name !== fkField && f.id !== fkField && f.name !== fkFieldCamel);
+  const visibleFields = targetTable.fields.filter((f: any) => !f.isPrimaryKey && !f.isAutoIncrement && f.name !== fkField && f.id !== fkField && f.name !== childName && f.name !== childNameCamel);
   const allowAdd = props.allowAdd !== false;
   const allowEdit = props.allowEdit !== false;
   const allowDelete = props.allowDelete !== false;

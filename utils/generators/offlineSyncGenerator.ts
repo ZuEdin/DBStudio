@@ -150,15 +150,16 @@ export const generateOfflineSyncFiles = (
       if (f.isPrimaryKey) def += ' PRIMARY KEY';
       if (f.isAutoIncrement && f.type === 'INTEGER') def += ' AUTOINCREMENT';
       if (!f.allowNull && !f.isPrimaryKey) def += ' NOT NULL';
-      if (f.defaultValue !== undefined && f.defaultValue !== '') {
-        if (f.defaultValue.toUpperCase() === 'NOW' || f.defaultValue.toUpperCase() === 'CURRENT_TIMESTAMP') {
+      if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+        const defStr = String(f.defaultValue);
+        if (typeof f.defaultValue === 'string' && (defStr.toUpperCase() === 'NOW' || defStr.toUpperCase() === 'CURRENT_TIMESTAMP')) {
           def += ` DEFAULT (datetime('now'))`;
         } else if (f.type === 'BOOLEAN') {
-          def += ` DEFAULT ${f.defaultValue === 'true' ? '1' : '0'}`;
+          def += ` DEFAULT ${defStr === 'true' || (f.defaultValue as any) === true || defStr === '1' ? '1' : '0'}`;
         } else if (typeof f.defaultValue === 'number') {
           def += ` DEFAULT ${f.defaultValue}`;
         } else {
-          def += ` DEFAULT '${f.defaultValue}'`;
+          def += ` DEFAULT '${defStr.replace(/'/g, "''")}'`;
         }
       }
       return def;
@@ -240,10 +241,11 @@ export const generateOfflineSyncFiles = (
         def += ' NOT NULL DEFAULT 0';
       } else if (f.name === opts.syncVersionField) {
         def += ' NOT NULL DEFAULT 1';
-      } else if (f.defaultValue !== undefined && f.defaultValue !== '') {
-        if (f.type === 'BOOLEAN') def += ` DEFAULT ${f.defaultValue === 'true' ? '1' : '0'}`;
+      } else if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+        const defStr = String(f.defaultValue);
+        if (f.type === 'BOOLEAN') def += ` DEFAULT ${defStr === 'true' || (f.defaultValue as any) === true || defStr === '1' ? '1' : '0'}`;
         else if (typeof f.defaultValue === 'number') def += ` DEFAULT ${f.defaultValue}`;
-        else def += ` DEFAULT '${f.defaultValue}'`;
+        else def += ` DEFAULT '${defStr.replace(/'/g, "''")}'`;
       }
       return def;
     });

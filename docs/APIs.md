@@ -547,6 +547,83 @@ Das Excel-Import-System verfügt über erstklassige, automatisierte Datenvorbere
 *   **.NET (C#)**: `enum StatusEnum { Wert1, Wert2 }`
 *   **PHP / Laravel**: `$table->enum('field', ['Wert1', 'Wert2'])`
 
+---
+
+## 13. Multi-Backend & Desktop Seeding-Architektur (Cross-Generator Standard)
+
+Um ein konsistentes Verhalten über alle Ziel-Frameworks hinweg zu gewährleisten, implementieren alle Codegeneratoren einheitliche Schema- und Initialdaten-Initialisierungsmechanismen:
+
+### 13.1. Übersicht nach Generator
+
+| Generator | Schema & Initialdaten-Datei | Automatischer Seeding-Mechanismus beim Start |
+| :--- | :--- | :--- |
+| **.NET C# / MAUI** | `DbInitializer.cs` & `seed.sql` | Topologisch sortierte Seed-Ausführung (`sortTablesByDependencies`), Transaktions-Sicherheit, `INSERT OR REPLACE INTO` für SQLite (`PRAGMA foreign_keys = OFF`), Case-Insensitive Key-Matching & isolierte Tabellen-Try/Catches |
+| **Node.js (Express)** | `seed.sql` | `db.sequelize.sync()` führt topologisch sortiertes `bulkCreate` mit `{ ignoreDuplicates: true, validate: false }` und isoliertem Try/Catch je Tabelle aus |
+| **Laravel** | `database/seed.sql` & `database/seeders/DatabaseSeeder.php` | `php artisan migrate --seed` führt `DatabaseSeeder.php` mit `Schema::disableForeignKeyConstraints()` und `insertOrIgnore()` topologisch sortiert aus |
+| **Python (FastAPI)** | `seed.sql` | `@app.on_event("startup")` erzeugt Tabellen via `Base.metadata.create_all` und importiert vorhandene `seed.sql` Statement für Statement fehlertolerant |
+| **PHP Native** | `database/schema.sql` & `database/seed.sql` | `Database.php` prüft SQLite-Datei und führt bei Neuanlage `seed.sql` (mit integrierter FK-Deaktivierung & idempotentem Insert) aus |
+| **Tauri (Desktop / Rust)** | `seed.sql` & `src-tauri/seed.sql` | Rust `rusqlite` (bundled) Auto-Initialisierung beim Start: Prüft `__studio_seeded`, führt Transaction-Batch-Seeding mit `PRAGMA foreign_keys = OFF` aus und bündelt `include_str!("../seed.sql")` direkt in die Binary |
+| **Electron (Desktop)** | `seed.sql` & `Backend/seed.sql` | Express-Server mit Sequelize Auto-BulkCreate / SQLite-Bootstrap |
+
+### 13.2. Vierstufiger Resilienz-Standard für alle Backends
+1. **Topologische Tabellen-Sortierung**: Parent-Tabellen werden vor Child-Tabellen verarbeitet, sodass verknüpfte Fremdschlüssel (z. B. `Berufsschule`, `PersonasFunktionen`) immer vor den abhängigen Datensätzen existieren.
+2. **Idempotente Inserts (`INSERT OR REPLACE` / `INSERT IGNORE`)**: Verhindert Primärschlüssel-Kollisionen bei wiederholtem Start oder bereits existierenden Datensätzen.
+3. **Case-Insensitive Feld-Zuordnung**: Toleriert Abweichungen zwischen Daten-JSON (`wdIdMitarbeiter`) und DB-Spalten (`wdidmitarbeiter`).
+4. **Isolierte Tabellen-Transaktionen / Try-Catches**: Ein einzelner fehlerhafter Datensatz in einer Tabelle bringt nicht mehr den gesamten Backend-Startprozess zum Abbruch.
+
+
+### 13.3. Einheitliche SQLite & SQL Kompatibilität
+Alle generierten SQLite-Dateien werden standardmäßig lokal im Anwendungsdaten- oder Projekt-Verzeichnis abgelegt und mit denselben relationalen Tabellen- und Datensatzmodellen initialisiert, sodass der Übergang von lokaler **IndexedDB** im Browser zu beliebigen relationalen Backends (**MySQL, PostgreSQL, MS SQL, SQLite**) ohne manuelle Eingriffe reibungslos funktioniert.
+
+---
+
+## 14. Subform- & 1:1-Beziehungs-Resilienz (React & Angular)
+
+Bei 1:1- und 1:n-Beziehungen, bei denen Primär- und Fremdschlüssel identische Bezeichner tragen (z. B. `employeeid`, `lehrberufabk`), traten in generierten Formularen doppelte Key-Deklarationen in TypeScript-Objektliteralen auf (`error TS1117`).
+
+### 14.1. Standard für Subform-Payloads
+Zur Vermeidung von TypeScript- und Laufzeit-Kollisionen bei Formular- und Subformular-Aktionen:
+- **Dynamische Key-Zuweisung**: Payloads werden zuerst als Basisobjekt instanziiert (`const payload: any = { ...subData };`) und Verknüpfungsfelder anschließend dynamisch zugewiesen (`payload[key] = masterVal;`).
+- **Idempotente Feld-Sets**: Mehrfachbelegungen (z. B. `childFieldCamel`, `childFieldName`, `m.childField`) überschreiben sich sauber im selben Objekt, ohne syntaktische Duplikate im Literal zu erzeugen.
+- **Framework-übergreifende Konsistenz**: Dieser Standard ist sowohl für **React** (`customFormPageGenerator`, `customPageGenerator`, `subformNodeGenerator`) als auch für **Angular** (`subformNode`, `tableComponentGenerator`, `customComponentGenerator`) implementiert.
+
+---
+
+## 15. Tauri Windows Native SQLite Seeding & Execution Architecture
+
+Für native Desktop-Builds (Tauri auf Windows/macOS/Linux) wird die SQLite-Initialisierung direkt im Rust-Backend über `rusqlite` (mit dem Feature `bundled`) ausgeführt:
+
+### 15.1. Rust-Initialisierungs-Ablauf beim App-Start
+1. **Pfad-Lokalisierung**: `get_db_path()` ermittelt den relativen Pfad der Datenbankdatei (`<projectname>.db`).
+2. **Migrations- & Seed-Status Check**: Über `SELECT name FROM sqlite_master WHERE type='table' AND name='__studio_seeded'` wird geprüft, ob die Datenbank bereits initialisiert wurde.
+3. **Compile-Time & Run-Time Fallback**: 
+   - Das SQL-Seed-Skript wird zur Compile-Zeit via `const EMBEDDED_SEED_SQL: &str = include_str!("../seed.sql");` direkt in das Executable integriert.
+   - Zur Laufzeit wird primär eine externe `seed.sql` geladen (falls vorhanden), andernfalls das eingebettete Schema.
+4. **Transaktionale Ausführung**:
+   - `PRAGMA foreign_keys = OFF;`
+   - Atomare Ausführung aller `CREATE TABLE` und `INSERT INTO` Statements innerhalb einer Transaction (`tx.execute_batch`).
+   - Anlegen der Tracking-Tabelle `__studio_seeded` zur Vermeidung doppelter Ausführungen.
+   - Re-Aktivierung: `PRAGMA foreign_keys = ON;`.
+
+### 15.2. Tauri Invoke Commands
+- `execute_local_query(sql: String)`: Führt native SQL-Queries auf der lokalen SQLite-DB aus und liefert JSON-serialisierte Zeilen zurück.
+- `get_db_info()`: Liefert Konfigurationsparameter für das Frontend (Host, Port, DB-Name, SQLite-Flag).
+- `get_seed_sql()`: Gibt das vollständige SQL-Initialisierungsskript als String zurück.
+- `force_reseed_db()`: Ermöglicht das Zurücksetzen und Neu-Seeden der SQLite-Datenbank.
+
+---
+
+## 16. IndexedDB ObjectStore KeyPath & Seeding Resilienz
+
+Um Laufzeitfehler wie `Uncaught DataError: Failed to execute 'add' on 'IDBObjectStore': Evaluating the object store's key path did not yield a value.` bei der Ausführung im Browser/Frontend vollständig zu verhindern, wird ein mehrstufiger Schutzmechanismus angewendet:
+
+### 16.1. Automatische ID-Synthese & AutoIncrement
+- **AutoIncrement-Fallback bei Store-Erstellung**: `db.createObjectStore(store.name, { keyPath: store.keyPath || 'id', autoIncrement: true });` stellt sicher, dass IndexedDB selbst dann gültige Primärschlüssel vergeben kann, wenn in einem Datensatz kein Schlüsselwert übergeben wurde.
+- **Vollständige Feld-Synthese im Seed-Generator**: Bei der Generierung von `STORES_DATA` werden alle Primärschlüssel-Varianten (`camelCase`, `PascalCase`, `id`, Original-Feldname) synchronisiert. Sollte eine Zeile keinen Primärschlüssel enthalten, wird deterministisch ein Index-Schlüssel (`idx + 1`) vergeben.
+- **Resiliente Schreib-Operationen**: Statt des strikten `objStore.add(row)` wird transaktional `objStore.put(row)` in Kombination mit Vorab-Validierung und einem `try-catch`-Block verwendet. Dadurch werden Schlüssel-Kollisionen und unvollständige Datensätze abwärtskompatibel verarbeitet.
+
+
+
 
 
 

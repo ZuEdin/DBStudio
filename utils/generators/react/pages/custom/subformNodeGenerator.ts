@@ -84,7 +84,9 @@ export const generateSubformNode = (node: any, ctx: GeneratorContext): string =>
       alert('Bitte zuerst den übergeordneten Hauptdatensatz anlegen oder auswählen.');
       return;
     }
-    const payload = { ...${formDataVar}, ${fkField}: pId, ${fkFieldCamel}: pId };
+    const payload: any = { ...${formDataVar} };
+    payload['${fkField}'] = pId;
+    payload['${fkFieldCamel}'] = pId;
     try {
       if (${editingIdVar}) {
         await put('${tableCamel}', ${editingIdVar}, payload);

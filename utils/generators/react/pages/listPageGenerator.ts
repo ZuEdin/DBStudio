@@ -13,7 +13,9 @@ export const generateListPage = (table: Table, forms: Form[], tables: Table[], r
 
   const lookups: any[] = [];
   if (customForm && customForm.layout) {
-      const extractLookups = (node: any) => {
+      const extractLookups = (node: any, visited: Set<any> = new Set(), depth: number = 0) => {
+          if (!node || depth > 15 || visited.has(node)) return;
+          visited.add(node);
           if (node.type === 'field' && node.widgetType === 'select' && node.lookup) {
               const tableField = table.fields.find(f => f.id === node.fieldId);
               if (tableField) {
@@ -29,8 +31,8 @@ export const generateListPage = (table: Table, forms: Form[], tables: Table[], r
                   }
               }
           }
-          if (node.children) {
-              node.children.forEach(extractLookups);
+          if (Array.isArray(node.children)) {
+              node.children.forEach((child: any) => extractLookups(child, visited, depth + 1));
           }
       };
       extractLookups(customForm.layout);

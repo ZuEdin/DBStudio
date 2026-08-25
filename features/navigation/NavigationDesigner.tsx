@@ -3,15 +3,16 @@ import {
   FolderPlus, Plus, Calendar, Shield, Trash2, ChevronRight, ChevronDown, 
   Settings, Key, Layers, ArrowUp, ArrowDown, HelpCircle, Check, Play,
   Home, Database, Search, FileText, Frame, BookOpen, BarChart2, CheckSquare, 
-  Sliders, Link, ShieldAlert, Folder, UserCheck, AlertCircle, Globe, Sparkles, Command
+  Sliders, Link, ShieldAlert, Folder, UserCheck, AlertCircle, Globe, Sparkles, Command,
+  GripVertical, CornerUpLeft, FolderInput, FolderCheck, ArrowRight, RefreshCw, LayoutTemplate, Layers as LayersIcon
 } from 'lucide-react';
 import { 
   Table, Query, Report, Form, NavigationItem, BackendConfig 
 } from '../../types/index';
 import { useProjectStore } from '../../stores/useProjectStore';
-import { toCamelCase } from '../../utils/generators/common';
+import { toCamelCase, toKebabCase } from '../../utils/generators/common';
 
-// A dynamic icon mapping for easy visual choices
+// Dynamic icon mapping for easy visual choices
 const AVAILABLE_ICONS = [
   { name: 'home', icon: Home, label: 'Start/Home' },
   { name: 'database', icon: Database, label: 'Datenbank' },
@@ -47,6 +48,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
   onUpdateBackendConfig,
   showMessage,
 }) => {
+  const pages = useProjectStore(state => state.pages || []);
   // Try to load existing roles from 'sys_roles' table if present, otherwise default
   const rolesTable = tables.find(t => t.name === 'sys_roles');
   const availableRoles = rolesTable && rolesTable.data && rolesTable.data.length > 0
@@ -60,7 +62,12 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
   // Tab within the Inspector: 'general' | 'power_ups'
   const [inspectorTab, setInspectorTab] = useState<'general' | 'power_ups'>('general');
   
-  // Custom states for Phase 3 Command Palette simulation
+  // Drag & Drop and Quick Move states
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [quickMoveMenuId, setQuickMoveMenuId] = useState<string | null>(null);
+
+  // Command Palette simulation
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [commandSearch, setCommandSearch] = useState('');
   
@@ -69,16 +76,62 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     backendConfig.navigationPreset || 'sidebar'
   );
 
+  // Helper to deep clone navigation tree to prevent state mutation
+  const cloneTree = (tree: NavigationItem[]): NavigationItem[] => {
+    return tree.map(item => ({
+      ...item,
+      children: item.children ? cloneTree(item.children) : undefined
+    }));
+  };
+
+  // Flatten helper to search files in Command Palette and check sync
+  const getFlatItems = (items: NavigationItem[]): NavigationItem[] => {
+    const flat: NavigationItem[] = [];
+    const recurse = (list: NavigationItem[]) => {
+      list.forEach(i => {
+        flat.push(i);
+        if (i.children) recurse(i.children);
+      });
+    };
+    recurse(items);
+    return flat;
+  };
+
+  // Check missing items across tables, queries, forms, reports, pages
+  const getMissingItems = (currentItems: NavigationItem[]) => {
+    const flat = getFlatItems(currentItems);
+    const missingTables = tables.filter(t => !t.name.startsWith('sys_') && !flat.some(i => (i.targetType === 'table' && i.targetId === t.id) || i.id === `table-${t.id}`));
+    const missingQueries = queries.filter(q => (q.type === 'SELECT' || q.type === 'UPDATE' || !q.type) && !flat.some(i => (i.targetType === 'query' && i.targetId === q.id) || i.id === `query-${q.id}`));
+    const missingForms = forms.filter(f => !flat.some(i => (i.targetType === 'form' && i.targetId === f.id) || i.id === `form-${f.id}`));
+    const missingReports = reports.filter(r => !flat.some(i => (i.targetType === 'report' && i.targetId === r.id) || i.id === `report-${r.id}`));
+    const missingPages = pages.filter(p => !flat.some(i => (i.targetType === 'custom' && i.targetId === p.id) || i.id === `page-${p.id}` || i.route === `/custom/${toKebabCase(p.name)}`));
+
+    return {
+      tables: missingTables,
+      queries: missingQueries,
+      forms: missingForms,
+      reports: missingReports,
+      pages: missingPages,
+      total: missingTables.length + missingQueries.length + missingForms.length + missingReports.length + missingPages.length
+    };
+  };
+
   // Initialize menu with existing pages or pre-existing config
   useEffect(() => {
     if (backendConfig.navigationConfig && backendConfig.navigationConfig.length > 0) {
       let currentConfig = [...backendConfig.navigationConfig];
       const flatItems = getFlatItems(currentConfig);
+      
       const missingQueries = queries.filter(q => 
         (q.type === 'SELECT' || q.type === 'UPDATE' || !q.type) && 
         !flatItems.some(item => (item.targetType === 'query' && item.targetId === q.id) || item.id === `query-${q.id}` || item.route === `/queries/${toCamelCase(q.name)}`)
       );
 
+      const missingForms = forms.filter(f => 
+        !flatItems.some(item => (item.targetType === 'form' && item.targetId === f.id) || item.id === `form-${f.id}`)
+      );
+
+      let hasNew = false;
       if (missingQueries.length > 0) {
         const newQueryItems: NavigationItem[] = missingQueries.map(q => ({
           id: `query-${q.id}`,
@@ -92,6 +145,26 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
           translations: { de: q.name, en: q.name }
         }));
         currentConfig = [...currentConfig, ...newQueryItems];
+        hasNew = true;
+      }
+
+      if (missingForms.length > 0) {
+        const newFormItems: NavigationItem[] = missingForms.map(f => ({
+          id: `form-${f.id}`,
+          type: 'page',
+          title: f.name,
+          icon: 'form',
+          route: `/form/${f.id}`,
+          requiredRoles: ['User', 'Admin'],
+          targetId: f.id,
+          targetType: 'form',
+          translations: { de: f.name, en: `${f.name} Form` }
+        }));
+        currentConfig = [...currentConfig, ...newFormItems];
+        hasNew = true;
+      }
+
+      if (hasNew) {
         saveToConfig(currentConfig, selectedLayout);
       }
       setMenuItems(currentConfig);
@@ -250,7 +323,57 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     return <IconComponent size={size} className={className} />;
   };
 
-  // Add a new blank folder to root or into folder
+  // Drop source into target folder logic
+  const moveItemToFolder = (
+    itemId: string, 
+    targetFolderId: string | null, 
+    items: NavigationItem[]
+  ): NavigationItem[] => {
+    let draggedItem: NavigationItem | null = null;
+    const clonedItems = cloneTree(items);
+    
+    const findAndRemove = (list: NavigationItem[]): NavigationItem[] => {
+      return list.filter(item => {
+        if (item.id === itemId) {
+          draggedItem = item;
+          return false;
+        }
+        if (item.children) {
+          item.children = findAndRemove(item.children);
+        }
+        return true;
+      });
+    };
+
+    const pristineList = findAndRemove(clonedItems);
+    if (!draggedItem) return items;
+
+    if (targetFolderId === null || targetFolderId === 'root') {
+      return [...pristineList, draggedItem];
+    }
+
+    const insertInFolder = (list: NavigationItem[]): NavigationItem[] => {
+      return list.map(item => {
+        if (item.id === targetFolderId && item.type === 'folder') {
+          return {
+            ...item,
+            children: [...(item.children || []), draggedItem!]
+          };
+        }
+        if (item.children) {
+          return {
+            ...item,
+            children: insertInFolder(item.children)
+          };
+        }
+        return item;
+      });
+    };
+
+    return insertInFolder(pristineList);
+  };
+
+  // Add a new blank folder to root or into selected folder
   const addFolder = () => {
     const newFolder: NavigationItem = {
       id: `folder-${crypto.randomUUID()}`,
@@ -262,8 +385,17 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
       children: [],
       translations: { de: 'Neuer Ordner', en: 'New Folder', fr: 'Nouveau dossier' }
     };
-    const updated = [...menuItems, newFolder];
-    handleUpdateItems(updated);
+
+    if (selectedItem && selectedItem.type === 'folder') {
+      const updated = moveItemToFolder(newFolder.id, selectedItem.id, [...menuItems, newFolder]);
+      handleUpdateItems(updated);
+      setExpandedFolders(prev => ({ ...prev, [selectedItem.id]: true }));
+      showMessage("Unterordner erstellt", `Ordner wurde in "${selectedItem.title}" angelegt.`, "success");
+    } else {
+      const updated = [...menuItems, newFolder];
+      handleUpdateItems(updated);
+      showMessage("Ordner erstellt", "Neuer Hauptordner wurde hinzugefügt.", "success");
+    }
     setSelectedItemId(newFolder.id);
   };
 
@@ -279,9 +411,17 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
       targetType: 'custom',
       translations: { de: 'Eigene Seite', en: 'Custom Page', fr: 'Page personnalisée' }
     };
-    const updated = [...menuItems, newLink];
-    handleUpdateItems(updated);
+
+    if (selectedItem && selectedItem.type === 'folder') {
+      const updated = moveItemToFolder(newLink.id, selectedItem.id, [...menuItems, newLink]);
+      handleUpdateItems(updated);
+      setExpandedFolders(prev => ({ ...prev, [selectedItem.id]: true }));
+    } else {
+      const updated = [...menuItems, newLink];
+      handleUpdateItems(updated);
+    }
     setSelectedItemId(newLink.id);
+    showMessage("Seite erstellt", "Neue benutzerdefinierte Seite hinzugefügt.", "success");
   };
 
   // Delete matching item from tree
@@ -289,7 +429,6 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     const filtered: NavigationItem[] = [];
     for (const item of items) {
       if (item.id === id) {
-        // Skip adding this one (deletes it)
         continue;
       }
       if (item.children) {
@@ -308,7 +447,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     const updated = deleteFromTree(id, menuItems);
     handleUpdateItems(updated);
     if (selectedItemId === id) setSelectedItemId(null);
-    showMessage("Element entfernt", "Das Navigationselement wurde erfolgreich gelöscht.", "success");
+    showMessage("Element entfernt", "Das Navigationselement wurde gelöscht.", "success");
   };
 
   // Move element up inside its parent array
@@ -340,14 +479,6 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
   const handleMove = (id: string, direction: 'up' | 'down') => {
     const updated = moveElementInTree(id, direction, menuItems);
     handleUpdateItems(updated);
-  };
-
-  // Helper to deep clone navigation tree to prevent state mutation
-  const cloneTree = (tree: NavigationItem[]): NavigationItem[] => {
-    return tree.map(item => ({
-      ...item,
-      children: item.children ? cloneTree(item.children) : undefined
-    }));
   };
 
   // Recursively find parent folder ID of a given item
@@ -386,62 +517,14 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     return ancestor.children.some(c => isDescendantOf(c.id, targetId, items));
   };
 
-  // Drop source into target folder logic
-  const moveItemToFolder = (
-    itemId: string, 
-    targetFolderId: string | null, 
-    items: NavigationItem[]
-  ): NavigationItem[] => {
-    let draggedItem: NavigationItem | null = null;
-    const clonedItems = cloneTree(items);
-    
-    const findAndRemove = (list: NavigationItem[]): NavigationItem[] => {
-      return list.filter(item => {
-        if (item.id === itemId) {
-          draggedItem = item;
-          return false;
-        }
-        if (item.children) {
-          item.children = findAndRemove(item.children);
-        }
-        return true;
-      });
-    };
-
-    const pristineList = findAndRemove(clonedItems);
-    if (!draggedItem) return items; // Not found
-
-    if (targetFolderId === null) {
-      return [...pristineList, draggedItem];
-    }
-
-    const insertInFolder = (list: NavigationItem[]): NavigationItem[] => {
-      return list.map(item => {
-        if (item.id === targetFolderId && item.type === 'folder') {
-          return {
-            ...item,
-            children: [...(item.children || []), draggedItem!]
-          };
-        }
-        if (item.children) {
-          return {
-            ...item,
-            children: insertInFolder(item.children)
-          };
-        }
-        return item;
-      });
-    };
-
-    return insertInFolder(pristineList);
-  };
-
-  const handleAddToolboxItem = (type: 'table' | 'query' | 'form' | 'report', item: any) => {
+  // Add toolbox item directly to root or selected folder
+  const handleAddToolboxItem = (type: 'table' | 'query' | 'form' | 'report' | 'page', item: any) => {
     let iconName = 'database';
     let path = `/${item.name?.toLowerCase() || item.id}`;
     if (type === 'query') { iconName = 'search'; path = `/queries/${toCamelCase(item.name || item.id)}`; }
     if (type === 'form') { iconName = 'form'; path = `/form/${item.id}`; }
     if (type === 'report') { iconName = 'file-text'; path = `/report/${item.id}`; }
+    if (type === 'page') { iconName = 'layout'; path = `/custom/${toKebabCase(item.name || item.id)}`; }
 
     const newNavItem: NavigationItem = {
       id: `${type}-${item.id}`,
@@ -451,27 +534,105 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
       route: path,
       requiredRoles: ['User', 'Admin'],
       targetId: item.id,
-      targetType: type,
+      targetType: type === 'page' ? 'custom' : type,
       translations: { de: item.name || item.title, en: item.name || item.title }
     };
 
-    const updated = [...menuItems, newNavItem];
-    handleUpdateItems(updated);
+    if (selectedItem && selectedItem.type === 'folder') {
+      const updated = moveItemToFolder(newNavItem.id, selectedItem.id, [...menuItems, newNavItem]);
+      handleUpdateItems(updated);
+      setExpandedFolders(prev => ({ ...prev, [selectedItem.id]: true }));
+      showMessage("In Ordner eingefügt", `"${newNavItem.title}" wurde in den Ordner "${selectedItem.title}" abgelegt.`, "success");
+    } else {
+      const updated = [...menuItems, newNavItem];
+      handleUpdateItems(updated);
+      showMessage("Menüpunkt hinzugefügt", `"${newNavItem.title}" wurde der Hauptebene hinzugefügt.`, "success");
+    }
     setSelectedItemId(newNavItem.id);
-    showMessage("Menüpunkt hinzugefügt", `"${newNavItem.title}" wurde der Navigationsstruktur hinzugefügt.`, "success");
   };
 
-  // Flatten helper to search files in Command Palette
-  const getFlatItems = (items: NavigationItem[]): NavigationItem[] => {
-    const flat: NavigationItem[] = [];
-    const recurse = (list: NavigationItem[]) => {
-      list.forEach(i => {
-        flat.push(i);
-        if (i.children) recurse(i.children);
+  // Sync all missing items
+  const handleSyncAllMissing = () => {
+    const missing = getMissingItems(menuItems);
+    let newItems: NavigationItem[] = [];
+
+    missing.tables.forEach(t => {
+      newItems.push({
+        id: `table-${t.id}`,
+        type: 'page',
+        title: t.name.replace(/_/g, ' '),
+        icon: 'database',
+        route: `/${t.name.toLowerCase()}`,
+        requiredRoles: ['User', 'Admin'],
+        targetId: t.id,
+        targetType: 'table',
+        translations: { de: t.name.replace(/_/g, ' '), en: t.name.replace(/_/g, ' ') }
       });
-    };
-    recurse(items);
-    return flat;
+    });
+
+    missing.queries.forEach(q => {
+      newItems.push({
+        id: `query-${q.id}`,
+        type: 'page',
+        title: q.name,
+        icon: 'search',
+        route: `/queries/${toCamelCase(q.name)}`,
+        requiredRoles: ['User', 'Admin'],
+        targetId: q.id,
+        targetType: 'query',
+        translations: { de: q.name, en: q.name }
+      });
+    });
+
+    missing.forms.forEach(f => {
+      newItems.push({
+        id: `form-${f.id}`,
+        type: 'page',
+        title: f.name,
+        icon: 'form',
+        route: `/form/${f.id}`,
+        requiredRoles: ['User', 'Admin'],
+        targetId: f.id,
+        targetType: 'form',
+        translations: { de: f.name, en: `${f.name} Form` }
+      });
+    });
+
+    missing.reports.forEach(r => {
+      newItems.push({
+        id: `report-${r.id}`,
+        type: 'page',
+        title: r.name,
+        icon: 'file-text',
+        route: `/report/${r.id}`,
+        requiredRoles: ['User', 'Admin'],
+        targetId: r.id,
+        targetType: 'report',
+        translations: { de: r.name, en: `${r.name} Report` }
+      });
+    });
+
+    missing.pages.forEach(p => {
+      newItems.push({
+        id: `page-${p.id}`,
+        type: 'page',
+        title: p.name,
+        icon: 'layout',
+        route: `/custom/${toKebabCase(p.name)}`,
+        requiredRoles: ['User', 'Admin'],
+        targetId: p.id,
+        targetType: 'custom',
+        translations: { de: p.name, en: p.name }
+      });
+    });
+
+    if (newItems.length > 0) {
+      const updated = [...menuItems, ...newItems];
+      handleUpdateItems(updated);
+      showMessage("Synchronisation abgeschlossen", `${newItems.length} fehlende(s) Element(e) wurden erfolgreich zur Navigation hinzugefügt.`, "success");
+    } else {
+      showMessage("Alles aktuell", "Alle Tabellen, Formulare, Abfragen, Berichte und Seiten sind bereits in der Navigation vorhanden.", "info");
+    }
   };
 
   const flatListForSearch = getFlatItems(menuItems);
@@ -480,26 +641,66 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
     it.route.toLowerCase().includes(commandSearch.toLowerCase())
   );
 
-  // Render a single menu item row
+  const missingInfo = getMissingItems(menuItems);
+  const allFoldersList = getAllFolders(menuItems);
+
+  // Render a single menu item row with Drag & Drop and quick folder operations
   const renderItemRow = (item: NavigationItem, depth = 0) => {
     const isFolder = item.type === 'folder';
     const isExpanded = expandedFolders[item.id] !== false;
     const isSelected = selectedItemId === item.id;
-    
-    // Simulate badge render if configured
+    const isDragOverThisFolder = dragOverFolderId === item.id;
+    const isCurrentlyDragged = draggedItemId === item.id;
+    const parentFolderId = findParentFolderId(item.id, menuItems);
+    const isInFolder = parentFolderId !== 'root';
     const hasBadge = !!item.badgeCountQuery;
-    // Generate a beautiful simulated count based on string length or pseudo random
     const simulatedCount = item.badgeCountQuery ? (item.badgeCountQuery.length % 7) + 2 : 0;
-    
+    const isQuickMenuOpen = quickMoveMenuId === item.id;
+
     return (
-      <div key={item.id} className="group flex flex-col">
+      <div key={item.id} className="group flex flex-col relative">
         {/* Row Container */}
         <div 
+          draggable={true}
+          onDragStart={(e) => {
+            e.dataTransfer.setData('text/plain', item.id);
+            setDraggedItemId(item.id);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (isFolder && item.id !== draggedItemId) {
+              setDragOverFolderId(item.id);
+            }
+          }}
+          onDragLeave={() => {
+            if (dragOverFolderId === item.id) {
+              setDragOverFolderId(null);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (draggedItemId && draggedItemId !== item.id) {
+              if (isFolder) {
+                // Move dragged item into this folder
+                const updated = moveItemToFolder(draggedItemId, item.id, menuItems);
+                handleUpdateItems(updated);
+                setExpandedFolders(prev => ({ ...prev, [item.id]: true }));
+                setSelectedItemId(draggedItemId);
+                showMessage("In Ordner verschoben", `Element wurde erfolgreich in "${item.title}" abgelegt.`, "success");
+              }
+            }
+            setDraggedItemId(null);
+            setDragOverFolderId(null);
+          }}
+          onDragEnd={() => {
+            setDraggedItemId(null);
+            setDragOverFolderId(null);
+          }}
           onClick={() => {
             setSelectedItemId(item.id);
             if (item.title.toLowerCase() === 'cms') {
               const store = useProjectStore.getState();
-              // Add Devices table if missing
               if (!store.tables.find(t => t.name === 'sys_user_devices')) {
                 store.addTable({
                   id: crypto.randomUUID(),
@@ -514,7 +715,6 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                   data: []
                 });
               }
-              // Add Tokens table if missing
               if (!store.tables.find(t => t.name === 'sys_user_tokens')) {
                 store.addTable({
                   id: crypto.randomUUID(),
@@ -532,6 +732,8 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
             }
           }}
           className={`flex items-center justify-between p-2.5 mx-2 my-0.5 rounded-lg cursor-pointer border select-none transition-all duration-150 ${
+            isCurrentlyDragged ? 'opacity-40 border-dashed border-sky-400 bg-sky-50' :
+            isDragOverThisFolder ? 'bg-amber-100 border-amber-500 ring-2 ring-amber-300 text-amber-950 font-bold scale-[1.01]' :
             isSelected 
               ? 'bg-sky-50 border-sky-300 shadow-sm text-sky-950 font-medium' 
               : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-slate-50'
@@ -539,40 +741,142 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
           style={{ marginLeft: `${depth * 20 + 8}px` }}
         >
           <div className="flex items-center gap-2 overflow-hidden flex-1">
+            {/* Drag Handle */}
+            <div className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-600 p-0.5" title="Ziehen zum Verschieben">
+              <GripVertical size={14} />
+            </div>
+
             {/* Folder toggle button */}
             {isFolder ? (
               <button 
                 onClick={(e) => { e.stopPropagation(); toggleFolder(item.id); }}
                 className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition-colors"
+                title={isExpanded ? 'Ordner schließen' : 'Ordner öffnen'}
               >
                 {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
             ) : (
-              <span className="w-6 col-span-1" />
+              <span className="w-2" />
             )}
 
             {/* Icon representation */}
-            {renderIconComponent(item.icon, 16, isSelected ? 'text-sky-600' : 'text-slate-400')}
+            {renderIconComponent(item.icon, 16, isSelected ? 'text-sky-600' : isFolder ? 'text-amber-500' : 'text-slate-400')}
             
-            <span className="truncate text-xs">{item.title}</span>
+            <span className="truncate text-xs font-medium">{item.title}</span>
             <span className="text-[10px] text-slate-400 font-mono italic">({item.route})</span>
 
-            {/* Phase 3: LIVE BADGE PREVIEW */}
+            {/* Live badge preview */}
             {hasBadge && (
               <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-red-500 text-white animate-pulse shadow-sm">
                 {simulatedCount}
               </span>
             )}
+
+            {isDragOverThisFolder && (
+              <span className="ml-auto text-[10px] font-bold text-amber-700 bg-amber-200/80 px-2 py-0.5 rounded-md animate-pulse">
+                ↳ In diesen Ordner ablegen
+              </span>
+            )}
           </div>
 
-          {/* Action pills & re-ordering buttons */}
-          <div className="flex items-center gap-1 opacity-10 sm:opacity-100 group-hover:opacity-100 transition-opacity">
+          {/* Action buttons on row */}
+          <div className="flex items-center gap-1 opacity-20 sm:opacity-100 group-hover:opacity-100 transition-opacity">
+            {/* If item is inside a folder: quick 1-click move out to root */}
+            {isInFolder && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const updated = moveItemToFolder(item.id, null, menuItems);
+                  handleUpdateItems(updated);
+                  showMessage("Auf Hauptebene verschoben", `"${item.title}" wurde auf die Hauptebene (Root) verschoben.`, "success");
+                }}
+                className="p-1 hover:bg-sky-100 text-sky-600 rounded text-[10px] flex items-center gap-0.5"
+                title="Aus Ordner herausnehmen (Auf Hauptebene verschieben)"
+              >
+                <CornerUpLeft size={13} />
+              </button>
+            )}
+
+            {/* Quick Move to Folder Popover Picker Button */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuickMoveMenuId(isQuickMenuOpen ? null : item.id);
+                }}
+                className={`p-1 rounded transition-colors ${isQuickMenuOpen ? 'bg-sky-200 text-sky-800' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'}`}
+                title="In Ordner verschieben..."
+              >
+                <FolderInput size={13} />
+              </button>
+
+              {/* Quick Move Dropdown Menu */}
+              {isQuickMenuOpen && (
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 top-7 z-50 bg-white border border-slate-300 shadow-xl rounded-xl p-2 w-56 flex flex-col gap-1 text-xs animate-scale-up"
+                >
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                    Verschieben nach...
+                  </div>
+                  
+                  {/* Root option */}
+                  <button
+                    onClick={() => {
+                      const updated = moveItemToFolder(item.id, null, menuItems);
+                      handleUpdateItems(updated);
+                      setQuickMoveMenuId(null);
+                      showMessage("Verschoben", `"${item.title}" liegt nun auf der Hauptebene.`, "success");
+                    }}
+                    className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between hover:bg-slate-100 transition-colors ${!isInFolder ? 'bg-sky-50 font-bold text-sky-700' : 'text-slate-700'}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <LayersIcon size={12} className="text-slate-500" />
+                      Hauptebene (Root)
+                    </span>
+                    {!isInFolder && <Check size={12} className="text-sky-600" />}
+                  </button>
+
+                  {/* Folder options */}
+                  {allFoldersList
+                    .filter(({ folder }) => {
+                      if (folder.id === item.id) return false;
+                      if (isFolder && isDescendantOf(item.id, folder.id, menuItems)) return false;
+                      return true;
+                    })
+                    .map(({ folder, depth: fDepth }) => {
+                      const isCurrentParent = parentFolderId === folder.id;
+                      return (
+                        <button
+                          key={folder.id}
+                          onClick={() => {
+                            const updated = moveItemToFolder(item.id, folder.id, menuItems);
+                            handleUpdateItems(updated);
+                            setExpandedFolders(prev => ({ ...prev, [folder.id]: true }));
+                            setQuickMoveMenuId(null);
+                            showMessage("Verschoben", `"${item.title}" wurde in Ordner "${folder.title}" verschoben.`, "success");
+                          }}
+                          className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between hover:bg-sky-50 transition-colors ${isCurrentParent ? 'bg-sky-50 font-bold text-sky-700' : 'text-slate-700'}`}
+                        >
+                          <span className="flex items-center gap-1.5 truncate">
+                            <Folder size={12} className="text-amber-500 shrink-0" />
+                            <span className="truncate">{folder.title}</span>
+                          </span>
+                          {isCurrentParent && <Check size={12} className="text-sky-600 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
             {item.requiredRoles.length > 0 && (
               <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-amber-50 text-amber-800 border border-amber-200">
                 <Shield size={8} className="mr-0.5" />
                 {item.requiredRoles.length} R
               </span>
             )}
+
             <button 
               onClick={(e) => { e.stopPropagation(); handleMove(item.id, 'up'); }}
               className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded" 
@@ -606,7 +910,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-100 text-slate-800 relative">
       
-      {/* 1. Header with metadata and command line shortcut search */}
+      {/* 1. Header with metadata, command palette and layout buttons */}
       <div className="bg-white border-b border-slate-300 p-4 shrink-0 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
@@ -615,11 +919,22 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
               Navigations- & Menü-Designer
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Definieren Sie Icons, AD-Rollen mapping, i18n Übersetzungen, dynamische Live-Badges und tastaturbereite Command Paletten.
+              Hierarchische Menüs mit Drag & Drop, Ordnern, Rollenberechtigungen, Formular-Verknüpfungen und dynamischen Badges gestalten.
             </p>
           </div>
           
           <div className="flex items-center gap-2">
+            {missingInfo.total > 0 && (
+              <button 
+                onClick={handleSyncAllMissing}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-sm"
+                title="Fügt alle neu erstellten Tabellen, Formulare, Abfragen und Berichte automatisch ein"
+              >
+                <RefreshCw size={13} />
+                <span>{missingInfo.total} fehlende synchronisieren</span>
+              </button>
+            )}
+
             <button 
               onClick={() => setIsCommandPaletteOpen(true)}
               className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-300 hover:bg-slate-100 text-xs font-semibold rounded-lg text-slate-600 transition-all shadow-sm cursor-pointer"
@@ -646,7 +961,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
           </div>
         </div>
 
-        {/* Phase 3 UI Powerup: Layout styles selector */}
+        {/* Shell styles selector */}
         <div className="border-t border-slate-200 pt-3 flex flex-col md:flex-row md:items-center gap-3">
           <span className="text-xs font-bold text-slate-700 flex items-center gap-2">
             <Layers size={14} className="text-sky-500" />
@@ -696,16 +1011,55 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
         {/* Left Toolbox: Unmapped elements to add */}
         <div className="w-80 border-r border-slate-300 bg-slate-50 flex flex-col shrink-0 overflow-y-auto">
           <div className="p-3 border-b border-slate-200 bg-white sticky top-0 z-10">
-            <span className="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Plus size={14} className="text-slate-500" />
-              Verfügbare Objekte
+            <span className="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Plus size={14} className="text-slate-500" />
+                Verfügbare Objekte
+              </span>
+              {selectedItem && selectedItem.type === 'folder' ? (
+                <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 truncate max-w-[120px]" title={`Objekte werden in '${selectedItem.title}' abgelegt`}>
+                  📁 In: {selectedItem.title}
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400">Hauptebene</span>
+              )}
             </span>
+          </div>
+
+          {/* Formulare sub-list */}
+          <div className="p-3 border-b border-slate-200 bg-white">
+            <span className="font-bold text-[11px] text-slate-500 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Frame size={12} className="text-emerald-500" />
+                Formulare ({forms.length})
+              </span>
+              <span className="text-[10px] text-slate-400">Klick = Hinzufügen</span>
+            </span>
+            <div className="flex flex-col gap-1 mt-1.5">
+              {forms.length === 0 ? (
+                <span className="text-[10px] text-slate-400 italic">Keine Formulare vorhanden</span>
+              ) : (
+                forms.map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => handleAddToolboxItem('form', f)}
+                    className="w-full text-left p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
+                  >
+                    <span className="text-slate-700 group-hover:text-emerald-900 font-medium truncate flex items-center gap-1.5">
+                      <Frame size={12} className="text-slate-400 group-hover:text-emerald-600" />
+                      {f.name}
+                    </span>
+                    <Plus size={12} className="text-slate-400 group-hover:text-emerald-600" />
+                  </button>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Tables sub-list */}
           <div className="p-3 border-b border-slate-200 bg-white">
             <span className="font-bold text-[11px] text-slate-500 flex items-center gap-1">
-              <Database size={12} />
+              <Database size={12} className="text-sky-500" />
               Datenbank-Tabellen ({tables.length})
             </span>
             <div className="flex flex-col gap-1 mt-1.5">
@@ -713,10 +1067,13 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                 <button
                   key={t.id}
                   onClick={() => handleAddToolboxItem('table', t)}
-                  className="w-full text-left p-2 rounded border border-slate-200 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
+                  className="w-full text-left p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
                 >
-                  <span className="font-mono text-slate-700 group-hover:text-sky-900 font-medium truncate">{t.name}</span>
-                  <Plus size={10} className="text-slate-400 group-hover:text-sky-600" />
+                  <span className="font-mono text-slate-700 group-hover:text-sky-900 font-medium truncate flex items-center gap-1.5">
+                    <Database size={12} className="text-slate-400 group-hover:text-sky-600" />
+                    {t.name}
+                  </span>
+                  <Plus size={12} className="text-slate-400 group-hover:text-sky-600" />
                 </button>
               ))}
             </div>
@@ -725,7 +1082,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
           {/* Queries sub-list */}
           <div className="p-3 border-b border-slate-200 bg-white">
             <span className="font-bold text-[11px] text-slate-500 flex items-center gap-1">
-              <Search size={12} />
+              <Search size={12} className="text-purple-500" />
               Abfragen ({queries.length})
             </span>
             <div className="flex flex-col gap-1 mt-1.5">
@@ -736,34 +1093,13 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                   <button
                     key={q.id}
                     onClick={() => handleAddToolboxItem('query', q)}
-                    className="w-full text-left p-2 rounded border border-slate-200 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
+                    className="w-full text-left p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
                   >
-                    <span className="font-mono text-slate-700 group-hover:text-sky-900 font-medium truncate">{q.name}</span>
-                    <Plus size={10} className="text-slate-400 group-hover:text-sky-600" />
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Forms sub-list */}
-          <div className="p-3 border-b border-slate-200 bg-white">
-            <span className="font-bold text-[11px] text-slate-500 flex items-center gap-1">
-              <Frame size={12} />
-              Formulare ({forms.length})
-            </span>
-            <div className="flex flex-col gap-1 mt-1.5">
-              {forms.length === 0 ? (
-                <span className="text-[10px] text-slate-400 italic">Keine Formulare erstellt</span>
-              ) : (
-                forms.map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => handleAddToolboxItem('form', f)}
-                    className="w-full text-left p-2 rounded border border-slate-200 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
-                  >
-                    <span className="text-slate-700 group-hover:text-sky-900 font-medium truncate">{f.name}</span>
-                    <Plus size={10} className="text-slate-400 group-hover:text-sky-600" />
+                    <span className="font-mono text-slate-700 group-hover:text-purple-900 font-medium truncate flex items-center gap-1.5">
+                      <Search size={12} className="text-slate-400 group-hover:text-purple-600" />
+                      {q.name}
+                    </span>
+                    <Plus size={12} className="text-slate-400 group-hover:text-purple-600" />
                   </button>
                 ))
               )}
@@ -773,7 +1109,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
           {/* Reports sub-list */}
           <div className="p-3 bg-white">
             <span className="font-bold text-[11px] text-slate-500 flex items-center gap-1">
-              <FileText size={12} />
+              <FileText size={12} className="text-amber-500" />
               Berichte ({reports.length})
             </span>
             <div className="flex flex-col gap-1 mt-1.5">
@@ -784,10 +1120,40 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                   <button
                     key={r.id}
                     onClick={() => handleAddToolboxItem('report', r)}
-                    className="w-full text-left p-2 rounded border border-slate-200 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
+                    className="w-full text-left p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
                   >
-                    <span className="text-slate-700 group-hover:text-sky-900 font-medium truncate">{r.name}</span>
-                    <Plus size={10} className="text-slate-400 group-hover:text-sky-600" />
+                    <span className="text-slate-700 group-hover:text-amber-900 font-medium truncate flex items-center gap-1.5">
+                      <FileText size={12} className="text-slate-400 group-hover:text-amber-600" />
+                      {r.name}
+                    </span>
+                    <Plus size={12} className="text-slate-400 group-hover:text-amber-600" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Custom Pages sub-list */}
+          <div className="p-3 bg-white">
+            <span className="font-bold text-[11px] text-slate-500 flex items-center gap-1">
+              <LayoutTemplate size={12} className="text-emerald-500" />
+              Eigene Seiten ({pages.length})
+            </span>
+            <div className="flex flex-col gap-1 mt-1.5">
+              {pages.length === 0 ? (
+                <span className="text-[10px] text-slate-400 italic">Keine Seiten erstellt</span>
+              ) : (
+                pages.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleAddToolboxItem('page', p)}
+                    className="w-full text-left p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs flex items-center justify-between transition-colors group cursor-pointer"
+                  >
+                    <span className="text-slate-700 group-hover:text-emerald-900 font-medium truncate flex items-center gap-1.5">
+                      <LayoutTemplate size={12} className="text-slate-400 group-hover:text-emerald-600" />
+                      {p.name}
+                    </span>
+                    <Plus size={12} className="text-slate-400 group-hover:text-emerald-600" />
                   </button>
                 ))
               )}
@@ -797,9 +1163,12 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
 
         {/* Center Canvas: Menu tree structure with drag & move order mapping */}
         <div className="flex-1 flex flex-col bg-slate-100 overflow-y-auto">
-          <div className="p-3 border-b border-slate-200 bg-white shrink-0">
+          <div className="p-3 border-b border-slate-200 bg-white shrink-0 flex items-center justify-between">
             <span className="font-bold text-xs text-slate-700 uppercase tracking-wider">
-              Aktive Navigationsleiste (Sidebar-Baum)
+              Aktive Navigationsstruktur (Sidebar & Menü-Hierarchie)
+            </span>
+            <span className="text-xs text-slate-400">
+              💡 Tipp: Ziehen Sie Elemente einfach per Drag & Drop auf einen Ordner!
             </span>
           </div>
 
@@ -808,7 +1177,7 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
               <div className="my-auto p-12 text-center max-w-sm mx-auto border-2 border-dashed border-slate-300 rounded-xl bg-white shadow">
                 <ShieldAlert className="mx-auto text-slate-400 mb-2" size={32} />
                 <span className="text-sm font-bold block text-slate-700">Navigations-Menü ist leer</span>
-                <span className="text-xs text-slate-500 mt-1 block">Fügen Sie Ordner oder vorhandene Seiten über das linke Panel hinzu oder klicken Sie oben auf „Eigene Seite“.</span>
+                <span className="text-xs text-slate-500 mt-1 block">Fügen Sie Ordner oder vorhandene Seiten über das linke Panel hinzu oder klicken Sie oben auf „Ordner“ / „Eigene Seite“.</span>
               </div>
             ) : (
               <div className="flex flex-col gap-0.5 max-w-3xl w-full mx-auto bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
@@ -816,10 +1185,24 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
 
                 {/* Drop zone to move folder files back to root */}
                 <div 
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedItemId) {
+                      const updated = moveItemToFolder(draggedItemId, null, menuItems);
+                      handleUpdateItems(updated);
+                      setSelectedItemId(draggedItemId);
+                      showMessage("Auf Hauptebene verschoben", "Element wurde erfolgreich auf die Hauptebene (Root) gelegt.", "success");
+                    }
+                    setDraggedItemId(null);
+                    setDragOverFolderId(null);
+                  }}
                   onClick={() => selectedItemId && handleUpdateItems(moveItemToFolder(selectedItemId, null, menuItems))}
-                  className="mt-auto border border-dashed border-slate-200 hover:border-sky-300 hover:bg-sky-50/50 p-2.5 rounded-lg text-center text-[10px] text-slate-400 hover:text-sky-700 cursor-pointer select-none font-medium"
+                  className="mt-4 border-2 border-dashed border-slate-300 hover:border-sky-400 hover:bg-sky-50/60 p-3 rounded-xl text-center text-xs text-slate-500 hover:text-sky-800 cursor-pointer select-none font-medium transition-all"
                 >
-                  Klicken Sie hier, um das ausgewählte Menüelement auf die Hauptebene (Root) zu verschieben
+                  📥 Element hier ablegen oder anklicken, um es auf die Hauptebene (Root) zu verschieben
                 </div>
               </div>
             )}
@@ -878,20 +1261,42 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                     />
                   </div>
 
-                  {/* Target folder drop picker if another item is selected */}
+                  {/* Target folder drop picker & quick buttons */}
                   {(selectedItem.type === 'page' || selectedItem.type === 'folder') && (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-600">Übergeordneter Ordner</label>
+                    <div className="flex flex-col gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <FolderInput size={13} className="text-amber-500" />
+                          Ordner-Zugehörigkeit
+                        </label>
+                        {findParentFolderId(selectedItem.id, menuItems) !== 'root' && (
+                          <button
+                            onClick={() => {
+                              const updated = moveItemToFolder(selectedItem.id, null, menuItems);
+                              handleUpdateItems(updated);
+                              showMessage("Auf Hauptebene verschoben", `"${selectedItem.title}" liegt nun auf der Hauptebene.`, "success");
+                            }}
+                            className="text-[10px] text-sky-700 hover:text-sky-900 font-bold underline"
+                          >
+                            Auf Hauptebene
+                          </button>
+                        )}
+                      </div>
+
                       <select
-                        className="w-full text-xs p-2 bg-white rounded-lg border border-slate-300 outline-none focus:border-sky-500 text-slate-800"
+                        className="w-full text-xs p-2 bg-white rounded-lg border border-slate-300 outline-none focus:border-sky-500 text-slate-800 font-medium"
                         onChange={(e) => {
                           const targetId = e.target.value === 'root' ? null : e.target.value;
                           const updated = moveItemToFolder(selectedItem.id, targetId, menuItems);
                           handleUpdateItems(updated);
+                          if (targetId) {
+                            setExpandedFolders(prev => ({ ...prev, [targetId]: true }));
+                          }
+                          showMessage("Ordner geändert", `Zugehörigkeit wurde aktualisiert.`, "success");
                         }}
                         value={findParentFolderId(selectedItem.id, menuItems)}
                       >
-                        <option value="root">Hauptmenü (Hauptebene)</option>
+                        <option value="root">📂 Hauptmenü (Hauptebene / Root)</option>
                         {getAllFolders(menuItems)
                           .filter(({ folder }) => {
                             if (folder.id === selectedItem.id) return false;
@@ -900,10 +1305,36 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                           })
                           .map(({ folder, depth }) => (
                             <option key={folder.id} value={folder.id}>
-                              {'\u00A0'.repeat(depth * 3)} {depth > 0 ? '↳ ' : ''}{folder.title}
+                              {'\u00A0'.repeat(depth * 3)} 📁 {depth > 0 ? '↳ ' : ''}{folder.title}
                             </option>
                           ))}
                       </select>
+
+                      {/* Quick 1-click folder placement buttons */}
+                      {allFoldersList.length > 0 && (
+                        <div className="flex flex-col gap-1 mt-1">
+                          <span className="text-[10px] text-slate-400 font-semibold uppercase">Schnellzuweisung:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {allFoldersList
+                              .filter(({ folder }) => folder.id !== selectedItem.id && (!isDescendantOf(selectedItem.id, folder.id, menuItems)))
+                              .map(({ folder }) => (
+                                <button
+                                  key={folder.id}
+                                  onClick={() => {
+                                    const updated = moveItemToFolder(selectedItem.id, folder.id, menuItems);
+                                    handleUpdateItems(updated);
+                                    setExpandedFolders(prev => ({ ...prev, [folder.id]: true }));
+                                    showMessage("In Ordner verschoben", `"${selectedItem.title}" wurde in "${folder.title}" abgelegt.`, "success");
+                                  }}
+                                  className="text-[10px] bg-white hover:bg-sky-50 border border-slate-200 hover:border-sky-300 text-slate-700 px-2 py-1 rounded-md flex items-center gap-1 font-medium transition-all"
+                                >
+                                  <Folder size={10} className="text-amber-500" />
+                                  <span>In "{folder.title}"</span>
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -948,26 +1379,26 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                         return (
                           <label 
                             key={role} 
-                            className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-slate-200/50 cursor-pointer select-none text-xs text-slate-700 font-medium"
+                            className="flex items-center justify-between text-xs text-slate-700 hover:text-slate-900 cursor-pointer select-none p-1 rounded hover:bg-slate-100/60"
                           >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                const current = [...selectedItem.requiredRoles];
-                                const next = checked => {
-                                  if (checked) {
-                                    return [...current, role];
+                            <span className="flex items-center gap-2">
+                              <input 
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  let newRoles = [...selectedItem.requiredRoles];
+                                  if (e.target.checked) {
+                                    newRoles.push(role);
                                   } else {
-                                    return current.filter(r => r !== role);
+                                    newRoles = newRoles.filter(r => r !== role);
                                   }
-                                };
-                                const updatedRoles = next(!isChecked);
-                                handleUpdateItems(updateItemInTree(selectedItem.id, { requiredRoles: updatedRoles }, menuItems));
-                              }}
-                              className="rounded text-sky-600 focus:ring-sky-500 w-3.5 h-3.5"
-                            />
-                            <span className="truncate">{role}</span>
+                                  handleUpdateItems(updateItemInTree(selectedItem.id, { requiredRoles: newRoles }, menuItems));
+                                }}
+                                className="rounded text-sky-600 focus:ring-sky-500"
+                              />
+                              <span className="font-medium">{role}</span>
+                            </span>
+                            {role === 'Admin' && <span className="text-[9px] bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded">Vollzugriff</span>}
                           </label>
                         );
                       })}
@@ -976,45 +1407,42 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                 </>
               ) : (
                 <>
-                  {/* Category: 1. Live Badge Engine */}
-                  <div className="flex flex-col gap-2 bg-purple-50 rounded-xl border border-purple-200 p-3.5">
-                    <span className="text-xs font-extrabold text-purple-950 flex items-center gap-1">
-                      <Sparkles size={14} className="text-purple-600 text-yellow-500 fill-yellow-200 animate-pulse" />
-                      Live-Badge Engine
+                  {/* TAB 2: POWER-UPS */}
+                  <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 flex flex-col gap-2">
+                    <span className="font-bold text-xs text-purple-900 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-purple-600" />
+                      Dynamische Badges (Counter)
                     </span>
-                    <p className="text-[10px] text-purple-700/80 leading-normal">
-                      Verknüpfen Sie das Menü mit einem dynamischen Zähler (z. B. unfertige Tickets, Aufgaben oder Fehler-Records), um im Frontend ein Warn-Badge anzuzeigen.
+                    <p className="text-[11px] text-purple-700 leading-relaxed">
+                      Lassen Sie Menüpunkte wie "Offene Bestellungen" mit einer dynamischen Anzahl oder Warn-Plakette pulsieren.
                     </p>
-
-                    <div className="flex flex-col gap-1 mt-1.5">
-                      <label className="text-[10px] font-bold text-purple-950 uppercase">SQL Count-Abfrage oder Endpoint</label>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <label className="text-[10px] font-bold text-purple-900 uppercase">Zähler-Abfrage / Bedingung</label>
                       <input 
                         type="text" 
-                        placeholder="Z. B. SELECT COUNT(*) FROM Bestelleingang WHERE Offen = 1" 
+                        placeholder="Z. B. SELECT COUNT(*) FROM orders WHERE status='open'" 
                         value={selectedItem.badgeCountQuery || ''} 
                         onChange={(e) => handleUpdateItems(updateItemInTree(selectedItem.id, { badgeCountQuery: e.target.value }, menuItems))}
-                        className="w-full text-xs p-2 rounded-lg border border-purple-300 bg-white text-slate-800 outline-none focus:border-purple-500"
+                        className="w-full text-xs p-2 rounded-lg border border-purple-300 bg-white text-slate-800 outline-none focus:border-purple-500 font-mono"
                       />
                     </div>
                   </div>
 
-                  {/* Category: 2. Internationalization */}
-                  <div className="flex flex-col gap-2 bg-teal-50 rounded-xl border border-teal-200 p-3.5 mt-2">
-                    <span className="text-xs font-extrabold text-teal-950 flex items-center gap-1">
+                  {/* Multi-language internationalization (i18n) */}
+                  <div className="p-3 bg-teal-50 rounded-xl border border-teal-200 flex flex-col gap-2">
+                    <span className="font-bold text-xs text-teal-900 flex items-center gap-1.5">
                       <Globe size={14} className="text-teal-600" />
-                      Mehrsprachigkeit (i18n Translation)
+                      Mehrsprachigkeit (i18n)
                     </span>
-                    <p className="text-[10px] text-teal-700/80 leading-normal">
-                      Pflegen Sie Übersetzungen direkt in der UI. Bei Klick wird automatisch die entsprechende Sprachdatei (de.json, en.json etc.) angelegt.
+                    <p className="text-[11px] text-teal-700 leading-relaxed">
+                      Lokalisierte Bezeichnungen für mehrsprachige Benutzer-Oberflächen.
                     </p>
-
-                    <div className="flex flex-col gap-2 mt-1.5">
-                      {/* German */}
+                    <div className="flex flex-col gap-2 mt-1">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-[9px] font-bold text-teal-950">DEUTSCH (DE)</span>
+                        <label className="text-[10px] font-bold text-teal-900">Deutsch (DE)</label>
                         <input 
                           type="text" 
-                          placeholder="Z. B. Dashboard" 
+                          placeholder="Z. B. Übersicht" 
                           value={selectedItem.translations?.de || ''} 
                           onChange={(e) => {
                             const currentTrans = selectedItem.translations || {};
@@ -1025,13 +1453,11 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                           className="w-full text-xs p-1.5 rounded-lg border border-teal-300 bg-white text-slate-800 outline-none"
                         />
                       </div>
-
-                      {/* English */}
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-[9px] font-bold text-teal-950">ENGLISH (EN)</span>
+                        <label className="text-[10px] font-bold text-teal-900">Englisch (EN)</label>
                         <input 
                           type="text" 
-                          placeholder="Z. B. Cockpit / Workspace" 
+                          placeholder="Z. B. Overview" 
                           value={selectedItem.translations?.en || ''} 
                           onChange={(e) => {
                             const currentTrans = selectedItem.translations || {};
@@ -1042,10 +1468,8 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                           className="w-full text-xs p-1.5 rounded-lg border border-teal-300 bg-white text-slate-800 outline-none"
                         />
                       </div>
-
-                      {/* French */}
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-[9px] font-bold text-teal-950">FRANÇAIS (FR)</span>
+                        <label className="text-[10px] font-bold text-teal-900">Französisch (FR)</label>
                         <input 
                           type="text" 
                           placeholder="Z. B. Tableau de bord" 
@@ -1111,7 +1535,6 @@ export const NavigationDesigner: React.FC<NavigationDesignerProps> = ({
                 </div>
               ) : (
                 filteredSearchList.map(it => {
-                  const isFolder = it.type === 'folder';
                   return (
                     <button
                       key={it.id}

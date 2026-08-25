@@ -142,9 +142,15 @@ show_menu
 
   const readmeTauri = `# ${config.projectName} - Tauri Desktop Application
 
+## Uebersicht
 - **Frontend**: Transpiliert via Vite direkt in den \`dist\`-Ordner.
-- **SQLite**: Wird lokal im nativen App-Daten-Ordner des Betriebssystems ausgeführt (\`sqlite:app_data/db.sqlite\`).
-- **MySQL / PostgreSQL**: Werden nativ über Rust-Treiber mit dem entsprechenden Server & Port (${defaultDbPort}) verbunden.
+- **SQLite Database & Seed**: Die Datei \`seed.sql\` liegt im Projektstamm sowie in \`src-tauri/seed.sql\` bereit und initialisiert Tabellen & Beispieldaten automatisch beim ersten Start.
+- **Remote SQL**: MySQL / PostgreSQL werden ueber Rust-Treiber mit dem entsprechenden Server & Port (${defaultDbPort}) verbunden.
+
+## Schnellstart
+1. Führe \`run.bat\` (Windows) oder \`./run.sh\` (macOS/Linux) aus.
+2. Wähle **Option 1** zum Installieren der Abhängigkeiten.
+3. Wähle **Option 3** zum Starten im Entwicklungsmodus (\`npx tauri dev\`).
 `;
 
   files.push({ name: 'README_TAURI.md', path: `${root}/README_TAURI.md`, content: readmeTauri, language: 'markdown' });

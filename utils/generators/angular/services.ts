@@ -68,17 +68,26 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
   // API Service using Environment config
   const getSeededData = (table: Table) => {
     const initialRows = table.data || [];
-    return initialRows.map(row => {
+    const pkField = table.fields.find(f => f.isPrimaryKey)?.name || 'id';
+    const camelPk = toCamelCase(pkField);
+    return initialRows.map((row, idx) => {
       const newRow: any = { ...row };
       table.fields.forEach(f => {
         const camelKey = toCamelCase(f.name);
+        const pascalKey = toPascalCase(f.name);
         const rowKeys = Object.keys(row);
         const matchedKey = rowKeys.find(k => k.toLowerCase() === f.name.toLowerCase());
         if (matchedKey !== undefined) {
           newRow[camelKey] = row[matchedKey];
-          newRow[matchedKey] = row[matchedKey];
+          newRow[pascalKey] = row[matchedKey];
+          newRow[f.name] = row[matchedKey];
         }
       });
+      const currentPk = newRow[camelPk] ?? newRow[pkField] ?? newRow['id'] ?? newRow['ID'] ?? newRow['Id'];
+      const finalPk = (currentPk !== undefined && currentPk !== null && currentPk !== '') ? currentPk : (idx + 1);
+      newRow[camelPk] = finalPk;
+      newRow[pkField] = finalPk;
+      newRow['id'] = finalPk;
       return newRow;
     });
   };
@@ -89,6 +98,7 @@ export const generateAngularServices = (tables: Table[], queries: Query[], confi
       name: toCamelCase(t.name),
       tableName: t.name,
       keyPath: toCamelCase(pkField),
+      pkFieldName: pkField,
       data: getSeededData(t),
       fields: t.fields.map(f => f.name)
     };
@@ -159,7 +169,7 @@ const openDB = (): Promise<IDBDatabase> => {
             const db = request.result;
             STORES.forEach(store => {
                 if (!db.objectStoreNames.contains(store.name)) {
-                    db.createObjectStore(store.name, { keyPath: store.keyPath });
+                    db.createObjectStore(store.name, { keyPath: store.keyPath || 'id', autoIncrement: true });
                 }
             });
             if (!db.objectStoreNames.contains('users')) {
@@ -178,8 +188,28 @@ const openDB = (): Promise<IDBDatabase> => {
                                 const objStore = tx.objectStore(store.name);
                                 const clearReq = objStore.clear();
                                 clearReq.onsuccess = () => {
-                                    store.data.forEach((row: any) => {
-                                        objStore.add(row);
+                                    store.data.forEach((rawRow: any, idx: number) => {
+                                        try {
+                                            const row = normalizeKeysOnWrite({ ...rawRow }, store);
+                                            const kp = store.keyPath || 'id';
+                                            if (row[kp] === undefined || row[kp] === null || row[kp] === '') {
+                                                const foundKey = Object.keys(row).find(k => k.toLowerCase() === kp.toLowerCase() || k.toLowerCase() === 'id');
+                                                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && row[foundKey] !== '') {
+                                                    row[kp] = row[foundKey];
+                                                } else {
+                                                    row[kp] = idx + 1;
+                                                }
+                                            }
+                                            if (store.pkFieldName && row[store.pkFieldName] === undefined) {
+                                                row[store.pkFieldName] = row[kp];
+                                            }
+                                            if (row['id'] === undefined) {
+                                                row['id'] = row[kp];
+                                            }
+                                            objStore.put(row);
+                                        } catch (rowErr) {
+                                            console.warn('[IDB Seeding] Row skipped:', rowErr);
+                                        }
                                     });
                                     tx.oncomplete = () => res();
                                     tx.onerror = () => res();

@@ -94,7 +94,13 @@ const collectAngularSubforms = (
       const subFormDef = forms.find(f => f.id === element.subform!.formId);
       const subTable = tables.find(t => t.id === subFormDef?.sourceId);
       if (subTable) {
-          const childFieldObj = subTable.fields.find(f => f.id === element.subform!.childLinkFieldId || f.name === element.subform!.childLinkFieldId);
+          const childFieldObj = subTable.fields.find(
+            f =>
+              f.id === element.subform!.childLinkFieldId ||
+              f.name === element.subform!.childLinkFieldId ||
+              toCamelCase(f.name) === element.subform!.childLinkFieldId ||
+              f.name?.toLowerCase() === (element.subform!.childLinkFieldId || '').toLowerCase()
+          );
           accumulated.push({ 
               id: element.id, 
               tableName: subTable.name, 
@@ -325,7 +331,9 @@ export const generateTableComponents = (
       const linkedForm = forms.find(f => f.sourceId === table.id && f.sourceType === 'table');
       const listLookups: any[] = [];
       if (linkedForm && linkedForm.layout) {
-          const extractLookups = (node: any) => {
+          const extractLookups = (node: any, visited: Set<any> = new Set(), depth: number = 0) => {
+              if (!node || depth > 15 || visited.has(node)) return;
+              visited.add(node);
               if (node.type === 'field' && node.widgetType === 'select' && node.lookup) {
                   const tableField = table.fields.find(f => f.id === node.fieldId);
                   if (tableField) {
@@ -341,8 +349,8 @@ export const generateTableComponents = (
                       }
                   }
               }
-              if (node.children) {
-                  node.children.forEach(extractLookups);
+              if (Array.isArray(node.children)) {
+                  node.children.forEach((child: any) => extractLookups(child, visited, depth + 1));
               }
           };
           extractLookups(linkedForm.layout);
@@ -589,8 +597,9 @@ ${checkCondition}    const params: Record<string, any> = {};
               }
           });
           if (linkedForm && linkedForm.layout) {
-              const walk = (el: any) => {
-                  if (!el) return;
+              const walk = (el: any, visited: Set<any> = new Set(), depth: number = 0) => {
+                  if (!el || depth > 15 || visited.has(el)) return;
+                  visited.add(el);
                   if ((el.widgetType === 'calculated' || el.isCalculated) && el.calculationFormula && el.fieldId) {
                       const field = table.fields.find(f => f.id === el.fieldId);
                       if (field) {
@@ -601,7 +610,7 @@ ${checkCondition}    const params: Record<string, any> = {};
                       }
                   }
                   if (Array.isArray(el.children)) {
-                      el.children.forEach(walk);
+                      el.children.forEach((child: any) => walk(child, visited, depth + 1));
                   }
               };
               walk(linkedForm.layout);
@@ -650,29 +659,60 @@ ${recalculateMethod}`;
               const fName = toCamelCase(s.childField);
               const fPascal = toPascalCase(s.childField);
               const fRaw = s.childField;
+              const fLower = s.childField.toLowerCase();
               const listVar = `${tName}SubList_${s.id.substring(0,8)}`;
 
-              const masterFieldObj = table.fields.find(f => f.id === s.masterFieldId || f.name === s.masterFieldId);
+              const masterFieldObj = table.fields.find(f => f.id === s.masterFieldId || f.name === s.masterFieldId || toCamelCase(f.name) === s.masterFieldId || f.name.toLowerCase() === (s.masterFieldId || '').toLowerCase());
               const mFieldCamel = masterFieldObj ? toCamelCase(masterFieldObj.name) : 'id';
               const mFieldRaw = masterFieldObj ? masterFieldObj.name : 'id';
               const mFieldPascal = masterFieldObj ? toPascalCase(masterFieldObj.name) : 'Id';
+              const mFieldLower = masterFieldObj ? masterFieldObj.name.toLowerCase() : 'id';
 
-              return `    if(id && id!=='new') this.api.getAll('${tPascal}', 1, 10000).subscribe((res: any) => {
-      const allItems = res.data || res || [];
-      const masterVal = (this.data as any)?.['${mFieldCamel}'] ?? (this.data as any)?.['${mFieldRaw}'] ?? (this.data as any)?.['${mFieldPascal}'] ?? id;
-      this.${listVar} = allItems.filter((x: any) => {
-        const childVal = x?.['${fName}'] ?? x?.['${fRaw}'] ?? x?.['${fPascal}'] ?? x?.['${s.childFieldId}'];
-        return childVal !== undefined && childVal !== null && String(childVal) === String(masterVal);
+              const masterValExpr = masterFieldObj 
+                ? `(this.data as any)?.['${mFieldCamel}'] ?? (this.data as any)?.['${mFieldRaw}'] ?? (this.data as any)?.['${mFieldPascal}'] ?? (this.data as any)?.['${mFieldLower}'] ?? (this.data as any)?.['${s.masterFieldId}'] ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? (this.data as any)?.['ID'] ?? id`
+                : `(this.data as any)?.['${s.masterFieldId}'] ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? (this.data as any)?.['ID'] ?? id`;
+
+              return `    if (id && id !== 'new') {
+      this.api.getAll('${tPascal}', 1, 10000).subscribe((res: any) => {
+        const allItems = res.data || res || [];
+        const clean = (v: any) => v === null || v === undefined ? '' : String(v).replace(/[\\u200B-\\u200D\\uFEFF\\u00A0]/g, '').trim().toLowerCase();
+        const masterVal = ${masterValExpr};
+        this.${listVar} = allItems.filter((x: any) => {
+          const childVal = x?.['${fName}'] ?? x?.['${fRaw}'] ?? x?.['${fPascal}'] ?? x?.['${fLower}'] ?? (x && typeof x === 'object' ? (x['${s.childFieldId}'] ?? x['${(s.childFieldId || '').toLowerCase()}']) : undefined);
+          return childVal !== undefined && childVal !== null && clean(childVal) !== '' && clean(childVal) === clean(masterVal);
+        });
       });
-    });`;
+    }`;
           }).join('\n');
           
           subformSaveLogic = `
   editingSubformId: any = null;
 
-  openAddSubformModal(modalId: string) {
+  openAddSubformModal(modalId: string, childFieldId?: string, masterFieldId?: string, tableName?: string) {
       this.editingSubformId = null;
       this.tempSubData = {};
+      const parentId = this.route.snapshot.paramMap.get('id');
+      if (childFieldId && parentId && parentId !== 'new') {
+          const targetTable = this.allTables?.find((t: any) => (tableName && (t.camelName === tableName || t.name === tableName || t.name.toLowerCase() === tableName.toLowerCase())) || t.fields?.some((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase()));
+          const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase())
+            || this.allTables?.flatMap((t: any) => t.fields || []).find((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase());
+          const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
+          const childOriginalName = childFieldObj ? childFieldObj.name : childProp;
+
+          const masterFieldObj = masterFieldId ? (this.allTables?.find((t: any) => t.id === '${table.id}' || t.name === '${table.name}' || t.camelName === '${toCamelCase(table.name)}')?.fields?.find((f: any) => f.id === masterFieldId || f.name === masterFieldId || f.camelName === masterFieldId || f.name.toLowerCase() === masterFieldId.toLowerCase())) : null;
+          const masterProp = masterFieldObj ? masterFieldObj.camelName : null;
+          const masterVal = (masterFieldObj ? ((this.data as any)?.[masterFieldObj.name] ?? (this.data as any)?.[masterFieldObj.camelName] ?? (this.data as any)?.[masterFieldObj.name.toLowerCase()] ?? (this.data as any)?.[masterFieldId!]) : null) ?? (masterProp ? (this.data as any)?.[masterProp] : null) ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? (this.data as any)?.['ID'] ?? parentId;
+
+          let parsedVal: any = masterVal;
+          if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
+              const num = Number(masterVal);
+              if (!isNaN(num)) parsedVal = num;
+          }
+          this.tempSubData[childProp] = parsedVal;
+          this.tempSubData[childOriginalName] = parsedVal;
+          if (childFieldObj?.name) this.tempSubData[childFieldObj.name.toLowerCase()] = parsedVal;
+          if (childFieldId) this.tempSubData[childFieldId] = parsedVal;
+      }
       this.openModal(modalId);
   }
 
@@ -695,13 +735,16 @@ ${recalculateMethod}`;
       const parentId = this.route.snapshot.paramMap.get('id');
       if(!parentId || parentId === 'new') { alert('Bitte erst Hauptdatensatz speichern, bevor Sie Details hinzufügen.'); return; }
       
-      const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
-      const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+      const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table || t.name.toLowerCase() === table.toLowerCase())
+        || this.allTables?.find((t: any) => t.fields?.some((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase()));
+      const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase())
+        || this.allTables?.flatMap((t: any) => t.fields || []).find((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase());
       const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
+      const childOriginalName = childFieldObj ? childFieldObj.name : childProp;
       
-      const masterFieldObj = masterFieldId ? (this.allTables?.find((t: any) => t.id === this.data?.sourceId)?.fields?.find((f: any) => f.id === masterFieldId || f.name === masterFieldId)) : null;
+      const masterFieldObj = masterFieldId ? (this.allTables?.find((t: any) => t.id === '${table.id}' || t.name === '${table.name}' || t.camelName === '${toCamelCase(table.name)}')?.fields?.find((f: any) => f.id === masterFieldId || f.name === masterFieldId || f.camelName === masterFieldId || f.name.toLowerCase() === masterFieldId.toLowerCase())) : null;
       const masterProp = masterFieldObj ? masterFieldObj.camelName : null;
-      const masterVal = (masterProp ? (this.data as any)?.[masterProp] : null) ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? parentId;
+      const masterVal = (masterFieldObj ? ((this.data as any)?.[masterFieldObj.name] ?? (this.data as any)?.[masterFieldObj.camelName] ?? (this.data as any)?.[masterFieldObj.name.toLowerCase()] ?? (this.data as any)?.[masterFieldId!]) : null) ?? (masterProp ? (this.data as any)?.[masterProp] : null) ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? (this.data as any)?.['ID'] ?? parentId;
 
       let parsedVal: any = masterVal;
       if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
@@ -709,8 +752,10 @@ ${recalculateMethod}`;
           if (!isNaN(num)) parsedVal = num;
       }
       this.tempSubData[childProp] = parsedVal;
-      if (childFieldObj && childFieldObj.name) {
-          this.tempSubData[childFieldObj.name] = parsedVal;
+      this.tempSubData[childOriginalName] = parsedVal;
+      if (childFieldObj?.name) this.tempSubData[childFieldObj.name.toLowerCase()] = parsedVal;
+      if (childFieldId) {
+          this.tempSubData[childFieldId] = parsedVal;
       }
       
       if (this.editingSubformId) {
@@ -733,19 +778,22 @@ ${recalculateMethod}`;
           const modalHash = modalId.replace('sub_','').substring(0,8);
           const targetKey = Object.keys(this).find(k => k.startsWith(listKeyPrefix) && k.includes(modalHash));
           if(targetKey) {
-              const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
-              const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+              const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table || t.name.toLowerCase() === table.toLowerCase())
+                || this.allTables?.find((t: any) => t.fields?.some((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase()));
+              const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase())
+                || this.allTables?.flatMap((t: any) => t.fields || []).find((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase());
               const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
               const originalName = childFieldObj ? childFieldObj.name : childProp;
 
-              const masterFieldObj = masterFieldId ? (this.allTables?.find((t: any) => t.id === this.data?.sourceId)?.fields?.find((f: any) => f.id === masterFieldId || f.name === masterFieldId)) : null;
+              const masterFieldObj = masterFieldId ? (this.allTables?.find((t: any) => t.id === '${table.id}' || t.name === '${table.name}' || t.camelName === '${toCamelCase(table.name)}')?.fields?.find((f: any) => f.id === masterFieldId || f.name === masterFieldId || f.camelName === masterFieldId || f.name.toLowerCase() === masterFieldId.toLowerCase())) : null;
               const masterProp = masterFieldObj ? masterFieldObj.camelName : null;
-              const masterVal = (masterProp ? (this.data as any)?.[masterProp] : null) ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? parentId;
+              const masterVal = (masterFieldObj ? ((this.data as any)?.[masterFieldObj.name] ?? (this.data as any)?.[masterFieldObj.camelName] ?? (this.data as any)?.[masterFieldObj.name.toLowerCase()] ?? (this.data as any)?.[masterFieldId!]) : null) ?? (masterProp ? (this.data as any)?.[masterProp] : null) ?? (this.data as any)?.['id'] ?? (this.data as any)?.['Id'] ?? (this.data as any)?.['ID'] ?? parentId;
 
               const allItems = res.data || res || [];
+              const clean = (v: any) => v === null || v === undefined ? '' : String(v).replace(/[\\u200B-\\u200D\\uFEFF\\u00A0]/g, '').trim().toLowerCase();
               (this as any)[targetKey] = allItems.filter((x: any) => {
-                const cVal = x?.[childProp] ?? x?.[originalName] ?? x?.[childFieldId];
-                return cVal !== undefined && cVal !== null && String(cVal) === String(masterVal);
+                const cVal = x?.[childProp] ?? x?.[originalName] ?? (childFieldObj ? x?.[childFieldObj.name.toLowerCase()] : undefined) ?? x?.[childFieldId];
+                return cVal !== undefined && cVal !== null && clean(cVal) !== '' && clean(cVal) === clean(masterVal);
               });
           }
       });
@@ -1000,7 +1048,7 @@ export class ${pascalName}FormComponent implements OnInit {
   userPickerMode: 'me' | 'search' = 'me';
   userPickerTargetField = '';
 
-  private allTables: any[] = ${JSON.stringify(tables.map(t => ({ name: t.name, camelName: toCamelCase(t.name), fields: t.fields.map(f => ({ id: f.id, name: f.name, camelName: toCamelCase(f.name), type: f.type })) })))};
+  private allTables: any[] = ${JSON.stringify(tables.map(t => ({ id: t.id, name: t.name, camelName: toCamelCase(t.name), fields: t.fields.map(f => ({ id: f.id, name: f.name, camelName: toCamelCase(f.name), type: f.type })) })))};
 
 ${enumDeclarations ? enumDeclarations + '\n' : ''}${listDeclarations}
 ${subformDeclarations}
@@ -1061,8 +1109,8 @@ ${subformDeclarations}
               // Reload query-based lookups now that data has been loaded asynchronously
               ${lookups.filter((l: any) => l.isQuery).map((l: any) => `this.loadLookup_${toCamelCase(l.name)}();`).join('\n              ')}
               ${calculatedFields.length > 0 ? 'this.recalculateCalculatedFields();' : ''}
+              ${subformLoads}
           });
-          ${subformLoads}
       } else {
           this.data = ${initObject} as unknown as ${interfaceName};
           ${calculatedFields.length > 0 ? 'this.recalculateCalculatedFields();' : ''}

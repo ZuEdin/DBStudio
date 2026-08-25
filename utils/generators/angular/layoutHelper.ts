@@ -537,6 +537,9 @@ export const generateHtmlForLayout = (
     
     // Subform Rendering...
     if (element.type === 'subform' && element.subform) {
+        if (dataObjName !== "data") {
+            return '';
+        }
         const subFormDef = forms.find(f => f.id === element.subform!.formId);
         const subTable = tables.find(t => t.id === subFormDef?.sourceId);
         
@@ -601,7 +604,7 @@ export const generateHtmlForLayout = (
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
                         <h5 class="card-title h6 mb-0 text-dark">📄 ${element.label || subFormDef?.name}</h5>
                         <div *ngIf="!isNew">
-                            ${element.subform.canAdd !== false ? `<button type="button" (click)="openAddSubformModal('${modalId}')" class="btn btn-sm btn-outline-primary">+ Neu</button>` : ''}
+                            ${element.subform.canAdd !== false ? `<button type="button" (click)="openAddSubformModal('${modalId}', '${element.subform.childLinkFieldId}', '${element.subform.masterLinkFieldId}', '${subTableCamel}')" class="btn btn-sm btn-outline-primary">+ Neu</button>` : ''}
                         </div>
                         <div *ngIf="isNew" class="badge bg-warning text-dark">
                             Bitte speichern um Einträge hinzuzufügen
@@ -650,7 +653,7 @@ export const generateHtmlForLayout = (
                     <div class="bg-slate-100 p-3 flex justify-between items-center border-b border-slate-200">
                         <h4 class="font-bold text-sm text-slate-700 flex items-center gap-2">📄 ${element.label || subFormDef?.name}</h4>
                         <div *ngIf="!isNew">
-                            ${element.subform.canAdd !== false ? `<button type="button" (click)="openAddSubformModal('${modalId}')" class="bg-white text-blue-600 px-3 py-1 text-xs font-bold border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors">+ Neu</button>` : ''}
+                            ${element.subform.canAdd !== false ? `<button type="button" (click)="openAddSubformModal('${modalId}', '${element.subform.childLinkFieldId}', '${element.subform.masterLinkFieldId}', '${subTableCamel}')" class="bg-white text-blue-600 px-3 py-1 text-xs font-bold border border-blue-200 rounded shadow-sm hover:bg-blue-50 transition-colors">+ Neu</button>` : ''}
                         </div>
                         <div *ngIf="isNew" class="text-xs text-orange-600 font-semibold bg-orange-100 px-2 py-1 rounded">
                             Bitte speichern um Einträge hinzuzufügen

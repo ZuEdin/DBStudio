@@ -169,7 +169,7 @@ export const useUIStore = create<UIStore>((set) => ({
   setFormActionTrigger: (formActionTrigger) => set({ formActionTrigger }),
   pageActionTrigger: undefined,
   setPageActionTrigger: (pageActionTrigger) => set({ pageActionTrigger }),
-  isPageToolboxOpen: false, // Default collapsed to maximize canvas space
+  isPageToolboxOpen: true,
   setIsPageToolboxOpen: (isPageToolboxOpen) => set({ isPageToolboxOpen }),
   isPagePropertiesOpen: true,
   setIsPagePropertiesOpen: (isPagePropertiesOpen) => set({ isPagePropertiesOpen }),

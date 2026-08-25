@@ -21,7 +21,7 @@ export const generateCustomPageComponents = (
       const folder = 'custom';
       const compName = `${pascalName}CustomComponent`;
 
-      const allTablesStr = JSON.stringify(tables.map(t => ({ name: t.name, camelName: toCamelCase(t.name), fields: t.fields.map(f => ({ id: f.id, name: f.name, camelName: toCamelCase(f.name), type: f.type })) })));
+      const allTablesStr = JSON.stringify(tables.map(t => ({ id: t.id, name: t.name, camelName: toCamelCase(t.name), fields: t.fields.map(f => ({ id: f.id, name: f.name, camelName: toCamelCase(f.name), type: f.type })) })));
 
       const states: string[] = [
           'queryParams: any = {};',
@@ -76,13 +76,45 @@ export const generateCustomPageComponents = (
           `closeModal(modalId: string) {
       this.modals[modalId] = false;
   }`,
-          `openAddSubformModal(modalId: string) {
+          `openAddSubformModal(modalId: string, childFieldId?: string, masterFieldId?: string, tableName?: string) {
       this.editingSubformId = null;
       this.tempSubData = {};
+      const parentId = this.queryParams['selectedId'] || this.queryParams['id'];
+      if (childFieldId && parentId && parentId !== 'new') {
+          const targetTable = this.allTables?.find((t: any) => (tableName && (t.camelName === tableName || t.name === tableName || t.name.toLowerCase() === tableName.toLowerCase())) || t.fields?.some((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase()));
+          const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase())
+            || this.allTables?.flatMap((t: any) => t.fields || []).find((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase());
+          const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
+          const childOriginalName = childFieldObj ? childFieldObj.name : childProp;
+
+          let masterVal: any = parentId;
+          if (masterFieldId) {
+              for (const prop of Object.keys(this)) {
+                  if (prop.startsWith('formData_') && (this as any)[prop]) {
+                      const dataObj = (this as any)[prop];
+                      const mVal = dataObj[masterFieldId] ?? (masterFieldId ? dataObj[toCamelCase(masterFieldId)] : undefined) ?? (masterFieldId ? dataObj[masterFieldId.toLowerCase()] : undefined);
+                      if (mVal !== undefined && mVal !== null && mVal !== '') {
+                          masterVal = mVal;
+                          break;
+                      }
+                  }
+              }
+          }
+
+          let parsedVal: any = masterVal;
+          if (childFieldObj && (childFieldObj.type === 'INTEGER' || childFieldObj.type === 'DECIMAL' || childFieldObj.type === 'DOUBLE')) {
+              const num = Number(masterVal);
+              if (!isNaN(num)) parsedVal = num;
+          }
+          this.tempSubData[childProp] = parsedVal;
+          this.tempSubData[childOriginalName] = parsedVal;
+          if (childFieldObj?.name) this.tempSubData[childFieldObj.name.toLowerCase()] = parsedVal;
+          if (childFieldId) this.tempSubData[childFieldId] = parsedVal;
+      }
       this.openModal(modalId);
   }`,
           `editSubformItem(table: string, childFieldId: string, modalId: string, item: any) {
-      this.editingSubformId = item.id || item.Id;
+      this.editingSubformId = item.id || item.Id || item.ID;
       this.tempSubData = { ...item };
       this.openModal(modalId);
   }`,
@@ -101,16 +133,19 @@ export const generateCustomPageComponents = (
           return; 
       }
       
-      const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
-      const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+      const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table || t.name.toLowerCase() === table.toLowerCase())
+        || this.allTables?.find((t: any) => t.fields?.some((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase()));
+      const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase())
+        || this.allTables?.flatMap((t: any) => t.fields || []).find((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase());
       const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
+      const childOriginalName = childFieldObj ? childFieldObj.name : childProp;
       
       let masterVal: any = parentId;
       if (masterFieldId) {
           for (const prop of Object.keys(this)) {
               if (prop.startsWith('formData_') && (this as any)[prop]) {
                   const dataObj = (this as any)[prop];
-                  const mVal = dataObj[masterFieldId] ?? dataObj[toCamelCase(masterFieldId)];
+                  const mVal = dataObj[masterFieldId] ?? (masterFieldId ? dataObj[toCamelCase(masterFieldId)] : undefined) ?? (masterFieldId ? dataObj[masterFieldId.toLowerCase()] : undefined);
                   if (mVal !== undefined && mVal !== null && mVal !== '') {
                       masterVal = mVal;
                       break;
@@ -125,8 +160,12 @@ export const generateCustomPageComponents = (
           if (!isNaN(num)) parsedVal = num;
       }
       this.tempSubData[childProp] = parsedVal;
+      this.tempSubData[childOriginalName] = parsedVal;
       if (childFieldObj && childFieldObj.name) {
-          this.tempSubData[childFieldObj.name] = parsedVal;
+          this.tempSubData[childFieldObj.name.toLowerCase()] = parsedVal;
+      }
+      if (childFieldId) {
+          this.tempSubData[childFieldId] = parsedVal;
       }
       
       if (this.editingSubformId) {
@@ -148,8 +187,10 @@ export const generateCustomPageComponents = (
           const modalHash = modalId.replace('sub_','').substring(0,8);
           const targetKey = Object.keys(this).find(k => k.startsWith(listKeyPrefix) && k.includes(modalHash));
           if(targetKey) {
-              const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table);
-              const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId);
+              const targetTable = this.allTables?.find((t: any) => t.camelName === table || t.name === table || t.name.toLowerCase() === table.toLowerCase())
+                || this.allTables?.find((t: any) => t.fields?.some((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase()));
+              const childFieldObj = targetTable?.fields?.find((f: any) => f.id === childFieldId || f.name === childFieldId || f.camelName === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase())
+                || this.allTables?.flatMap((t: any) => t.fields || []).find((f: any) => f.id === childFieldId || f.name === childFieldId || f.name.toLowerCase() === childFieldId.toLowerCase());
               const childProp = childFieldObj ? childFieldObj.camelName : (childFieldId ? childFieldId.charAt(0).toLowerCase() + childFieldId.slice(1) : 'id');
               const originalName = childFieldObj ? childFieldObj.name : childProp;
 
@@ -158,7 +199,7 @@ export const generateCustomPageComponents = (
                   for (const prop of Object.keys(this)) {
                       if (prop.startsWith('formData_') && (this as any)[prop]) {
                           const dataObj = (this as any)[prop];
-                          const mVal = dataObj[masterFieldId] ?? dataObj[toCamelCase(masterFieldId)];
+                          const mVal = dataObj[masterFieldId] ?? (masterFieldId ? dataObj[toCamelCase(masterFieldId)] : undefined) ?? (masterFieldId ? dataObj[masterFieldId.toLowerCase()] : undefined);
                           if (mVal !== undefined && mVal !== null && mVal !== '') {
                               masterVal = mVal;
                               break;
@@ -168,9 +209,10 @@ export const generateCustomPageComponents = (
               }
 
               const allItems = res.data || res || [];
+              const clean = (v: any) => v === null || v === undefined ? '' : String(v).replace(/[\\u200B-\\u200D\\uFEFF\\u00A0]/g, '').trim().toLowerCase();
               (this as any)[targetKey] = allItems.filter((x: any) => {
-                const cVal = x?.[childProp] ?? x?.[originalName] ?? x?.[childFieldId];
-                return cVal !== undefined && cVal !== null && String(cVal) === String(masterVal);
+                const cVal = x?.[childProp] ?? x?.[originalName] ?? (childFieldObj ? x?.[childFieldObj.name.toLowerCase()] : undefined) ?? x?.[childFieldId];
+                return cVal !== undefined && cVal !== null && clean(cVal) !== '' && clean(cVal) === clean(masterVal);
               });
           }
       });
@@ -259,6 +301,11 @@ import { ApiService } from '../../services/api.service';
 import { MacroService } from '../../services/macro.service';
 import { UserPickerComponent } from '../../components/user-picker/user-picker.component';
 ${calendarImports}
+
+function toCamelCase(str: string): string {
+  if (!str) return '';
+  return str.charAt(0).toLowerCase() + str.slice(1);
+}
 
 @Component({
   selector: 'app-${kebabName}-custom',

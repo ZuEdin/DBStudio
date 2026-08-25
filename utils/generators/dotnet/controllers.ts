@@ -175,7 +175,7 @@ namespace ${safeNamespace}.Controllers
       table.fields.forEach(f => {
           const fieldPascal = getPropName(f);
           const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
-          const hasNowDefault = f.defaultValue && (
+          const hasNowDefault = f.defaultValue && typeof f.defaultValue === 'string' && (
               f.defaultValue.toLowerCase().includes('now') ||
               f.defaultValue.toLowerCase().includes('current_timestamp') ||
               f.defaultValue.toLowerCase().includes('getdate')

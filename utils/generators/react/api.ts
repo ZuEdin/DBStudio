@@ -44,19 +44,28 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
 
   const getSeededData = (table: Table) => {
     const initialRows = table.data || [];
+    const pkField = table.fields.find(f => f.isPrimaryKey)?.name || 'id';
+    const camelPk = toCamelCase(pkField);
     const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
-    return initialRows.map(row => {
+    return initialRows.map((row, idx) => {
       const mappedRow = isPermissionsTable ? mapPermissionObjectId(row, tables, queries || [], false) : row;
       const newRow: any = { ...mappedRow };
       table.fields.forEach(f => {
         const camelKey = toCamelCase(f.name);
+        const pascalKey = toPascalCase(f.name);
         const rowKeys = Object.keys(mappedRow);
         const matchedKey = rowKeys.find(k => k.toLowerCase() === f.name.toLowerCase());
         if (matchedKey !== undefined) {
           newRow[camelKey] = mappedRow[matchedKey];
-          newRow[matchedKey] = mappedRow[matchedKey];
+          newRow[pascalKey] = mappedRow[matchedKey];
+          newRow[f.name] = mappedRow[matchedKey];
         }
       });
+      const currentPk = newRow[camelPk] ?? newRow[pkField] ?? newRow['id'] ?? newRow['ID'] ?? newRow['Id'];
+      const finalPk = (currentPk !== undefined && currentPk !== null && currentPk !== '') ? currentPk : (idx + 1);
+      newRow[camelPk] = finalPk;
+      newRow[pkField] = finalPk;
+      newRow['id'] = finalPk;
       return newRow;
     });
   };
@@ -67,6 +76,7 @@ export const generateReactApi = (tables: Table[], queries: Query[], config: Back
       name: toCamelCase(t.name),
       tableName: t.name,
       keyPath: toCamelCase(pkField),
+      pkFieldName: pkField,
       data: getSeededData(t),
       fields: t.fields.map(f => f.name)
     };
@@ -165,7 +175,7 @@ const openDB = (): Promise<IDBDatabase> => {
             const db = request.result;
             STORES.forEach(store => {
                 if (!db.objectStoreNames.contains(store.name)) {
-                    db.createObjectStore(store.name, { keyPath: store.keyPath });
+                    db.createObjectStore(store.name, { keyPath: store.keyPath || 'id', autoIncrement: true });
                 }
             });
             if (!db.objectStoreNames.contains('users')) {
@@ -184,8 +194,28 @@ const openDB = (): Promise<IDBDatabase> => {
                                 const objStore = tx.objectStore(store.name);
                                 const clearReq = objStore.clear();
                                 clearReq.onsuccess = () => {
-                                    store.data.forEach((row: any) => {
-                                        objStore.add(row);
+                                    store.data.forEach((rawRow: any, idx: number) => {
+                                        try {
+                                            const row = normalizeKeysOnWrite({ ...rawRow }, store);
+                                            const kp = store.keyPath || 'id';
+                                            if (row[kp] === undefined || row[kp] === null || row[kp] === '') {
+                                                const foundKey = Object.keys(row).find(k => k.toLowerCase() === kp.toLowerCase() || k.toLowerCase() === 'id');
+                                                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && row[foundKey] !== '') {
+                                                    row[kp] = row[foundKey];
+                                                } else {
+                                                    row[kp] = idx + 1;
+                                                }
+                                            }
+                                            if (store.pkFieldName && row[store.pkFieldName] === undefined) {
+                                                row[store.pkFieldName] = row[kp];
+                                            }
+                                            if (row['id'] === undefined) {
+                                                row['id'] = row[kp];
+                                            }
+                                            objStore.put(row);
+                                        } catch (rowErr) {
+                                            console.warn('[IDB Seeding] Row skipped:', rowErr);
+                                        }
                                     });
                                     tx.oncomplete = () => res();
                                     tx.onerror = () => res();
@@ -459,11 +489,17 @@ export const post = async <T>(endpoint: string, data: any): Promise<T> => {
             payload[keyPath] = Date.now();
         }
     }
+    if (storeConfig && storeConfig.pkFieldName && payload[storeConfig.pkFieldName] === undefined) {
+        payload[storeConfig.pkFieldName] = payload[keyPath];
+    }
+    if (payload['id'] === undefined) {
+        payload['id'] = payload[keyPath];
+    }
 
     return new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        const request = store.add(payload);
+        const request = store.put(payload);
         request.onsuccess = () => resolve(normalizeKeys(payload, storeConfig) as T);
         request.onerror = () => reject(request.error);
     });
@@ -624,7 +660,12 @@ export const registerUser = async (userData: any) => {
         const pkField: any = (Array.isArray(store.keyPath) ? store.keyPath[0] : store.keyPath) || 'id';
         const payload: any = {};
         
-        payload[pkField] = Date.now();
+        if (pkField === 'username') {
+            payload.username = userData.username;
+            payload.Username = userData.username;
+        } else {
+            payload[pkField] = Date.now();
+        }
         payload.Username = userData.username;
         payload.username = userData.username;
         payload.PasswordHash = userData.password;
@@ -636,7 +677,7 @@ export const registerUser = async (userData: any) => {
         payload.IsActive = true;
         payload.isActive = true;
 
-        const request = store.add(payload);
+        const request = store.put(payload);
         request.onsuccess = () => resolve({ success: true });
         request.onerror = () => reject(request.error);
     });

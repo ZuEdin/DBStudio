@@ -1,6 +1,6 @@
 
 import { Table, Relationship, BackendConfig, VirtualFile, DbType, Query, SelectQuery } from '../../types/index';
-import { resolveType, quoteIdentifier, toPascalCase } from './common';
+import { resolveType, quoteIdentifier, toPascalCase, sortTablesByDependencies } from './common';
 import { generateSqlSelect } from '../sqlHelper';
 import { generatePrismaSchema, generateDrizzleSchema, generateTypeOrmEntities } from './ormGenerator';
 
@@ -128,9 +128,9 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                 if (!f.allowNull && !f.isPrimaryKey) line += ' NOT NULL';
                 
                 // Add DEFAULT Constraint
-                if (f.defaultValue !== undefined && f.defaultValue !== '') {
-                    let defVal = f.defaultValue;
-                    const isKeyword = ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase());
+                if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+                    let defVal = String(f.defaultValue);
+                    const isKeyword = typeof f.defaultValue === 'string' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase());
                     
                     if (['INTEGER', 'BOOLEAN', 'DECIMAL', 'DOUBLE', 'TINYINT'].includes(f.type) || isKeyword) {
                         if (isKeyword) {
@@ -154,7 +154,14 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
 
         // 2. Data Seeding (Insert Statements)
         sql += `-- Seed Data\n`;
-        processingTables.forEach(table => {
+        if (config.dbType === DbType.SQLite) {
+            sql += `PRAGMA foreign_keys = OFF;\n\n`;
+        }
+
+        const sortedProcessingTables = sortTablesByDependencies(processingTables, relationships);
+        const insertVerb = config.dbType === DbType.SQLite ? 'INSERT OR REPLACE INTO' : (config.dbType === DbType.MySQL ? 'INSERT IGNORE INTO' : 'INSERT INTO');
+
+        sortedProcessingTables.forEach(table => {
             if (table.data && table.data.length > 0) {
                 // Identity Insert ON for SQL Server if needed
                 if (config.dbType === DbType.SQL && table.fields.some(f => f.isAutoIncrement)) {
@@ -164,10 +171,17 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                 const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
 
                 table.data.forEach(row => {
+                    if (!row || typeof row !== 'object') return;
                     const mappedRow = isPermissionsTable ? mapPermissionObjectId(row, tables, queries || [], true) : row;
                     const columns = table.fields.map(f => quoteIdentifier(f.name, config.dbType)).join(', ');
                     const values = table.fields.map(f => {
-                        const val = mappedRow[f.name];
+                        let val = mappedRow[f.name];
+                        if (val === undefined) {
+                            const matchedKey = Object.keys(mappedRow).find(k => k.toLowerCase() === f.name.toLowerCase());
+                            if (matchedKey) {
+                                val = mappedRow[matchedKey];
+                            }
+                        }
                         if (val === undefined || val === null || val === '') return 'NULL';
                         
                         if (['INTEGER', 'DECIMAL', 'DOUBLE'].includes(f.type)) {
@@ -191,7 +205,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                         return `'${strVal}'`;
                     }).join(', ');
 
-                    sql += `INSERT INTO ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (${columns}) VALUES (${values});\n`;
+                    sql += `${insertVerb} ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (${columns}) VALUES (${values});\n`;
                 });
 
                 if (config.dbType === DbType.SQL && table.fields.some(f => f.isAutoIncrement)) {
@@ -200,6 +214,10 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                 sql += '\n';
             }
         });
+
+        if (config.dbType === DbType.SQLite) {
+            sql += `PRAGMA foreign_keys = ON;\n\n`;
+        }
 
         // 3. Foreign Keys
         sql += `-- Relationships\n`;

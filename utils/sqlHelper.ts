@@ -77,22 +77,33 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
 
             if (rel) {
                 const targetAlias = nodeAliases.get(targetNode.id)!;
-                const targetTable = tables.find(t => t.id === targetNode.tableId)!;
+                const targetTable = tables.find(t => t.id === targetNode.tableId || t.name === targetNode.tableId || t.name?.toLowerCase() === targetNode.tableId?.toLowerCase());
+                if (!targetTable) continue;
                 
                 let onClause = '';
                 if (rel.fromTableId === currentNode.tableId && rel.toTableId === targetNode.tableId) {
-                    const fromF = tables.find(t => t.id === rel.fromTableId)!.fields.find(f => f.id === rel.fromFieldId)!;
-                    const toF = tables.find(t => t.id === rel.toTableId)!.fields.find(f => f.id === rel.toFieldId)!;
-                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
+                    const currentT = tables.find(t => t.id === rel.fromTableId || t.name === rel.fromTableId || t.name?.toLowerCase() === rel.fromTableId?.toLowerCase());
+                    const targetT = tables.find(t => t.id === rel.toTableId || t.name === rel.toTableId || t.name?.toLowerCase() === rel.toTableId?.toLowerCase());
+                    const fromF = currentT?.fields.find(f => f.id === rel.fromFieldId || f.name === rel.fromFieldId || f.name?.toLowerCase() === rel.fromFieldId?.toLowerCase());
+                    const toF = targetT?.fields.find(f => f.id === rel.toFieldId || f.name === rel.toFieldId || f.name?.toLowerCase() === rel.toFieldId?.toLowerCase());
+                    if (fromF && toF) {
+                        onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
+                    }
                 } else {
-                    const fromF = tables.find(t => t.id === rel.toTableId)!.fields.find(f => f.id === rel.toFieldId)!;
-                    const toF = tables.find(t => t.id === rel.fromTableId)!.fields.find(f => f.id === rel.fromFieldId)!;
-                    onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
+                    const currentT = tables.find(t => t.id === rel.toTableId || t.name === rel.toTableId || t.name?.toLowerCase() === rel.toTableId?.toLowerCase());
+                    const targetT = tables.find(t => t.id === rel.fromTableId || t.name === rel.fromTableId || t.name?.toLowerCase() === rel.fromTableId?.toLowerCase());
+                    const fromF = currentT?.fields.find(f => f.id === rel.toFieldId || f.name === rel.toFieldId || f.name?.toLowerCase() === rel.toFieldId?.toLowerCase());
+                    const toF = targetT?.fields.find(f => f.id === rel.fromFieldId || f.name === rel.fromFieldId || f.name?.toLowerCase() === rel.fromFieldId?.toLowerCase());
+                    if (fromF && toF) {
+                        onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
+                    }
                 }
 
-                joins += `\nLEFT JOIN ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
-                joinedNodeIds.add(targetNode.id);
-                queue.push(targetNode.id);
+                if (onClause) {
+                    joins += `\nLEFT JOIN ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
+                    joinedNodeIds.add(targetNode.id);
+                    queue.push(targetNode.id);
+                }
             }
         }
     }

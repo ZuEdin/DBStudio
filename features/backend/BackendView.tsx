@@ -185,7 +185,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
         let files = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents, macros);
         
         if (localConfig.deploymentConfig) {
-            const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);
+            const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`, tables, relationships, queries);
             files = [...files, ...deployFiles];
         }
 
@@ -213,7 +213,7 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
         const macros = getSavedMacros();
         filesToZip = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents, macros);
         if (localConfig.deploymentConfig) {
-          const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`);
+          const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`, tables, relationships, queries);
           filesToZip = [...filesToZip, ...deployFiles];
         }
         setGeneratedFiles(filesToZip);

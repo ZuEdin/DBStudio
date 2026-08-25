@@ -57,90 +57,60 @@ export const generateElectronBackend = (
         } catch (e) {}
       }
 
-      // Enhance server.js to serve static frontend files from Backend/public and support local/remote DB drivers
+      // Enhance server.js to serve static frontend files and support local/remote DB drivers
       if (f.name === 'server.js' || f.name === 'index.js') {
-        f.content = `const express = require('express');
-const path = require('path');
-const cors = require('cors');
+        const originalServerJs = f.content;
+        
+        // Add static serving & SPA fallback to the full Express server
+        const enhancedServerJs = `const path = require('path');
 const fs = require('fs');
 
-const app = express();
-const PORT = process.env.PORT || ${bePort};
-const DB_TYPE = process.env.DB_TYPE || '${dbTypeStr}';
+${originalServerJs}
 
-app.use(cors());
-app.use(express.json());
+// Electron Embedded: Serve transpiled Frontend static files
+const publicCandidates = [
+  path.join(__dirname, 'public'),
+  path.join(__dirname, '..', 'Frontend', 'dist'),
+  path.join(__dirname, '..', '..', 'Frontend', 'dist')
+];
 
-// 1. Serve transpiled Frontend static files
-const publicPath = path.join(__dirname, 'public');
-if (fs.existsSync(publicPath)) {
-  app.use(express.static(publicPath));
+let publicPath = null;
+for (const p of publicCandidates) {
+  if (fs.existsSync(p)) {
+    publicPath = p;
+    app.use(express.static(p));
+    break;
+  }
 }
 
-// 2. Database Connection Config
-const dbConfig = {
-  type: DB_TYPE,
-  filename: process.env.SQLITE_PATH || path.join(process.env.USER_DATA_PATH || __dirname, '${config.projectName.toLowerCase()}.sqlite'),
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '${defaultDbPort}'),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || '${config.projectName.toLowerCase()}'
-};
-
-console.log(\`[Electron Backend] Database type: \${dbConfig.type}\`);
-if (dbConfig.type === 'sqlite') {
-  console.log(\`[Electron Backend] Local SQLite path: \${dbConfig.filename}\`);
-} else {
-  console.log(\`[Electron Backend] Remote \${dbConfig.type.toUpperCase()} target: \${dbConfig.host}:\${dbConfig.port}\`);
-}
-
-// API Routes
+// Electron Embedded Health & DB config endpoints
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     mode: 'Electron Embedded', 
-    dbType: dbConfig.type,
-    dbHost: dbConfig.type === 'sqlite' ? 'local' : \`\${dbConfig.host}:\${dbConfig.port}\` 
+    dbType: '${dbTypeStr}',
+    timestamp: new Date().toISOString()
   });
 });
 
 app.get('/api/db-config', (req, res) => {
   res.json({
-    type: dbConfig.type,
-    host: dbConfig.host,
-    port: dbConfig.port,
-    database: dbConfig.database,
-    isLocalSqlite: dbConfig.type === 'sqlite'
+    type: '${dbTypeStr}',
+    database: '${config.projectName.toLowerCase()}',
+    isLocalSqlite: '${dbTypeStr}' === 'sqlite'
   });
 });
 
 // SPA Fallback: serve index.html for non-API routes
 app.get('*', (req, res) => {
-  const indexPath = path.join(publicPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
+  if (publicPath && fs.existsSync(path.join(publicPath, 'index.html'))) {
+    res.sendFile(path.join(publicPath, 'index.html'));
   } else {
-    res.send('Frontend is transpiling into Backend/public...');
+    res.send('Frontend is ready. Build frontend with: npm run build');
   }
 });
-
-function startServer(portToUse) {
-  const server = app.listen(portToUse, '127.0.0.1', () => {
-    console.log(\`[Electron Embedded Backend] Running on http://127.0.0.1:\${portToUse}\`);
-  });
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.warn(\`Port \${portToUse} is already in use. Retrying on port \${Number(portToUse) + 1}...\`);
-      startServer(Number(portToUse) + 1);
-    } else {
-      console.error('Server error:', err);
-    }
-  });
-}
-
-startServer(PORT);
 `;
+        f.content = enhancedServerJs;
       }
 
       f.path = `${root}/Backend/${relativePath}`;

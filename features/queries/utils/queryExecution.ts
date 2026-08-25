@@ -332,19 +332,20 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         for (const rel of relevantRels) {
             const join = (t1Id: string, t2Id: string, f1Id: string, f2Id: string) => {
                 if (joinedTables.has(t1Id) && !joinedTables.has(t2Id)) {
-                    const table1 = tables.find(t => t.id === t1Id)!;
-                    const table2 = tables.find(t => t.id === t2Id)!;
-                    if (!table2.data) return;
+                    const table1 = tables.find(t => t.id === t1Id || t.name === t1Id || t.name?.toLowerCase() === t1Id?.toLowerCase());
+                    const table2 = tables.find(t => t.id === t2Id || t.name === t2Id || t.name?.toLowerCase() === t2Id?.toLowerCase());
+                    if (!table1 || !table2 || !table2.data) return;
                     
-                    const field1 = table1.fields.find(f => f.id === f1Id)!;
-                    const field2 = table2.fields.find(f => f.id === f2Id)!;
+                    const field1 = table1.fields.find(f => f.id === f1Id || f.name === f1Id || f.name?.toLowerCase() === f1Id?.toLowerCase());
+                    const field2 = table2.fields.find(f => f.id === f2Id || f.name === f2Id || f.name?.toLowerCase() === f2Id?.toLowerCase());
+                    if (!field1 || !field2) return;
                     
                     const newData: Record<string, any>[] = [];
                     workingData.forEach(row1 => {
                         table2.data!.forEach(row2 => {
-                            const val1 = row1[`${table1.name}.${field1.name}`] ?? row1[field1.name];
-                            const val2 = row2[field2.name];
-                            if (val1 !== undefined && val2 !== undefined && String(val1) === String(val2)) {
+                            const val1 = row1[`${table1.name}.${field1.name}`] ?? row1[field1.name] ?? row1[`${table1.name}.${field1.name.toLowerCase()}`] ?? row1[field1.name.toLowerCase()];
+                            const val2 = row2[field2.name] ?? row2[field2.name.toLowerCase()];
+                            if (val1 !== undefined && val2 !== undefined && String(val1).trim().toLowerCase() === String(val2).trim().toLowerCase()) {
                                 const newRow = {...row1};
                                 for (const key in row2) {
                                     newRow[`${table2.name}.${key}`] = row2[key];

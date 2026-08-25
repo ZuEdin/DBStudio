@@ -61,16 +61,17 @@ export const generatePrismaSchema = (tables: Table[], rawRelationships: Relation
         }
       }
 
-      if (field.defaultValue !== undefined && field.defaultValue !== '' && !field.isPrimaryKey) {
+      if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '' && !field.isPrimaryKey) {
         const defVal = field.defaultValue;
+        const defStr = String(defVal);
         if (['Int', 'Float'].includes(type) && !isNaN(Number(defVal))) {
           decorators += ` @default(${defVal})`;
         } else if (type === 'Boolean') {
-          decorators += ` @default(${defVal === 'true' || defVal === '1'})`;
-        } else if (type === 'DateTime' && typeof defVal === 'string' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase())) {
+          decorators += ` @default(${defStr === 'true' || defStr === '1' || (defVal as any) === true})`;
+        } else if (type === 'DateTime' && typeof defVal === 'string' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defStr.toUpperCase())) {
           decorators += ' @default(now())';
         } else {
-          decorators += ` @default("${defVal.replace(/"/g, '\\"')}")`;
+          decorators += ` @default("${defStr.replace(/"/g, '\\"')}")`;
         }
       }
 
@@ -219,16 +220,17 @@ export const generateDrizzleSchema = (tables: Table[], rawRelationships: Relatio
         if (!field.allowNull && !field.isPrimaryKey) {
           colDef += `.notNull()`;
         }
-        if (field.defaultValue !== undefined && field.defaultValue !== '' && !field.isPrimaryKey) {
+        if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '' && !field.isPrimaryKey) {
           const defVal = field.defaultValue;
-          if (!isNaN(Number(defVal))) {
+          const defStr = String(defVal);
+          if (!isNaN(Number(defVal)) && typeof defVal === 'number') {
             colDef += `.default(${defVal})`;
-          } else if (defVal === 'true' || defVal === 'false') {
+          } else if (defVal === 'true' || defVal === 'false' || typeof defVal === 'boolean') {
             colDef += `.default(${defVal})`;
-          } else if (defVal && typeof defVal === 'string' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defVal.toUpperCase())) {
+          } else if (typeof defVal === 'string' && ['NOW', 'CURRENT_TIMESTAMP'].includes(defStr.toUpperCase())) {
             colDef += `.defaultNow()`;
           } else {
-            colDef += `.default('${defVal.replace(/'/g, "\\'")}')`;
+            colDef += `.default('${defStr.replace(/'/g, "\\'")}')`;
           }
         }
       }
@@ -369,14 +371,15 @@ export const generateTypeOrmEntities = (tables: Table[], rawRelationships: Relat
       } else {
         let decoratorParams = `{ ${typeDecoratorOpts}`;
         if (field.allowNull) decoratorParams += `, nullable: true`;
-        if (field.defaultValue !== undefined && field.defaultValue !== '') {
+        if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '') {
           const defVal = field.defaultValue;
-          if (!isNaN(Number(defVal))) {
+          const defStr = String(defVal);
+          if (!isNaN(Number(defVal)) && typeof defVal === 'number') {
             decoratorParams += `, default: ${defVal}`;
-          } else if (defVal === 'true' || defVal === 'false') {
+          } else if (defVal === 'true' || defVal === 'false' || typeof defVal === 'boolean') {
             decoratorParams += `, default: ${defVal}`;
           } else {
-            decoratorParams += `, default: '${defVal.replace(/'/g, "\\'")}'`;
+            decoratorParams += `, default: '${defStr.replace(/'/g, "\\'")}'`;
           }
         }
         decoratorParams += ` }`;

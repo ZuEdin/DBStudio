@@ -4,7 +4,8 @@ import { generateSequelizeModels } from './nodejs/models';
 import { generatePrismaSchema } from './nodejs/prisma';
 import { generateTypeOrmModels } from './nodejs/typeorm';
 import { generateDrizzleSchema } from './nodejs/drizzle';
-import { toCamelCase, toPascalCase } from './common';
+import { toCamelCase, toPascalCase, sortTablesByDependencies } from './common';
+import { generateDatabaseScripts } from './databaseGenerator';
 
 export const generateNodeJs = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -196,7 +197,7 @@ module.exports = upload;`;
 
       const nowDefaultFields = t.fields.filter(f => {
           const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
-          const hasNowDefault = f.defaultValue && (
+          const hasNowDefault = f.defaultValue && typeof f.defaultValue === 'string' && (
               f.defaultValue.toLowerCase().includes('now') ||
               f.defaultValue.toLowerCase().includes('current_timestamp') ||
               f.defaultValue.toLowerCase().includes('getdate')
@@ -709,8 +710,26 @@ function startServer(portToUse) {
 
 // Sync Database and Start Server
 db.sequelize.sync({ alter: true })
-    .then(() => {
+    .then(async () => {
         console.log('Database synced successfully.');
+        try {
+            ${sortTablesByDependencies(tables, relationships).filter(t => t.data && t.data.length > 0).map(t => {
+                const modelName = toPascalCase(t.name);
+                return `if (db.${modelName}) {
+                try {
+                    const count = await db.${modelName}.count();
+                    if (count === 0) {
+                        await db.${modelName}.bulkCreate(${JSON.stringify(t.data)}, { ignoreDuplicates: true, validate: false });
+                        console.log('Seeded initial data into ${modelName}');
+                    }
+                } catch (tErr) {
+                    console.warn('Could not seed ${modelName}:', tErr.message);
+                }
+            }`;
+            }).join('\n            ')}
+        } catch (seedErr) {
+            console.warn('Initial seeding notice:', seedErr.message);
+        }
         initJobs(); // Start Scheduler
         startServer(PORT);
     })
@@ -719,6 +738,18 @@ db.sequelize.sync({ alter: true })
     });`;
 
   files.push({ name: 'server.js', path: `${root}/server.js`, content: serverJs, language: 'javascript' });
+
+  // Database schema & seed SQL
+  const dbScripts = generateDatabaseScripts(tables, relationships, config, queries);
+  const sqlFile = dbScripts.find(f => f.name === 'schema.sql');
+  if (sqlFile) {
+    files.push({
+      name: 'seed.sql',
+      path: `${root}/seed.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+  }
 
   const readmeContent = `# ${config.projectName} (Node.js / Express)
 

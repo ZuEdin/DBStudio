@@ -1,6 +1,6 @@
 
 
-import { Field, DbType } from '../../types/index';
+import { Table, Relationship, Field, DbType } from '../../types/index';
 import { DATA_TYPES } from '../../config/dataTypes';
 
 export const toSubformSuffix = (id: string) => {
@@ -40,8 +40,8 @@ export const resolveType = (field: Field | undefined | null, language: 'csharp' 
 // String Helpers
 
 // Helper to replace German umlauts with ASCII equivalents
-const normalizeString = (str: string) => {
-    if (!str) return '';
+const normalizeString = (str: any) => {
+    if (!str || typeof str !== 'string') return '';
     return str
         .replace(/ä/g, 'ae')
         .replace(/ö/g, 'oe')
@@ -52,8 +52,8 @@ const normalizeString = (str: string) => {
         .replace(/Ü/g, 'Ue');
 };
 
-export const toPascalCase = (str: string) => {
-  if (!str) return '';
+export const toPascalCase = (str: any) => {
+  if (!str || typeof str !== 'string') return '';
   // 1. Transliterate Umlauts
   let clean = normalizeString(str);
   
@@ -65,19 +65,19 @@ export const toPascalCase = (str: string) => {
   
   // 4. Capitalize each word and join
   return clean.split(' ')
-    .filter(word => word.length > 0) // Remove empty strings
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .filter(word => word && word.length > 0) // Remove empty strings
+    .map(word => (word.charAt(0) ? word.charAt(0).toUpperCase() : '') + word.slice(1))
     .join('');
 };
 
-export const toCamelCase = (str: string) => {
+export const toCamelCase = (str: any) => {
   const pascal = toPascalCase(str);
   if (!pascal) return '';
   return pascal.charAt(0).toLowerCase() + pascal.slice(1);
 };
 
-export const toKebabCase = (str: string) => {
-    if (!str) return '';
+export const toKebabCase = (str: any) => {
+    if (!str || typeof str !== 'string') return '';
     let clean = normalizeString(str);
     
     // Handle existing CamelCase to kebab (e.g., "MyField" -> "My-Field")
@@ -92,8 +92,8 @@ export const toKebabCase = (str: string) => {
     return clean.toLowerCase();
 };
 
-export const toSnakeCase = (str: string) => {
-    if (!str) return '';
+export const toSnakeCase = (str: any) => {
+    if (!str || typeof str !== 'string') return '';
     return toPascalCase(str)
         .replace(/([A-Z])/g, '_$1')
         .toLowerCase()
@@ -113,3 +113,57 @@ export const quoteIdentifier = (name: string, dbType: DbType): string => {
             return name;
     }
 };
+
+/**
+ * Topologically sorts tables based on foreign key relationships.
+ * Parent (referenced) tables come before child (dependent) tables.
+ */
+export const sortTablesByDependencies = (tables: Table[], relationships: Relationship[] = []): Table[] => {
+    const tableMap = new Map<string, Table>();
+    tables.forEach(t => tableMap.set(t.id, t));
+
+    // Map each table to tables it depends on (parents)
+    const dependencyMap = new Map<string, Set<string>>();
+    tables.forEach(t => dependencyMap.set(t.id, new Set<string>()));
+
+    relationships.forEach(rel => {
+        const parentId = rel.fromTableId;
+        const childId = rel.toTableId;
+
+        // If child depends on parent and they are different tables
+        if (parentId && childId && parentId !== childId && dependencyMap.has(childId) && tableMap.has(parentId)) {
+            dependencyMap.get(childId)!.add(parentId);
+        }
+    });
+
+    const sorted: Table[] = [];
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+
+    const visit = (tableId: string) => {
+        if (visited.has(tableId)) return;
+        if (visiting.has(tableId)) return; // Break cycle
+        
+        visiting.add(tableId);
+        const deps = dependencyMap.get(tableId);
+        if (deps) {
+            deps.forEach(depId => visit(depId));
+        }
+        visiting.delete(tableId);
+        visited.add(tableId);
+
+        const table = tableMap.get(tableId);
+        if (table) {
+            sorted.push(table);
+        }
+    };
+
+    tables.forEach(t => {
+        if (!visited.has(t.id)) {
+            visit(t.id);
+        }
+    });
+
+    return sorted;
+};
+

@@ -108,7 +108,21 @@ export const generateAngularModernConfigs = (config: BackendConfig, root: string
               "styles": [
                 "src/styles.css"
               ],
-              "scripts": []
+              "scripts": [],
+              "allowedCommonJsDependencies": [
+                "jspdf-autotable",
+                "canvg",
+                "xlsx",
+                "raf",
+                "rgbcolor",
+                "core-js",
+                "@fullcalendar/core",
+                "@fullcalendar/angular",
+                "@fullcalendar/daygrid",
+                "@fullcalendar/timegrid",
+                "@fullcalendar/interaction",
+                "@fullcalendar/list"
+              ]
             },
             "configurations": {
               "production": {

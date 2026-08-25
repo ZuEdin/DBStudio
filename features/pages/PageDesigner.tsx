@@ -490,7 +490,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left Sidebar: Collapsible Component Toolbox */}
         {isPageToolboxOpen && (
-          <div className="relative z-20 flex shrink-0 animate-in slide-in-from-left duration-150">
+          <div className="relative z-20 flex shrink-0 h-full w-72 animate-in slide-in-from-left duration-150">
             <ComponentToolbox onOpenTemplates={() => setShowPresetsModal(true)} />
           </div>
         )}
@@ -498,7 +498,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
         {/* Floating Toggle handle for Toolbox */}
         <button
           onClick={() => setIsPageToolboxOpen(!isPageToolboxOpen)}
-          className={`absolute top-4 ${isPageToolboxOpen ? 'left-72' : 'left-2'} z-30 p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-md text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:scale-110 transition duration-150 flex items-center justify-center`}
+          className={`absolute top-4 ${isPageToolboxOpen ? 'left-[296px]' : 'left-2'} z-30 p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-md text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:scale-110 transition duration-150 flex items-center justify-center`}
           title={isPageToolboxOpen ? "Toolbox einklappen (Mehr Platz auf Canvas)" : "Toolbox ausklappen"}
         >
           {isPageToolboxOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
@@ -506,7 +506,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
 
         {/* Center: Canvas Workspace - Maximized & Roomy */}
         <div 
-          className="flex-1 p-6 md:p-8 overflow-auto flex justify-center bg-slate-100/70 dark:bg-slate-950/70 relative transition-all duration-200"
+          className="flex-1 p-6 md:p-8 overflow-auto flex justify-center bg-slate-100/70 dark:bg-slate-950/70 relative transition-all duration-200 min-w-0"
           onClick={() => setSelectedNodeId(null)}
         >
            {/* Subtle Canvas Dot Grid */}
@@ -532,7 +532,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
         {/* Floating Toggle handle for Properties Panel */}
         <button
           onClick={() => setIsPagePropertiesOpen(!isPagePropertiesOpen)}
-          className={`absolute top-4 ${isPagePropertiesOpen ? 'right-76' : 'right-2'} z-30 p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-md text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:scale-110 transition duration-150 flex items-center justify-center`}
+          className={`absolute top-4 ${isPagePropertiesOpen ? 'right-[328px]' : 'right-2'} z-30 p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-md text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:scale-110 transition duration-150 flex items-center justify-center`}
           title={isPagePropertiesOpen ? "Eigenschaften einklappen (Mehr Platz auf Canvas)" : "Eigenschaften ausklappen"}
         >
           {isPagePropertiesOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -540,7 +540,7 @@ export const PageDesigner: React.FC<PageDesignerProps> = ({ page, onPageChange, 
 
         {/* Right Sidebar: Collapsible Properties and Page Configuration */}
         {isPagePropertiesOpen && (
-          <div className="relative z-20 flex shrink-0 animate-in slide-in-from-right duration-150">
+          <div className="relative z-20 flex shrink-0 h-full w-80 animate-in slide-in-from-right duration-150">
             <PropertiesPanel 
               page={page}
               onPageChange={onPageChange}

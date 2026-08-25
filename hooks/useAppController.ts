@@ -4,7 +4,7 @@ import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig, Relationship } from '../types/index';
 import { saveProjectToStorage, getProjectById } from '../services/storageService';
-import { sanitizeProjectName } from '../utils/nameUtils';
+import { sanitizeProjectName, getUniqueName } from '../utils/nameUtils';
 import { cloudService } from '../services/cloudService'; 
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { WorkflowExecutionEngine } from '../features/logic/WorkflowEngine';
@@ -1052,9 +1052,11 @@ export const useAppController = () => {
 
         case 'create_chart': /* ... */ break;
         case 'create_page': {
+             const existingNames = (store.pages || []).map((p: any) => p.name);
+             const uniqueName = getUniqueName('Neue Seite', existingNames);
              const newPage: any = { // Use any for now or CustomPage from types
                 id: 'page_' + crypto.randomUUID(),
-                name: 'Neue Seite',
+                name: uniqueName,
                 layout: { id: 'root', type: 'container', props: {}, children: [] }
              };
              store.setPages([...(store.pages || []), newPage]);
@@ -1064,9 +1066,11 @@ export const useAppController = () => {
              break;
         }
         case 'create_workflow': {
+             const existingNames = (store.workflows || []).map(w => w.name);
+             const uniqueName = getUniqueName('Neuer Workflow', existingNames);
              const newWorkflow: Workflow = {
                 id: 'workflow_' + Date.now(),
-                name: 'Neuer Workflow',
+                name: uniqueName,
                 active: false,
                 nodes: [],
                 edges: []
@@ -1306,7 +1310,13 @@ export const useAppController = () => {
                 );
 
                 if (store.backendConfig.deploymentConfig) {
-                    const deployFiles = generateDeploymentScripts(store.backendConfig, `Backend/${cleanProjectName}`);
+                    const deployFiles = generateDeploymentScripts(
+                        store.backendConfig, 
+                        `Backend/${cleanProjectName}`,
+                        store.tables,
+                        store.relationships,
+                        store.queries
+                    );
                     files = [...files, ...deployFiles];
                 }
 

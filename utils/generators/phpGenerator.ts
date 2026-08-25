@@ -1,6 +1,7 @@
 
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
 import { resolveType, toPascalCase, toCamelCase } from './common';
+import { generateDatabaseScripts } from './databaseGenerator';
 
 export const generatePhp = (tables: Table[], rawRelationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const relationships = rawRelationships.filter((rel, index, self) =>
@@ -139,8 +140,21 @@ class Database {
         try {
             $dbType = getenv('DB_CONNECTION') ?: '${config.dbType === DbType.SQLite ? 'sqlite' : (config.dbType === DbType.MySQL ? 'mysql' : 'sqlsrv')}';
             if ($dbType === 'sqlite') {
+                $dbDir = __DIR__ . "/../database";
+                if (!is_dir($dbDir)) {
+                    @mkdir($dbDir, 0777, true);
+                }
                 $dbFile = getenv('DB_STORAGE') ?: '${config.dbConnection.includes('=') ? config.dbConnection.split('=')[1] : 'app.db'}';
-                $this->conn = new PDO("sqlite:" . __DIR__ . "/../database/" . $dbFile);
+                $dbPath = $dbDir . "/" . $dbFile;
+                $isNew = !file_exists($dbPath) || filesize($dbPath) === 0;
+                $this->conn = new PDO("sqlite:" . $dbPath);
+                $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                if ($isNew && file_exists($dbDir . "/seed.sql")) {
+                    $sql = file_get_contents($dbDir . "/seed.sql");
+                    if (!empty($sql)) {
+                        $this->conn->exec($sql);
+                    }
+                }
             } else {
                 $dbHost = getenv('DB_HOST') ?: '${host}';
                 $dbName = getenv('DB_NAME') ?: '${db_name}';
@@ -154,9 +168,9 @@ class Database {
                 } else {
                     $this->conn = new PDO("sqlsrv:Server=" . $dbHost . ";Database=" . $dbName, $dbUser, $dbPass);
                 }
+                $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $this->conn->exec("set names utf8");
             }
-            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $this->conn->exec("set names utf8");
         } catch(PDOException $exception) {
             echo "Connection error: " . $exception->getMessage();
         }
@@ -307,7 +321,7 @@ class BaseModel {
 
       const nowDefaultFields = table.fields.filter(f => {
           const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
-          const hasNowDefault = f.defaultValue && (
+          const hasNowDefault = f.defaultValue && typeof f.defaultValue === 'string' && (
               f.defaultValue.toLowerCase().includes('now') ||
               f.defaultValue.toLowerCase().includes('current_timestamp') ||
               f.defaultValue.toLowerCase().includes('getdate')
@@ -874,6 +888,14 @@ if (!$resource) {
 }
 
 $controllerName = 'App\\\\Controllers\\\\' . ucfirst($resource) . 'Controller';
+if (!class_exists($controllerName)) {
+    $cleanResource = str_replace(['_', '-'], ' ', $resource);
+    $pascalResource = str_replace(' ', '', ucwords($cleanResource));
+    $candidateName = 'App\\\\Controllers\\\\' . $pascalResource . 'Controller';
+    if (class_exists($candidateName)) {
+        $controllerName = $candidateName;
+    }
+}
 
 if (class_exists($controllerName)) {
     $database = new Database();
@@ -888,6 +910,24 @@ if (class_exists($controllerName)) {
 ?>`;
 
   files.push({ name: 'index.php', path: `${root}/index.php`, content: routerContent, language: 'php' });
+  
+  // Database schema & seed SQL
+  const dbScripts = generateDatabaseScripts(tables, rawRelationships, config, queries);
+  const sqlFile = dbScripts.find(f => f.name === 'schema.sql');
+  if (sqlFile) {
+    files.push({
+      name: 'schema.sql',
+      path: `${root}/database/schema.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+    files.push({
+      name: 'seed.sql',
+      path: `${root}/database/seed.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+  }
   
   if (config.authConfig?.useUserLogin) {
       const authControllerContent = `<?php

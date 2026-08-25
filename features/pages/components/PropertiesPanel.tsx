@@ -43,9 +43,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     : ['Admin', 'Manager', 'Editor', 'User', 'Guest'];
 
   return (
-    <div className="w-[320px] bg-white border-l border-slate-300 flex flex-col shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-0 overflow-y-auto">
-      <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Eigenschaften</h3>
+    <div className="w-80 min-w-[320px] max-w-[320px] h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-sm z-0 overflow-y-auto text-slate-800 dark:text-slate-100">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Eigenschaften</h3>
         {selectedNodeId && selectedNodeId !== 'root' && (
           <button 
             onClick={() => setShowDeleteConfirm(true)} 

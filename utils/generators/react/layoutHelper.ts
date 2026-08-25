@@ -2,7 +2,19 @@ import { Table, FormElement, Form } from '../../../types/index';
 import { toCamelCase, toPascalCase, toSubformSuffix } from '../common';
 import { Plus, Layout, User, Search } from 'lucide-react';
 
-export const collectLookups = (element: FormElement, tables: Table[], queries: any[] = [], accumulated: any[] = [], forms: Form[] = []) => {
+export const collectLookups = (
+    element: FormElement, 
+    tables: Table[], 
+    queries: any[] = [], 
+    accumulated: any[] = [], 
+    forms: Form[] = [],
+    visitedNodes: Set<any> = new Set(),
+    visitedForms: Set<string> = new Set(),
+    depth: number = 0
+) => {
+    if (!element || depth > 15 || visitedNodes.has(element)) return accumulated;
+    visitedNodes.add(element);
+
     if (element.widgetType === 'select' && element.lookup && element.lookup.tableId) {
         let table: any = tables.find(t => t.id === element.lookup!.tableId);
         let isQuery = false;
@@ -24,13 +36,17 @@ export const collectLookups = (element: FormElement, tables: Table[], queries: a
         }
     }
     if (element.type === 'subform' && element.subform && forms.length > 0) {
-        const subDef = forms.find(f => f.id === element.subform!.formId) || forms.find(f => f.sourceId === element.subform!.formId);
-        if (subDef && subDef.layout) {
-            collectLookups(subDef.layout, tables, queries, accumulated, forms);
+        const subId = element.subform.formId;
+        if (subId && !visitedForms.has(subId)) {
+            visitedForms.add(subId);
+            const subDef = forms.find(f => f.id === subId) || forms.find(f => f.sourceId === subId);
+            if (subDef && subDef.layout) {
+                collectLookups(subDef.layout, tables, queries, accumulated, forms, visitedNodes, visitedForms, depth + 1);
+            }
         }
     }
     if (element.children) {
-        element.children.forEach(child => collectLookups(child, tables, queries, accumulated, forms));
+        element.children.forEach(child => collectLookups(child, tables, queries, accumulated, forms, visitedNodes, visitedForms, depth + 1));
     }
     return accumulated;
 };
@@ -55,9 +71,21 @@ const getTailwindWidthClass = (width: string | undefined): string => {
 };
 
 // Returns JSX string AND potentially side-effect info (used by pages.ts to know which modals to create)
-export const generateJsxForLayout = (element: FormElement, tables: Table[], forms: Form[], dataVar: string = "data", modals: any[] = [], queries: any[] = []): string => {
+export const generateJsxForLayout = (
+    element: FormElement, 
+    tables: Table[], 
+    forms: Form[], 
+    dataVar: string = "data", 
+    modals: any[] = [], 
+    queries: any[] = [],
+    visitedNodes: Set<any> = new Set(),
+    depth: number = 0
+): string => {
+    if (!element || depth > 20 || visitedNodes.has(element)) return '';
+    visitedNodes.add(element);
+
     if (element.type === 'container') {
-        const childrenJsx = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries)).join('\n') || '';
+        const childrenJsx = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries, visitedNodes, depth + 1)).join('\n') || '';
         let className = element.className || '';
         if (element.children && element.children.length > 1 && !className.includes('grid') && !className.includes('flex')) {
              className += ' space-y-4';
@@ -79,7 +107,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         }).join('\n');
 
         const pagesContent = tabPages.map(tab => {
-            const content = tab.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries)).join('\n') || '';
+            const content = tab.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries, visitedNodes, depth + 1)).join('\n') || '';
             return `{(activeTabs['${tabsId}'] || '${tabPages[0]?.id || ''}') === '${tab.id}' && (
               <div className="p-4 bg-white dark:bg-slate-900 min-h-[60px]">
                 ${content}
@@ -95,7 +123,7 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         </div>`;
     }
     else if (element.type === 'tab_page') {
-        const content = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries)).join('\n') || '';
+        const content = element.children?.map(c => generateJsxForLayout(c, tables, forms, dataVar, modals, queries, visitedNodes, depth + 1)).join('\n') || '';
         return `<div className="${element.className || 'space-y-4'}">\n${content}\n</div>`;
     }
     else if (element.type === 'label') {
@@ -156,6 +184,9 @@ export const generateJsxForLayout = (element: FormElement, tables: Table[], form
         return `<div className="relative inline-block text-left group ${widthClass}">\n  <button type="button" className="${btnClass}">\n    <span>${element.label || 'Aktionen'}</span>\n    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>\n  </button>\n  <div className="hidden group-hover:block group-focus-within:block absolute left-0 mt-1 w-52 rounded-md shadow-lg bg-white border border-slate-200 z-50 py-1">\n      ${itemsJsx}\n  </div>\n</div>`;
     }
     else if (element.type === 'subform' && element.subform) {
+        if (dataVar !== "data") {
+            return '';
+        }
         const subformDef = forms.find(f => f.id === element.subform!.formId);
         const subTable = tables.find(t => t.id === subformDef?.sourceId);
         

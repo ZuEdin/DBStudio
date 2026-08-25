@@ -20,7 +20,7 @@ export const generateMarkdownComponents = (
       <button type="button" class="btn btn-outline-secondary" (click)="insertFormat('- ', '', 'Listenpunkt')" title="Aufzählung"><i class="fas fa-list-ul"></i></button>
       <button type="button" class="btn btn-outline-secondary" (click)="insertFormat('1. ', '', 'Nummerierter Punkt')" title="Nummerierung"><i class="fas fa-list-ol"></i></button>
       <button type="button" class="btn btn-outline-secondary" (click)="insertFormat('> ', '', 'Zitat')" title="Zitat"><i class="fas fa-quote-right"></i></button>
-      <button type="button" class="btn btn-outline-secondary" (click)="insertFormat('\\\`\\\`\\\`\\n', '\\n\\\`\\\`\\\`', 'code')" title="Code-Block"><i class="fas fa-code"></i></button>
+      <button type="button" class="btn btn-outline-secondary" (click)="insertCodeBlock()" title="Code-Block"><i class="fas fa-code"></i></button>
       <button type="button" class="btn btn-outline-secondary" (click)="insertTable()" title="Tabelle"><i class="fas fa-table"></i></button>
       <button type="button" class="btn btn-outline-secondary" (click)="insertFormat('[', '](https://example.com)', 'Linktext')" title="Link"><i class="fas fa-link"></i></button>
     </div>
@@ -72,7 +72,7 @@ export const generateMarkdownComponents = (
       <button type="button" (click)="insertFormat('> ', '', 'Zitat')" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs" title="Zitat">
         <i class="fas fa-quote-right"></i>
       </button>
-      <button type="button" (click)="insertFormat('\\\`\\\`\\\`\\n', '\\n\\\`\\\`\\\`', 'code')" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-mono" title="Code">
+      <button type="button" (click)="insertCodeBlock()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-mono" title="Code">
         <i class="fas fa-code"></i>
       </button>
       <button type="button" (click)="insertTable()" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs" title="Tabelle">
@@ -177,6 +177,10 @@ export class MarkdownEditorComponent implements ControlValueAccessor {
       textarea.focus();
       textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
     }, 10);
+  }
+
+  insertCodeBlock(): void {
+    this.insertFormat('\`\`\`\\n', '\\n\`\`\`', 'code');
   }
 
   insertTable(): void {

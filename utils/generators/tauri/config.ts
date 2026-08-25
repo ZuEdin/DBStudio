@@ -20,7 +20,7 @@ export const generateTauriConfigs = (
       "install-all": "npm install && cd Frontend && npm install"
     },
     devDependencies: {
-      "@tauri-apps/cli": "^2.0.0"
+      "@tauri-apps/cli": "^1.5.0"
     }
   };
 
@@ -46,7 +46,7 @@ tauri-build = { version = "1.5" }
 tauri = { version = "1.5", features = ["api-all", "custom-protocol"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri-plugin-sql = { version = "2.0.0", features = ["sqlite", "mysql", "postgres"], optional = true }
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 [features]
 default = ["custom-protocol"]

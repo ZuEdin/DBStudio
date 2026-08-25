@@ -285,13 +285,47 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
     let subformData: Record<string, any>[] = [];
 
     if (sourceTable && subTable && currentRecord) {
-      const masterLinkField = sourceTable.fields.find((f) => f.id === el.subform!.masterLinkFieldId);
-      const childLinkField = subTable.fields.find((f) => f.id === el.subform!.childLinkFieldId);
-      if (masterLinkField && childLinkField) {
-        const linkValue = currentRecord[masterLinkField.name];
-        subformData = (subTable.data || []).filter(
-          (row) => linkValue !== undefined && linkValue !== null && linkValue !== '' && String(row[childLinkField.name]) === String(linkValue)
-        );
+      const masterLinkFieldId = el.subform!.masterLinkFieldId;
+      const childLinkFieldId = el.subform!.childLinkFieldId;
+
+      const masterLinkField = sourceTable.fields.find(
+        (f) =>
+          f.id === masterLinkFieldId ||
+          f.name === masterLinkFieldId ||
+          f.name?.toLowerCase() === (masterLinkFieldId || '').toLowerCase()
+      );
+      const childLinkField = subTable.fields.find(
+        (f) =>
+          f.id === childLinkFieldId ||
+          f.name === childLinkFieldId ||
+          f.name?.toLowerCase() === (childLinkFieldId || '').toLowerCase()
+      );
+
+      const linkValue =
+        (masterLinkField ? (currentRecord[masterLinkField.name] ?? currentRecord[masterLinkField.name.toLowerCase()]) : undefined) ??
+        currentRecord[masterLinkFieldId] ??
+        (masterLinkFieldId ? currentRecord[masterLinkFieldId.toLowerCase()] : undefined) ??
+        currentRecord.id ??
+        currentRecord.Id ??
+        currentRecord.ID;
+
+      const clean = (val: any) =>
+        val === undefined || val === null
+          ? ''
+          : String(val)
+              .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+              .trim()
+              .toLowerCase();
+      const cleanLink = clean(linkValue);
+
+      if (cleanLink !== '') {
+        subformData = (subTable.data || []).filter((row) => {
+          const rowVal =
+            (childLinkField ? (row[childLinkField.name] ?? row[childLinkField.name.toLowerCase()]) : undefined) ??
+            row[childLinkFieldId] ??
+            (childLinkFieldId ? row[childLinkFieldId.toLowerCase()] : undefined);
+          return clean(rowVal) === cleanLink;
+        });
       }
     }
 
@@ -301,19 +335,17 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
 
     const handleOpenSubformModalLocal = (recordToEdit?: Record<string, any>) => {
       if (!sourceTable || !currentRecord) return;
-      const masterLinkField = sourceTable.fields.find((f) => f.id === el.subform!.masterLinkFieldId);
-      if (masterLinkField) {
-        const masterFieldName = masterLinkField.name;
-        const linkValue = currentRecord[masterFieldName];
-        setSubformModal({
-          isOpen: true,
-          formId: el.subform!.formId,
-          parentField: el.subform!.masterLinkFieldId,
-          childField: el.subform!.childLinkFieldId,
-          linkValue,
-          recordToEdit,
-        });
-      }
+      const masterLinkField = sourceTable.fields.find((f) => f.id === el.subform!.masterLinkFieldId || f.name === el.subform!.masterLinkFieldId || f.name?.toLowerCase() === (el.subform!.masterLinkFieldId || '').toLowerCase());
+      const masterFieldName = masterLinkField ? masterLinkField.name : el.subform!.masterLinkFieldId;
+      const linkValue = currentRecord[masterFieldName] ?? (masterLinkField ? currentRecord[masterLinkField.name.toLowerCase()] : undefined) ?? currentRecord[el.subform!.masterLinkFieldId] ?? currentRecord.id ?? currentRecord.Id;
+      setSubformModal({
+        isOpen: true,
+        formId: el.subform!.formId,
+        parentField: el.subform!.masterLinkFieldId,
+        childField: el.subform!.childLinkFieldId,
+        linkValue,
+        recordToEdit,
+      });
     };
 
     const handleDeleteSubformRowLocal = (rowItem: Record<string, any>) => {

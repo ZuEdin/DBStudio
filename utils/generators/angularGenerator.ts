@@ -41,7 +41,11 @@ export const generateAngular = (
       }
   });
 
-  let routeDefs = Array.from(uniqueRoutes.values()).map(r => {
+  const allRouteList = Array.from(uniqueRoutes.values());
+  const firstRoutePath = allRouteList.length > 0 ? allRouteList[0].path : '';
+  const defaultRedirect = firstRoutePath ? `      { path: '', redirectTo: '${firstRoutePath}', pathMatch: 'full' },\n` : '';
+
+  let routeDefs = allRouteList.map(r => {
       let guard = '';
       if (useAuth) {
           const isAdminRoute = r.path.includes('sysUsers') || r.path.includes('sysRoles');
@@ -62,7 +66,7 @@ export const generateAngular = (
     component: LayoutComponent,
     children: [
       { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
-${routeDefs}
+${defaultRedirect}${routeDefs}
     ]
   },
   { path: '**', redirectTo: '' }`;
@@ -71,7 +75,7 @@ ${routeDefs}
     path: '', 
     component: LayoutComponent,
     children: [
-${routeDefs}
+${defaultRedirect}${routeDefs}
     ]
   },
   { path: '**', redirectTo: '' }`;
@@ -86,7 +90,7 @@ ${routeDefs}
   
   const configFiles = generateAngularConfigs(config, root);
   const serviceFiles = generateAngularServices(tables, queries, config, appRoot, macros);
-  const structureFiles = generateAngularStructure(config, tables, root, pages, reports, queries);
+  const structureFiles = generateAngularStructure(config, tables, root, pages, reports, queries, forms);
 
   const readmeContent = `# ${config.projectName} (Angular Client)
 

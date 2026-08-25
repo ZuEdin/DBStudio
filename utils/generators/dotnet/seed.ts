@@ -1,6 +1,6 @@
 
 import { Table, BackendConfig, VirtualFile, DbType, Relationship, Query, SelectQuery } from '../../../types/index';
-import { toPascalCase, quoteIdentifier } from '../common';
+import { toPascalCase, quoteIdentifier, sortTablesByDependencies } from '../common';
 import { generateSqlSelect } from '../../sqlHelper';
 
 const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSql: boolean): any => {
@@ -39,49 +39,6 @@ const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSq
     return newRow;
 };
 
-export const sortTablesByDependencies = (tables: Table[], relationships: Relationship[]): Table[] => {
-    const dependencyMap = new Map<string, Set<string>>();
-    tables.forEach(t => dependencyMap.set(t.id, new Set<string>()));
-    
-    relationships.forEach(rel => {
-        const parentId = rel.fromTableId;
-        const childId = rel.toTableId;
-        if (dependencyMap.has(childId) && dependencyMap.has(parentId) && childId !== parentId) {
-            dependencyMap.get(childId)!.add(parentId);
-        }
-    });
-
-    const sorted: Table[] = [];
-    const visited = new Set<string>();
-    const visiting = new Set<string>();
-
-    const visit = (tableId: string) => {
-        if (visited.has(tableId)) return;
-        if (visiting.has(tableId)) return; // Break cycle
-        
-        visiting.add(tableId);
-        const deps = dependencyMap.get(tableId);
-        if (deps) {
-            deps.forEach(depId => visit(depId));
-        }
-        visiting.delete(tableId);
-        visited.add(tableId);
-
-        const table = tables.find(t => t.id === tableId);
-        if (table) {
-            sorted.push(table);
-        }
-    };
-
-    tables.forEach(t => {
-        if (!visited.has(t.id)) {
-            visit(t.id);
-        }
-    });
-
-    return sorted;
-};
-
 export const generateDbInitializer = (tables: Table[], relationships: Relationship[], config: BackendConfig, root: string, queries: Query[] = []): VirtualFile => {
     let seedLogic = '';
     const dbType = config.dbType;
@@ -115,34 +72,39 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
     // Sort tables so dependent tables are seeded after their referenced tables (parent tables)
     const sortedTables = sortTablesByDependencies(tables, relationships || []);
 
+    const BATCH_SIZE = 250; // Batch size for fast multi-row inserts compatible with SQLite, MySQL, and SQL Server
+
     sortedTables.forEach(table => {
         if (!table.data || table.data.length === 0) return;
 
         const tableName = quoteIdentifier(toPascalCase(table.name), dbType);
         const hasIdentity = table.fields.some(f => f.isPrimaryKey && f.type === 'INTEGER' && f.isAutoIncrement);
-        
-        let tableSeedSql = '';
-
-        // SQL Server needs explicit permission to insert into Identity columns
-        if (dbType === DbType.SQL && hasIdentity) {
-            tableSeedSql += `SET IDENTITY_INSERT ${tableName} ON; \n`;
-        }
-
         const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
+        const modelName = toPascalCase(table.name);
 
+        const columns = table.fields.map(f => quoteIdentifier(f.name, dbType)).join(', ');
+
+        const rowValuesList: string[] = [];
         table.data.forEach(row => {
+            if (!row || typeof row !== 'object') return;
             const mappedRow = isPermissionsTable ? mapPermissionObjectId(row, tables, queries || [], true) : row;
-            const columns = table.fields.map(f => quoteIdentifier(f.name, dbType)).join(', ');
-            const values = table.fields.map(f => {
-                const val = mappedRow[f.name];
+            const rowValues = table.fields.map(f => {
+                let val = mappedRow[f.name];
+                if (val === undefined) {
+                    const matchedKey = Object.keys(mappedRow).find(k => k.toLowerCase() === f.name.toLowerCase());
+                    if (matchedKey) {
+                        val = mappedRow[matchedKey];
+                    }
+                }
                 if (val === undefined || val === null || val === '') return 'NULL';
                 
                 if (['INTEGER', 'DECIMAL', 'DOUBLE'].includes(f.type)) {
-                    return val;
+                    if (typeof val === 'number') return isNaN(val) ? 'NULL' : val;
+                    const num = Number(val);
+                    return isNaN(num) ? 'NULL' : num;
                 }
                 if (f.type === 'BOOLEAN') {
-                     // SQLite and SQL use 1/0 for boolean mostly in raw SQL contexts
-                     return (val === true || val === 'true') ? 1 : 0;
+                     return (val === true || val === 'true' || val === 1 || val === '1') ? 1 : 0;
                 }
                 
                 // Escape single quotes for SQL
@@ -150,23 +112,46 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
                 return `'${strVal}'`;
             }).join(', ');
 
-            tableSeedSql += `INSERT INTO ${tableName} (${columns}) VALUES (${values}); \n`;
+            rowValuesList.push(`(${rowValues})`);
+        });
+
+        if (rowValuesList.length === 0) return;
+
+        // Split into batches to avoid SQL parser limits & large memory blocks
+        const batches: string[][] = [];
+        for (let i = 0; i < rowValuesList.length; i += BATCH_SIZE) {
+            batches.push(rowValuesList.slice(i, i + BATCH_SIZE));
+        }
+
+        let tableBatchStatements = '';
+        if (dbType === DbType.SQL && hasIdentity) {
+            tableBatchStatements += `                    context.Database.ExecuteSqlRaw(@"SET IDENTITY_INSERT ${tableName} ON;");\n`;
+        }
+
+        const insertVerb = dbType === DbType.SQLite ? 'INSERT OR REPLACE INTO' : (dbType === DbType.MySQL ? 'INSERT IGNORE INTO' : 'INSERT INTO');
+
+        batches.forEach(batch => {
+            if (batch.length === 0) return;
+            const batchSql = `${insertVerb} ${tableName} (${columns}) VALUES \n${batch.join(',\n')};`;
+            const escapedSql = batchSql.replace(/"/g, '""');
+            tableBatchStatements += `                    context.Database.ExecuteSqlRaw(@"${escapedSql}");\n`;
         });
 
         if (dbType === DbType.SQL && hasIdentity) {
-            tableSeedSql += `SET IDENTITY_INSERT ${tableName} OFF; \n`;
+            tableBatchStatements += `                    context.Database.ExecuteSqlRaw(@"SET IDENTITY_INSERT ${tableName} OFF;");\n`;
         }
 
-        // C# Code to execute this block safely
-        const modelName = toPascalCase(table.name);
-        // We use Verbatim string (@"") for SQL, ensuring double quotes are escaped as ""
-        const escapedSql = tableSeedSql.replace(/"/g, '""');
-        
         seedLogic += `
-            if (!context.${modelName}s.Any())
-            {
-                context.Database.ExecuteSqlRaw(@"${escapedSql}");
-            }
+                try
+                {
+                    if (!context.${modelName}s.Any())
+                    {
+${tableBatchStatements}                    }
+                }
+                catch (Exception tableEx)
+                {
+                    Console.WriteLine($"[Seeding Warning] Could not seed table ${modelName}: {tableEx.Message}");
+                }
 `;
     });
 
@@ -179,13 +164,26 @@ namespace ${safeNamespace}.Data
     {
         public static void Initialize(AppDbContext context)
         {
+            // Increase command timeout for seeding large datasets
+            context.Database.SetCommandTimeout(300);
+
+            // Execute entire seeding inside an explicit transaction for atomic commit and ultra-fast SQLite / SQL I/O
+            ${dbType === DbType.SQLite ? 'context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");\n' : ''}
+            using var transaction = context.Database.BeginTransaction();
             try
             {
-                ${seedLogic}
+${seedLogic}
+                transaction.Commit();
             }
             catch (Exception ex)
             {
+                try { transaction.Rollback(); } catch { }
                 Console.WriteLine("Seeding Error: " + ex.Message);
+                throw;
+            }
+            finally
+            {
+${dbType === DbType.SQLite ? '                try { context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = ON;"); } catch { }\n' : ''}
             }
         }
     }

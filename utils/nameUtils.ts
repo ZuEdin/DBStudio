@@ -32,15 +32,19 @@ export function getUniqueName(baseName: string, existingNames: string[]): string
   }
   let counter = 1;
   let base = baseName;
-  const match = baseName.match(/^(.*?)(_(\d+))?$/);
+  let separator = baseName.includes(' ') ? ' ' : '_';
+  const match = baseName.match(/^(.*?)([\s_]+(\d+))?$/);
   if (match) {
     base = match[1];
+    if (match[2]) {
+      separator = match[2].startsWith(' ') ? ' ' : '_';
+    }
     if (match[3]) {
       counter = parseInt(match[3], 10);
     }
   }
   while (counter < 1000) {
-    const candidate = `${base}_${counter}`;
+    const candidate = `${base}${separator}${counter}`;
     if (!existingSet.has(candidate.toLowerCase().trim())) {
       return candidate;
     }

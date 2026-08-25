@@ -1,5 +1,6 @@
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
 import { toPascalCase, toCamelCase, toSnakeCase } from './common';
+import { generateDatabaseScripts } from './databaseGenerator';
 
 export const generatePython = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -495,7 +496,31 @@ app.add_middleware(
 @app.get("/api/health", tags=["System"])
 async def health_check():
     return {"status": "healthy", "service": "${config.projectName}"}
-
+${!isNoSql ? `
+@app.on_event("startup")
+async def startup_event():
+    try:
+        import os
+        from sqlalchemy import text
+        from config.database import engine, Base
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            
+        seed_path = os.path.join(os.path.dirname(__file__), "seed.sql")
+        if os.path.exists(seed_path):
+            with open(seed_path, "r", encoding="utf-8") as f:
+                raw_sql = f.read()
+            if raw_sql.strip():
+                statements = [s.strip() for s in raw_sql.split(";") if s.strip()]
+                async with engine.begin() as conn:
+                    for stmt in statements:
+                        try:
+                            await conn.execute(text(stmt))
+                        except Exception:
+                            pass
+    except Exception as e:
+        print(f"Database startup warning: {e}")
+` : ''}
 # Include routers
 ${routerIncludes}
 
@@ -509,6 +534,18 @@ if __name__ == "__main__":
     content: mainContent,
     language: 'python'
   });
+
+  // Database schema & seed SQL
+  const dbScripts = generateDatabaseScripts(tables, relationships, config, queries);
+  const sqlFile = dbScripts.find(f => f.name === 'schema.sql');
+  if (sqlFile) {
+    files.push({
+      name: 'seed.sql',
+      path: `${root}/seed.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+  }
 
   return files;
 };

@@ -105,14 +105,28 @@ export const generateAngularConfigs = (config: BackendConfig, root: string): Vir
             "builder": "@angular-devkit/build-angular:browser",
             "options": {
               "outputPath": "dist/angular-client",
-              "baseHref": "./",
+              "baseHref": "/",
               "index": "src/index.html",
               "main": "src/main.ts",
               "polyfills": ["src/polyfills.ts"],
               "tsConfig": "tsconfig.app.json",
               "assets": ["src/favicon.ico", "src/assets"],
               "styles": styles,
-              "scripts": scripts
+              "scripts": scripts,
+              "allowedCommonJsDependencies": [
+                "jspdf-autotable",
+                "canvg",
+                "xlsx",
+                "raf",
+                "rgbcolor",
+                "core-js",
+                "@fullcalendar/core",
+                "@fullcalendar/angular",
+                "@fullcalendar/daygrid",
+                "@fullcalendar/timegrid",
+                "@fullcalendar/interaction",
+                "@fullcalendar/list"
+              ]
             },
             "configurations": {
               "production": {
@@ -270,7 +284,7 @@ export class AppComponent {
 `;
   files.push({ name: 'app.component.ts', path: `${root}/src/app/app.component.ts`, content: appComponentTs, language: 'typescript' });
 
-  files.push({ name: 'index.html', path: `${root}/src/index.html`, content: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${config.projectName}</title><base href="./"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><app-root></app-root></body></html>`, language: 'html' });
+  files.push({ name: 'index.html', path: `${root}/src/index.html`, content: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${config.projectName}</title><base href="/"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><app-root></app-root></body></html>`, language: 'html' });
 
   return files;
 };

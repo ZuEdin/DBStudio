@@ -1,4 +1,4 @@
-import { VirtualFile, BackendConfig, Table, CustomPage, Report, Query } from '../../../types/index';
+import { VirtualFile, BackendConfig, Table, CustomPage, Report, Query, Form } from '../../../types/index';
 import { generateNavigationComponents } from './structure/navigation';
 import { generateLayoutComponents } from './structure/layout';
 import { generateUserPickerComponents } from './structure/userPicker';
@@ -11,15 +11,17 @@ export const generateAngularStructure = (
     root: string,
     pages: CustomPage[] = [],
     reports: Report[] = [],
-    queries: Query[] = []
+    queries: Query[] = [],
+    forms: Form[] = []
 ): VirtualFile[] => {
     const appRoot = `${root}/src/app`;
     return [
-        ...generateNavigationComponents(config, tables, appRoot, pages, reports, queries),
+        ...generateNavigationComponents(config, tables, appRoot, pages, reports, queries, forms),
         ...generateLayoutComponents(config, appRoot),
         ...generateUserPickerComponents(config, appRoot),
         ...generateAuthComponents(config, appRoot),
         ...generateMarkdownComponents(config, appRoot)
     ];
 };
+
 

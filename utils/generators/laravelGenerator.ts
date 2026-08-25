@@ -1,6 +1,7 @@
 
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType } from '../../types/index';
-import { toPascalCase, toCamelCase, toSnakeCase } from './common';
+import { toPascalCase, toCamelCase, toSnakeCase, sortTablesByDependencies } from './common';
+import { generateDatabaseScripts } from './databaseGenerator';
 
 export const generateLaravel = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
@@ -429,6 +430,83 @@ class QueriesController extends Controller
 
   files.push({ name: 'api.php', path: `${root}/routes/api.php`, content: apiRoutes, language: 'php' });
 
+  // 5. Database Seeder
+  let seederInserts = '';
+  const sortedLaravelTables = sortTablesByDependencies(tables, relationships);
+  sortedLaravelTables.forEach(table => {
+    const tableName = toSnakeCase(table.name);
+    if (table.data && table.data.length > 0) {
+      const recordsJson = JSON.stringify(table.data);
+      seederInserts += `
+        try {
+            $${tableName}Data = json_decode('${recordsJson.replace(/'/g, "\\'")}', true);
+            if ($${tableName}Data && count($${tableName}Data) > 0) {
+                \\Illuminate\\Support\\Facades\\DB::table('${tableName}')->insertOrIgnore($${tableName}Data);
+            }
+        } catch (\\Throwable $e) {
+            // Continue with other tables if single record fails
+        }
+`;
+    }
+  });
+
+  const seederContent = `<?php
+
+namespace Database\\Seeders;
+
+use Illuminate\\Database\\Seeder;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\File;
+use Illuminate\\Support\\Facades\\Schema;
+
+class DatabaseSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     */
+    public function run(): void
+    {
+        Schema::disableForeignKeyConstraints();
+        try {
+            // 1. Run raw seed.sql if available
+            $seedSqlPath = database_path('seed.sql');
+            if (File::exists($seedSqlPath)) {
+                $sql = File::get($seedSqlPath);
+                if (!empty(trim($sql))) {
+                    try {
+                        DB::unprepared($sql);
+                    } catch (\\Throwable $t) {
+                        // fallback to table-by-table inserts below
+                    }
+                }
+            }
+${seederInserts}
+        } finally {
+            Schema::enableForeignKeyConstraints();
+        }
+    }
+}
+`;
+  files.push({ name: 'DatabaseSeeder.php', path: `${root}/database/seeders/DatabaseSeeder.php`, content: seederContent, language: 'php' });
+
+  // Database schema & seed SQL
+  const dbScripts = generateDatabaseScripts(tables, relationships, config, queries);
+  const sqlFile = dbScripts.find(f => f.name === 'schema.sql');
+  if (sqlFile) {
+    files.push({
+      name: 'schema.sql',
+      path: `${root}/database/schema.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+    files.push({
+      name: 'seed.sql',
+      path: `${root}/database/seed.sql`,
+      content: sqlFile.content,
+      language: 'sql'
+    });
+  }
+
   // Docs
   const readmeContent = `# ${config.projectName} (Laravel)
 
@@ -440,7 +518,7 @@ class QueriesController extends Controller
 1. Führen Sie \`composer install\` im Terminal aus.
 2. Kopieren Sie die \`.env\` Datei: \`cp .env .env.example\` (falls nötig, hier wird sie bereits generiert).
 3. Generieren Sie den App-Key: \`php artisan key:generate\`.
-4. Führen Sie die Migrationen aus: \`php artisan migrate\`.
+4. Führen Sie die Migrationen mit Seed-Daten aus: \`php artisan migrate --seed\`.
 
 ## Starten
 \`\`\`bash
