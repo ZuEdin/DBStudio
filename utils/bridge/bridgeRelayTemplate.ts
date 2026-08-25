@@ -1,21 +1,64 @@
 import { BridgeConfig } from '../../types/bridge';
 
 export function generateBridgeRelayPhpCode(config: BridgeConfig): string {
-  const token = config.token || 'dbstudio-bridge-local-token';
+  const token = config.token || 'bridge_sec_k928x71a';
 
   return `<?php
 /**
- * DB Studio Universal Bridge Relay (PHP Gateway)
- * Generiert für Token: ${token}
+ * DB Studio Universal Bridge Relay Gateway (PHP)
+ * Version: 2.1.0 (Strict Security Protected)
+ * 
+ * Ermöglicht sichere Zwei-Wege-Kommunikation zwischen DB Studio
+ * und der lokalen Entwickler-Bridge.
+ * 
+ * SICHERHEIT:
+ * Ohne gültigen Sicherheitsschlüssel (Token) liefert dieses Skript
+ * keinerlei Systeminformationen, Statusdaten oder Logs zurück (HTTP 403).
  */
+
+// 1. CORS & Private Network Access (PNA) Header
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Bridge-Token, Access-Control-Request-Private-Network, bypass-tunnel-reminder, *");
 header("Access-Control-Allow-Private-Network: true");
+header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json; charset=UTF-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
+    exit;
+}
+
+// -----------------------------------------------------------------------------
+// KONFIGURATION: SICHERHEITSSCHLÜSSEL
+// (Muss mit dem Sicherheitstoken in den Bridge-Einstellungen übereinstimmen)
+// -----------------------------------------------------------------------------
+define('BRIDGE_SECURITY_TOKEN', '${token}');
+
+// -----------------------------------------------------------------------------
+// 2. TOKEN-EXTRAKTION & STRIKTE AUTHENTIFIZIERUNG
+// -----------------------------------------------------------------------------
+$token = $_SERVER['HTTP_X_BRIDGE_TOKEN'] 
+    ?? $_GET['token'] 
+    ?? $_GET['key'] 
+    ?? $_GET['apiKey'] 
+    ?? $_POST['token'] 
+    ?? $_POST['key'] 
+    ?? '';
+
+if (empty($token) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    if (preg_match('/Bearer\\s(\\S+)/i', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
+        $token = $matches[1];
+    }
+}
+
+// Strikte Schlüsselprüfung: Ohne gültigen Key KEINE Daten liefern!
+if (empty($token) || !hash_equals(BRIDGE_SECURITY_TOKEN, (string)$token)) {
+    http_response_code(403);
+    echo json_encode([
+        "status" => "forbidden",
+        "error" => "Zugriff verweigert: Gültiger Sicherheitsschlüssel (Token) erforderlich."
+    ]);
     exit;
 }
 
@@ -24,183 +67,186 @@ if (!is_dir($storageDir)) {
     @mkdir($storageDir, 0777, true);
 }
 
-$action = $_GET['action'] ?? '';
-$token = $_SERVER['HTTP_X_BRIDGE_TOKEN'] ?? $_GET['token'] ?? '';
-$configToken = "${token}";
+$action = strtolower($_GET['action'] ?? '');
 
-// 1. Status Check & Telemetrie
+// =============================================================================
+// A. STATUS & LIVE-TELEMETRIE (Nur mit gültigem Token erreichbar)
+// =============================================================================
 if ($action === 'status' || empty($action)) {
     $heartbeatFile = $storageDir . '/heartbeat.json';
     $heartbeat = file_exists($heartbeatFile) ? json_decode(file_get_contents($heartbeatFile), true) : null;
-    $isOnline = $heartbeat && (time() - ($heartbeat['lastSeen'] ?? 0) < 30);
+    $isBridgeOnline = $heartbeat && (abs(time() - ($heartbeat['lastSeen'] ?? 0)) < 60);
+    $telemetry = $heartbeat ? ($heartbeat['telemetry'] ?? []) : [];
 
-    // Read project status if requested
-    $projectId = $_GET['projectId'] ?? '';
-    $projectStatus = null;
-    if ($projectId && file_exists($storageDir . '/status_' . $projectId . '.json')) {
-        $projectStatus = json_decode(file_get_contents($storageDir . '/status_' . $projectId . '.json'), true);
-    }
-
-    $response = [
-        "status" => $isOnline ? "online" : "waiting_for_bridge",
+    echo json_encode([
+        "status" => $isBridgeOnline ? "online" : "waiting_for_bridge",
         "relayType" => "PHP_HTTPS_GATEWAY",
-        "bridgeConnected" => $isOnline,
-        "serverTime" => date('Y-m-d H:i:s'),
-        "projectStatus" => $projectStatus,
-        "runtimes" => [
-            "phpGateway" => ["installed" => true, "version" => PHP_VERSION]
-        ]
-    ];
-
-    // Merge live telemetry sent from Bridge Agent
-    if ($heartbeat && is_array($heartbeat)) {
-        if (!empty($heartbeat['hostname'])) $response['hostname'] = $heartbeat['hostname'];
-        if (!empty($heartbeat['osPlatform'])) $response['osPlatform'] = $heartbeat['osPlatform'];
-        if (isset($heartbeat['freeMemoryMb'])) $response['freeMemoryMb'] = $heartbeat['freeMemoryMb'];
-        if (isset($heartbeat['totalMemoryMb'])) $response['totalMemoryMb'] = $heartbeat['totalMemoryMb'];
-        if (!empty($heartbeat['bridgePort'])) $response['bridgePort'] = $heartbeat['bridgePort'];
-        if (!empty($heartbeat['runtimes']) && is_array($heartbeat['runtimes'])) {
-            $response['runtimes'] = array_merge($response['runtimes'], $heartbeat['runtimes']);
-        }
-        if (!empty($heartbeat['runningProjects'])) $response['runningProjects'] = $heartbeat['runningProjects'];
-        if (!empty($heartbeat['activeProcesses'])) $response['activeProcesses'] = $heartbeat['activeProcesses'];
-    }
-
-    echo json_encode($response);
+        "version" => "2.1.0",
+        "authenticated" => true,
+        "bridgeConnected" => $isBridgeOnline,
+        "osPlatform" => $telemetry['osPlatform'] ?? "Unbekannt",
+        "hostname" => $telemetry['hostname'] ?? "PC",
+        "freeMemoryMb" => $telemetry['freeMemoryMb'] ?? null,
+        "totalMemoryMb" => $telemetry['totalMemoryMb'] ?? null,
+        "runtimes" => $telemetry['runtimes'] ?? [
+            "dotnetSdk" => ["installed" => false],
+            "nodejs" => ["installed" => false],
+            "npm" => ["installed" => false],
+            "rust" => ["installed" => false],
+            "docker" => ["installed" => false, "running" => false]
+        ],
+        "activeProcesses" => $telemetry['activeProcesses'] ?? [],
+        "bridgePort" => $telemetry['bridgePort'] ?? 5050,
+        "projectsDir" => $telemetry['config']['projectsDir'] ?? null,
+        "lastHeartbeat" => $heartbeat ? date('Y-m-d H:i:s', $heartbeat['lastSeen']) : null,
+        "serverTime" => date('Y-m-d H:i:s')
+    ]);
     exit;
 }
 
-// 2. Deploy: DB Studio sendet Projekt an Cloud-Relay
+// =============================================================================
+// B. DEPLOYMENT JOB EINREICHEN (DB Studio -> Relay)
+// =============================================================================
 if ($action === 'deploy' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');
-    $payload = json_decode($rawInput, true) ?: [];
-    $projectId = $payload['projectId'] ?? 'project_' . time();
+    $payload = json_decode($rawInput, true);
+
+    if (!$payload) {
+        http_response_code(400);
+        echo json_encode(["error" => "Ungültiger JSON Payload"]);
+        exit;
+    }
+
     $jobId = 'job_' . time() . '_' . substr(md5(uniqid()), 0, 8);
     file_put_contents($storageDir . '/' . $jobId . '.json', $rawInput);
 
-    // Initial status: RUNNING
-    file_put_contents($storageDir . '/status_' . $projectId . '.json', json_encode([
-        "status" => "RUNNING",
-        "lastAction" => "deploy",
-        "timestamp" => time()
-    ]));
-
     echo json_encode([
-        "success" => true, 
-        "jobId" => $jobId, 
-        "projectId" => $projectId,
-        "message" => "Projekt erfolgreich an Cloud-Relay übertragen. Lokale Bridge führt Ausführung durch."
+        "success" => true,
+        "jobId" => $jobId,
+        "message" => "Auftrag erfolgreich in die Queue eingereiht."
     ]);
     exit;
 }
 
-// 3. Process Action: Start, Stop, Neustart, Abbrechen
-if (($action === 'action' || $action === 'process_action' || $action === 'process' || $action === 'process_control' || $action === 'stop' || $action === 'cancel' || $action === 'abbrechen' || $action === 'start' || $action === 'restart' || $action === 'neustart' || (!in_array($action, ['status', 'deploy', 'pull_jobs', 'push_logs', 'get_logs']) && $_SERVER['REQUEST_METHOD'] === 'POST')) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+// =============================================================================
+// C. PROZESS-STEUERUNG (Start / Stop / Restart / Kill)
+// =============================================================================
+if (in_array($action, ['stop', 'restart', 'start', 'kill', 'control', 'process_action', 'process'])) {
     $rawInput = file_get_contents('php://input');
-    $actionData = json_decode($rawInput, true) ?: [];
+    $payload = !empty($rawInput) ? json_decode($rawInput, true) : [];
+    if (!is_array($payload)) $payload = [];
     
-    // Determine action type (from JSON body or query param)
-    $rawAction = $actionData['action'] ?? $actionData['command'] ?? $_GET['processAction'] ?? $action;
-    $actionType = 'restart';
-    if ($rawAction === 'stop' || $rawAction === 'cancel' || $rawAction === 'abbrechen') {
-        $actionType = 'stop';
-    } else if ($rawAction === 'start') {
-        $actionType = 'start';
-    } else {
-        $actionType = 'restart';
-    }
-    
-    $projectId = $actionData['projectId'] ?? ($_GET['projectId'] ?? 'default');
+    $payload['controlAction'] = $action;
+    if (isset($_GET['projectId'])) $payload['projectId'] = $_GET['projectId'];
+    if (isset($_GET['processId'])) $payload['processId'] = $_GET['processId'];
 
-    $actionId = 'action_' . time() . '_' . substr(md5(uniqid()), 0, 8);
-    file_put_contents($storageDir . '/' . $actionId . '.json', json_encode([
-        "projectId" => $projectId, 
-        "action" => $actionType,
-        "timestamp" => time()
-    ]));
-
-    // Save persistent project status in Relay storage
-    $newStatus = ($actionType === 'stop') ? 'STOPPED' : 'RUNNING';
-    file_put_contents($storageDir . '/status_' . $projectId . '.json', json_encode([
-        "status" => $newStatus,
-        "lastAction" => $actionType,
-        "timestamp" => time()
-    ]));
+    $jobId = 'ctrl_' . time() . '_' . substr(md5(uniqid()), 0, 8);
+    file_put_contents($storageDir . '/' . $jobId . '.json', json_encode($payload));
 
     echo json_encode([
-        "success" => true, 
-        "actionId" => $actionId,
-        "status" => $newStatus,
-        "action" => $actionType,
-        "message" => "Befehl " . strtoupper($actionType) . " erfolgreich an Relay übermittelt."
+        "success" => true,
+        "action" => $action,
+        "message" => "Prozessbefehl '$action' in Queue hinterlegt."
     ]);
     exit;
 }
 
-// 4. Lokale Bridge holt Jobs & Aktionen ab (Polling)
+// =============================================================================
+// D. LIVE-LOGS STREAMING (Pollen & Pushes)
+// =============================================================================
+if ($action === 'get_logs') {
+    $projectId = $_GET['projectId'] ?? '';
+    $logFile = $storageDir . '/live_logs.json';
+    $logs = [];
+
+    if (file_exists($logFile)) {
+        $allLogs = json_decode(file_get_contents($logFile), true) ?: [];
+        if (!empty($projectId)) {
+            $logs = array_values(array_filter($allLogs, function($l) use ($projectId) {
+                return !isset($l['projectId']) || strpos($l['projectId'], $projectId) !== false;
+            }));
+        } else {
+            $logs = $allLogs;
+        }
+    }
+
+    echo json_encode(["logs" => $logs]);
+    exit;
+}
+
+if ($action === 'push_logs' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $rawInput = file_get_contents('php://input');
+    $newLogs = json_decode($rawInput, true);
+    $logFile = $storageDir . '/live_logs.json';
+
+    $existing = file_exists($logFile) ? (json_decode(file_get_contents($logFile), true) ?: []) : [];
+    if (is_array($newLogs)) {
+        $merged = array_merge($existing, $newLogs);
+        if (count($merged) > 200) {
+            $merged = array_slice($merged, -200);
+        }
+        file_put_contents($logFile, json_encode($merged));
+    }
+
+    echo json_encode(["success" => true]);
+    exit;
+}
+
+// =============================================================================
+// E. LOKALE BRIDGE POLT AUFTRÄGE & SENDET TELEMETRIE (Bridge -> Relay)
+// =============================================================================
 if ($action === 'pull_jobs') {
-    $rawTelemetry = file_get_contents('php://input');
-    $telemetryData = json_decode($rawTelemetry, true) ?: [];
-    $telemetryData['lastSeen'] = time();
-    file_put_contents($storageDir . '/heartbeat.json', json_encode($telemetryData));
-    
-    // Deployment Jobs
-    $jobFiles = glob($storageDir . '/job_*.json');
+    $rawInput = file_get_contents('php://input');
+    $telemetryData = !empty($rawInput) ? json_decode($rawInput, true) : [];
+
+    file_put_contents($storageDir . '/heartbeat.json', json_encode([
+        "lastSeen" => time(),
+        "telemetry" => $telemetryData
+    ]));
+
+    $jobFiles = glob($storageDir . '/{job_,ctrl_}*.json', GLOB_BRACE);
     $jobs = [];
     if ($jobFiles) {
         foreach ($jobFiles as $file) {
-            $jobs[] = ["id" => basename($file, '.json'), "type" => "deploy", "payload" => json_decode(file_get_contents($file), true)];
+            $content = file_get_contents($file);
+            $jobs[] = [
+                "id" => basename($file, '.json'),
+                "payload" => json_decode($content, true)
+            ];
             @unlink($file);
         }
     }
 
-    // Process Actions (Start / Stop / Restart)
-    $actionFiles = glob($storageDir . '/action_*.json');
-    $actions = [];
-    if ($actionFiles) {
-        foreach ($actionFiles as $file) {
-            $actions[] = ["id" => basename($file, '.json'), "type" => "action", "payload" => json_decode(file_get_contents($file), true)];
-            @unlink($file);
-        }
-    }
-
-    echo json_encode([
-        "jobs" => $jobs,
-        "actions" => $actions
-    ]);
+    echo json_encode(["jobs" => $jobs]);
     exit;
 }
 
-// 5. Lokale Bridge meldet Logs an Relay zurück
-if ($action === 'push_logs' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+// =============================================================================
+// F. ERGEBNIS-RÜCKMELDUNG (Bridge -> DB Studio)
+// =============================================================================
+if ($action === 'push_result' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');
-    $logData = json_decode($rawInput, true) ?: [];
-    $projectId = $logData['projectId'] ?? 'default';
-    
-    $existing = [];
-    $logFile = $storageDir . '/logs_' . $projectId . '.json';
-    if (file_exists($logFile)) {
-        $existing = json_decode(file_get_contents($logFile), true) ?: [];
-    }
-    if (!empty($logData['logs'])) {
-        $merged = array_merge($existing, $logData['logs']);
-        $merged = array_slice($merged, -200);
-        file_put_contents($logFile, json_encode($merged));
+    $data = json_decode($rawInput, true);
+    if ($data && isset($data['jobId'])) {
+        file_put_contents($storageDir . '/result_' . $data['jobId'] . '.json', $rawInput);
     }
     echo json_encode(["success" => true]);
     exit;
 }
 
-// 6. DB Studio holt Logs ab (Polling-Fallback)
-if ($action === 'get_logs') {
-    $projectId = $_GET['projectId'] ?? 'default';
-    $logFile = $storageDir . '/logs_' . $projectId . '.json';
-    $logs = file_exists($logFile) ? json_decode(file_get_contents($logFile), true) : [];
-    echo json_encode(["logs" => $logs ?: []]);
+if ($action === 'get_result') {
+    $jobId = $_GET['jobId'] ?? '';
+    $resFile = $storageDir . '/result_' . $jobId . '.json';
+    if (!empty($jobId) && file_exists($resFile)) {
+        $result = json_decode(file_get_contents($resFile), true);
+        echo json_encode(["found" => true, "result" => $result]);
+    } else {
+        echo json_encode(["found" => false, "message" => "Ergebnis noch nicht bereit."]);
+    }
     exit;
 }
 
 http_response_code(404);
-echo json_encode(["error" => "Unbekannte Aktion."]);
+echo json_encode(["error" => "Unbekannte Aktion: " . $action]);
 `;
 }

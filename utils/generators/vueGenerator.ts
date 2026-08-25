@@ -73,7 +73,15 @@ export const generateVue = (
   const isTailwind = config.stylingFramework === 'tailwind' || !config.stylingFramework;
   const isBootstrap = config.stylingFramework === 'bootstrap';
 
-  const dependencies: any = { "vue": "^3.3.4", "vue-router": "^4.2.4", "axios": "^1.6.0", "lucide-vue-next": "^0.294.0" };
+  const dependencies: any = { 
+      "vue": "^3.3.4", 
+      "vue-router": "^4.2.4", 
+      "axios": "^1.6.0", 
+      "lucide-vue-next": "^0.294.0",
+      "xlsx": "^0.18.5",
+      "jspdf": "^2.5.1",
+      "jspdf-autotable": "^3.8.1"
+  };
   const devDependencies: any = { "@vitejs/plugin-vue": "^4.2.3", "typescript": "^5.0.2", "vite": "^4.4.5", "vue-tsc": "^1.8.5" };
 
   if (isBootstrap) {
@@ -112,12 +120,62 @@ export const generateVue = (
   files.push({ name: 'tailwind.config.js', path: `${root}/tailwind.config.js`, content: `/** @type {import('tailwindcss').Config} */\nexport default {\n  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],\n  theme: { extend: {} },\n  plugins: [],\n}`, language: 'javascript' });
   files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `export default { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
 
+  const printStyles = `
+/* Global Print Optimization */
+@media print {
+  header, 
+  nav, 
+  aside, 
+  .navbar, 
+  .no-print, 
+  .d-print-none, 
+  .print\\:hidden, 
+  [data-no-print] {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  html, body, #app, main, .flex-1, .min-h-screen, .min-vh-100 {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  .report-paper {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+}`;
+
   if (isTailwind) {
-      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;`, language: 'css' });
+      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n${printStyles}`, language: 'css' });
   } else if (isBootstrap) {
-      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8f9fa;\n}`, language: 'css' });
+      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';\n@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  background-color: #f8f9fa;\n}\n${printStyles}`, language: 'css' });
   } else {
-      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n}`, language: 'css' });
+      files.push({ name: 'style.css', path: `${root}/src/style.css`, content: `/* Custom CSS here */\nbody {\n  font-family: system-ui, -apple-system, sans-serif;\n}\n${printStyles}`, language: 'css' });
   }
 
   // Clean Index HTML (No CDN)
@@ -138,6 +196,11 @@ export const generateVue = (
           const kebab = toKebabCase(p.name);
           const pascal = toPascalCase(p.name);
           return `{ path: '/custom/${kebab}', component: () => import('@/views/custom/${pascal}.vue') },\n    { path: '/custom/${p.id}', component: () => import('@/views/custom/${pascal}.vue') },\n    { path: '/page/${p.id}', component: () => import('@/views/custom/${pascal}.vue') }`;
+      }),
+      ...reports.map(r => {
+          const kebab = toKebabCase(r.name);
+          const pascal = toPascalCase(r.name);
+          return `{ path: '/reports/${kebab}', component: () => import('@/views/reports/${pascal}Report.vue') },\n    { path: '/reports/${toCamelCase(r.name)}', component: () => import('@/views/reports/${pascal}Report.vue') },\n    { path: '/report/${r.id}', component: () => import('@/views/reports/${pascal}Report.vue') }`;
       })
   ];
 
@@ -610,6 +673,286 @@ ${methods.join('\n')}
       files.push({ name: `${pascal}.vue`, path: `${root}/src/views/custom/${pascal}.vue`, content, language: 'html' });
   });
 
+  // Reports Views
+  reports.forEach(report => {
+      const pascal = toPascalCase(report.name);
+      const orientation = report.settings?.orientation || 'portrait';
+      const widthClass = orientation === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]';
+
+      let endpoint = '';
+      let fields: any[] = [];
+      if (report.sourceType === 'table') {
+          const table = tables.find(t => t.id === report.sourceId);
+          if (table) {
+              endpoint = toCamelCase(table.name);
+              fields = table.fields.map(f => ({ name: f.name, prop: toCamelCase(f.name) }));
+          }
+      } else {
+          const query = queries.find(q => q.id === report.sourceId);
+          if (query) {
+              endpoint = `queries/${toCamelCase(query.name)}`;
+              fields = (query as any).columns?.map((c: any) => ({ name: c.alias || c.fieldName, prop: toCamelCase(c.alias || c.fieldName) })) || [];
+          }
+      }
+
+      const groupingFieldObj = fields.find(f => {
+          if (report.sourceType === 'table') {
+              const t = tables.find(t => t.id === report.sourceId);
+              return t?.fields.find(field => field.id === report.groupingFieldId)?.name === f.name;
+          }
+          return false;
+      });
+      const groupingProp = groupingFieldObj ? groupingFieldObj.prop : null;
+      const safeReportName = report.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      const summaryLogic = report.summaries?.map((s: any) => {
+          const prop = toCamelCase(s.fieldName);
+          if (s.calculation === 'COUNT') return `sum['Anzahl ${s.fieldName}'] = items.length;`;
+          if (s.calculation === 'SUM') return `sum['Summe ${s.fieldName}'] = items.reduce((acc: number, curr: any) => acc + (Number(curr.${prop}) || 0), 0);`;
+          return '';
+      }).join('\n      ') || '';
+
+      const content = `<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
+import { get } from '@/services/api';
+import { Printer, FileSpreadsheet, FileText } from 'lucide-vue-next';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+const data = ref<any[]>([]);
+const loading = ref(true);
+const today = ref(new Date());
+
+onMounted(async () => {
+    try {
+        const res = await get<any>('${endpoint}', { pageSize: 10000 });
+        data.value = Array.isArray(res) ? res : (res?.data || res?.Data || res?.items || res?.Items || []);
+    } finally {
+        loading.value = false;
+    }
+});
+
+const calculateSummaries = (items: any[]) => {
+    const sum: Record<string, any> = {};
+    ${summaryLogic}
+    return sum;
+};
+
+const groupedData = computed(() => {
+    if (!data.value.length) return [];
+    const groupBy: string | null = ${groupingProp ? `'${groupingProp}'` : 'null'};
+    
+    if (!groupBy) {
+        return [{ key: 'Gesamt', items: data.value, summaries: calculateSummaries(data.value) }];
+    }
+
+    const groups: Record<string, any[]> = {};
+    data.value.forEach(item => {
+        const val = item[groupBy] || 'Unbekannt';
+        if (!groups[val]) groups[val] = [];
+        groups[val].push(item);
+    });
+
+    return Object.keys(groups).sort().map(key => ({
+        key,
+        items: groups[key],
+        summaries: calculateSummaries(groups[key])
+    }));
+});
+
+const handlePrint = () => {
+    window.print();
+};
+
+const handleExportExcel = () => {
+    const exportData = groupedData.value.flatMap(group => {
+        return group.items.map(item => {
+            const row: Record<string, any> = {};
+            if (group.key !== 'Gesamt') {
+                row['Gruppe'] = group.key;
+            }
+            ${report.columns?.filter(c=>c.visible).map(c => {
+                const foundField = fields.find(f => f.name === c.label);
+                const prop = foundField ? foundField.prop : toCamelCase(c.label);
+                const pascalProp = toPascalCase(c.label);
+                return `row['${c.label}'] = item['${prop}'] ?? item['${pascalProp}'] ?? item['${c.label}'] ?? '';`;
+            }).join('\n            ')}
+            return row;
+        });
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Bericht");
+    XLSX.writeFile(wb, '${safeReportName}.xlsx');
+};
+
+const handleExportPDF = () => {
+    const doc = new jsPDF({ orientation: '${orientation}' });
+    
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('${report.name.replace(/'/g, "\\'")}', 14, 18);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    ${report.settings?.subtitle ? `doc.text('${report.settings.subtitle.replace(/'/g, "\\'")}', 14, 25);` : ''}
+    doc.text('Erstellt am: ' + today.value.toLocaleDateString('de-DE') + ' ' + today.value.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr', 14, ${report.settings?.subtitle ? 31 : 25});
+    
+    let currentY = ${report.settings?.subtitle ? 38 : 32};
+    const tableHeaders = [${report.columns?.filter(c=>c.visible).map(c => `'${c.label.replace(/'/g, "\\'")}'`).join(', ')}];
+    
+    groupedData.value.forEach((group) => {
+        if (group.key !== 'Gesamt') {
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 41, 59);
+            doc.text(String(group.key), 14, currentY);
+            currentY += 5;
+        }
+        
+        const rows = group.items.map(item => [
+            ${report.columns?.filter(c=>c.visible).map(c => {
+                const foundField = fields.find(f => f.name === c.label);
+                const prop = foundField ? foundField.prop : toCamelCase(c.label);
+                const pascalProp = toPascalCase(c.label);
+                return `String(item['${prop}'] ?? item['${pascalProp}'] ?? item['${c.label}'] ?? '')`;
+            }).join(',\n            ')}
+        ]);
+        
+        autoTable(doc, {
+            head: [tableHeaders],
+            body: rows,
+            startY: currentY,
+            theme: 'striped',
+            headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+            styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [30, 41, 59] },
+            margin: { left: 14, right: 14 }
+        });
+        
+        currentY = (doc as any).lastAutoTable.finalY + 4;
+        
+        if (Object.keys(group.summaries).length > 0) {
+            doc.setFontSize(8.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(71, 85, 105);
+            const sumText = Object.entries(group.summaries).map(([k, v]) => k + ': ' + v).join('   |   ');
+            doc.text(sumText, 14, currentY);
+            currentY += 8;
+        }
+        currentY += 4;
+    });
+    
+    doc.save('${safeReportName}.pdf');
+};
+</script>
+
+<template>
+  <div class="w-full space-y-6">
+    <!-- Toolbar for Actions -->
+    <div class="no-print print:hidden max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <div>
+            <h2 class="text-lg font-bold text-slate-800 dark:text-white">${report.name}</h2>
+            <p class="text-xs text-slate-500">Druckansicht, Excel & PDF Export</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button @click="handlePrint" class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white font-medium px-3.5 py-2 rounded-lg text-xs shadow-sm transition-colors cursor-pointer">
+                <Printer :size="15" />
+                Drucken
+            </button>
+            <button @click="handleExportExcel" class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3.5 py-2 rounded-lg text-xs shadow-sm transition-colors cursor-pointer">
+                <FileSpreadsheet :size="15" />
+                Excel (.xlsx)
+            </button>
+            <button @click="handleExportPDF" class="inline-flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium px-3.5 py-2 rounded-lg text-xs shadow-sm transition-colors cursor-pointer">
+                <FileText :size="15" />
+                PDF Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Printable Sheet -->
+    <div class="report-paper p-8 sm:p-12 ${widthClass} mx-auto min-h-screen bg-white shadow-xl rounded-xl border border-slate-200/80 my-4 print:shadow-none print:border-none print:m-0 print:p-0 print:min-h-0 print:my-0 text-slate-800">
+      <div class="border-b-2 border-slate-800 pb-4 mb-6">
+        ${report.settings?.logoPosition === 'center' ? `
+          <div class="flex flex-col items-center text-center space-y-2">
+              ${report.settings?.companyLogoUrl ? `<img src="${report.settings.companyLogoUrl}" alt="Logo" class="h-12 max-w-[200px] mb-1 object-contain" />` : ''}
+              <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">${report.name}</h1>
+              ${report.settings?.subtitle ? `<p class="text-sm text-slate-600 font-medium">${report.settings.subtitle}</p>` : ''}
+              <p class="text-xs text-slate-500 font-mono">Erstellt am: {{ today.toLocaleDateString('de-DE') }} {{ today.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }} Uhr</p>
+          </div>
+        ` : report.settings?.logoPosition === 'right' ? `
+          <div class="flex justify-between items-start gap-4">
+              <div>
+                  <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">${report.name}</h1>
+                  ${report.settings?.subtitle ? `<p class="text-sm text-slate-600 font-medium mt-1">${report.settings.subtitle}</p>` : ''}
+                  <p class="text-xs text-slate-500 font-mono mt-1">Erstellt am: {{ today.toLocaleDateString('de-DE') }} {{ today.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }} Uhr</p>
+              </div>
+              ${report.settings?.companyLogoUrl ? `
+              <div class="flex-shrink-0">
+                  <img src="${report.settings.companyLogoUrl}" alt="Logo" class="h-12 max-w-[180px] object-contain" />
+              </div>` : ''}
+          </div>
+        ` : `
+          <div class="flex justify-between items-start gap-4">
+              <div>
+                  ${report.settings?.companyLogoUrl ? `<img src="${report.settings.companyLogoUrl}" alt="Logo" class="h-12 max-w-[180px] mb-2 object-contain" />` : ''}
+                  <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">${report.name}</h1>
+                  ${report.settings?.subtitle ? `<p class="text-sm text-slate-600 font-medium mt-1">${report.settings.subtitle}</p>` : ''}
+                  <p class="text-xs text-slate-500 font-mono mt-1">Erstellt am: {{ today.toLocaleDateString('de-DE') }} {{ today.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) }} Uhr</p>
+              </div>
+          </div>
+        `}
+      </div>
+
+      <div v-if="loading" class="py-12 text-center text-slate-500">
+          <p>Lade Berichtsdaten...</p>
+      </div>
+
+      <div v-else-if="groupedData.length === 0" class="py-12 text-center text-slate-400">
+          <p class="text-base font-medium">Keine Daten für diesen Bericht gefunden.</p>
+      </div>
+
+      <div v-else class="space-y-8">
+          <div v-for="group in groupedData" :key="group.key" class="break-inside-avoid">
+              <div v-if="group.key !== 'Gesamt'" class="bg-slate-100 p-2.5 border border-slate-300 rounded-t-md font-bold text-base text-slate-800">
+                  {{ group.key }}
+              </div>
+              <div class="overflow-x-auto print:overflow-visible">
+                  <table class="w-full border-collapse text-sm">
+                      <thead>
+                          <tr class="border-b-2 border-slate-300 bg-slate-50 text-left">
+                              ${report.columns?.filter(c => c.visible).map(c => `<th class="p-2.5 font-bold uppercase text-slate-700 text-xs">${c.label}</th>`).join('')}
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr v-for="(item, idx) in group.items" :key="idx" class="border-b border-slate-200 hover:bg-slate-50/50">
+                              ${report.columns?.filter(c => c.visible).map(c => {
+                                  const foundField = fields.find(f => f.name === c.label);
+                                  const prop = foundField ? foundField.prop : toCamelCase(c.label);
+                                  const pascalProp = toPascalCase(c.label);
+                                  return `<td class="p-2.5 text-slate-800">{{ item['${prop}'] ?? item['${pascalProp}'] ?? item['${c.label}'] ?? '-' }}</td>`;
+                              }).join('')}
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+              <div v-if="Object.keys(group.summaries).length > 0" class="bg-slate-50 p-3 mt-1 border-t-2 border-slate-300 rounded-b-md text-right text-xs sm:text-sm text-slate-700">
+                  <span v-for="(val, key) in group.summaries" :key="key" class="ml-4 inline-block">
+                      <strong>{{ key }}:</strong> {{ val }}
+                  </span>
+              </div>
+          </div>
+      </div>
+    </div>
+  </div>
+</template>`;
+
+      files.push({ name: `${pascal}Report.vue`, path: `${root}/src/views/reports/${pascal}Report.vue`, content, language: 'html' });
+  });
+
   // HomeView
   files.push({
       name: 'HomeView.vue', path: `${root}/src/views/HomeView.vue`,
@@ -657,17 +1000,20 @@ const wl = ref({ appName: '${wl.appName}' });
 </script>
 
 <template>
-  <div class="min-h-screen flex bg-slate-50 font-sans text-slate-800">
+  <div class="min-h-screen flex bg-slate-50 font-sans text-slate-800 print:min-h-0 print:bg-white">
       <!-- Sidebar -->
       <aside 
           :class="[
-              'bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col transition-all duration-300',
+              'bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col transition-all duration-300 print:hidden no-print',
               isCollapsed ? 'w-16' : 'w-64'
           ]"
       >
           <!-- Sidebar Header -->
           <div class="h-16 flex items-center justify-between px-4 border-b border-slate-800 bg-slate-950/40">
-              <span v-if="!isCollapsed" class="font-bold text-lg text-white tracking-tight truncate">${wl.appName}</span>
+              <div v-if="!isCollapsed" class="flex items-center gap-2 overflow-hidden">
+                  ${wl.logoUrl ? `<img src="${wl.logoUrl}" alt="Logo" class="h-7 max-w-[100px] object-contain rounded" />` : ''}
+                  <span class="font-bold text-lg text-white tracking-tight truncate">${wl.appName}</span>
+              </div>
               <span v-else class="font-bold text-lg text-white tracking-tight mx-auto">${wl.appName.charAt(0)}</span>
               <button @click="isCollapsed = !isCollapsed" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white hidden md:block">
                   <Menu size="18" />
@@ -712,6 +1058,17 @@ const wl = ref({ appName: '${wl.appName}' });
                   <span v-if="!isCollapsed">${p.name}</span>
               </router-link>`;
               }).join('\n')}
+
+              <!-- Reports Section -->
+              <div v-if="${reports.length > 0 ? 'true' : 'false'} && !isCollapsed" class="px-3 pt-4 pb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider font-bold">Berichte</div>
+              ${reports.map(r => {
+                  const kebab = toKebabCase(r.name);
+                  return `
+              <router-link to="/reports/${kebab}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all font-medium text-sm" active-class="bg-blue-600 text-white hover:bg-blue-600!">
+                  <BarChart size="18" />
+                  <span v-if="!isCollapsed">${r.name}</span>
+              </router-link>`;
+              }).join('\n')}
           </nav>
 
           <!-- Sidebar Footer -->
@@ -727,9 +1084,9 @@ const wl = ref({ appName: '${wl.appName}' });
       </aside>
 
       <!-- Main Layout -->
-      <div class="flex-1 flex flex-col min-h-screen overflow-hidden">
+      <div class="flex-1 flex flex-col min-h-screen overflow-hidden print:min-h-0 print:overflow-visible">
           <!-- Main Header -->
-          <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-xs">
+          <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-xs print:hidden no-print">
               <div class="flex items-center gap-2">
                   <h2 class="text-sm font-semibold text-slate-500">System Dashboard</h2>
                   <ChevronRight size="14" class="text-slate-400" />
@@ -743,7 +1100,7 @@ const wl = ref({ appName: '${wl.appName}' });
           </header>
 
           <!-- Content Canvas -->
-          <main class="flex-1 overflow-y-auto bg-slate-50">
+          <main class="flex-1 overflow-y-auto bg-slate-50 print:bg-white print:p-0 print:overflow-visible">
               <router-view />
           </main>
       </div>

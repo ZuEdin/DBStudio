@@ -3,6 +3,7 @@ import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard,
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
+import { RibbonDropdownButton } from '../RibbonDropdownButton';
 import { useTranslation } from 'react-i18next';
 import { useBridgeStore } from '../../../stores/useBridgeStore';
 
@@ -36,6 +37,9 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
     isChecking: isBridgeChecking 
   } = useBridgeStore();
 
+  const isRelayBridge = bridgeConfig.host.includes('.php') || bridgeConfig.useCustomPort === false || (bridgeConfig.host.startsWith('https://') && !bridgeConfig.host.includes('127.0.0.1') && !bridgeConfig.host.includes('localhost'));
+  const bridgeLabelText = isRelayBridge ? 'PHP Relay' : `Port ${bridgeConfig.port || 5050}`;
+
   const getDbLabel = (type: DbType) => {
     switch(type) {
       case 'SQL': return 'SQL Server';
@@ -44,6 +48,17 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
       case 'PostgreSQL': return 'PostgreSQL';
       case 'NoSQL': return 'NoSQL (Mongo)';
       default: return type;
+    }
+  };
+
+  const getDbShortLabel = (type: DbType) => {
+    switch(type) {
+      case 'SQL': return 'SQL Server';
+      case 'MySQL': return 'MySQL';
+      case 'SQLite': return 'SQLite';
+      case 'PostgreSQL': return 'PostgreSQL';
+      case 'NoSQL': return 'MongoDB';
+      default: return String(type);
     }
   };
 
@@ -61,6 +76,25 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
     }
   };
 
+  const getFrontendShortLabel = (fw: FrontendFramework) => {
+    switch(fw) {
+      case 'react': return 'React';
+      case 'vue': return 'Vue.js';
+      case 'angular-modern': return 'Angular 19';
+      case 'angular': return 'Angular';
+      case 'blazor': return 'Blazor';
+      case 'maui': return '.NET MAUI';
+      case 'maui-native': return 'MAUI Native';
+      case 'none': return 'Nur API';
+      default: return String(fw);
+    }
+  };
+
+  const getFrontendFullLabel = (fw: FrontendFramework, styling?: string) => {
+    const fwName = getFrontendLabel(fw);
+    return `${fwName} (${styling || 'tailwind'})`;
+  };
+
   const getBackendLabel = (lang: string) => {
     switch(lang) {
       case 'dotnet': return '.NET API';
@@ -74,6 +108,19 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
     }
   };
 
+  const getBackendShortLabel = (lang: string, version?: string) => {
+    switch(lang) {
+      case 'dotnet': return `.NET ${version || '10.0'}`;
+      case 'nodejs': return 'Node.js';
+      case 'python': return 'Python';
+      case 'php': return 'PHP';
+      case 'laravel': return 'Laravel';
+      case 'electron': return 'Electron';
+      case 'tauri': return 'Tauri';
+      default: return lang;
+    }
+  };
+
   const getProtocolLabel = (mode?: 'http' | 'https' | 'both') => {
     if (mode === 'http') return 'Nur HTTP';
     if (mode === 'https') return 'Nur HTTPS';
@@ -81,190 +128,390 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
   };
 
   return (
-    <div className="flex gap-4 items-start h-full relative">
-        {/* Settings Overview Group */}
-        <div className="relative flex flex-col px-3 border-r border-slate-300 pr-5 h-full py-1 bg-slate-50/50 rounded-l min-w-[280px]">
-           <div className="flex flex-col gap-1">
-             <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Aktive Konfiguration</span>
-             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-0.5 text-slate-700 text-xs">
-                <div>
-                  <span className="text-slate-400 font-semibold">DB:</span>{' '}
-                  <span className="font-bold text-slate-800">{getDbLabel(backendConfig.dbType)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold">API:</span>{' '}
-                  <span className="font-bold text-blue-700">{getBackendLabel(backendConfig.language)} {backendConfig.language === 'dotnet' ? (backendConfig.backendVersion || '10.0') : ''}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold">Web:</span>{' '}
-                  <span className="font-bold text-emerald-700">{getFrontendLabel(backendConfig.frontendFramework)} ({backendConfig.stylingFramework || 'tailwind'})</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold">Port:</span>{' '}
-                  <span className="font-mono text-slate-600">{backendConfig.port} {backendConfig.language === 'dotnet' && ` / ${backendConfig.port + 1}`}</span>
-                </div>
-                <div className="col-span-2 flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded font-bold">
-                    {getProtocolLabel(backendConfig.protocolMode)}
-                  </span>
-                  {backendConfig.useSwagger && (
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
-                      Swagger (Aktiv)
-                    </span>
-                  )}
-                </div>
+    <div className="flex gap-3 items-center h-full relative">
+        {/* Settings Overview Group - Compact, height-constrained to prevent ribbon stretching */}
+        <div className="relative flex flex-col justify-between h-[74px] w-[265px] shrink-0 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-2xs">
+           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-0.5">
+             <div className="flex items-center gap-1.5 min-w-0">
+               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">
+                 Aktive Konfiguration
+               </span>
              </div>
+             <button 
+               onClick={() => setShowSettingsModal(true)}
+               className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 p-0.5 rounded transition-colors cursor-pointer"
+               title="Generator- & Backend-Einstellungen anpassen"
+             >
+               <Settings size={12} />
+             </button>
            </div>
            
-           <div className="absolute bottom-2 right-2">
-               <button 
-                    onClick={() => setShowSettingsModal(true)}
-                    className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded p-1.5 shadow-sm flex items-center justify-center transition-all"
-                    title="Einstellungen"
-                >
-                    <Settings size={14} className="text-slate-600" />
-                </button>
+           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs">
+              <div className="flex items-center gap-1 min-w-0" title={`Datenbank: ${getDbLabel(backendConfig.dbType)}`}>
+                <span className="text-[10px] text-slate-400 font-semibold shrink-0">DB:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 truncate text-[11px]">{getDbShortLabel(backendConfig.dbType)}</span>
+              </div>
+              <div className="flex items-center gap-1 min-w-0" title={`Backend API: ${getBackendLabel(backendConfig.language)} ${backendConfig.language === 'dotnet' ? (backendConfig.backendVersion || '10.0') : ''}`}>
+                <span className="text-[10px] text-slate-400 font-semibold shrink-0">API:</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400 truncate text-[11px]">{getBackendShortLabel(backendConfig.language, backendConfig.backendVersion)}</span>
+              </div>
+              <div className="flex items-center gap-1 min-w-0" title={`Frontend: ${getFrontendFullLabel(backendConfig.frontendFramework, backendConfig.stylingFramework)}`}>
+                <span className="text-[10px] text-slate-400 font-semibold shrink-0">Web:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 truncate text-[11px]">{getFrontendShortLabel(backendConfig.frontendFramework)}</span>
+              </div>
+              <div className="flex items-center gap-1 min-w-0" title={`Port: ${backendConfig.port}${backendConfig.language === 'dotnet' ? ` / ${backendConfig.port + 1}` : ''}`}>
+                <span className="text-[10px] text-slate-400 font-semibold shrink-0">Port:</span>
+                <span className="font-mono text-slate-600 dark:text-slate-300 truncate text-[11px]">{backendConfig.port}{backendConfig.language === 'dotnet' ? `/${backendConfig.port + 1}` : ''}</span>
+              </div>
+           </div>
+
+           <div className="flex items-center gap-1 pt-0.5 border-t border-slate-100 dark:border-slate-800/80">
+              <span className="text-[9px] bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-bold truncate">
+                {getProtocolLabel(backendConfig.protocolMode)}
+              </span>
+              {backendConfig.useSwagger && (
+                <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1 py-0.2 rounded font-bold truncate">
+                  Swagger
+                </span>
+              )}
+              <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1 py-0.2 rounded font-medium ml-auto truncate" title={`Styling: ${backendConfig.stylingFramework || 'tailwind'}`}>
+                {backendConfig.stylingFramework || 'tailwind'}
+              </span>
            </div>
         </div>
 
-        {/* Schema & Migrations Group */}
+        {/* Schema & DB Ops Dropdown Button Group */}
         <RibbonGroup label="Schema & DB Ops">
-            <RibbonButton 
+            <RibbonDropdownButton 
                 icon={<GitCommit className="text-indigo-600" />} 
-                label="Schema-Diff" 
-                onClick={() => onAction('open_schema_diff')} 
+                label="Schema & DB Ops" 
+                menuHeader="Schema & Datenbank-Operationen"
+                onMainClick={() => onAction('open_schema_diff')} 
                 size="large"
+                items={[
+                    {
+                        id: 'schema_diff',
+                        label: 'Visueller Schema-Diff',
+                        description: 'Vergleich mit gespeicherten Snapshots & Tabellenstrukturen',
+                        icon: <GitCommit size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_schema_diff'),
+                        badge: 'Diff',
+                        badgeColor: 'indigo'
+                    },
+                    {
+                        id: 'preflight_check',
+                        label: 'Pre-Flight Risk Check',
+                        description: 'Risikoanalyse & Zero-Downtime Validierung vor Ausführung',
+                        icon: <ShieldCheck size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('open_schema_diff'),
+                        badge: 'Sicher',
+                        badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'migrations',
+                        label: 'Migrationen & SQL Code',
+                        description: 'Flyway, Liquibase & native DDL Migrationsskripte',
+                        icon: <Database size={14} className="text-blue-600" />,
+                        onClick: () => onAction('open_migrations'),
+                        badge: 'DDL',
+                        badgeColor: 'blue'
+                    }
+                ]}
             />
-            <div className="flex flex-col gap-1">
-                <button onClick={() => onAction('open_schema_diff')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
-                    <ShieldCheck size={12} className="text-emerald-600"/> Pre-Flight Check
-                </button>
-                <button onClick={() => onAction('open_migrations')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
-                    <Database size={12} className="text-indigo-600"/> Migrationen
-                </button>
-            </div>
         </RibbonGroup>
 
-        {/* API & Mocking Group */}
+        {/* Live API & Mocking Dropdown Button Group */}
         <RibbonGroup label="Live API & Mocking">
-            <RibbonButton 
+            <RibbonDropdownButton 
                 icon={<Globe className="text-emerald-600" />} 
-                label="OpenAPI 3.1" 
-                onClick={() => onAction('open_openapi_mock')} 
+                label="Live API & Mocking" 
+                menuHeader="REST API & Simulation"
+                onMainClick={() => onAction('open_openapi_mock')} 
                 size="large"
+                items={[
+                    {
+                        id: 'openapi_spec',
+                        label: 'OpenAPI 3.1 & Swagger',
+                        description: 'Interaktive Spezifikation & API-Dokumentation aller Endpunkte',
+                        icon: <Globe size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('open_openapi_mock'),
+                        badge: 'v3.1',
+                        badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'mock_server',
+                        label: 'Live Mock Server',
+                        description: 'In-Browser REST-Server für sofortige Frontend-Tests mit Testdaten',
+                        icon: <Radio size={14} className="text-teal-600" />,
+                        onClick: () => onAction('open_openapi_mock'),
+                        badge: 'Mock',
+                        badgeColor: 'blue'
+                    },
+                    {
+                        id: 'postman_curl',
+                        label: 'Postman Collection & cURL',
+                        description: 'Postman JSON & vorkonfigurierte cURL Befehle exportieren',
+                        icon: <FileCode size={14} className="text-orange-600" />,
+                        onClick: () => onAction('open_openapi_mock'),
+                        badge: 'Export',
+                        badgeColor: 'amber'
+                    }
+                ]}
             />
-            <div className="flex flex-col gap-1">
-                <button onClick={() => onAction('open_openapi_mock')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
-                    <Radio size={12} className="text-emerald-600"/> Mock Server
-                </button>
-                <button onClick={() => onAction('open_openapi_mock')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
-                    <FileCode size={12} className="text-orange-600"/> Postman / cURL
-                </button>
-            </div>
         </RibbonGroup>
 
-        {/* Security & Governance Group */}
+        {/* Security & Governance Dropdown Button Group */}
         <RibbonGroup label="Security & Data Gov">
-            <RibbonButton 
+            <RibbonDropdownButton 
                 icon={<ShieldAlert className="text-rose-600" />} 
-                label="RLS & Rollen" 
-                onClick={() => onAction('open_security_rls')} 
+                label="Security & Data Gov" 
+                menuHeader="Sicherheit & Data Governance"
+                onMainClick={() => onAction('open_security_rls')} 
                 size="large"
+                items={[
+                    {
+                        id: 'rls_roles',
+                        label: 'RLS & Rollen',
+                        description: 'Row Level Security & Mandantentrennung für alle Tabellen',
+                        icon: <ShieldAlert size={14} className="text-rose-600" />,
+                        onClick: () => onAction('open_security_rls'),
+                        badge: 'RLS',
+                        badgeColor: 'rose'
+                    },
+                    {
+                        id: 'crud_matrix',
+                        label: 'CRUD Matrix',
+                        description: 'Granulare Berechtigungen (Create, Read, Update, Delete) je Rolle',
+                        icon: <ShieldCheck size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('open_security_rls'),
+                        badge: 'Rollen',
+                        badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'audit_trail',
+                        label: 'Audit & Time-Travel',
+                        description: 'Revisionssichere Änderungshistorie und Point-in-Time Wiederherstellung',
+                        icon: <History size={14} className="text-purple-600" />,
+                        onClick: () => onAction('open_audit_trail'),
+                        badge: 'Audit',
+                        badgeColor: 'purple'
+                    }
+                ]}
             />
-            <div className="flex flex-col gap-1">
-                <button onClick={() => onAction('open_security_rls')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
-                    <ShieldCheck size={12} className="text-emerald-600"/> CRUD Matrix
-                </button>
-                <button onClick={() => onAction('open_audit_trail')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium">
-                    <History size={12} className="text-purple-600"/> Audit & Time-Travel
-                </button>
-            </div>
         </RibbonGroup>
 
         {/* Extensions Group */}
         <RibbonGroup label="Extensions">
-            <RibbonButton 
+            <RibbonDropdownButton 
                 icon={<CircuitBoard className="text-purple-600" />} 
                 label="Integrations Hub" 
-                onClick={() => onAction('open_integrations')} 
+                menuHeader="Erweiterungen & Schnittstellen"
+                onMainClick={() => onAction('open_integrations')} 
                 size="large"
+                items={[
+                    {
+                        id: 'integrations_hub',
+                        label: 'Integrations Hub',
+                        description: 'Konnektoren, Webhooks & Drittanbieter-Anbindungen verwalten',
+                        icon: <CircuitBoard size={14} className="text-purple-600" />,
+                        onClick: () => onAction('open_integrations'),
+                        badge: 'Hub',
+                        badgeColor: 'purple'
+                    },
+                    {
+                        id: 'ai_llm',
+                        label: 'AI & LLM Services',
+                        description: 'Gemini, OpenAI, Vector DB & KI-Funktionen für Datenbank & SDUI',
+                        icon: <CloudLightning size={14} className="text-amber-500" />,
+                        onClick: () => onAction('open_integrations'),
+                        badge: 'AI',
+                        badgeColor: 'amber'
+                    },
+                    {
+                        id: 'chat_realtime',
+                        label: 'Chat / Realtime Sync',
+                        description: 'WebSockets, SSE & Echtzeit-Kollaboration für Multi-User',
+                        icon: <Radio size={14} className="text-blue-500" />,
+                        onClick: () => onAction('open_integrations'),
+                        badge: 'Realtime',
+                        badgeColor: 'blue'
+                    }
+                ]}
             />
-            <div className="flex flex-col gap-1">
-                <button onClick={() => onAction('open_integrations')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-2 text-slate-600">
-                    <CloudLightning size={12}/> AI & LLM
-                </button>
-                <button onClick={() => onAction('open_integrations')} className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-2 text-slate-600">
-                    <Radio size={12}/> Chat / Realtime
-                </button>
-            </div>
         </RibbonGroup>
 
-        {/* Cloud Group */}
+        {/* Cloud & DevOps Dropdown Group */}
         <RibbonGroup label="Cloud & DevOps">
-            <RibbonButton icon={<Server className="text-indigo-600" />} label="Self-Host" onClick={() => onAction('dbstudio_backend')} />
-            <RibbonButton icon={<RefreshCw className="text-emerald-600" />} label="Offline Sync" onClick={() => onAction('open_offline_sync')} />
-            <RibbonButton icon={<Server className="text-teal-600" />} label="Umgebungen" onClick={() => onAction('open_envs')} />
-            <RibbonButton icon={<UploadCloud className="text-indigo-600" />} label="Deployment" onClick={() => onAction('open_deployment_modal')} />
+            <RibbonDropdownButton 
+                icon={<UploadCloud className="text-indigo-600" />} 
+                label="Cloud & DevOps" 
+                menuHeader="Cloud Deployment & DevOps"
+                onMainClick={() => onAction('open_deployment_modal')} 
+                size="large"
+                items={[
+                    {
+                        id: 'cloud_deploy',
+                        label: 'Cloud Deployment',
+                        description: 'Vercel, AWS, Azure, GCP & Docker Container deployen',
+                        icon: <UploadCloud size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_deployment_modal'),
+                        badge: 'Cloud',
+                        badgeColor: 'indigo'
+                    },
+                    {
+                        id: 'self_host',
+                        label: 'Self-Host & On-Premise',
+                        description: 'Lokales Backend & Container-Instanz bereitstellen',
+                        icon: <Server size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('dbstudio_backend'),
+                        badge: 'Server',
+                        badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'offline_sync',
+                        label: 'Offline Sync & PWA',
+                        description: 'Offline-Replikation & IndexedDB Synchronisation',
+                        icon: <RefreshCw size={14} className="text-teal-600" />,
+                        onClick: () => onAction('open_offline_sync'),
+                        badge: 'Sync',
+                        badgeColor: 'teal'
+                    },
+                    {
+                        id: 'environments',
+                        label: 'Umgebungen & Staging',
+                        description: 'Dev-, Staging- & Produktiv-Konfigurationen verwalten',
+                        icon: <Server size={14} className="text-blue-600" />,
+                        onClick: () => onAction('open_envs'),
+                        badge: 'Stage',
+                        badgeColor: 'blue'
+                    }
+                ]}
+            />
         </RibbonGroup>
 
-        {/* Lokale Bridge (PC Execution Runner) Group */}
-        <RibbonGroup label="Lokale Ausführung & Bridge">
-            <RibbonButton 
+        {/* Lokale Bridge (PC Execution Runner) Dropdown Group */}
+        <RibbonGroup label="Lokale Ausführung">
+            <RibbonDropdownButton 
                 icon={<Laptop className={isBridgeOnline ? "text-emerald-600 animate-pulse" : "text-slate-400"} />} 
                 label="Auf PC ausführen" 
-                sublabel={isBridgeOnline ? `Online (Port ${bridgeConfig.port})` : `Offline (Port ${bridgeConfig.port})`}
-                onClick={() => onAction('deploy_to_bridge')} 
+                sublabel={isBridgeOnline ? `Online (${bridgeLabelText})` : `Offline (${bridgeLabelText})`}
+                menuHeader={isRelayBridge ? 'PHP Relay Gateway & Local Runner' : `Lokale Bridge & Runner (${bridgeLabelText})`}
+                onMainClick={() => onAction('deploy_to_bridge')} 
                 size="large"
-                className={isBridgeOnline ? "ring-2 ring-emerald-500/30 bg-emerald-50/50" : "opacity-80"}
+                className={isBridgeOnline ? "ring-2 ring-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20" : ""}
+                items={[
+                    {
+                        id: 'bridge_run',
+                        label: 'Auf lokalem PC starten',
+                        description: 'Vollständige App auf lokalem Rechner kompilieren & ausführen',
+                        icon: <Laptop size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('deploy_to_bridge'),
+                        badge: isBridgeOnline ? 'Online' : 'Offline',
+                        badgeColor: isBridgeOnline ? 'emerald' : 'rose'
+                    },
+                    {
+                        id: 'bridge_terminal',
+                        label: 'Live-Konsole & Terminal',
+                        description: 'Echtzeit-Terminalausgabe, Build-Logs & Prozess-Status',
+                        icon: <Terminal size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_bridge_runner'),
+                        badge: 'Logs',
+                        badgeColor: 'indigo'
+                    },
+                    {
+                        id: 'bridge_store',
+                        label: 'Shared Store (Aktiv)',
+                        description: 'Gemeinsamer npm/NuGet Cache & Offline-Abhängigkeiten',
+                        icon: <Layers size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('open_bridge_options'),
+                        badge: 'Shared',
+                        badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'bridge_settings',
+                        label: 'Bridge-Einstellungen',
+                        description: 'Port, Authentifizierungstoken & Runner-Optionen konfigurieren',
+                        icon: <Settings size={14} className="text-slate-600" />,
+                        onClick: () => onAction('open_bridge_options'),
+                        badge: bridgeLabelText,
+                        badgeColor: 'blue'
+                    }
+                ]}
             />
-            <div className="flex flex-col gap-1">
-                <button 
-                  onClick={() => onAction('open_bridge_runner')} 
-                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
-                  title="Live Terminal & Logs der lokalen Bridge öffnen"
-                >
-                    <Terminal size={12} className="text-indigo-600"/> Live-Konsole
-                </button>
-                <button 
-                  onClick={() => onAction('open_bridge_options')} 
-                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
-                  title="Bridge Einstellungen & Shared Dependencies"
-                >
-                    <Layers size={12} className="text-emerald-600"/> Shared Store (Aktiv)
-                </button>
-            </div>
         </RibbonGroup>
 
-        {/* WordPress Plugin Generator Group */}
+        {/* WordPress Plugin Generator Dropdown Group */}
         <RibbonGroup label="WordPress">
-            <RibbonButton 
+            <RibbonDropdownButton 
                 icon={<Package className="text-blue-600" />} 
-                label="WP Plugin Generator" 
-                sublabel="Forms, Views & REST"
-                onClick={() => onAction('open_wordpress_generator')} 
+                label="WP Plugin Gen" 
+                sublabel="Forms & REST"
+                menuHeader="WordPress Plugin & REST Generator"
+                onMainClick={() => onAction('open_wordpress_generator')} 
                 size="large"
-                className="hover:bg-blue-50"
+                items={[
+                    {
+                        id: 'wp_studio',
+                        label: 'WP Plugin Studio',
+                        description: 'Visueller Generator für Custom Post Types, Tabellen & Admin-Menüs',
+                        icon: <Package size={14} className="text-blue-600" />,
+                        onClick: () => onAction('open_wordpress_generator'),
+                        badge: 'Studio',
+                        badgeColor: 'blue'
+                    },
+                    {
+                        id: 'wp_zip',
+                        label: 'Plugin ZIP herunterladen',
+                        description: 'Installationsbereites .zip Archiv für WordPress 6.x erstellen',
+                        icon: <Download size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_wordpress_generator'),
+                        badge: 'ZIP',
+                        badgeColor: 'indigo'
+                    },
+                    {
+                        id: 'wp_shortcodes',
+                        label: 'Shortcodes & Block Widgets',
+                        description: 'Gutenberg-Blöcke & PHP-Shortcodes für Tabellen & Formulare',
+                        icon: <FileCode size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('open_wordpress_generator'),
+                        badge: 'Code',
+                        badgeColor: 'emerald'
+                    }
+                ]}
             />
-            <div className="flex flex-col gap-1">
-                <button 
-                  onClick={() => onAction('open_wordpress_generator')} 
-                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
-                >
-                    <Download size={12} className="text-blue-600"/> Plugin ZIP
-                </button>
-                <button 
-                  onClick={() => onAction('open_wordpress_generator')} 
-                  className="text-[10px] text-left px-2 py-1 hover:bg-slate-200 rounded flex items-center gap-1.5 text-slate-700 font-medium"
-                >
-                    <FileCode size={12} className="text-emerald-600"/> Shortcodes
-                </button>
-            </div>
         </RibbonGroup>
 
-        {/* Export Group */}
+        {/* Export Dropdown Group */}
         <RibbonGroup label="Export" isLast>
-            <RibbonButton icon={<FileCode className="text-green-600"/>} label="Codegenerierung" onClick={() => onAction('backend_generate')} />
-            <RibbonButton icon={<Download className="text-slate-600"/>} label="App als ZIP" onClick={() => onAction('backend_export')} />
+            <RibbonDropdownButton 
+                icon={<Download className="text-emerald-600" />} 
+                label="Export & ZIP" 
+                sublabel="Codegenerierung"
+                menuHeader="Projekt-Export & Quellcode"
+                onMainClick={() => onAction('backend_generate')} 
+                size="large"
+                items={[
+                    {
+                        id: 'export_code',
+                        label: 'Codegenerierung starten',
+                        description: 'Backend- & Frontend-Dateien gemäß Ziel-Stack kompilieren',
+                        icon: <FileCode size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('backend_generate'),
+                        badge: 'Code',
+                        badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'export_zip',
+                        label: 'Projekt als ZIP exportieren',
+                        description: 'Gesamte Projektstruktur inklusive Configs & DDL als ZIP sichern',
+                        icon: <Download size={14} className="text-blue-600" />,
+                        onClick: () => onAction('backend_export'),
+                        badge: 'ZIP',
+                        badgeColor: 'blue'
+                    }
+                ]}
+            />
         </RibbonGroup>
 
         {/* Generator settings Modal */}

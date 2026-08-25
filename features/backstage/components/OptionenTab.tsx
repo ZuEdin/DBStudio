@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useConfigStore } from '../../../stores/useConfigStore';
-import { useBridgeStore } from '../../../stores/useBridgeStore';
+import { useBridgeStore, getBridgeDisplayUrl } from '../../../stores/useBridgeStore';
 import { useUIStore } from '../../../stores/useUIStore';
 import { 
   Sliders, 
@@ -18,7 +18,8 @@ import {
   Key,
   ExternalLink,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Copy
 } from 'lucide-react';
 import { downloadBridgePackageZip, downloadRelayPhpScript } from '../../../utils/bridgePackageGenerator';
 
@@ -53,18 +54,19 @@ export const OptionenTab: React.FC = () => {
   const handleTestBridge = async () => {
     setTestResult(null);
     const ok = await checkHealth();
+    const displayHost = getBridgeDisplayUrl(bridgeConfig);
     if (ok) {
       setTestResult({
         success: true,
-        message: `Verbindung erfolgreich hergestellt zu ${bridgeConfig.host}:${bridgeConfig.port}!`
+        message: `Verbindung erfolgreich hergestellt zu ${displayHost}!`
       });
       ui.addToast("Lokale Bridge ist ONLINE & einsatzbereit.", 'success');
     } else {
       setTestResult({
         success: false,
-        message: `Keine Antwort von ${bridgeConfig.host}:${bridgeConfig.port}. Bitte starten Sie die Bridge lokal auf Ihrem Rechner.`
+        message: `Keine Antwort von ${displayHost}. Bitte prüfen Sie Verbindung & Token.`
       });
-      ui.addToast("Bridge nicht erreichbar. Bitte lokalen Bridge-Agent starten.", 'error');
+      ui.addToast("Bridge nicht erreichbar. Bitte Token oder lokalen Bridge-Agent prüfen.", 'error');
     }
   };
 
@@ -192,26 +194,76 @@ export const OptionenTab: React.FC = () => {
           </div>
 
           {/* Security Token */}
-          <div className="text-xs">
-            <div className="flex items-center justify-between mb-1">
+          <div className="text-xs space-y-1.5">
+            <div className="flex items-center justify-between">
               <label className="text-[11px] font-semibold text-neutral-300 flex items-center gap-1">
                 <Key size={12} className="text-amber-400" />
-                Sicherheits-Token (X-Bridge-Token)
+                Sicherheits-Token (X-Bridge-Token / PHP Relay Token)
               </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(bridgeConfig.token || '');
+                    ui.addToast("Sicherheitstoken in Zwischenablage kopiert!", 'info');
+                  }}
+                  className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                >
+                  <Copy size={11} /> Token Kopieren
+                </button>
+                <span className="text-neutral-600">•</span>
+                <button
+                  type="button"
+                  onClick={generateNewToken}
+                  className="text-[10px] text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                >
+                  Neu generieren
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={bridgeConfig.token}
+                onChange={(e) => updateBridgeConfig({ token: e.target.value })}
+                className="flex-1 bg-[#242424] border border-[#444444] rounded-lg px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-indigo-500"
+                placeholder="Token hier eingeben..."
+              />
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex items-center gap-2 text-[10px] text-neutral-400">
+              <span>Standard-Presets:</span>
               <button
                 type="button"
-                onClick={generateNewToken}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                onClick={() => {
+                  updateBridgeConfig({ token: 'bridge_sec_k928x71a' });
+                  ui.addToast("Sicherheitstoken auf bridge_sec_k928x71a gesetzt", 'info');
+                }}
+                className={`px-2 py-0.5 rounded border transition-colors ${
+                  bridgeConfig.token === 'bridge_sec_k928x71a'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold'
+                    : 'bg-[#2a2a2a] text-neutral-300 border-[#444] hover:bg-[#333]'
+                }`}
               >
-                Neu generieren
+                bridge_sec_k928x71a (Neu)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateBridgeConfig({ token: 'dbstudio-bridge-local-token' });
+                  ui.addToast("Sicherheitstoken auf dbstudio-bridge-local-token gesetzt", 'info');
+                }}
+                className={`px-2 py-0.5 rounded border transition-colors ${
+                  bridgeConfig.token === 'dbstudio-bridge-local-token'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold'
+                    : 'bg-[#2a2a2a] text-neutral-300 border-[#444] hover:bg-[#333]'
+                }`}
+              >
+                dbstudio-bridge-local-token (Klassisch)
               </button>
             </div>
-            <input
-              type="text"
-              value={bridgeConfig.token}
-              onChange={(e) => updateBridgeConfig({ token: e.target.value })}
-              className="w-full bg-[#242424] border border-[#444444] rounded-lg px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-indigo-500"
-            />
           </div>
 
           {/* Shared Dependencies Setting - Crucial requirement! */}

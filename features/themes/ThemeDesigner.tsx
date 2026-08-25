@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Palette, CheckCircle, Image as ImageIcon, Type } from 'lucide-react';
 import { BackendConfig, WhitelabelConfig } from '../../types/index';
+import { LogoUploadField } from '../../components/common/LogoUploadField';
 
 interface ThemeDesignerProps {
     config: BackendConfig;
@@ -179,24 +180,18 @@ export const ThemeDesigner: React.FC<ThemeDesignerProps> = ({ config, onUpdateCo
                     <div className="bg-white rounded-lg shadow-sm border border-slate-200">
                          <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
                             <ImageIcon size={18} className="text-slate-500" />
-                            <h3 className="font-semibold text-slate-800 m-0">Logo & Assets</h3>
+                            <h3 className="font-semibold text-slate-800 m-0">Projekt-Logo & Branding Assets</h3>
                         </div>
                         <div className="p-4 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Logo URL</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full border border-slate-300 rounded p-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                                    value={whitelabel.logoUrl || ''}
-                                    onChange={e => handleChange('logoUrl', e.target.value)}
-                                    placeholder="https://example.com/logo.png"
-                                />
-                                {whitelabel.logoUrl && (
-                                    <div className="mt-3 p-4 border border-dashed border-slate-300 rounded bg-slate-50 flex items-center justify-center">
-                                        <img src={whitelabel.logoUrl} alt="Logo preview" className="max-h-20" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                                    </div>
-                                )}
-                            </div>
+                            <LogoUploadField
+                                logoUrl={whitelabel.logoUrl || ''}
+                                onLogoUrlChange={(url) => handleChange('logoUrl', url)}
+                                logoPosition={whitelabel.logoPosition || 'left'}
+                                onLogoPositionChange={(pos) => handleChange('logoPosition', pos)}
+                                label="App- / Firmenlogo (SVG, PNG, JPG)"
+                                helperText="Per Drag & Drop oder Klick hochladen. Erscheint in Navigationsleisten, Header und Druckansichten."
+                                showPositionSelector={true}
+                            />
                         </div>
                     </div>
                 </div>

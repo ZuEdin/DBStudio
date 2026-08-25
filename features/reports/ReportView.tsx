@@ -401,10 +401,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
             {/* 1. BERICHTSKOPF (Report Header) */}
             {(!widgetMode && report.settings?.showReportHeader !== false) && (
                 <header className="border-b-2 border-slate-800 pb-4 mb-6" style={getCssFromStyle(report.styles?.header)}>
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-1">
+                    {report.settings?.logoPosition === 'center' ? (
+                        <div className="flex flex-col items-center text-center space-y-2">
                             {report.settings?.companyLogoUrl && (
-                              <img src={report.settings.companyLogoUrl} alt="Logo" className="h-10 mb-2 object-contain" />
+                              <img src={report.settings.companyLogoUrl} alt="Logo" className="h-12 max-w-[200px] mb-1 object-contain" referrerPolicy="no-referrer" />
                             )}
                             <h1 className="text-2xl font-black text-slate-900 tracking-tight" style={{ color: 'inherit', fontSize: 'inherit' }}>
                               {report.name}
@@ -412,15 +412,53 @@ export const ReportView: React.FC<ReportViewProps> = ({
                             {report.settings?.subtitle && (
                               <p className="text-xs text-slate-600 font-medium">{report.settings.subtitle}</p>
                             )}
-                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold pt-1">
-                              BERICHT • SEKTION: BERICHTSKOPF
-                            </p>
+                            <div className="flex items-center gap-4 text-xs text-slate-500 font-mono pt-1">
+                              <span>Datum: {new Date().toLocaleDateString('de-DE')}</span>
+                              <span>•</span>
+                              <span>Uhrzeit: {new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
                         </div>
-                        <div className="text-right text-xs text-slate-500 font-mono">
-                            <p className="font-semibold text-slate-700">Datum: {new Date().toLocaleDateString('de-DE')}</p>
-                            <p className="text-[10px]">Uhrzeit: {new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</p>
+                    ) : report.settings?.logoPosition === 'right' ? (
+                        <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1">
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight" style={{ color: 'inherit', fontSize: 'inherit' }}>
+                                  {report.name}
+                                </h1>
+                                {report.settings?.subtitle && (
+                                  <p className="text-xs text-slate-600 font-medium">{report.settings.subtitle}</p>
+                                )}
+                                <div className="text-xs text-slate-500 font-mono pt-1">
+                                  <span>Datum: {new Date().toLocaleDateString('de-DE')} ({new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr)</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                {report.settings?.companyLogoUrl && (
+                                  <img src={report.settings.companyLogoUrl} alt="Logo" className="h-12 max-w-[180px] object-contain" referrerPolicy="no-referrer" />
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1">
+                                {report.settings?.companyLogoUrl && (
+                                  <img src={report.settings.companyLogoUrl} alt="Logo" className="h-12 max-w-[180px] mb-2 object-contain" referrerPolicy="no-referrer" />
+                                )}
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight" style={{ color: 'inherit', fontSize: 'inherit' }}>
+                                  {report.name}
+                                </h1>
+                                {report.settings?.subtitle && (
+                                  <p className="text-xs text-slate-600 font-medium">{report.settings.subtitle}</p>
+                                )}
+                                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold pt-1">
+                                  BERICHT • SEKTION: BERICHTSKOPF
+                                </p>
+                            </div>
+                            <div className="text-right text-xs text-slate-500 font-mono">
+                                <p className="font-semibold text-slate-700">Datum: {new Date().toLocaleDateString('de-DE')}</p>
+                                <p className="text-[10px]">Uhrzeit: {new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                        </div>
+                    )}
                 </header>
             )}
 

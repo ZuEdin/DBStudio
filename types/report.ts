@@ -77,6 +77,8 @@ export interface ReportSettings {
   showGridlines?: boolean;
   subtitle?: string;
   companyLogoUrl?: string;
+  logoPosition?: 'left' | 'center' | 'right';
+  logoWidth?: number;
 }
 
 export interface DashboardWidget {

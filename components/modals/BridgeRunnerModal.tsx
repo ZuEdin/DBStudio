@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useBridgeStore, stripAnsiCodes } from '../../stores/useBridgeStore';
+import { useBridgeStore, stripAnsiCodes, getBridgeDisplayUrl } from '../../stores/useBridgeStore';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { 
   X, 
@@ -117,7 +117,7 @@ export const BridgeRunnerModal: React.FC<BridgeRunnerModalProps> = ({ isOpen, on
                 {getStatusBadge()}
               </div>
               <p className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                <span>Ziel: <strong className="text-slate-300">{config.useCustomPort === false || (config.host.startsWith('https://') && !config.host.includes(':', 8)) ? config.host : `${config.host}:${config.port}`}</strong></span>
+                <span>Ziel: <strong className="text-slate-300">{getBridgeDisplayUrl(config)}</strong></span>
                 <span>•</span>
                 <span className="text-emerald-400 font-medium flex items-center gap-1">
                   <Layers size={11} /> Shared Dependencies aktiv (Kein Datenmüll)
@@ -150,7 +150,7 @@ export const BridgeRunnerModal: React.FC<BridgeRunnerModalProps> = ({ isOpen, on
               <AlertTriangle className="text-amber-400 shrink-0 mt-0.5" size={18} />
               <div>
                 <p className="font-bold text-amber-300">
-                  Bridge ist nicht erreichbar ({config.host.startsWith('https://') && !config.host.includes(':', 8) ? config.host : `${config.host}:${config.port}`})
+                  Bridge ist nicht erreichbar ({getBridgeDisplayUrl(config)})
                 </p>
                 <p className="text-[11px] text-amber-200/80 mt-0.5">
                   Um das Projekt direkt auf Ihrem PC auszuführen, starten Sie bitte den Bridge-Server lokal (z. B. über <code className="bg-black/40 px-1 py-0.5 rounded text-amber-300 font-mono">start-bridge.bat</code> oder <code className="bg-black/40 px-1 py-0.5 rounded text-amber-300 font-mono">node server.js</code>).
@@ -265,7 +265,7 @@ export const BridgeRunnerModal: React.FC<BridgeRunnerModalProps> = ({ isOpen, on
             <div className="text-neutral-500 py-12 text-center">
               <p>Warte auf Ausgaben der lokalen Bridge...</p>
               <p className="text-[11px] mt-1 text-neutral-600">
-                Verbindung: {config.host}:{config.port}
+                Verbindung: {getBridgeDisplayUrl(config)}
               </p>
             </div>
           ) : (

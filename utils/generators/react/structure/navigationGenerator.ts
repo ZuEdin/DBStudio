@@ -265,9 +265,9 @@ export const Sidebar = ({ isOpen, onClose, isTopNav }: { isOpen: boolean; onClos
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
+      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden print:hidden no-print" onClick={onClose} />}
       
-      <aside className={\`fixed inset-y-0 left-0 z-50 \${isDoubleRail ? 'w-72' : 'w-64'} bg-[${wl.secondaryColor}] text-slate-100 flex flex-col transition-transform duration-300 \${isOpen ? 'translate-x-0' : (isTopNav ? '-translate-x-full' : '-translate-x-full lg:translate-x-0 lg:static')}\`}>
+      <aside className={\`fixed inset-y-0 left-0 z-50 \${isDoubleRail ? 'w-72' : 'w-64'} bg-[${wl.secondaryColor}] text-slate-100 flex flex-col transition-transform duration-300 print:hidden no-print \${isOpen ? 'translate-x-0' : (isTopNav ? '-translate-x-full' : '-translate-x-full lg:translate-x-0 lg:static')}\`}>
         
         {/* Simple visual Double Rail ribbon effect decoration */}
         {isDoubleRail && (
@@ -469,7 +469,7 @@ export const TopNav: React.FC<TopNavProps> = ({ items }) => {
   };
 
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="flex items-center gap-1 print:hidden no-print">
       {items.map(item => (
         <NavItem key={item.id} item={item} />
       ))}
@@ -492,17 +492,18 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     const menuItems: any[] = ${JSON.stringify(config.navigationConfig || [])};
 
     return (
-        <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+        <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 print:min-h-0 print:bg-white">
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isTopNav={isTopNav} />
             
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
+                <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between print:hidden no-print">
                     <div className="flex items-center gap-6 flex-1 min-w-0">
                         <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white shrink-0">
                             <Menu size={20} />
                         </button>
                         
                         <span className="font-bold text-base dark:text-white flex items-center gap-2 mr-4 shrink-0">
+                            ${wl.logoUrl ? `<img src="${wl.logoUrl}" alt="Logo" className="h-6 max-w-[120px] object-contain mr-1" />` : ''}
                             <span>${wl.appName}</span>
                             <span className="text-[10px] bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300 py-0.5 px-2 rounded-full font-mono font-bold hidden md:inline">STRG+K</span>
                         </span>
@@ -525,13 +526,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                     </div>
                 </header>
                 
-                <div className="flex-1 overflow-auto p-4 sm:p-8">
+                <div className="flex-1 overflow-auto p-4 sm:p-8 print:p-0 print:overflow-visible">
                     {children}
                 </div>
             </main>
 
             {/* Generated Command Palette */}
-            <CommandPalette />
+            <div className="print:hidden no-print">
+                <CommandPalette />
+            </div>
         </div>
     );
 };`;

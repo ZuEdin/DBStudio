@@ -223,6 +223,58 @@ module.exports = {
 }`, language: 'javascript' });
   files.push({ name: 'postcss.config.js', path: `${root}/postcss.config.js`, content: `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }`, language: 'javascript' });
 
+  const printStyles = `
+/* Global Print Optimization */
+@media print {
+  app-topnav, 
+  app-sidebar, 
+  header, 
+  nav, 
+  aside, 
+  .navbar, 
+  .no-print, 
+  .d-print-none, 
+  .print\\:hidden, 
+  [data-no-print] {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  html, body, app-root, app-layout, main, .flex-grow-1, .flex-1, .min-h-screen, .min-vh-100 {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  .report-paper {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+}`;
+
   if (isTailwind) {
       files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@tailwind base;
 @tailwind components;
@@ -231,7 +283,8 @@ module.exports = {
 body {
   background-color: #f8fafc;
   color: #0f172a;
-}`, language: 'css' });
+}
+${printStyles}`, language: 'css' });
   } else if (isBootstrap) {
       files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';
 @tailwind base;
@@ -240,14 +293,16 @@ body {
 
 body {
   background-color: #f8f9fa;
-}`, language: 'css' });
+}
+${printStyles}`, language: 'css' });
   } else {
       files.push({ name: 'styles.css', path: `${root}/src/styles.css`, content: `/* Custom CSS here */
 body {
   font-family: system-ui, -apple-system, sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
-}`, language: 'css' });
+}
+${printStyles}`, language: 'css' });
   }
 
   files.push({ name: 'polyfills.ts', path: `${root}/src/polyfills.ts`, content: `import 'zone.js';`, language: 'typescript' });

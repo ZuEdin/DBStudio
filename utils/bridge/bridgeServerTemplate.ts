@@ -6,6 +6,7 @@ export function generateBridgeServerJsCode(config: BridgeConfig): string {
 
   return `/**
  * DB Studio Pro - Local Execution Bridge Agent
+ * Version: 2.1.0
  * 
  * Features:
  * 1. Native Desktop App runner (Tauri, Electron, .NET C#, Node.js Express, Vite)
@@ -41,8 +42,8 @@ if (!fs.existsSync(SHARED_DEPS_DIR)) fs.mkdirSync(SHARED_DEPS_DIR, { recursive: 
 const app = express();
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-Bridge-Token', 'bypass-tunnel-reminder']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bridge-Token', 'bypass-tunnel-reminder', 'Access-Control-Request-Private-Network', '*']
 }));
 app.use(express.json({ limit: '100mb' }));
 
@@ -135,9 +136,9 @@ function broadcastLog(projectId, logEntry) {
 
 // Token middleware
 function requireToken(req, res, next) {
-  const token = req.headers['x-bridge-token'] || req.query.token;
+  const token = req.headers['x-bridge-token'] || req.query.token || req.query.key || (req.headers['authorization'] ? req.headers['authorization'].replace(/^Bearer\\s+/i, '') : '');
   if (AUTH_TOKEN && token !== AUTH_TOKEN) {
-    return res.status(401).json({ error: 'Ungültiges oder fehlendes X-Bridge-Token.' });
+    return res.status(403).json({ status: "forbidden", error: 'Ungültiges oder fehlendes X-Bridge-Token.' });
   }
   next();
 }
@@ -145,15 +146,45 @@ function requireToken(req, res, next) {
 // Helper to detect installed runtimes & SDKs
 function detectRuntimes() {
   const runtimes = {};
-  try { runtimes.node = execSync('node -v', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim(); } catch { runtimes.node = null; }
-  try { runtimes.nodejs = runtimes.node; } catch {}
-  try { runtimes.npm = execSync('npm -v', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim(); } catch { runtimes.npm = null; }
-  try { runtimes.dotnet = execSync('dotnet --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim(); } catch { runtimes.dotnet = null; }
-  try { runtimes.dotnetSdk = runtimes.dotnet; } catch {}
-  try { runtimes.rust = execSync('rustc --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim(); } catch { runtimes.rust = null; }
-  try { runtimes.cargo = execSync('cargo --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim(); } catch { runtimes.cargo = null; }
-  try { runtimes.git = execSync('git --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim(); } catch { runtimes.git = null; }
-  try { runtimes.docker = execSync('docker --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim(); } catch { runtimes.docker = null; }
+  try { 
+    const nodeV = execSync('node -v', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    runtimes.nodejs = { installed: true, version: nodeV };
+    runtimes.node = { installed: true, version: nodeV };
+  } catch { 
+    runtimes.nodejs = { installed: false };
+    runtimes.node = { installed: false };
+  }
+
+  try { 
+    const npmV = execSync('npm -v', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    runtimes.npm = { installed: true, version: npmV };
+  } catch { 
+    runtimes.npm = { installed: false };
+  }
+
+  try { 
+    const dotV = execSync('dotnet --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    runtimes.dotnetSdk = { installed: true, version: dotV };
+    runtimes.dotnet = { installed: true, version: dotV };
+  } catch { 
+    runtimes.dotnetSdk = { installed: false };
+    runtimes.dotnet = { installed: false };
+  }
+
+  try { 
+    const rustV = execSync('rustc --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    runtimes.rust = { installed: true, version: rustV };
+  } catch { 
+    runtimes.rust = { installed: false };
+  }
+
+  try { 
+    const dockV = execSync('docker --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    runtimes.docker = { installed: true, running: true, version: dockV };
+  } catch { 
+    runtimes.docker = { installed: false, running: false };
+  }
+
   return runtimes;
 }
 
@@ -172,7 +203,7 @@ function getTelemetryData() {
 
   return {
     status: 'online',
-    version: '1.3.0',
+    version: '2.1.0',
     hostname: os.hostname(),
     osPlatform: \`\${os.type()} \${os.release()} (\${os.arch()})\`,
     freeMemoryMb: Math.round(os.freemem() / 1024 / 1024),
@@ -224,7 +255,7 @@ function launchProjectArchitecture(cleanProjectFolder, payload) {
   // Inspect directory structure
   const isWordPress = (stack && stack.backendType === 'wordpress') || 
                       fs.existsSync(path.join(cleanProjectFolder, 'readme.txt')) ||
-                      (fs.readdirSync(cleanProjectFolder).some(f => f.endsWith('.php')));
+                      (fs.existsSync(cleanProjectFolder) && fs.readdirSync(cleanProjectFolder).some(f => f.endsWith('.php')));
   const srcTauriDir = path.join(cleanProjectFolder, 'src-tauri');
   const hasTauri = fs.existsSync(srcTauriDir) || fs.existsSync(path.join(cleanProjectFolder, 'Frontend', 'src-tauri'));
   const hasElectron = fs.existsSync(path.join(cleanProjectFolder, 'main.js')) || 
@@ -380,12 +411,11 @@ function resolveProjectFolder(projectId) {
   const directPath = path.join(PROJECTS_DIR, projectId);
   if (fs.existsSync(directPath)) return directPath;
 
-  // Search case-insensitively or matching subdirectories
   if (fs.existsSync(PROJECTS_DIR)) {
     const list = fs.readdirSync(PROJECTS_DIR);
     const match = list.find(f => f.toLowerCase() === projectId.toLowerCase());
     if (match) return path.join(PROJECTS_DIR, match);
-    if (list.length > 0) return path.join(PROJECTS_DIR, list[0]); // fallback to first
+    if (list.length > 0) return path.join(PROJECTS_DIR, list[0]);
   }
   return directPath;
 }
@@ -412,13 +442,13 @@ function startProjectProcesses(p, projectId) {
 // 3. API Endpoints
 // ==========================================
 
-app.get('/api/status', (req, res) => {
+app.get(['/api/status', '/status'], requireToken, (req, res) => {
   res.json(getTelemetryData());
 });
 
-app.post('/api/deploy', requireToken, async (req, res) => {
+app.post(['/api/deploy', '/deploy'], requireToken, async (req, res) => {
   try {
-    const { projectId, projectName, stack, ports, options, files } = req.body;
+    const { projectId, projectName, stack, ports, options, files } = req.body || {};
     if (!projectId || !files || !Array.isArray(files)) {
       return res.status(400).json({ error: 'Ungültiges Deployment-Payload (projectId und files erforderlich).' });
     }
@@ -447,85 +477,49 @@ app.post('/api/deploy', requireToken, async (req, res) => {
       runningProcesses.delete(projectId);
     }
 
-    // Shared Dependencies
-    const useShared = options && options.useSharedDependencies !== false;
-    if (useShared) {
-      const frontendDir = path.join(cleanProjectFolder, 'Frontend');
-      const sharedNodeModules = path.join(SHARED_DEPS_DIR, 'node_modules');
-      
-      if (fs.existsSync(frontendDir)) {
-        const targetNodeModules = path.join(frontendDir, 'node_modules');
-        if (!fs.existsSync(targetNodeModules)) {
-          try {
-            if (!fs.existsSync(sharedNodeModules)) fs.mkdirSync(sharedNodeModules, { recursive: true });
-            if (process.platform === 'win32') {
-              execSync(\`mklink /J "\${targetNodeModules}" "\${sharedNodeModules}"\`, { stdio: 'ignore' });
-            } else {
-              fs.symlinkSync(sharedNodeModules, targetNodeModules, 'junction');
-            }
-          } catch (symlinkErr) {}
-        }
-      }
-    }
-
-    let projectEntry = null;
-    if (options && options.autoRun !== false) {
-      projectEntry = launchProjectArchitecture(cleanProjectFolder, req.body);
-    }
-
-    const backendPort = (ports && ports.backendPort) || 5000;
-    const frontendPort = (ports && ports.frontendPort) || 3000;
+    const launchedEntry = launchProjectArchitecture(cleanProjectFolder, req.body);
 
     res.json({
       success: true,
       projectId,
       projectPath: cleanProjectFolder,
-      backendUrl: \`http://localhost:\${backendPort}\`,
-      frontendUrl: \`http://localhost:\${frontendPort}\`,
-      message: \`Projekt \${projectName} erfolgreich empfangen und gestartet.\`
+      backendUrl: launchedEntry.backendUrl,
+      frontendUrl: launchedEntry.frontendUrl,
+      message: \`Projekt \${projectName || projectId} erfolgreich auf lokalem PC gestartet!\`
     });
-
   } catch (err) {
-    console.error("Deploy Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Robust Process Actions (Start, Stop, Restart, Cancel)
 const processActionRoutes = [
-  '/api/process/action', 
-  '/api/process/control', 
-  '/api/process', 
   '/api/process/:action', 
+  '/api/process', 
+  '/api/action', 
   '/api/stop', 
   '/api/restart', 
   '/api/start',
-  '/api/cancel',
-  '/api/abbrechen',
-  '/api/neustart'
+  '/api/kill'
 ];
 app.all(processActionRoutes, requireToken, (req, res) => {
-  let { projectId, action, command } = req.body || {};
+  let { projectId, action, command, controlAction } = req.body || {};
   
+  if (!action && controlAction) action = controlAction;
   if (!action && command) action = command;
   if (!action && req.params && req.params.action) action = req.params.action;
   if (!action && req.query && req.query.action) action = req.query.action;
   if (!action && req.query && req.query.command) action = req.query.command;
 
-  // Extract action from path if called via /api/stop, /api/process/stop etc.
-  if (!action || action === 'action') {
-    if (req.path.includes('stop') || req.path.includes('cancel') || req.path.includes('abbrechen')) action = 'stop';
+  if (!action || action === 'action' || action === 'process_action') {
+    if (req.path.includes('stop') || req.path.includes('cancel') || req.path.includes('abbrechen') || req.path.includes('kill')) action = 'stop';
     else if (req.path.includes('restart') || req.path.includes('neustart')) action = 'restart';
     else if (req.path.includes('start')) action = 'start';
-    else if (req.query && req.query.action && req.query.action !== 'action') action = req.query.action;
     else action = 'restart';
   }
 
-  // Normalize aliases
-  if (action === 'cancel' || action === 'abbrechen') action = 'stop';
+  if (action === 'cancel' || action === 'abbrechen' || action === 'kill') action = 'stop';
   if (action === 'neustart') action = 'restart';
 
-  // If no projectId provided, fallback to query, then any running project or default
   if (!projectId) {
     projectId = (req.query && req.query.projectId) || '';
   }
@@ -603,7 +597,7 @@ wss.on('connection', (ws, req) => {
 });
 
 // ==========================================
-// 4. Two-Way Background Relay Sync Engine
+// 4. Two-Way Background Relay Sync Engine (Relay v2.1.0)
 // ==========================================
 async function syncWithPhpRelay() {
   if (!RELAY_URL || !RELAY_URL.startsWith('http')) return;
@@ -615,14 +609,16 @@ async function syncWithPhpRelay() {
     const isHttps = parsedUrl.protocol === 'https:';
     const client = isHttps ? https : http;
 
+    // A. Heartbeat & Job Polling (pull_jobs)
     const pullReq = client.request({
       hostname: parsedUrl.hostname,
       port: parsedUrl.port || (isHttps ? 443 : 80),
-      path: \`\${parsedUrl.pathname}?action=pull_jobs\`,
+      path: \`\${parsedUrl.pathname}?action=pull_jobs&token=\${encodeURIComponent(AUTH_TOKEN)}\`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Bridge-Token': AUTH_TOKEN,
+        'Authorization': \`Bearer \${AUTH_TOKEN}\`,
         'Content-Length': Buffer.byteLength(payload)
       },
       timeout: 3500
@@ -634,12 +630,32 @@ async function syncWithPhpRelay() {
           if (res.statusCode === 200) {
             const resp = JSON.parse(data);
             
-            // Execute Deployment Jobs
             if (resp.jobs && Array.isArray(resp.jobs)) {
               for (const job of resp.jobs) {
-                if (job.type === 'deploy' && job.payload) {
-                  const p = job.payload;
-                  const cleanFolder = path.join(PROJECTS_DIR, p.projectId);
+                const jobId = job.id || '';
+                const p = job.payload || {};
+
+                // 1. Process Control Action
+                if (jobId.startsWith('ctrl_') || p.controlAction || p.action === 'stop' || p.action === 'restart' || p.action === 'start' || p.action === 'kill') {
+                  const pid = p.projectId || 'default';
+                  const actionType = (p.controlAction || p.action || 'restart').toLowerCase();
+                  let proc = runningProcesses.get(pid);
+                  if (!proc) {
+                    proc = { projectId: pid, projectPath: resolveProjectFolder(pid), status: 'STOPPED' };
+                    runningProcesses.set(pid, proc);
+                  }
+                  if (actionType === 'stop' || actionType === 'kill' || actionType === 'cancel') {
+                    stopProjectProcesses(proc, pid);
+                  } else if (actionType === 'start') {
+                    startProjectProcesses(proc, pid);
+                  } else if (actionType === 'restart') {
+                    stopProjectProcesses(proc, pid);
+                    setTimeout(() => startProjectProcesses(proc, pid), 500);
+                  }
+                }
+                // 2. Deployment Job
+                else if (jobId.startsWith('job_') || p.files) {
+                  const cleanFolder = path.join(PROJECTS_DIR, p.projectId || 'project');
                   if (!fs.existsSync(cleanFolder)) fs.mkdirSync(cleanFolder, { recursive: true });
                   
                   if (p.files && Array.isArray(p.files)) {
@@ -654,27 +670,34 @@ async function syncWithPhpRelay() {
                   if (runningProcesses.has(p.projectId)) {
                     stopProjectProcesses(runningProcesses.get(p.projectId), p.projectId);
                   }
-                  launchProjectArchitecture(cleanFolder, p);
-                }
-              }
-            }
+                  const launchedEntry = launchProjectArchitecture(cleanFolder, p);
 
-            // Execute Process Actions (Start/Stop/Restart)
-            if (resp.actions && Array.isArray(resp.actions)) {
-              for (const act of resp.actions) {
-                if (act.payload) {
-                  const pid = act.payload.projectId;
-                  const actionType = act.payload.action;
-                  let proc = runningProcesses.get(pid);
-                  if (!proc) {
-                    proc = { projectId: pid, projectPath: resolveProjectFolder(pid), status: 'STOPPED' };
-                    runningProcesses.set(pid, proc);
-                  }
-                  if (actionType === 'stop') stopProjectProcesses(proc, pid);
-                  if (actionType === 'start') startProjectProcesses(proc, pid);
-                  if (actionType === 'restart') {
-                    stopProjectProcesses(proc, pid);
-                    setTimeout(() => startProjectProcesses(proc, pid), 500);
+                  // Push result back to Relay (push_result)
+                  if (jobId) {
+                    const resultPayload = JSON.stringify({
+                      jobId: jobId,
+                      projectId: p.projectId,
+                      backendUrl: launchedEntry.backendUrl,
+                      frontendUrl: launchedEntry.frontendUrl,
+                      status: launchedEntry.status,
+                      success: true
+                    });
+                    const resReq = client.request({
+                      hostname: parsedUrl.hostname,
+                      port: parsedUrl.port || (isHttps ? 443 : 80),
+                      path: \`\${parsedUrl.pathname}?action=push_result&token=\${encodeURIComponent(AUTH_TOKEN)}\`,
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'X-Bridge-Token': AUTH_TOKEN,
+                        'Authorization': \`Bearer \${AUTH_TOKEN}\`,
+                        'Content-Length': Buffer.byteLength(resultPayload)
+                      },
+                      timeout: 3000
+                    });
+                    resReq.on('error', () => {});
+                    resReq.write(resultPayload);
+                    resReq.end();
                   }
                 }
               }
@@ -688,29 +711,33 @@ async function syncWithPhpRelay() {
     pullReq.write(payload);
     pullReq.end();
 
-    // Push pending logs back to Relay
-    if (recentLogsBuffer.size > 0) {
-      recentLogsBuffer.forEach((logs, projectId) => {
-        if (logs.length === 0) return;
-        const logPayload = JSON.stringify({ projectId, logs });
-        recentLogsBuffer.set(projectId, []);
+    // B. Push pending logs back to Relay in array format matching live_logs.json
+    const logsToSend = [];
+    recentLogsBuffer.forEach((logs, pid) => {
+      if (logs && logs.length > 0) {
+        logsToSend.push(...logs);
+      }
+    });
+    recentLogsBuffer.clear();
 
-        const pushReq = client.request({
-          hostname: parsedUrl.hostname,
-          port: parsedUrl.port || (isHttps ? 443 : 80),
-          path: \`\${parsedUrl.pathname}?action=push_logs\`,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Bridge-Token': AUTH_TOKEN,
-            'Content-Length': Buffer.byteLength(logPayload)
-          },
-          timeout: 3000
-        });
-        pushReq.on('error', () => {});
-        pushReq.write(logPayload);
-        pushReq.end();
+    if (logsToSend.length > 0) {
+      const logPayload = JSON.stringify(logsToSend);
+      const pushReq = client.request({
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: \`\${parsedUrl.pathname}?action=push_logs&token=\${encodeURIComponent(AUTH_TOKEN)}\`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Bridge-Token': AUTH_TOKEN,
+          'Authorization': \`Bearer \${AUTH_TOKEN}\`,
+          'Content-Length': Buffer.byteLength(logPayload)
+        },
+        timeout: 3000
       });
+      pushReq.on('error', () => {});
+      pushReq.write(logPayload);
+      pushReq.end();
     }
 
   } catch (err) {}

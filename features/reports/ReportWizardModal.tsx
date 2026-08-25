@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Table, Query, Report, Field, ReportSummary } from '../../types/index';
 import { X, FileText } from 'lucide-react';
+import { LogoUploadField } from '../../components/common/LogoUploadField';
 
 interface ReportWizardModalProps {
   tables: Table[];
@@ -20,6 +21,8 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
   const [source, setSource] = useState<string>('');
   const [groupingFieldId, setGroupingFieldId] = useState<string>('');
   const [summaries, setSummaries] = useState<ReportSummary[]>([]);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string>('');
+  const [logoPosition, setLogoPosition] = useState<'left' | 'center' | 'right'>('left');
 
   const dataSources = useMemo(() => [
     { id: 'dashboard:none', name: 'Leeres Dashboard', type: 'Dashboard' },
@@ -111,7 +114,9 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
         zebraStriping: true,
         showReportHeader: true,
         showReportFooter: true,
-        showPageFooter: true
+        showPageFooter: true,
+        companyLogoUrl: companyLogoUrl || undefined,
+        logoPosition: logoPosition
       }
     };
     onSave(newReport);
@@ -169,6 +174,18 @@ export const ReportWizardModal: React.FC<ReportWizardModalProps> = ({
                     </div>
                   </div>
                 )}
+
+                <div className="pt-2 border-t border-slate-200">
+                  <LogoUploadField
+                    logoUrl={companyLogoUrl}
+                    onLogoUrlChange={setCompanyLogoUrl}
+                    logoPosition={logoPosition}
+                    onLogoPositionChange={setLogoPosition}
+                    label="4. Firmen- / Berichtslogo (optional)"
+                    helperText="SVG & PNG werden per Drag & Drop direkt eingebettet."
+                    showPositionSelector={true}
+                  />
+                </div>
               </>
             )}
           </div>

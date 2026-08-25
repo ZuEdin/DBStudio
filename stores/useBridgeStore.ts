@@ -41,8 +41,8 @@ interface BridgeStoreState {
 const defaultBridgeConfig: BridgeConfig = {
   host: 'http://127.0.0.1',
   port: 5050,
-  token: 'dbstudio-bridge-local-token',
-  useSharedDependencies: true, // Default to true as requested to prevent user data waste
+  token: 'bridge_sec_k928x71a',
+  useSharedDependencies: true,
   autoConnect: true,
   autoInstall: true,
   autoMigrateDb: true,
@@ -51,6 +51,7 @@ const defaultBridgeConfig: BridgeConfig = {
 };
 
 let activeWebSocket: WebSocket | null = null;
+let activeLogPoller: any = null;
 
 export function stripAnsiCodes(str: string): string {
   if (!str) return '';
@@ -66,58 +67,119 @@ export function stripAnsiCodes(str: string): string {
     .replace(/\r+/g, '');
 }
 
+export function cleanBridgeHost(rawHost: string): string {
+  if (!rawHost) return 'http://127.0.0.1';
+  let host = rawHost.trim().replace(/\/+$/, '');
+
+  // Strip port appended directly to .php (e.g. bridge_relay.php:5050 -> bridge_relay.php)
+  host = host.replace(/(\.php)(:\d+)/gi, '$1');
+
+  // Strip trailing port on https domains or non-localhost URLs (e.g. https://domain.com:5050/api/bridge_relay.php -> https://domain.com/api/bridge_relay.php)
+  const isLocalHost = host.includes('127.0.0.1') || host.includes('localhost') || host.includes('0.0.0.0');
+  if (host.startsWith('https://') || (host.includes('.php') && !isLocalHost)) {
+    host = host.replace(/(https?:\/\/[^\/:]+):\d+/gi, '$1');
+  }
+
+  return host;
+}
+
+export function getBridgeDisplayUrl(config: BridgeConfig): string {
+  const host = cleanBridgeHost(config.host || 'http://127.0.0.1');
+  const isLocalHost = host.includes('127.0.0.1') || host.includes('localhost') || host.includes('0.0.0.0');
+  
+  if (host.includes('.php') || config.useCustomPort === false || host.startsWith('https://') || !isLocalHost || /:\d+$/.test(host)) {
+    return host;
+  }
+  
+  return `${host}:${config.port || 5050}`;
+}
+
 export function buildBridgeApiUrl(config: BridgeConfig, path: string): string {
-  let cleanHost = (config.host || 'http://127.0.0.1').trim().replace(/\/+$/, '');
+  let cleanHost = cleanBridgeHost(config.host || 'http://127.0.0.1');
   
   // If host is provided without protocol, default to https:// for domains or http:// for IPs
   if (!cleanHost.startsWith('http://') && !cleanHost.startsWith('https://')) {
-    if (cleanHost.startsWith('127.0.0.1') || cleanHost.startsWith('localhost')) {
+    if (cleanHost.startsWith('127.0.0.1') || cleanHost.startsWith('localhost') || cleanHost.startsWith('0.0.0.0')) {
       cleanHost = `http://${cleanHost}`;
     } else {
       cleanHost = `https://${cleanHost}`;
     }
   }
 
-  // Check if it's a PHP relay script (e.g. https://dbstudiopro.edv-knowhow.at/api/bridge_relay.php or bridge_relay.php)
-  if (cleanHost.endsWith('.php')) {
-    // Determine action from path (e.g. /api/status -> action=status, /api/deploy -> action=deploy)
+  // Check if it's a PHP relay script (e.g. https://.../bridge_relay.php)
+  if (cleanHost.includes('.php')) {
+    let urlObj: URL;
+    try {
+      urlObj = new URL(cleanHost);
+    } catch {
+      urlObj = new URL(`https://${cleanHost}`);
+    }
+
+    // Ensure port is completely cleared for HTTPS or non-local PHP relay URLs
+    if (urlObj.protocol === 'https:' || !cleanHost.includes('127.0.0.1')) {
+      urlObj.port = '';
+    }
+
+    let pathPart = path;
+    let queryPart = '';
+    if (path.includes('?')) {
+      const parts = path.split('?');
+      pathPart = parts[0];
+      queryPart = parts[1];
+    }
+
+    // Determine action from path
     let actionParam = 'status';
-    if (path.includes('deploy')) actionParam = 'deploy';
-    else if (path.includes('stop') || path.includes('cancel') || path.includes('abbrechen')) actionParam = 'stop';
-    else if (path.includes('restart') || path.includes('neustart')) actionParam = 'restart';
-    else if (path.includes('start')) actionParam = 'start';
-    else if (path.includes('status')) actionParam = 'status';
-    else if (path.includes('pull')) actionParam = 'pull_jobs';
-    else if (path.includes('log')) actionParam = 'get_logs';
-    else if (path.includes('process') || path.includes('action')) actionParam = 'action';
+    if (pathPart.includes('deploy')) actionParam = 'deploy';
+    else if (pathPart.includes('stop') || pathPart.includes('cancel') || pathPart.includes('abbrechen') || pathPart.includes('kill')) actionParam = 'stop';
+    else if (pathPart.includes('restart') || pathPart.includes('neustart')) actionParam = 'restart';
+    else if (pathPart.includes('start')) actionParam = 'start';
+    else if (pathPart.includes('status')) actionParam = 'status';
+    else if (pathPart.includes('pull')) actionParam = 'pull_jobs';
+    else if (pathPart.includes('log') || pathPart.includes('get_logs')) actionParam = 'get_logs';
+    else if (pathPart.includes('result') || pathPart.includes('get_result')) actionParam = 'get_result';
+    else if (pathPart.includes('process') || pathPart.includes('action')) actionParam = 'process_action';
     
-    const separator = cleanHost.includes('?') ? '&' : '?';
-    return `${cleanHost}${separator}action=${actionParam}`;
+    urlObj.searchParams.set('action', actionParam);
+    if (config.token) {
+      urlObj.searchParams.set('token', config.token);
+      urlObj.searchParams.set('key', config.token);
+      urlObj.searchParams.set('apiKey', config.token);
+    }
+
+    if (queryPart) {
+      const pathParams = new URLSearchParams(queryPart);
+      pathParams.forEach((val, key) => {
+        urlObj.searchParams.set(key, val);
+      });
+    }
+
+    return urlObj.toString();
   }
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const isLocalHost = cleanHost.includes('127.0.0.1') || cleanHost.includes('localhost') || cleanHost.includes('0.0.0.0');
 
-  // If useCustomPort is explicitly disabled, do not append port
-  if (config.useCustomPort === false) {
-    return `${cleanHost}${cleanPath}`;
+  // Do NOT append port if:
+  // - useCustomPort is explicitly false
+  // - host is not localhost / local IP
+  // - host starts with https://
+  // - host already specifies a port
+  let baseApiUrl = `${cleanHost}${cleanPath}`;
+  if (config.useCustomPort !== false && isLocalHost && !/:\d+$/.test(cleanHost) && !cleanHost.startsWith('https://')) {
+    const portNum = config.port || 5050;
+    if (portNum !== 80 && portNum !== 443) {
+      baseApiUrl = `${cleanHost}:${portNum}${cleanPath}`;
+    }
   }
 
-  // If host already contains port (e.g. http://127.0.0.1:5050 or https://example.com:8443)
-  if (/:\d+$/.test(cleanHost)) {
-    return `${cleanHost}${cleanPath}`;
+  // Ensure security tokens are attached as query parameters for maximum reliability
+  if (config.token) {
+    const connector = baseApiUrl.includes('?') ? '&' : '?';
+    baseApiUrl = `${baseApiUrl}${connector}token=${encodeURIComponent(config.token)}&key=${encodeURIComponent(config.token)}`;
   }
 
-  // If it's https or a remote tunnel/gateway domain without explicit port requirement
-  if (cleanHost.startsWith('https://') && (!config.port || config.port === 443 || config.port === 80 || cleanHost.includes('.loca.lt') || cleanHost.includes('.ngrok') || cleanHost.includes('.trycloudflare.com') || cleanHost.includes('.run.app') || !cleanHost.includes(':5050'))) {
-    return `${cleanHost}${cleanPath}`;
-  }
-
-  // Otherwise append port if specified and not 80/443
-  if (config.port && config.port !== 80 && config.port !== 443) {
-    return `${cleanHost}:${config.port}${cleanPath}`;
-  }
-
-  return `${cleanHost}${cleanPath}`;
+  return baseApiUrl;
 }
 
 export function buildBridgeWsUrl(config: BridgeConfig, pathAndQuery: string): string {
@@ -143,9 +205,15 @@ export const useBridgeStore = create<BridgeStoreState>()(
       isRunnerModalOpen: false,
 
       updateConfig: (patch) => {
-        set((state) => ({
-          config: { ...state.config, ...patch }
-        }));
+        set((state) => {
+          const updatedPatch = { ...patch };
+          if (updatedPatch.host) {
+            updatedPatch.host = cleanBridgeHost(updatedPatch.host);
+          }
+          return {
+            config: { ...state.config, ...updatedPatch }
+          };
+        });
       },
 
       setRunnerModalOpen: (open) => {
@@ -163,12 +231,20 @@ export const useBridgeStore = create<BridgeStoreState>()(
 
       addLog: (entry) => {
         const cleanedMessage = stripAnsiCodes(entry.message || '');
-        set((state) => ({
-          activeProject: {
-            ...state.activeProject,
-            logs: [...state.activeProject.logs.slice(-1000), { ...entry, message: cleanedMessage }]
+        set((state) => {
+          // Avoid duplicate logs if identical to last log
+          const existingLogs = state.activeProject.logs;
+          const lastLog = existingLogs.length > 0 ? existingLogs[existingLogs.length - 1] : null;
+          if (lastLog && lastLog.message === cleanedMessage && lastLog.service === entry.service && Math.abs(new Date(lastLog.timestamp).getTime() - new Date(entry.timestamp).getTime()) < 1000) {
+            return state;
           }
-        }));
+          return {
+            activeProject: {
+              ...state.activeProject,
+              logs: [...existingLogs.slice(-1000), { ...entry, message: cleanedMessage }]
+            }
+          };
+        });
       },
 
       setActiveProjectStatus: (status, error) => {
@@ -182,57 +258,67 @@ export const useBridgeStore = create<BridgeStoreState>()(
       },
 
       checkHealth: async () => {
-        const { config } = get();
+        const { config, updateConfig } = get();
         set({ isChecking: true });
 
-        const url = buildBridgeApiUrl(config, '/api/status');
+        // Candidates to test if token mismatch occurs
+        const candidateTokens = Array.from(new Set([
+          config.token,
+          'bridge_sec_k928x71a',
+          'dbstudio-bridge-local-token'
+        ].filter(Boolean) as string[]));
 
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4000);
+        for (const candidateToken of candidateTokens) {
+          const testConfig = { ...config, token: candidateToken };
+          const url = buildBridgeApiUrl(testConfig, '/api/status');
 
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'X-Bridge-Token': config.token || '',
-              'bypass-tunnel-reminder': 'true'
-            },
-            signal: controller.signal
-          });
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            const data: BridgeStatusResponse = await response.json();
-            set({
-              isOnline: true,
-              isChecking: false,
-              lastChecked: Date.now(),
-              bridgeInfo: data
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'X-Bridge-Token': candidateToken,
+                'Authorization': `Bearer ${candidateToken}`,
+                'bypass-tunnel-reminder': 'true'
+              },
+              signal: controller.signal
             });
-            return true;
-          } else {
-            set({
-              isOnline: false,
-              isChecking: false,
-              lastChecked: Date.now(),
-              bridgeInfo: null
-            });
-            return false;
-          }
-        } catch (err) {
-          set({
-            isOnline: false,
-            isChecking: false,
-            lastChecked: Date.now(),
-            bridgeInfo: null
-          });
-          return false;
+
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const data: BridgeStatusResponse = await response.json();
+              const isActuallyOnline = data.status === 'online' || data.bridgeConnected === true;
+              
+              if (candidateToken !== config.token) {
+                updateConfig({ token: candidateToken });
+              }
+
+              set({
+                isOnline: isActuallyOnline,
+                isChecking: false,
+                lastChecked: Date.now(),
+                bridgeInfo: data
+              });
+              return isActuallyOnline;
+            }
+          } catch (_) {}
         }
+
+        set({
+          isOnline: false,
+          isChecking: false,
+          lastChecked: Date.now(),
+          bridgeInfo: null
+        });
+        return false;
       },
 
       deployProject: async (payload) => {
         const { config, addLog } = get();
+        const isRelay = config.host.includes('.php');
         const deployUrl = buildBridgeApiUrl(config, '/api/deploy');
 
         set({
@@ -245,21 +331,60 @@ export const useBridgeStore = create<BridgeStoreState>()(
                 type: 'system',
                 timestamp: new Date().toISOString(),
                 service: 'DBStudio',
-                message: `🚀 Sende Projekt "${payload.projectName}" (${payload.files.length} Dateien) an Bridge (${deployUrl})...`
+                message: `🚀 Sende Projekt "${payload.projectName}" (${payload.files.length} Dateien) an ${isRelay ? 'PHP-Relay Gateway v2.1.0' : 'Lokale Bridge'} (${deployUrl})...`
               },
               {
                 type: 'system',
                 timestamp: new Date().toISOString(),
                 service: 'DBStudio',
-                message: `📦 Shared Dependencies (Zentraler Store): ${payload.options.useSharedDependencies ? 'AKTIVIERUNG BESTÄTIGT (Vermeidet Datenmüll)' : 'DEAKTIVIERT'}`
+                message: `📦 Shared Dependencies: ${payload.options.useSharedDependencies ? 'AKTIVIERUNG BESTÄTIGT (Vermeidet Datenmüll)' : 'DEAKTIVIERT'}`
               }
             ]
           },
           isRunnerModalOpen: true
         });
 
-        // Setup WebSocket log streaming if enabled
-        if (config.liveLogStreaming) {
+        // Setup Log Polling if using Relay Gateway
+        if (activeLogPoller) {
+          clearInterval(activeLogPoller);
+          activeLogPoller = null;
+        }
+
+        if (isRelay) {
+          const seenLogIds = new Set<string>();
+          activeLogPoller = setInterval(async () => {
+            try {
+              const logsUrl = buildBridgeApiUrl(config, `/api/get_logs?projectId=${encodeURIComponent(payload.projectId)}`);
+              const res = await fetch(logsUrl, {
+                headers: {
+                  'X-Bridge-Token': config.token || '',
+                  'Authorization': `Bearer ${config.token || ''}`,
+                  'bypass-tunnel-reminder': 'true'
+                }
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.logs && Array.isArray(data.logs)) {
+                  data.logs.forEach((l: any) => {
+                    const idKey = `${l.timestamp || ''}_${l.service || ''}_${l.message || ''}`;
+                    if (!seenLogIds.has(idKey)) {
+                      seenLogIds.add(idKey);
+                      addLog({
+                        type: l.type || 'stdout',
+                        timestamp: l.timestamp || new Date().toISOString(),
+                        service: l.service || 'Process',
+                        message: l.message || ''
+                      });
+                    }
+                  });
+                }
+              }
+            } catch (_) {}
+          }, 1500);
+        }
+
+        // Setup WebSocket log streaming if direct bridge connection
+        if (!isRelay && config.liveLogStreaming) {
           try {
             if (activeWebSocket) {
               activeWebSocket.close();
@@ -267,7 +392,6 @@ export const useBridgeStore = create<BridgeStoreState>()(
             }
 
             const wsUrl = buildBridgeWsUrl(config, `/logs?projectId=${encodeURIComponent(payload.projectId)}`);
-
             const ws = new WebSocket(wsUrl);
             activeWebSocket = ws;
 
@@ -329,6 +453,7 @@ export const useBridgeStore = create<BridgeStoreState>()(
             headers: {
               'Content-Type': 'application/json',
               'X-Bridge-Token': config.token || '',
+              'Authorization': `Bearer ${config.token || ''}`,
               'bypass-tunnel-reminder': 'true'
             },
             body: JSON.stringify(payload)
@@ -363,7 +488,7 @@ export const useBridgeStore = create<BridgeStoreState>()(
             };
           }
 
-          const result: BridgeDeployResult = await response.json();
+          const result: BridgeDeployResult & { jobId?: string } = await response.json();
 
           addLog({
             type: 'system',
@@ -371,6 +496,56 @@ export const useBridgeStore = create<BridgeStoreState>()(
             service: 'Bridge',
             message: `✅ Bereitstellung erfolgreich! ${result.message || ''}`
           });
+
+          // If relay provided a jobId, poll for result
+          if (isRelay && result.jobId) {
+            addLog({
+              type: 'system',
+              timestamp: new Date().toISOString(),
+              service: 'Queue',
+              message: `⏳ Job [${result.jobId}] in Relay-Queue eingereiht. Warte auf Ausführung durch lokalen PC-Agenten...`
+            });
+
+            let pollCount = 0;
+            const resultPoller = setInterval(async () => {
+              pollCount++;
+              try {
+                const resUrl = buildBridgeApiUrl(config, `/api/get_result?jobId=${encodeURIComponent(result.jobId || '')}`);
+                const pollRes = await fetch(resUrl, {
+                  headers: {
+                    'X-Bridge-Token': config.token || '',
+                    'Authorization': `Bearer ${config.token || ''}`,
+                    'bypass-tunnel-reminder': 'true'
+                  }
+                });
+                if (pollRes.ok) {
+                  const resData = await pollRes.json();
+                  if (resData.found && resData.result) {
+                    clearInterval(resultPoller);
+                    const executionResult = resData.result;
+                    addLog({
+                      type: 'system',
+                      timestamp: new Date().toISOString(),
+                      service: 'Runner',
+                      message: `🟢 Lokaler Runner hat Job ausgeführt! Backend: ${executionResult.backendUrl || 'Port 5000'} | Frontend: ${executionResult.frontendUrl || 'Port 3000'}`
+                    });
+                    set((state) => ({
+                      activeProject: {
+                        ...state.activeProject,
+                        status: 'running',
+                        backendUrl: executionResult.backendUrl,
+                        frontendUrl: executionResult.frontendUrl
+                      }
+                    }));
+                  }
+                }
+              } catch (_) {}
+
+              if (pollCount > 25) {
+                clearInterval(resultPoller);
+              }
+            }, 2000);
+          }
 
           if (result.backendUrl) {
             addLog({
@@ -393,8 +568,8 @@ export const useBridgeStore = create<BridgeStoreState>()(
             activeProject: {
               ...state.activeProject,
               status: 'running',
-              backendUrl: result.backendUrl,
-              frontendUrl: result.frontendUrl
+              backendUrl: result.backendUrl || state.activeProject.backendUrl,
+              frontendUrl: result.frontendUrl || state.activeProject.frontendUrl
             }
           }));
 
@@ -429,7 +604,7 @@ export const useBridgeStore = create<BridgeStoreState>()(
         
         const actionStr = String(action).toLowerCase();
         let normalizedAction: 'start' | 'stop' | 'restart' = 'restart';
-        if (actionStr === 'stop' || actionStr === 'cancel' || actionStr === 'abbrechen') {
+        if (actionStr === 'stop' || actionStr === 'cancel' || actionStr === 'abbrechen' || actionStr === 'kill') {
           normalizedAction = 'stop';
         } else if (actionStr === 'start') {
           normalizedAction = 'start';
@@ -437,8 +612,7 @@ export const useBridgeStore = create<BridgeStoreState>()(
           normalizedAction = 'restart';
         }
 
-        const actionUrl = buildBridgeApiUrl(config, `/api/process/${normalizedAction}`);
-
+        const actionUrl = buildBridgeApiUrl(config, `/api/process/${normalizedAction}?projectId=${encodeURIComponent(effectivePid)}`);
         const actionName = normalizedAction === 'stop' ? 'STOPPEN' : normalizedAction === 'restart' ? 'NEUSTART' : 'STARTEN';
 
         addLog({
@@ -465,11 +639,13 @@ export const useBridgeStore = create<BridgeStoreState>()(
             headers: {
               'Content-Type': 'application/json',
               'X-Bridge-Token': config.token || '',
+              'Authorization': `Bearer ${config.token || ''}`,
               'bypass-tunnel-reminder': 'true'
             },
             body: JSON.stringify({ 
               projectId: effectivePid, 
               action: normalizedAction,
+              controlAction: normalizedAction,
               command: normalizedAction
             })
           });
@@ -523,12 +699,11 @@ export const useBridgeStore = create<BridgeStoreState>()(
             return false;
           }
         } catch (err: any) {
-          // If network connection failed (e.g. bridge stopped or offline)
           addLog({
             type: 'stderr',
             timestamp: new Date().toISOString(),
             service: 'Control',
-            message: `⚠️ Lokale Bridge ist nicht erreichbar (${config.host}:${config.port}). Bitte prüfen Sie, ob start-bridge.bat läuft.`
+            message: `⚠️ Lokale Bridge / Relay ist nicht erreichbar (${getBridgeDisplayUrl(config)}). Bitte prüfen Sie Verbindung & Token.`
           });
           return false;
         }

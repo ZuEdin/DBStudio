@@ -5,6 +5,7 @@ import { Eye, EyeOff, Settings, Columns, GripVertical, Palette, Layers, Calculat
 import { ReportFormattingPanel } from './designer/ReportFormattingPanel';
 import { ReportView } from './ReportView';
 import { executeSelectQuery } from '../queries/utils/queryExecution';
+import { LogoUploadField } from '../../components/common/LogoUploadField';
 
 interface ReportDesignerViewProps {
   report: Report;
@@ -436,14 +437,15 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({ report, 
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-slate-700 font-bold mb-1">Firmen-Logo URL (optional)</label>
-                        <input 
-                          type="text" 
-                          value={report.settings?.companyLogoUrl || ''} 
-                          onChange={e => updateSettings('companyLogoUrl', e.target.value)}
-                          placeholder="https://..."
-                          className="w-full border border-slate-300 rounded p-2"
+                      <div className="pt-2 border-t border-slate-200">
+                        <LogoUploadField
+                          logoUrl={report.settings?.companyLogoUrl || ''}
+                          onLogoUrlChange={(url) => updateSettings('companyLogoUrl', url)}
+                          logoPosition={report.settings?.logoPosition || 'left'}
+                          onLogoPositionChange={(pos) => updateSettings('logoPosition', pos)}
+                          label="Bericht-Firmenlogo (SVG, PNG, JPG)"
+                          helperText="Wird im Berichtskopf & Drucklayout eingefügt."
+                          showPositionSelector={true}
                         />
                       </div>
 

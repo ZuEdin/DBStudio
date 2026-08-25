@@ -1,1 +1,49 @@
 /* Global Styles for DB Studio Pro */
+
+@media print {
+  header, 
+  nav, 
+  aside, 
+  .navbar, 
+  .no-print, 
+  .d-print-none, 
+  .print\:hidden, 
+  [data-no-print] {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  html, body, #root, main, .flex-1, .min-h-screen, .min-vh-100 {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  .report-paper {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+}

@@ -98,6 +98,56 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   };
   files.push({ name: 'tsconfig.node.json', path: `${root}/tsconfig.node.json`, content: JSON.stringify(tsConfigNode, null, 2), language: 'json' });
 
+  const printStyles = `
+/* Global Print Optimization */
+@media print {
+  header, 
+  nav, 
+  aside, 
+  .navbar, 
+  .no-print, 
+  .d-print-none, 
+  .print\\:hidden, 
+  [data-no-print] {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  html, body, #root, main, .flex-1, .min-h-screen, .min-vh-100 {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  .report-paper {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+}`;
+
   if (isTailwind) {
       files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@tailwind base;
 @tailwind components;
@@ -111,7 +161,8 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
 
 body {
   @apply bg-gray-50 text-slate-900 dark:bg-gray-900 dark:text-slate-100;
-}`, language: 'css' });
+}
+${printStyles}`, language: 'css' });
   } else if (isBootstrap) {
       files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `@import 'bootstrap/dist/css/bootstrap.min.css';
 @tailwind base;
@@ -120,12 +171,14 @@ body {
 
 body {
   background-color: #f8f9fa;
-}`, language: 'css' });
+}
+${printStyles}`, language: 'css' });
   } else {
       files.push({ name: 'index.css', path: `${root}/src/index.css`, content: `/* Custom CSS here */
 body {
   font-family: system-ui, -apple-system, sans-serif;
-}`, language: 'css' });
+}
+${printStyles}`, language: 'css' });
   }
 
   files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], base: './', server: { port: ${fePort} } });`, language: 'typescript' });

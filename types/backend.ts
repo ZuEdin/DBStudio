@@ -113,6 +113,8 @@ export interface WhitelabelConfig {
   appName: string;
   companyName: string;
   logoUrl?: string;
+  logoPosition?: 'left' | 'center' | 'right';
+  logoWidth?: number;
   primaryColor: string;
   secondaryColor: string;
   accentColor?: string;

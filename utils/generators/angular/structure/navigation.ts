@@ -87,7 +87,7 @@ export const generateNavigationComponents = (
             };
 
             sidebarHtml = `
-<div class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark" style="width: 280px; height: 100vh; position: fixed; left: 0; top: 0; bottom: 0; overflow-y: auto;">
+<div class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark d-print-none" style="width: 280px; height: 100vh; position: fixed; left: 0; top: 0; bottom: 0; overflow-y: auto;">
     <a routerLink="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
         <span class="fs-4 fw-bold">${config.projectName}</span>
     </a>
@@ -118,7 +118,7 @@ export const generateNavigationComponents = (
 </div>`;
         } else {
             sidebarHtml = `
-<div class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark" style="width: 280px; height: 100vh; position: fixed; left: 0; top: 0; bottom: 0; overflow-y: auto;">
+<div class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark d-print-none" style="width: 280px; height: 100vh; position: fixed; left: 0; top: 0; bottom: 0; overflow-y: auto;">
     <a routerLink="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
         <span class="fs-4 fw-bold">${config.projectName}</span>
     </a>
@@ -206,7 +206,7 @@ export const generateNavigationComponents = (
         }
 
         topnavHtml = `
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm d-print-none print:hidden">
     <div class="container-fluid px-4">
         <a class="navbar-brand fw-bold" routerLink="/">${config.projectName}</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topnavContent" aria-controls="topnavContent" aria-expanded="false" aria-label="Toggle navigation">
@@ -345,7 +345,7 @@ export const generateNavigationComponents = (
             };
 
             sidebarHtml = `
-<div class="h-full flex flex-col bg-slate-800 text-white w-64 fixed left-0 top-0 bottom-0 overflow-y-auto">
+<div class="h-full flex flex-col bg-slate-800 text-white w-64 fixed left-0 top-0 bottom-0 overflow-y-auto print:hidden no-print">
     <div class="p-4 font-bold text-xl border-b border-slate-700 flex items-center gap-2">
         <span>${config.projectName}</span>
     </div>
@@ -376,7 +376,7 @@ export const generateNavigationComponents = (
 </div>`;
         } else {
             sidebarHtml = `
-<div class="h-full flex flex-col bg-slate-800 text-white w-64 fixed left-0 top-0 bottom-0 overflow-y-auto">
+<div class="h-full flex flex-col bg-slate-800 text-white w-64 fixed left-0 top-0 bottom-0 overflow-y-auto print:hidden no-print">
     <div class="p-4 font-bold text-xl border-b border-slate-700 flex items-center gap-2">
         <span>${config.projectName}</span>
     </div>
@@ -444,7 +444,7 @@ export const generateNavigationComponents = (
         }
 
         topnavHtml = `
-<nav class="bg-slate-800 text-white shadow-md border-b border-slate-700 w-full z-50">
+<nav class="bg-slate-800 text-white shadow-md border-b border-slate-700 w-full z-50 print:hidden no-print">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
             <div class="flex items-center gap-8">
