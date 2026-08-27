@@ -19,6 +19,7 @@ import { WorkflowDesignTab } from './ribbon/tabs/WorkflowDesignTab';
 import { ERDiagramTab } from './ribbon/tabs/ERDiagramTab';
 import { ProjectsTab } from './ribbon/tabs/ProjectsTab';
 import { PageDesignTab } from './ribbon/tabs/PageDesignTab';
+import { SecurityTab } from './ribbon/tabs/SecurityTab';
 
 interface RibbonProps {
   onAction: (action: string, payload?: any) => void;
@@ -86,6 +87,8 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
         return <ERDiagramTab onAction={onAction} />;
       case 'projekte':
         return <ProjectsTab onAction={onAction} />;
+      case 'security':
+        return <SecurityTab onAction={onAction} />;
       default:
         return null;
     }
@@ -135,6 +138,14 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
             className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-emerald-500 ${activeTab === 'projekte' ? 'bg-slate-100 text-slate-900 font-semibold' : 'hover:bg-slate-700'}`}
             >
             Projekte
+            </button>
+            <button 
+            onClick={() => setActiveTab('security')}
+            className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-emerald-400 flex items-center gap-1.5 ${activeTab === 'security' ? 'bg-slate-100 text-slate-900 font-semibold shadow-xs' : 'hover:bg-slate-700'}`}
+            title="Sicherheit, Rollen (RBAC), Active Directory & Audit Trail"
+            >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+            Sicherheit & RBAC
             </button>
             <button 
             onClick={() => setActiveTab('deploy')}

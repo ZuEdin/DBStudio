@@ -70,7 +70,7 @@ namespace ${namespace}
                             <Label Text="${t.name}" FontSize="18" FontAttributes="Bold" TextColor="#2C3E50" />
                             <Label Text="Tabellen-Einträge verwalten" FontSize="12" TextColor="Gray" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1" Text="Öffnen" Command="{Binding NavigateTo${className}Command}" BackgroundColor="#512BD4" TextColor="White" HeightRequest="40" VerticalOptions="Center" />
+                        <Button Grid.Column="1" Text="Öffnen" Clicked="NavigateTo${className}Command" BackgroundColor="#512BD4" TextColor="White" HeightRequest="40" VerticalOptions="Center" />
                     </Grid>
                 </Border>`;
   });
@@ -222,7 +222,7 @@ namespace ${namespace}.Views
               } else if (f.type === 'DATE' || f.type === 'DATETIME') {
                   entryInputs += `            <Label Text="${propName}" FontSize="12" TextColor="Gray" />
             <DatePicker x:Name="Dp${propName}" Margin="0,0,0,15" />\n`;
-                  loadFields += `            Dp${propName}.Date = Item != null ? Item.${propName} : DateTime.Now;\n`;
+                  loadFields += `            Dp${propName}.Date = Item != null && Item.${propName}.HasValue ? Item.${propName}.Value : DateTime.Now;\n`;
                   saveBindings += `            Item.${propName} = Dp${propName}.Date;\n`;
               } else {
                   entryInputs += `            <Label Text="${propName}" FontSize="12" TextColor="Gray" />
@@ -236,7 +236,7 @@ namespace ${namespace}.Views
       // Data Template inside CollectionView
       const colItems = table.fields.map(f => {
           const propName = toPascalCase(f.name);
-          return `<Label Text="${propName}: {Binding ${propName}}" FontSize="14" TextColor="#2C3E50" />`;
+          return `<Label Text="{Binding ${propName}, StringFormat='${propName}: {0}'}" FontSize="14" TextColor="#2C3E50" />`;
       }).join('\n                        ');
 
       const listXaml = `<ContentPage

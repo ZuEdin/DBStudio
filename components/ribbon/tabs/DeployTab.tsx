@@ -110,7 +110,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
   const getBackendShortLabel = (lang: string, version?: string) => {
     switch(lang) {
-      case 'dotnet': return `.NET ${version || '10.0'}`;
+      case 'dotnet': return `.NET ${version || '9.0'}`;
       case 'nodejs': return 'Node.js';
       case 'python': return 'Python';
       case 'php': return 'PHP';
@@ -624,20 +624,20 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                     {/* Conditional .NET Version option */}
                     {backendConfig.language === 'dotnet' && (
                       <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
-                        <label className="block font-bold text-slate-700 mb-1">.NET SDK Version (Standard ist 10.0)</label>
+                        <label className="block font-bold text-slate-700 mb-1">.NET SDK Version</label>
                         <select 
                             className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-mono text-blue-700 focus:outline-none focus:border-blue-500"
-                            value={backendConfig.backendVersion || '10.0'}
+                            value={backendConfig.backendVersion || '9.0'}
                             onChange={e => setBackendConfig({ ...backendConfig, backendVersion: e.target.value })}
                         >
-                            <option value="10.0">10.0 (Standard)</option>
-                            <option value="9.0">9.0</option>
-                            <option value="8.0">8.0 (LTS)</option>
+                            <option value="9.0">9.0 (Empfohlen für Visual Studio 2022)</option>
+                            <option value="8.0">8.0 (LTS - Long Term Support)</option>
+                            <option value="10.0">10.0 (Preview / VS v18+)</option>
                             <option value="7.0">7.0</option>
                             <option value="6.0">6.0 (LTS)</option>
                         </select>
                         <p className="text-[10px] text-slate-500 mt-1">
-                          Wichtig: In der Projektdatei wird standardmäßig Swagger vorkonfiguriert und beim Starten geöffnet.
+                          Wählen Sie 9.0 oder 8.0 passend zu Ihrem lokal installierten .NET SDK in Visual Studio 2022.
                         </p>
                       </div>
                     )}

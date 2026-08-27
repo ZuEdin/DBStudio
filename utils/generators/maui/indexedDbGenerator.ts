@@ -4,11 +4,14 @@ export const generateIndexedDbJs = (
   tables: Table[],
   root: string
 ): VirtualFile => {
-  const storesSetup = tables.map(t => `
-            if (!db.objectStoreNames.contains('${t.name}')) {
-                db.createObjectStore('${t.name}', { keyPath: 'id', autoIncrement: true });
-            }
-  `).join('\n');
+  const seedInit = tables.map(t => {
+    const rows = t.data && t.data.length > 0 ? t.data : [];
+    return `            if (!db.objectStoreNames.contains('${t.name}')) {
+                const store = db.createObjectStore('${t.name}', { keyPath: 'id', autoIncrement: true });
+                const seedRows = ${JSON.stringify(rows)};
+                seedRows.forEach(row => store.add(row));
+            }`;
+  }).join('\n');
 
   const indexedDbJs = `
 const DB_NAME = 'db_studio_pro_maui';
@@ -19,7 +22,7 @@ function getDb() {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onupgradeneeded = (e) => {
             const db = e.target.result;
-            ${storesSetup}
+            ${seedInit}
         };
         request.onsuccess = (e) => resolve(e.target.result);
         request.onerror = (e) => reject(e.target.error);

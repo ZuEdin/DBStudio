@@ -86,32 +86,80 @@ namespace ${namespace}.Services
   files.push({ name: 'IndexedDbService.cs', path: `${root}/Services/IndexedDbService.cs`, content: indexedDbService, language: 'csharp' });
 
   // ApiService.cs
-  const apiService = `using System.Net.Http;
+  const apiService = `using System;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace ${namespace}.Services
 {
+    public class PagedApiResponse<T>
+    {
+        [JsonPropertyName("data")]
+        public List<T> Data { get; set; } = new();
+
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
+
+        [JsonPropertyName("page")]
+        public int Page { get; set; }
+
+        [JsonPropertyName("pageSize")]
+        public int PageSize { get; set; }
+
+        [JsonPropertyName("totalPages")]
+        public int TotalPages { get; set; }
+    }
+
     public class ApiService : IStorageService
     {
         private readonly HttpClient _http;
+        private readonly JsonSerializerOptions _jsonOptions;
         public string BackendName => "REST API (MySQL / SQL Server)";
 
         public ApiService(HttpClient http)
         {
             _http = http;
+            _jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
         }
 
         public async Task<List<T>> GetAll<T>(string tableName) where T : class, new()
         {
             try
             {
-                return await _http.GetFromJsonAsync<List<T>>($"data/{tableName}") ?? new();
+                var response = await _http.GetAsync($"{tableName}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    response = await _http.GetAsync($"data/{tableName}");
+                }
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    try
+                    {
+                        var paged = JsonSerializer.Deserialize<PagedApiResponse<T>>(content, _jsonOptions);
+                        if (paged?.Data != null && paged.Data.Count > 0)
+                        {
+                            return paged.Data;
+                        }
+                    }
+                    catch { }
+
+                    var list = JsonSerializer.Deserialize<List<T>>(content, _jsonOptions);
+                    return list ?? new List<T>();
+                }
+                return new List<T>();
             }
             catch
             {
-                return new List<T>(); // Fallback on connection error
+                return new List<T>();
             }
         }
 
@@ -119,7 +167,18 @@ namespace ${namespace}.Services
         {
             try
             {
-                return await _http.GetFromJsonAsync<T>($"data/{tableName}/{id}");
+                var response = await _http.GetAsync($"{tableName}/{id}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    response = await _http.GetAsync($"data/{tableName}/{id}");
+                }
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    return JsonSerializer.Deserialize<T>(content, _jsonOptions);
+                }
+                return null;
             }
             catch
             {
@@ -129,17 +188,29 @@ namespace ${namespace}.Services
 
         public async Task Add<T>(string tableName, T record) where T : class
         {
-            await _http.PostAsJsonAsync($"data/{tableName}", record);
+            var res = await _http.PostAsJsonAsync($"{tableName}", record);
+            if (!res.IsSuccessStatusCode)
+            {
+                await _http.PostAsJsonAsync($"data/{tableName}", record);
+            }
         }
 
         public async Task Update<T>(string tableName, object id, T record) where T : class
         {
-            await _http.PutAsJsonAsync($"data/{tableName}/{id}", record);
+            var res = await _http.PutAsJsonAsync($"{tableName}/{id}", record);
+            if (!res.IsSuccessStatusCode)
+            {
+                await _http.PutAsJsonAsync($"data/{tableName}/{id}", record);
+            }
         }
 
         public async Task Delete(string tableName, object id)
         {
-            await _http.DeleteAsync($"data/{tableName}/{id}");
+            var res = await _http.DeleteAsync($"{tableName}/{id}");
+            if (!res.IsSuccessStatusCode)
+            {
+                await _http.DeleteAsync($"data/{tableName}/{id}");
+            }
         }
     }
 }`;

@@ -287,7 +287,7 @@ interface ProjectStore extends ProjectData {
 const initialData: ProjectData = {
     tables: [], queries: [], reports: [], forms: [], charts: [], pages: [], customComponents: [], workflows: [], relationships: [], layout: [], tableGroups: [], tickets: [], chats: [],
     backendConfig: { 
-        language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, backendVersion: '10.0',
+        language: 'dotnet', dbType: DbType.SQL, projectName: 'MyProject', port: 5000, backendVersion: '9.0',
         dbConnection: '', useSwagger: true, frontendFramework: 'react', stylingFramework: 'tailwind'
     },
     lastSnapshot: []

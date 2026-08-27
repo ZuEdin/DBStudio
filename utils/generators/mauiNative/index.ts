@@ -16,7 +16,7 @@ export const generateMauiNative = (
   const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   const namespace = `${safeNamespace}.MauiNative`;
   
-  let version = config.backendVersion || '10.0';
+  let version = config.backendVersion || '9.0';
   if (parseFloat(version) > 10.0) {
     version = '10.0';
   }
@@ -27,7 +27,7 @@ export const generateMauiNative = (
     ...generateMauiNativeProjectFiles(tables, config, namespace, root, targetFramework, version),
     
     // Core Services
-    ...generateMauiNativeServices(config, namespace, root),
+    ...generateMauiNativeServices(tables, config, namespace, root),
     
     // Models
     ...generateMauiNativeModels(tables, namespace, root),

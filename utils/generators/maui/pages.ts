@@ -71,10 +71,13 @@ export const generateMauiPages = (
         await LoadCounts();
     }
 
-    private async Task HandleStorageChanged()
+    private async void HandleStorageChanged()
     {
-        await LoadCounts();
-        StateHasChanged();
+        await InvokeAsync(async () =>
+        {
+            await LoadCounts();
+            StateHasChanged();
+        });
     }
 
     private async Task LoadCounts()
@@ -247,10 +250,13 @@ ${formFields}
         await LoadData();
     }
 
-    private async Task HandleStorageChanged()
+    private async void HandleStorageChanged()
     {
-        await LoadData();
-        StateHasChanged();
+        await InvokeAsync(async () =>
+        {
+            await LoadData();
+            StateHasChanged();
+        });
     }
 
     private async Task LoadData()

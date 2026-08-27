@@ -27,7 +27,7 @@ export const cloudService = {
                         data: tp.data || {
                             tables: [], queries: [], reports: [], forms: [], relationships: [], layout: [], tableGroups: [],
                             backendConfig: { 
-                                language: 'dotnet', dbType: DbType.SQL, projectName: (tp.name || 'CloudProj').replace(/\s+/g, ''), port: 5000, backendVersion: '10.0',
+                                language: 'dotnet', dbType: DbType.SQL, projectName: (tp.name || 'CloudProj').replace(/\s+/g, ''), port: 5000, backendVersion: '9.0',
                                 dbConnection: '', useSwagger: true, frontendFramework: 'react' 
                             }
                         }

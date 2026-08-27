@@ -1227,7 +1227,29 @@ export const useAppController = () => {
         case 'save': await handleSave(); break;
         
         case 'electron_settings': ui.setShowElectronSettings(true); break;
-        case 'security_manager': ui.setShowSecurityManager(true); break;
+        case 'security_manager': 
+            ui.setSecurityManagerTab('matrix');
+            ui.setShowSecurityManager(true); 
+            break;
+        case 'open_security_auth':
+        case 'open_security_ad':
+            ui.setSecurityManagerTab('auth');
+            ui.setShowSecurityManager(true);
+            break;
+        case 'open_security_matrix':
+        case 'open_security_group_perms':
+            ui.setSecurityManagerTab('matrix');
+            ui.setShowSecurityManager(true);
+            break;
+        case 'open_security_roles':
+        case 'open_security_init':
+            ui.setSecurityManagerTab('roles');
+            ui.setShowSecurityManager(true);
+            break;
+        case 'open_security_scripts':
+            ui.setSecurityManagerTab('script_generator');
+            ui.setShowSecurityManager(true);
+            break;
         case 'audit_trail': handleSetView({ type: 'audit_trail' }); break;
         case 'navigation_designer': handleSetView({ type: 'navigation_designer' }); break;
         case 'logic_designer': handleSetView({ type: 'logic_designer' }); break;

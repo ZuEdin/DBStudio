@@ -18,7 +18,7 @@ export const generateMaui = (
   const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   const namespace = `${safeNamespace}.Maui`;
   
-  let version = config.backendVersion || '10.0';
+  let version = config.backendVersion || '9.0';
   if (parseFloat(version) > 10.0) {
     version = '10.0';
   }

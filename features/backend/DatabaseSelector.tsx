@@ -323,7 +323,7 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
 
       const config: BackendConfig = {
           language: newLanguage,
-          backendVersion: newLanguage === 'dotnet' ? '10.0' : undefined,
+          backendVersion: newLanguage === 'dotnet' ? '9.0' : undefined,
           dbType: newDbType,
           projectName: sanitizeProjectName(newProjectName),
           port: 5000,

@@ -197,6 +197,8 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             onClose={() => setShowSecurityManager(false)}
             backendConfig={backendConfig}
             onUpdateBackendConfig={setBackendConfig}
+            initialTab={ui.securityManagerTab}
+            onTabChange={ui.setSecurityManagerTab}
           />
       )}
 

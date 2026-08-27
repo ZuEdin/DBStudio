@@ -86,6 +86,8 @@ interface UIStore {
   setShowElectronSettings: (show: boolean) => void;
   showSecurityManager: boolean;
   setShowSecurityManager: (show: boolean) => void;
+  securityManagerTab: 'matrix' | 'roles' | 'auth' | 'rls' | 'audit' | 'script_generator';
+  setSecurityManagerTab: (tab: 'matrix' | 'roles' | 'auth' | 'rls' | 'audit' | 'script_generator') => void;
   showWhitelabelModal: boolean;
   setShowWhitelabelModal: (show: boolean) => void;
   showEnvModal: boolean;
@@ -213,6 +215,8 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowElectronSettings: (showElectronSettings) => set({ showElectronSettings }),
   showSecurityManager: false,
   setShowSecurityManager: (showSecurityManager) => set({ showSecurityManager }),
+  securityManagerTab: 'matrix',
+  setSecurityManagerTab: (securityManagerTab) => set({ securityManagerTab }),
   showWhitelabelModal: false,
   setShowWhitelabelModal: (showWhitelabelModal) => set({ showWhitelabelModal }),
   showEnvModal: false,

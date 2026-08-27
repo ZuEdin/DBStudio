@@ -43,6 +43,9 @@ export const generateMauiProjectFiles = (
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net9.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
+
+    <!-- Windows Unpackaged Execution for seamless local debugging without MSIX packaging friction -->
+    <WindowsPackageType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">None</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -641,14 +644,14 @@ public partial class App : MauiWinUIApplication
       language: 'xml'
   });
 
-  // --- LAUNCH SETTINGS FOR WINDOWS DEPLOYMENT (MSIX) ---
+  // --- LAUNCH SETTINGS FOR WINDOWS DEPLOYMENT ---
   files.push({
       name: 'launchSettings.json',
       path: `${root}/Properties/launchSettings.json`,
       content: `{
   "profiles": {
     "Windows Machine": {
-      "commandName": "MsixPackage",
+      "commandName": "Project",
       "nativeDebugging": false
     }
   }

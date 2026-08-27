@@ -1,11 +1,19 @@
-import { BackendConfig, VirtualFile } from '../../../types/index';
+import { Table, BackendConfig, VirtualFile } from '../../../types/index';
 
 export const generateMauiNativeServices = (
+  tables: Table[],
   config: BackendConfig,
   namespace: string,
   root: string
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
+
+  // Prepare seed json data map for initial offline storage
+  const seedInitDict = tables.map(t => {
+    const rows = t.data && t.data.length > 0 ? t.data : [];
+    const jsonStr = JSON.stringify(JSON.stringify(rows));
+    return `            { "${t.name}", ${jsonStr} }`;
+  }).join(',\n');
 
   // IStorageService.cs
   const iStorageService = `using System.Collections.Generic;
@@ -22,11 +30,13 @@ namespace ${namespace}.Services
         Task Update<T>(string tableName, object id, T record) where T : class, new();
         Task Delete(string tableName, object id);
     }
-}`;
+}
+`;
   files.push({ name: 'IStorageService.cs', path: `${root}/Services/IStorageService.cs`, content: iStorageService, language: 'csharp' });
 
   // JsonFileStorageService.cs
-  const jsonFileStorageService = `using System.Collections.Generic;
+  const jsonFileStorageService = `using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -39,18 +49,37 @@ namespace ${namespace}.Services
         private readonly string _basePath = FileSystem.AppDataDirectory;
         public string BackendName => "Lokal & Offline (JSON-Datenbank)";
 
+        private static readonly Dictionary<string, string> InitialSeedData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+${seedInitDict}
+        };
+
         private string GetFilePath(string tableName) => Path.Combine(_basePath, $"{tableName}.json");
 
-        public async Task<List<T>> GetAll<T>(string tableName) where T : class, new()
+        private async Task EnsureInitialized(string tableName)
         {
             var path = GetFilePath(tableName);
             if (!File.Exists(path))
-                return new List<T>();
+            {
+                string initialJson = "[]";
+                if (InitialSeedData.TryGetValue(tableName, out var seed) && !string.IsNullOrWhiteSpace(seed))
+                {
+                    initialJson = seed;
+                }
+                await File.WriteAllTextAsync(path, initialJson);
+            }
+        }
+
+        public async Task<List<T>> GetAll<T>(string tableName) where T : class, new()
+        {
+            await EnsureInitialized(tableName);
+            var path = GetFilePath(tableName);
 
             try
             {
                 var json = await File.ReadAllTextAsync(path);
-                return JsonSerializer.Deserialize<List<T>>(json) ?? new List<T>();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                return JsonSerializer.Deserialize<List<T>>(json, options) ?? new List<T>();
             }
             catch
             {
@@ -121,34 +150,32 @@ namespace ${namespace}.Services
 
         public async Task Delete(string tableName, object id)
         {
-            // Since we don't know the exact class type directly in non-generic Delete,
-            // we will read and write via dynamic/generic or simpler helper method.
-            // But we can implement a generic helper if we know the Model Type.
-            // In MAUI Native, we'll route deletion through the Typed Service or this helper:
-        }
+            var path = GetFilePath(tableName);
+            if (!File.Exists(path)) return;
 
-        public async Task DeleteGeneric<T>(string tableName, object id) where T : class, new()
-        {
-            var items = await GetAll<T>(tableName);
-            var idProp = typeof(T).GetProperty("Id") ?? typeof(T).GetProperty("id");
-            if (idProp == null) return;
-
-            int index = -1;
-            for (int i = 0; i < items.Count; i++)
+            try
             {
-                var val = idProp.GetValue(items[i]);
-                if (val != null && val.ToString() == id.ToString())
+                var json = await File.ReadAllTextAsync(path);
+                var items = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (items == null) return;
+
+                var idStr = id?.ToString();
+                items.RemoveAll(item =>
                 {
-                    index = i;
-                    break;
-                }
-            }
+                    foreach (var kv in item)
+                    {
+                        if (kv.Key.Equals("id", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return kv.Value?.ToString() == idStr;
+                        }
+                    }
+                    return false;
+                });
 
-            if (index != -1)
-            {
-                items.RemoveAt(index);
-                await SaveAll(tableName, items);
+                var updatedJson = JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(path, updatedJson);
             }
+            catch { }
         }
 
         private async Task SaveAll<T>(string tableName, List<T> items)
@@ -157,32 +184,9 @@ namespace ${namespace}.Services
             var json = JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(path, json);
         }
-
-        // Implementation of non-generic Delete using Reflection isn't strictly needed as long as we have DeleteGeneric
-        // or a fallback list cleaner. Let's make Delete call reflection on DeleteGeneric:
-        async Task IStorageService.Delete(string tableName, object id)
-        {
-            // Resolve Model type dynamically
-            var typeName = $"{typeof(JsonFileStorageService).Namespace.Replace(".Services", "")}.Models.{toPascalCase(tableName)}";
-            var type = System.Type.GetType(typeName);
-            if (type != null)
-            {
-                var method = typeof(JsonFileStorageService).GetMethod(nameof(DeleteGeneric))?.MakeGenericMethod(type);
-                if (method != null)
-                {
-                    var task = (Task)method.Invoke(this, new object[] { tableName, id })!;
-                    await task;
-                }
-            }
-        }
-
-        private string toPascalCase(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return s;
-            return char.ToUpper(s[0]) + s.Substring(1);
-        }
     }
-}`;
+}
+`;
   files.push({ name: 'JsonFileStorageService.cs', path: `${root}/Services/JsonFileStorageService.cs`, content: jsonFileStorageService, language: 'csharp' });
 
   // ApiService.cs
@@ -190,25 +194,75 @@ namespace ${namespace}.Services
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace ${namespace}.Services
 {
+    public class PagedApiResponse<T>
+    {
+        [JsonPropertyName("data")]
+        public List<T> Data { get; set; } = new();
+
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
+
+        [JsonPropertyName("page")]
+        public int Page { get; set; }
+
+        [JsonPropertyName("pageSize")]
+        public int PageSize { get; set; }
+
+        [JsonPropertyName("totalPages")]
+        public int TotalPages { get; set; }
+    }
+
     public class ApiService : IStorageService
     {
         private readonly HttpClient _http;
+        private readonly JsonSerializerOptions _jsonOptions;
         public string BackendName => "REST API (MySQL / SQL Server)";
 
         public ApiService(HttpClient http)
         {
             _http = http;
+            _jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
         }
 
         public async Task<List<T>> GetAll<T>(string tableName) where T : class, new()
         {
             try
             {
-                return await _http.GetFromJsonAsync<List<T>>($"data/{tableName}") ?? new();
+                // Controllers are mounted at /api/{tableName} or /api/data/{tableName}
+                var response = await _http.GetAsync($"{tableName}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    response = await _http.GetAsync($"data/{tableName}");
+                }
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    // First try deserializing as PagedResult<T> (default for our Controllers)
+                    try
+                    {
+                        var paged = JsonSerializer.Deserialize<PagedApiResponse<T>>(content, _jsonOptions);
+                        if (paged?.Data != null && paged.Data.Count > 0)
+                        {
+                            return paged.Data;
+                        }
+                    }
+                    catch { }
+
+                    // Fallback to direct List<T>
+                    var list = JsonSerializer.Deserialize<List<T>>(content, _jsonOptions);
+                    return list ?? new List<T>();
+                }
+                return new List<T>();
             }
             catch
             {
@@ -220,7 +274,18 @@ namespace ${namespace}.Services
         {
             try
             {
-                return await _http.GetFromJsonAsync<T>($"data/{tableName}/{id}");
+                var response = await _http.GetAsync($"{tableName}/{id}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    response = await _http.GetAsync($"data/{tableName}/{id}");
+                }
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    return JsonSerializer.Deserialize<T>(content, _jsonOptions);
+                }
+                return null;
             }
             catch
             {
@@ -230,20 +295,33 @@ namespace ${namespace}.Services
 
         public async Task Add<T>(string tableName, T record) where T : class, new()
         {
-            await _http.PostAsJsonAsync($"data/{tableName}", record);
+            var res = await _http.PostAsJsonAsync($"{tableName}", record);
+            if (!res.IsSuccessStatusCode)
+            {
+                await _http.PostAsJsonAsync($"data/{tableName}", record);
+            }
         }
 
         public async Task Update<T>(string tableName, object id, T record) where T : class, new()
         {
-            await _http.PutAsJsonAsync($"data/{tableName}/{id}", record);
+            var res = await _http.PutAsJsonAsync($"{tableName}/{id}", record);
+            if (!res.IsSuccessStatusCode)
+            {
+                await _http.PutAsJsonAsync($"data/{tableName}/{id}", record);
+            }
         }
 
         public async Task Delete(string tableName, object id)
         {
-            await _http.DeleteAsync($"data/{tableName}/{id}");
+            var res = await _http.DeleteAsync($"{tableName}/{id}");
+            if (!res.IsSuccessStatusCode)
+            {
+                await _http.DeleteAsync($"data/{tableName}/{id}");
+            }
         }
     }
-}`;
+}
+`;
   files.push({ name: 'ApiService.cs', path: `${root}/Services/ApiService.cs`, content: apiService, language: 'csharp' });
 
   // StorageServiceManager.cs
@@ -276,7 +354,8 @@ namespace ${namespace}.Services
             OnStorageChanged?.Invoke();
         }
     }
-}`;
+}
+`;
   files.push({ name: 'StorageServiceManager.cs', path: `${root}/Services/StorageServiceManager.cs`, content: storageServiceManager, language: 'csharp' });
 
   return files;

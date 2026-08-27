@@ -17,15 +17,40 @@ interface SecurityManagerModalProps {
   onClose: () => void;
   backendConfig?: BackendConfig;
   onUpdateBackendConfig?: (config: BackendConfig) => void;
+  initialTab?: 'matrix' | 'roles' | 'auth' | 'rls' | 'audit' | 'script_generator';
+  onTabChange?: (tab: 'matrix' | 'roles' | 'auth' | 'rls' | 'audit' | 'script_generator') => void;
 }
 
-export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tables, queries, forms, reports, onUpdateTable, onCreateTable, onClose, backendConfig, onUpdateBackendConfig }) => {
+export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ 
+  tables, 
+  queries, 
+  forms, 
+  reports, 
+  onUpdateTable, 
+  onCreateTable, 
+  onClose, 
+  backendConfig, 
+  onUpdateBackendConfig,
+  initialTab,
+  onTabChange
+}) => {
   // Find system tables
   const rolesTable = tables.find(t => t.name === 'sys_roles');
   const permTable = tables.find(t => t.name === 'sys_permissions');
 
-  const [activeTab, setActiveTab] = useState<'matrix' | 'roles' | 'auth' | 'script_generator'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'roles' | 'auth' | 'rls' | 'audit' | 'script_generator'>(initialTab || 'matrix');
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  const handleTabSwitch = (tab: 'matrix' | 'roles' | 'auth' | 'rls' | 'audit' | 'script_generator') => {
+    setActiveTab(tab);
+    if (onTabChange) onTabChange(tab);
+  };
 
   // Local state for Auth settings
   const [authConfig, setAuthConfig] = useState(backendConfig?.authConfig || { 
@@ -40,6 +65,48 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
 
   const { layout, tableGroups } = useProjectStore();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const handleGenerateAuthForm = (formType: 'login' | 'register' | 'user_mgmt') => {
+    const store = useProjectStore.getState();
+    const userTable = tables.find(t => t.name.toLowerCase() === 'sys_users' || t.name.toLowerCase() === 'users');
+    const userTableId = userTable ? userTable.id : (tables[0]?.id || 'tbl_users');
+
+    const formNames = {
+      login: 'frm_Login',
+      register: 'frm_Register',
+      user_mgmt: 'frm_UserManagement'
+    };
+    const formTitles = {
+      login: 'Benutzer-Anmeldung',
+      register: 'Neuen Benutzer registrieren',
+      user_mgmt: 'Benutzer & Rollenverwaltung'
+    };
+
+    const targetName = formNames[formType];
+    const existing = (store.forms || []).find(f => f.name.toLowerCase() === targetName.toLowerCase());
+    if (existing) {
+      return;
+    }
+
+    const newForm: Form = {
+      id: `form_${Date.now()}_${formType}`,
+      name: targetName,
+      sourceType: 'table',
+      sourceId: userTableId,
+      fields: [],
+      layout: {
+        id: `cnt_${Date.now()}`,
+        type: 'container',
+        label: formTitles[formType],
+        children: []
+      },
+      settings: {
+        showEditToggle: true
+      }
+    };
+
+    store.setForms([...(store.forms || []), newForm]);
+  };
 
   // Close on Escape
   React.useEffect(() => {
@@ -515,25 +582,25 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
         {/* Tabs */}
         <div className="flex bg-slate-100 border-b border-slate-200 px-4 pt-4 gap-4 shrink-0">
             <button 
-                onClick={() => setActiveTab('matrix')}
+                onClick={() => handleTabSwitch('matrix')}
                 className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'matrix' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                 Berechtigungs-Matrix
             </button>
             <button 
-                onClick={() => setActiveTab('roles')}
+                onClick={() => handleTabSwitch('roles')}
                 className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'roles' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                 Rollen definieren
             </button>
             <button 
-                onClick={() => setActiveTab('auth')}
+                onClick={() => handleTabSwitch('auth')}
                 className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'auth' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                 Authentifizierung (AD/Login)
             </button>
             <button 
-                onClick={() => setActiveTab('script_generator')}
+                onClick={() => handleTabSwitch('script_generator')}
                 className={`pb-3 px-4 font-bold text-sm border-b-2 transition-colors ${activeTab === 'script_generator' ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                 Skripte & RLS Policies
@@ -736,6 +803,7 @@ export const SecurityManagerModal: React.FC<SecurityManagerModalProps> = ({ tabl
                     authConfig={authConfig}
                     setAuthConfig={setAuthConfig}
                     roles={roles}
+                    onGenerateAuthForm={handleGenerateAuthForm}
                 />
             ) : (
                 <ScriptGeneratorTab

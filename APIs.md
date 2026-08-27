@@ -690,6 +690,114 @@ Globaler Hook, der bei Tabellen-Operationen (Erstellen, Aktualisieren, Löschen)
   }
   ```
 
+---
+
+## 5. Sicherheits-, RBAC-, Active-Directory- & Login-Merker-Schnittstellen
+
+Diese Spezifikation beschreibt die einheitliche Sicherheitsarchitektur für Identität, Rollen, Berechtigungen und Session-Tracking.
+
+### 5.1 Systemtabellen-Schema in IndexedDB / SQL
+
+#### Store / Tabelle: `sys_users`
+| Spalte | Typ | Nullable | Beschreibung |
+| :--- | :--- | :--- | :--- |
+| `Id` | `VARCHAR(64)` PK | Nein | Eindeutige Benutzer-ID |
+| `Username` | `VARCHAR(128)` | Nein | Anmeldename |
+| `PasswordHash` | `VARCHAR(256)` | Ja | Gehashtes Passwort (Bcrypt / PBKDF2; leer bei reinem Windows SSO) |
+| `Email` | `VARCHAR(256)` | Ja | E-Mail-Adresse |
+| `RoleId` | `VARCHAR(64)` FK | Nein | Verweis auf `sys_roles.Id` |
+| `IsActive` | `BOOLEAN` | Nein | Benutzerstatus (aktiv/gesperrt) |
+| `LastLoginAt` | `DATETIME` | Ja | Zeitpunkt der letzten Anmeldung |
+| `CreatedAt` | `DATETIME` | Nein | Erstellungszeitpunkt |
+
+#### Store / Tabelle: `sys_roles`
+| Spalte | Typ | Nullable | Beschreibung |
+| :--- | :--- | :--- | :--- |
+| `Id` | `VARCHAR(64)` PK | Nein | Rollen-Identifikator (z. B. `role_admin`, `role_editor`) |
+| `Name` | `VARCHAR(128)` | Nein | Rollenname (`Administrator`, `Manager`, `Editor`, `User`, `Gast`) |
+| `Description` | `VARCHAR(255)` | Ja | Rollenbeschreibung |
+| `IsSystemRole` | `BOOLEAN` | Nein | Schutz vor versehentlichem Löschen von Kernrollen |
+
+#### Store / Tabelle: `sys_permissions`
+| Spalte | Typ | Nullable | Beschreibung |
+| :--- | :--- | :--- | :--- |
+| `Id` | `VARCHAR(64)` PK | Nein | Primärschlüssel |
+| `RoleId` | `VARCHAR(64)` FK | Nein | Verweis auf `sys_roles.Id` |
+| `ObjectType` | `VARCHAR(32)` | Nein | `table`, `field`, `query`, `report`, `form` |
+| `ObjectId` | `VARCHAR(128)` | Nein | ID oder Name des Zielobjekts (z. B. `tbl_kunden`, `kunden.email`) |
+| `CanRead` | `BOOLEAN` | Nein | Leseberechtigung |
+| `CanWrite` | `BOOLEAN` | Nein | Schreibberechtigung (INSERT/UPDATE) |
+| `CanDelete` | `BOOLEAN` | Nein | Löschberechtigung (DELETE) |
+
+---
+
+### 5.2 API-Endpunkte für Authentifizierung & Session
+
+#### `POST /api/auth/login`
+Authentifiziert den Benutzer über Anmeldedaten und initialisiert den **Login-Merker**.
+- **Request-Body:**
+  ```json
+  {
+    "username": "admin",
+    "password": "Password123!",
+    "rememberMe": true
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "user": {
+      "id": "usr_001",
+      "username": "admin",
+      "role": "Administrator",
+      "permissions": ["*"]
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsIn...",
+    "sessionMarker": {
+      "persistedIn": "indexeddb",
+      "expiresAt": "2026-09-27T03:30:00.000Z"
+    }
+  }
+  ```
+
+#### `POST /api/auth/windows-sso`
+Windows Active Directory Authentifizierung via Kerberos/NTLM und AD-Gruppen-Mapping.
+- **Request-Body:**
+  ```json
+  {
+    "domainUser": "CORP\\mmuster",
+    "groups": ["CORP\\Domänen-Admins", "CORP\\IT-Support"]
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "matchedRole": "Administrator",
+    "user": {
+      "id": "CORP_mmuster",
+      "username": "CORP\\mmuster",
+      "role": "Administrator"
+    }
+  }
+  ```
+
+#### `GET /api/auth/session`
+Prüft den aktiven Login-Merker (Session-Wiederherstellung beim Seitenaufruf).
+- **Response (200 OK):**
+  ```json
+  {
+    "isAuthenticated": true,
+    "user": {
+      "id": "usr_001",
+      "username": "admin",
+      "role": "Administrator"
+    }
+  }
+  ```
+
+
 
 
 

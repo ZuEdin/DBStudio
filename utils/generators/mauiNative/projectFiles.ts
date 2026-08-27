@@ -1,5 +1,5 @@
 import { Table, BackendConfig, VirtualFile } from '../../../types/index';
-import { toCamelCase } from '../common';
+import { toPascalCase, toCamelCase } from '../common';
 
 export const generateMauiNativeProjectFiles = (
   tables: Table[],
@@ -43,6 +43,9 @@ export const generateMauiNativeProjectFiles = (
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net9.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
     <TargetPlatformMinVersion Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">10.0.17763.0</TargetPlatformMinVersion>
+
+    <!-- Windows Unpackaged Execution for seamless local debugging without MSIX packaging friction -->
+    <WindowsPackageType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">None</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -109,7 +112,7 @@ public static class MauiProgram
 
         // Register Views & Pages for DI
         builder.Services.AddTransient<DashboardPage>();
-        ${tables.map(t => `builder.Services.AddTransient<${t.name}ListPage>();`).join('\n        ')}
+        ${tables.map(t => `builder.Services.AddTransient<${toPascalCase(t.name)}ListPage>();`).join('\n        ')}
 
         return builder.Build();
     }
@@ -142,8 +145,11 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+    }
 
-        MainPage = new AppShell();
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new AppShell());
     }
 }`,
       language: 'csharp'
@@ -278,6 +284,24 @@ public class AppDelegate : MauiUIApplicationDelegate
   });
 
   files.push({
+      name: 'Program.cs',
+      path: `${root}/Platforms/iOS/Program.cs`,
+      content: `using ObjCRuntime;
+using UIKit;
+
+namespace ${namespace};
+
+public class Program
+{
+	static void Main(string[] args)
+	{
+		UIApplication.Main(args, null, typeof(AppDelegate));
+	}
+}`,
+      language: 'csharp'
+  });
+
+  files.push({
       name: 'Info.plist',
       path: `${root}/Platforms/iOS/Info.plist`,
       content: `<?xml version="1.0" encoding="UTF-8"?>
@@ -327,6 +351,24 @@ namespace ${namespace};
 public class AppDelegate : MauiUIApplicationDelegate
 {
 	protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+}`,
+      language: 'csharp'
+  });
+
+  files.push({
+      name: 'Program.cs',
+      path: `${root}/Platforms/MacCatalyst/Program.cs`,
+      content: `using ObjCRuntime;
+using UIKit;
+
+namespace ${namespace};
+
+public class Program
+{
+	static void Main(string[] args)
+	{
+		UIApplication.Main(args, null, typeof(AppDelegate));
+	}
 }`,
       language: 'csharp'
   });
@@ -447,14 +489,14 @@ public partial class App : MauiWinUIApplication
       language: 'xml'
   });
 
-  // --- LAUNCH SETTINGS FOR WINDOWS DEPLOYMENT (MSIX) ---
+  // --- LAUNCH SETTINGS FOR WINDOWS DEPLOYMENT ---
   files.push({
       name: 'launchSettings.json',
       path: `${root}/Properties/launchSettings.json`,
       content: `{
   "profiles": {
     "Windows Machine": {
-      "commandName": "MsixPackage",
+      "commandName": "Project",
       "nativeDebugging": false
     }
   }
