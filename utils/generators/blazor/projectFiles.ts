@@ -151,7 +151,6 @@ await builder.Build().RunAsync();
 </body>
 </html>`;
   files.push({ name: 'index.html', path: `${root}/wwwroot/index.html`, content: indexHtml, language: 'html' });
-  files.push({ name: `${namespace}.styles.css`, path: `${root}/wwwroot/${namespace}.styles.css`, content: `/* Scoped CSS bundle */\n`, language: 'css' });
 
   // 6. app.css
   const appCss = `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');

@@ -158,7 +158,6 @@ await builder.Build().RunAsync();
 </body>
 </html>`;
   files.push({ name: 'index.html', path: `${root}/wwwroot/index.html`, content: indexHtml, language: 'html' });
-  files.push({ name: `${namespace}.styles.css`, path: `${root}/wwwroot/${namespace}.styles.css`, content: `/* Scoped CSS bundle */\n`, language: 'css' });
 
   // 6. app.css
   const appCss = `html, body {
