@@ -64,7 +64,12 @@ export const generateBackendCode = (
   }
 
   // 1. Generate Backend Language Code
-  if (activeConfig.language === 'dotnet') {
+  const isDotNetFramework = activeConfig.frontendFramework === 'blazor' || 
+                            activeConfig.frontendFramework === 'mudblazor' || 
+                            activeConfig.frontendFramework === 'maui' || 
+                            activeConfig.frontendFramework === 'maui-native';
+
+  if (activeConfig.language === 'dotnet' || isDotNetFramework) {
     files = generateDotNet(tables, relationships, queries, activeConfig);
   } else if (activeConfig.language === 'nodejs' || activeConfig.language === 'electron') {
     // Treat 'electron' as 'nodejs' for the backend API structure
@@ -122,12 +127,7 @@ export const generateBackendCode = (
   // --- SPECIAL POST-PROCESSING FOR BLAZOR & MAUI + .NET ---
   // Transforms the structure from "Backend/Project" & "Frontend/Project.Client" (or Project.Maui)
   // to "Project" & "Project.Client" (or Project.Maui) at root level + Solution File
-  if (activeConfig.language === 'dotnet' && (
-      activeConfig.frontendFramework === 'blazor' || 
-      activeConfig.frontendFramework === 'mudblazor' || 
-      activeConfig.frontendFramework === 'maui' || 
-      activeConfig.frontendFramework === 'maui-native'
-  )) {
+  if (isDotNetFramework) {
       const isMaui = activeConfig.frontendFramework === 'maui';
       const isMauiNative = activeConfig.frontendFramework === 'maui-native';
       const backendPrefix = `Backend/${activeConfig.projectName}.Server`;

@@ -18,6 +18,25 @@ export const generateBlazorLayouts = (
 ${useAuth ? '@inject AuthService Auth\n@inject NavigationManager Nav' : ''}
 @implements IDisposable
 
+<style>
+@@media print {
+    .sidebar, .top-row, nav, header, aside, .no-print, button, .btn {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    body, html, main, .page, article.content, .container-fluid {
+        background: white !important;
+        color: black !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+</style>
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />

@@ -1,5 +1,23 @@
 import { Table, Query, Report, BackendConfig, VirtualFile, Relationship, Field } from '../../../types/index';
-import { toPascalCase, toCamelCase, resolveType, findTargetTable } from '../common';
+import { toPascalCase, toCamelCase, resolveType, findTargetTable, isNullable } from '../common';
+
+const getFKTableInfo = (targetTable: Table) => {
+  const className = toPascalCase(targetTable.name);
+  const camelName = toCamelCase(targetTable.name);
+  const pkField = targetTable.fields.find(x => x.isPrimaryKey) || targetTable.fields[0];
+  const pkProp = toPascalCase(pkField.name);
+  const labelField = targetTable.fields.find(x => !x.isPrimaryKey && (
+    x.name.toLowerCase().includes('name') ||
+    x.name.toLowerCase().includes('bezeichnung') ||
+    x.name.toLowerCase().includes('titel') ||
+    x.name.toLowerCase().includes('firma') ||
+    x.name.toLowerCase().includes('nummer') ||
+    x.name.toLowerCase().includes('nr') ||
+    x.name.toLowerCase().includes('beschreibung')
+  )) || targetTable.fields.find(x => !x.isPrimaryKey && (x.type === 'VARCHAR' || x.type === 'TEXT' || x.type === 'CHAR' || x.type === 'EMAIL' || (x.type as string) === 'string')) || pkField;
+  const labelProp = toPascalCase(labelField.name);
+  return { className, camelName, pkProp, labelProp };
+};
 
 export const generateMudBlazorPages = (
   tables: Table[],
@@ -163,19 +181,21 @@ ${useAuth ? '@attribute [Authorize]' : ''}
 
     table.fields.forEach(f => {
       const fieldPascal = toPascalCase(f.name);
-      const csharpType = resolveType(f, 'csharp');
+      const rawType = resolveType(f, 'csharp');
+      const fieldNullable = isNullable(f);
+      const fullCsharpType = rawType + (fieldNullable ? '?' : '');
       const fkMatch = fkLookups.find(x => x.field.name === f.name);
 
       if (fkMatch) {
-        const targetCamel = toCamelCase(fkMatch.targetTable.name);
+        const targetInfo = getFKTableInfo(fkMatch.targetTable);
         mudTableHeaders += `            <MudTh>${f.name} (${fkMatch.targetTable.name})</MudTh>\n`;
-        mudTableRows += `            <MudTd DataLabel="${f.name}">@GetFkDisplay(${targetCamel}LookupList, context.${fieldPascal})</MudTd>\n`;
+        mudTableRows += `            <MudTd DataLabel="${f.name}">@Get${targetInfo.className}Display(context.${fieldPascal})</MudTd>\n`;
       } else {
         mudTableHeaders += `            <MudTh>${f.name}</MudTh>\n`;
 
-        if (csharpType === 'bool') {
+        if (rawType === 'bool') {
           mudTableRows += `            <MudTd DataLabel="${f.name}">@(context.${fieldPascal} == true ? "Ja" : "Nein")</MudTd>\n`;
-        } else if (csharpType === 'DateTime') {
+        } else if (rawType === 'DateTime') {
           mudTableRows += `            <MudTd DataLabel="${f.name}">@(context.${fieldPascal}?.ToString("dd.MM.yyyy") ?? "-")</MudTd>\n`;
         } else {
           mudTableRows += `            <MudTd DataLabel="${f.name}">@context.${fieldPascal}</MudTd>\n`;
@@ -187,31 +207,34 @@ ${useAuth ? '@attribute [Authorize]' : ''}
                             <MudTextField Value="@(activeItem.${fieldPascal} == 0 ? "Wird automatisch generiert" : activeItem.${fieldPascal}.ToString())" Label="${f.name} (PK)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="true" />
                         </div>\n`;
       } else if (fkMatch) {
-        const targetCamel = toCamelCase(fkMatch.targetTable.name);
+        const targetInfo = getFKTableInfo(fkMatch.targetTable);
+        const selectType = fullCsharpType;
+        const nullValCast = fieldNullable ? `(${selectType})null` : `(${selectType})0`;
+
         formFields += `                        <div class="mb-3">
-                            <MudSelect T="${csharpType}" @bind-Value="activeItem.${fieldPascal}" Label="${f.name} (${fkMatch.targetTable.name})" Variant="Variant.Outlined" Margin="Margin.Dense">
-                                <MudSelectItem Value="@(${csharpType === 'int?' ? '(int?)0' : '0'})">-- Bitte ${fkMatch.targetTable.name} auswählen --</MudSelectItem>
-                                @if (${targetCamel}LookupList != null)
+                            <MudSelect T="${selectType}" @bind-Value="activeItem.${fieldPascal}" Label="${f.name} (${fkMatch.targetTable.name})" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem T="${selectType}" Value="@(${nullValCast})">-- Bitte ${fkMatch.targetTable.name} auswählen --</MudSelectItem>
+                                @if (${targetInfo.camelName}LookupList != null)
                                 {
-                                    @foreach (var fkItem in ${targetCamel}LookupList)
+                                    @foreach (var fkItem in ${targetInfo.camelName}LookupList)
                                     {
-                                        var fkId = GetFkId(fkItem);
-                                        var fkLabel = GetFkLabel(fkItem);
-                                        <MudSelectItem Value="@(${csharpType === 'int?' ? '(int?)fkId' : 'fkId'})">@fkLabel (ID: @fkId)</MudSelectItem>
+                                        var fkId = fkItem.${targetInfo.pkProp};
+                                        var fkLabel = fkItem.${targetInfo.labelProp}?.ToString() ?? "";
+                                        <MudSelectItem T="${selectType}" Value="@((${selectType})fkId)">@(string.IsNullOrWhiteSpace(fkLabel) ? $"ID: {fkId}" : $"{fkLabel} (ID: {fkId})")</MudSelectItem>
                                     }
                                 }
                             </MudSelect>
                         </div>\n`;
       } else {
-        if (csharpType === 'bool') {
+        if (rawType === 'bool') {
           formFields += `                        <div class="mb-3">
                             <MudSwitch @bind-Value="activeItem.${fieldPascal}" Label="${f.name}" Color="Color.Primary" />
                         </div>\n`;
-        } else if (csharpType === 'int' || csharpType === 'long' || csharpType === 'short' || csharpType === 'decimal' || csharpType === 'double' || csharpType === 'float') {
+        } else if (rawType === 'int' || rawType === 'long' || rawType === 'short' || rawType === 'decimal' || rawType === 'double' || rawType === 'float') {
           formFields += `                        <div class="mb-3">
                             <MudNumericField @bind-Value="activeItem.${fieldPascal}" Label="${f.name}" Variant="Variant.Outlined" Margin="Margin.Dense" />
                         </div>\n`;
-        } else if (csharpType === 'DateTime') {
+        } else if (rawType === 'DateTime') {
           formFields += `                        <div class="mb-3">
                             <MudDatePicker Label="${f.name}" @bind-Date="activeItem.${fieldPascal}" Variant="Variant.Outlined" Margin="Margin.Dense" />
                         </div>\n`;
@@ -275,7 +298,7 @@ ${mudTableRows}
 
 @if (showModal)
 {
-    <MudOverlay Visible="true" DarkBackground="true" Absolute="false" Style="z-index: 1300; display: flex; align-items: center; justify-content: center;">
+    <MudOverlay Visible="true" DarkBackground="true" Absolute="false" Style="z-index: 1050; display: flex; align-items: center; justify-content: center;">
         <MudPaper Elevation="8" Class="pa-6" Style="width: 100%; max-width: 550px; border-radius: 8px;">
             <div class="d-flex justify-space-between align-center mb-4">
                 <MudText Typo="Typo.h6" Class="font-weight-bold">
@@ -309,7 +332,10 @@ ${formFields}
     private bool isEditMode = false;
     private string searchTerm = "";
 
-${uniqueTargetTables.map(t => `    private List<Dictionary<string, object>>? ${toCamelCase(t.name)}LookupList;`).join('\n')}
+${uniqueTargetTables.map(t => {
+  const info = getFKTableInfo(t);
+  return `    private List<${info.className}>? ${info.camelName}LookupList;`;
+}).join('\n')}
 
     private IEnumerable<${className}> FilteredItems => string.IsNullOrWhiteSpace(searchTerm)
         ? items
@@ -327,7 +353,10 @@ ${uniqueTargetTables.map(t => `    private List<Dictionary<string, object>>? ${t
         try
         {
             items = await StorageManager.CurrentService.GetAll<${className}>("${table.name}");
-${uniqueTargetTables.map(t => `            try { ${toCamelCase(t.name)}LookupList = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>("${t.name}"); } catch {}`).join('\n')}
+${uniqueTargetTables.map(t => {
+  const info = getFKTableInfo(t);
+  return `            try { ${info.camelName}LookupList = await StorageManager.CurrentService.GetAll<${info.className}>("${t.name}"); } catch {}`;
+}).join('\n')}
         }
         catch (Exception ex)
         {
@@ -339,55 +368,20 @@ ${uniqueTargetTables.map(t => `            try { ${toCamelCase(t.name)}LookupLis
         }
     }
 
-    private int GetFkId(Dictionary<string, object> item)
+${uniqueTargetTables.map(t => {
+  const info = getFKTableInfo(t);
+  return `    private string Get${info.className}Display(object? val)
     {
-        if (item == null) return 0;
-        foreach (var key in new[] { "Id", "id", "ID", "Pk", "pk" })
+        if (val == null || string.IsNullOrWhiteSpace(val.ToString()) || ${info.camelName}LookupList == null) return "-";
+        var match = ${info.camelName}LookupList.FirstOrDefault(x => x.${info.pkProp}.ToString() == val.ToString());
+        if (match != null)
         {
-            if (item.TryGetValue(key, out var val) && val != null)
-            {
-                if (int.TryParse(val.ToString(), out var parsedId)) return parsedId;
-            }
+            var label = match.${info.labelProp}?.ToString();
+            return !string.IsNullOrWhiteSpace(label) ? $"{label} (ID: {val})" : $"ID: {val}";
         }
-        foreach (var kvp in item)
-        {
-            if (kvp.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase) && kvp.Value != null)
-            {
-                if (int.TryParse(kvp.Value.ToString(), out var parsedId)) return parsedId;
-            }
-        }
-        return 0;
-    }
-
-    private string GetFkLabel(Dictionary<string, object> item)
-    {
-        if (item == null) return "";
-        foreach (var key in new[] { "Name", "name", "Bezeichnung", "bezeichnung", "Titel", "titel", "Firma", "firma", "Kundenname", "Artikelname", "Beschreibung", "Nummer", "Rechnungsnummer", "Auftragsnummer" })
-        {
-            if (item.TryGetValue(key, out var val) && val != null && !string.IsNullOrWhiteSpace(val.ToString()))
-            {
-                return val.ToString()!;
-            }
-        }
-        foreach (var kvp in item)
-        {
-            if (kvp.Value != null && !(kvp.Key.Equals("Id", StringComparison.OrdinalIgnoreCase) || kvp.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase)))
-            {
-                return kvp.Value.ToString()!;
-            }
-        }
-        return "Eintrag #" + GetFkId(item);
-    }
-
-    private string GetFkDisplay(List<Dictionary<string, object>>? list, object? idVal)
-    {
-        if (idVal == null || list == null) return idVal?.ToString() ?? "-";
-        if (!int.TryParse(idVal.ToString(), out var id)) return idVal.ToString()!;
-        if (id == 0) return "-";
-        var match = list.FirstOrDefault(x => GetFkId(x) == id);
-        if (match != null) return $"{GetFkLabel(match)} (ID: {id})";
-        return $"ID: {id}";
-    }
+        return $"ID: {val}";
+    }`;
+}).join('\n\n')}
 
     private async void HandleStorageChanged()
     {
@@ -450,6 +444,7 @@ ${table.fields.map(f => `            ${toPascalCase(f.name)} = item.${toPascalCa
   const queriesPage = `@page "/queries"
 ${useAuth ? '@attribute [Authorize]' : ''}
 @inject StorageServiceManager StorageManager
+@inject IJSRuntime JS
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
     <MudText Typo="Typo.h4" Color="Color.Primary" Class="font-weight-bold mb-1">
@@ -458,7 +453,7 @@ ${useAuth ? '@attribute [Authorize]' : ''}
     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Führen Sie gezielte Datenabfragen aus oder filtern Sie Ihre Tabellen.</MudText>
 
     <MudGrid>
-        <MudItem xs="12" md="4">
+        <MudItem xs="12" md="4" Class="no-print">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.h6" Class="font-weight-bold mb-3">Verfügbare Abfragen</MudText>
                 <MudList T="string" Clickable="true" Dense="true">
@@ -478,8 +473,8 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         </MudItem>
 
         <MudItem xs="12" md="8">
-            <MudPaper Elevation="2" Class="pa-4">
-                <div class="d-flex justify-space-between align-center mb-4">
+            <MudPaper Elevation="2" Class="pa-4 printable-report">
+                <div class="d-flex justify-space-between align-center mb-4 no-print">
                     <MudText Typo="Typo.h6" Class="font-weight-bold">@selectedQueryTitle</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="RunQuery">Abfrage ausführen</MudButton>
                 </div>
@@ -492,17 +487,25 @@ ${useAuth ? '@attribute [Authorize]' : ''}
                 }
                 else
                 {
-                    <MudAlert Severity="Severity.Normal" Class="mb-4" Variant="Variant.Outlined">
+                    <MudAlert Severity="Severity.Normal" Class="mb-4 no-print" Variant="Variant.Outlined">
                         <b>SQL Preview:</b> <code>@generatedSql</code>
                     </MudAlert>
 
                     @if (queryResults != null && queryResults.Any())
                     {
-                        var firstRow = queryResults.First();
-                        <MudSimpleTable Style="overflow-x: auto; max-height: 400px;">
+                        <div class="d-flex flex-wrap gap-2 mb-3 no-print">
+                            <MudText Typo="Typo.subtitle2" Class="align-self-center mr-2"><b>Exportieren:</b></MudText>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintExport">PDF / Drucken</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.TableChart" OnClick="ExportXlsx">Excel (.xlsx)</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportCsv">CSV</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" StartIcon="@Icons.Material.Filled.Code" OnClick="ExportXml">XML</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Dark" Size="Size.Small" StartIcon="@Icons.Material.Filled.DataObject" OnClick="ExportJson">JSON</MudButton>
+                        </div>
+
+                        <MudSimpleTable Style="overflow-x: auto; max-height: 500px;">
                             <thead>
                                 <tr>
-                                    @foreach (var key in firstRow.Keys)
+                                    @foreach (var key in queryResults.First().Keys)
                                     {
                                         <th>@key</th>
                                     }
@@ -583,6 +586,106 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         generatedSql = "SELECT * FROM DataQuery WHERE Status = 'Active';";
         _ = RunQuery();
     }
+
+    private async Task PrintExport()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task ExportCsv()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv";
+        var keys = queryResults.First().Keys.ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.Append("\uFEFF");
+        var q = "\\\"";
+        var headerCols = keys.Select(k => q + k.Replace(q, q + q) + q);
+        sb.AppendLine(string.Join(";", headerCols));
+        foreach (var row in queryResults)
+        {
+            var rowCols = keys.Select(k => {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                return q + (val ?? "").Replace(q, q + q) + q;
+            });
+            sb.AppendLine(string.Join(";", rowCols));
+        }
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "text/csv;charset=utf-8");
+    }
+
+    private async Task ExportJson()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json";
+        var jsonContent = System.Text.Json.JsonSerializer.Serialize(queryResults, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        await JS.InvokeVoidAsync("exportFile", filename, jsonContent, "application/json;charset=utf-8");
+    }
+
+    private async Task ExportXml()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xml";
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + " encoding=" + q + "utf-8" + q + "?" + gt);
+        sb.AppendLine(lt + "AbfrageDaten" + gt);
+        foreach (var row in queryResults)
+        {
+            sb.AppendLine("  " + lt + "Eintrag" + gt);
+            foreach (var kvp in row)
+            {
+                var cleanKey = System.Text.RegularExpressions.Regex.Replace(kvp.Key, "[^a-zA-Z0-9_]", "_");
+                if (string.IsNullOrWhiteSpace(cleanKey)) cleanKey = "Feld";
+                var val = System.Security.SecurityElement.Escape(kvp.Value?.ToString() ?? "");
+                sb.AppendLine("    " + lt + cleanKey + gt + val + lt + "/" + cleanKey + gt);
+            }
+            sb.AppendLine("  " + lt + "/Eintrag" + gt);
+        }
+        sb.AppendLine(lt + "/AbfrageDaten" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/xml;charset=utf-8");
+    }
+
+    private async Task ExportXlsx()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xls";
+        var keys = queryResults.First().Keys.ToList();
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + "?" + gt);
+        sb.AppendLine(lt + "?mso-application progid=" + q + "Excel.Sheet" + q + "?" + gt);
+        sb.AppendLine(lt + "Workbook xmlns=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + " xmlns:ss=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + gt);
+        sb.AppendLine(" " + lt + "Worksheet ss:Name=" + q + "Export" + q + gt);
+        sb.AppendLine("  " + lt + "Table" + gt);
+        sb.AppendLine("   " + lt + "Row" + gt);
+        foreach (var k in keys)
+        {
+            sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(k) + lt + "/Data" + gt + lt + "/Cell" + gt);
+        }
+        sb.AppendLine("   " + lt + "/Row" + gt);
+        foreach (var row in queryResults)
+        {
+            sb.AppendLine("   " + lt + "Row" + gt);
+            foreach (var k in keys)
+            {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(val ?? "") + lt + "/Data" + gt + lt + "/Cell" + gt);
+            }
+            sb.AppendLine("   " + lt + "/Row" + gt);
+        }
+        sb.AppendLine("  " + lt + "/Table" + gt);
+        sb.AppendLine(" " + lt + "/Worksheet" + gt);
+        sb.AppendLine(lt + "/Workbook" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/vnd.ms-excel;charset=utf-8");
+    }
 }
 `;
   files.push({ name: 'Queries.razor', path: `${root}/Pages/Queries.razor`, content: queriesPage, language: 'razor' });
@@ -593,18 +696,51 @@ ${useAuth ? '@attribute [Authorize]' : ''}
 @inject StorageServiceManager StorageManager
 @inject IJSRuntime JS
 
+<style>
+@@media print {
+    .mud-drawer-provider, .mud-drawer, .mud-drawer-responsive, .mud-appbar, .sidebar, .top-row, nav, header, aside, .no-print, button, .mud-button-root, .btn {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    body, .mud-layout, .mud-main-content, .mud-container {
+        background: white !important;
+        color: black !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+    .printable-report {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+}
+</style>
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
-    <div class="d-flex justify-space-between align-center mb-4">
+    <div class="d-flex justify-space-between align-center mb-4 no-print">
         <div>
             <MudText Typo="Typo.h4" Color="Color.Primary" Class="font-weight-bold mb-1">
                 <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />Berichte &amp; Analysen
             </MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Generieren und drucken Sie Auswertungen Ihrer Unternehmensdaten.</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Generieren und exportieren Sie Auswertungen Ihrer Unternehmensdaten in verschiedenen Formaten.</MudText>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintReport">Bericht drucken</MudButton>
+        <div class="d-flex flex-wrap align-center gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintReport">PDF / Drucken</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.TableChart" OnClick="ExportXlsx">Excel (.xlsx)</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportCsv">CSV</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Code" OnClick="ExportXml">XML</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Dark" StartIcon="@Icons.Material.Filled.DataObject" OnClick="ExportJson">JSON</MudButton>
+        </div>
     </div>
 
-    <MudGrid Class="mb-4">
+    <MudGrid Class="mb-4 no-print">
         ${tables.map(t => `
         <MudItem xs="12" sm="6" md="4">
             <MudCard Elevation="2" Class="h-100">
@@ -629,7 +765,7 @@ ${useAuth ? '@attribute [Authorize]' : ''}
 
     @if (!string.IsNullOrEmpty(activeReportName))
     {
-        <MudPaper Elevation="3" Class="pa-6 mt-4">
+        <MudPaper Elevation="3" Class="pa-6 mt-4 printable-report">
             <div class="d-flex justify-space-between align-center mb-4 pb-3 border-bottom">
                 <div>
                     <MudText Typo="Typo.h5" Color="Color.Primary" Class="font-weight-bold">${config.projectName} - Bericht: @activeReportName</MudText>
@@ -646,17 +782,16 @@ ${useAuth ? '@attribute [Authorize]' : ''}
             }
             else
             {
-                <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
+                <MudAlert Severity="Severity.Info" Class="mb-4 no-print" Variant="Variant.Outlined">
                     Zusammenfassung: Insgesammt <b>@reportCount</b> Datensätze in der Tabelle <b>@activeReportName</b> geladen.
                 </MudAlert>
 
                 @if (activeReportData != null && activeReportData.Any())
                 {
-                    var firstRow = activeReportData.First();
                     <MudSimpleTable Style="overflow-x: auto;">
                         <thead>
                             <tr>
-                                @foreach (var key in firstRow.Keys)
+                                @foreach (var key in activeReportData.First().Keys)
                                 {
                                     <th>@key</th>
                                 }
@@ -706,9 +841,113 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         }
     }
 
+    private async Task EnsureReportLoaded()
+    {
+        if (string.IsNullOrEmpty(activeReportName) && ${tables.length > 0 ? 'true' : 'false'})
+        {
+            await GenerateReport("${tables[0]?.name || ''}");
+        }
+    }
+
     private async Task PrintReport()
     {
+        await EnsureReportLoaded();
         await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task ExportCsv()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv";
+        var keys = activeReportData.First().Keys.ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.Append("\uFEFF");
+        var q = "\\\"";
+        var headerCols = keys.Select(k => q + k.Replace(q, q + q) + q);
+        sb.AppendLine(string.Join(";", headerCols));
+        foreach (var row in activeReportData)
+        {
+            var rowCols = keys.Select(k => {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                return q + (val ?? "").Replace(q, q + q) + q;
+            });
+            sb.AppendLine(string.Join(";", rowCols));
+        }
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "text/csv;charset=utf-8");
+    }
+
+    private async Task ExportJson()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json";
+        var jsonContent = System.Text.Json.JsonSerializer.Serialize(activeReportData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        await JS.InvokeVoidAsync("exportFile", filename, jsonContent, "application/json;charset=utf-8");
+    }
+
+    private async Task ExportXml()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xml";
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + " encoding=" + q + "utf-8" + q + "?" + gt);
+        sb.AppendLine(lt + "BerichtsDaten" + gt);
+        foreach (var row in activeReportData)
+        {
+            sb.AppendLine("  " + lt + "Eintrag" + gt);
+            foreach (var kvp in row)
+            {
+                var cleanKey = System.Text.RegularExpressions.Regex.Replace(kvp.Key, "[^a-zA-Z0-9_]", "_");
+                if (string.IsNullOrWhiteSpace(cleanKey)) cleanKey = "Feld";
+                var val = System.Security.SecurityElement.Escape(kvp.Value?.ToString() ?? "");
+                sb.AppendLine("    " + lt + cleanKey + gt + val + lt + "/" + cleanKey + gt);
+            }
+            sb.AppendLine("  " + lt + "/Eintrag" + gt);
+        }
+        sb.AppendLine(lt + "/BerichtsDaten" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/xml;charset=utf-8");
+    }
+
+    private async Task ExportXlsx()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xls";
+        var keys = activeReportData.First().Keys.ToList();
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + "?" + gt);
+        sb.AppendLine(lt + "?mso-application progid=" + q + "Excel.Sheet" + q + "?" + gt);
+        sb.AppendLine(lt + "Workbook xmlns=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + " xmlns:ss=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + gt);
+        sb.AppendLine(" " + lt + "Worksheet ss:Name=" + q + "Export" + q + gt);
+        sb.AppendLine("  " + lt + "Table" + gt);
+        sb.AppendLine("   " + lt + "Row" + gt);
+        foreach (var k in keys)
+        {
+            sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(k) + lt + "/Data" + gt + lt + "/Cell" + gt);
+        }
+        sb.AppendLine("   " + lt + "/Row" + gt);
+        foreach (var row in activeReportData)
+        {
+            sb.AppendLine("   " + lt + "Row" + gt);
+            foreach (var k in keys)
+            {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(val ?? "") + lt + "/Data" + gt + lt + "/Cell" + gt);
+            }
+            sb.AppendLine("   " + lt + "/Row" + gt);
+        }
+        sb.AppendLine("  " + lt + "/Table" + gt);
+        sb.AppendLine(" " + lt + "/Worksheet" + gt);
+        sb.AppendLine(lt + "/Workbook" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/vnd.ms-excel;charset=utf-8");
     }
 }
 `;

@@ -1,6 +1,24 @@
 import { Table, Query, Report, BackendConfig, VirtualFile, Relationship, Field } from '../../../types/index';
 import { toPascalCase, toCamelCase, findTargetTable } from '../common';
 
+const getFKTableInfo = (targetTable: Table) => {
+  const className = toPascalCase(targetTable.name);
+  const camelName = toCamelCase(targetTable.name);
+  const pkField = targetTable.fields.find(x => x.isPrimaryKey) || targetTable.fields[0];
+  const pkProp = toPascalCase(pkField.name);
+  const labelField = targetTable.fields.find(x => !x.isPrimaryKey && (
+    x.name.toLowerCase().includes('name') ||
+    x.name.toLowerCase().includes('bezeichnung') ||
+    x.name.toLowerCase().includes('titel') ||
+    x.name.toLowerCase().includes('firma') ||
+    x.name.toLowerCase().includes('nummer') ||
+    x.name.toLowerCase().includes('nr') ||
+    x.name.toLowerCase().includes('beschreibung')
+  )) || targetTable.fields.find(x => !x.isPrimaryKey && (x.type === 'VARCHAR' || x.type === 'TEXT' || x.type === 'CHAR' || x.type === 'EMAIL' || (x.type as string) === 'string')) || pkField;
+  const labelProp = toPascalCase(labelField.name);
+  return { className, camelName, pkProp, labelProp };
+};
+
 export const generateBlazorPages = (
   tables: Table[],
   config: BackendConfig,
@@ -165,9 +183,9 @@ ${useAuth ? '@attribute [Authorize]' : ''}
       const fkMatch = fkLookups.find(x => x.field.name === f.name);
 
       if (fkMatch) {
-        const targetCamel = toCamelCase(fkMatch.targetTable.name);
+        const targetInfo = getFKTableInfo(fkMatch.targetTable);
         tableHeaders += `                        <th scope="col" class="fw-semibold text-secondary">${propName} (${fkMatch.targetTable.name})</th>\n`;
-        tableRows += `                        <td>@GetFkDisplay(${targetCamel}LookupList, item.${propName})</td>\n`;
+        tableRows += `                        <td>@Get${targetInfo.className}Display(item.${propName})</td>\n`;
       } else {
         tableHeaders += `                        <th scope="col" class="fw-semibold text-secondary">${propName}</th>\n`;
 
@@ -195,18 +213,18 @@ ${useAuth ? '@attribute [Authorize]' : ''}
                         <input type="text" class="form-control bg-light" value="@(activeItem.${propName} == 0 ? "Wird automatisch generiert" : activeItem.${propName}.ToString())" disabled />
                     </div>\n`;
       } else if (fkMatch) {
-        const targetCamel = toCamelCase(fkMatch.targetTable.name);
+        const targetInfo = getFKTableInfo(fkMatch.targetTable);
         formFields += `                    <div class="mb-3">
                         <label class="form-label text-secondary small fw-bold">${propName} (${fkMatch.targetTable.name})</label>
                         <select class="form-select" @bind="activeItem.${propName}">
-                            <option value="0">-- Bitte ${fkMatch.targetTable.name} auswählen --</option>
-                            @if (${targetCamel}LookupList != null)
+                            <option value="">-- Bitte ${fkMatch.targetTable.name} auswählen --</option>
+                            @if (${targetInfo.camelName}LookupList != null)
                             {
-                                @foreach (var fkItem in ${targetCamel}LookupList)
+                                @foreach (var fkItem in ${targetInfo.camelName}LookupList)
                                 {
-                                    var fkId = GetFkId(fkItem);
-                                    var fkLabel = GetFkLabel(fkItem);
-                                    <option value="@fkId">@fkLabel (ID: @fkId)</option>
+                                    var fkId = fkItem.${targetInfo.pkProp};
+                                    var fkLabel = fkItem.${targetInfo.labelProp}?.ToString() ?? "";
+                                    <option value="@fkId">@(string.IsNullOrWhiteSpace(fkLabel) ? $"ID: {fkId}" : $"{fkLabel} (ID: {fkId})")</option>
                                 }
                             }
                         </select>
@@ -373,7 +391,10 @@ ${formFields}
     private bool isLoading = true;
     private string searchTerm = "";
 
-${uniqueTargetTables.map(t => `    private List<Dictionary<string, object>>? ${toCamelCase(t.name)}LookupList;`).join('\n')}
+${uniqueTargetTables.map(t => {
+  const info = getFKTableInfo(t);
+  return `    private List<${info.className}>? ${info.camelName}LookupList;`;
+}).join('\n')}
 
     private IEnumerable<${className}> FilteredItems
     {
@@ -419,7 +440,10 @@ ${uniqueTargetTables.map(t => `    private List<Dictionary<string, object>>? ${t
         try
         {
             items = await StorageManager.CurrentService.GetAll<${className}>("${table.name}");
-${uniqueTargetTables.map(t => `            try { ${toCamelCase(t.name)}LookupList = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>("${t.name}"); } catch {}`).join('\n')}
+${uniqueTargetTables.map(t => {
+  const info = getFKTableInfo(t);
+  return `            try { ${info.camelName}LookupList = await StorageManager.CurrentService.GetAll<${info.className}>("${t.name}"); } catch {}`;
+}).join('\n')}
         }
         catch
         {
@@ -431,55 +455,20 @@ ${uniqueTargetTables.map(t => `            try { ${toCamelCase(t.name)}LookupLis
         }
     }
 
-    private int GetFkId(Dictionary<string, object> item)
+${uniqueTargetTables.map(t => {
+  const info = getFKTableInfo(t);
+  return `    private string Get${info.className}Display(object? val)
     {
-        if (item == null) return 0;
-        foreach (var key in new[] { "Id", "id", "ID", "Pk", "pk" })
+        if (val == null || string.IsNullOrWhiteSpace(val.ToString()) || ${info.camelName}LookupList == null) return "-";
+        var match = ${info.camelName}LookupList.FirstOrDefault(x => x.${info.pkProp}.ToString() == val.ToString());
+        if (match != null)
         {
-            if (item.TryGetValue(key, out var val) && val != null)
-            {
-                if (int.TryParse(val.ToString(), out var parsedId)) return parsedId;
-            }
+            var label = match.${info.labelProp}?.ToString();
+            return !string.IsNullOrWhiteSpace(label) ? $"{label} (ID: {val})" : $"ID: {val}";
         }
-        foreach (var kvp in item)
-        {
-            if (kvp.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase) && kvp.Value != null)
-            {
-                if (int.TryParse(kvp.Value.ToString(), out var parsedId)) return parsedId;
-            }
-        }
-        return 0;
-    }
-
-    private string GetFkLabel(Dictionary<string, object> item)
-    {
-        if (item == null) return "";
-        foreach (var key in new[] { "Name", "name", "Bezeichnung", "bezeichnung", "Titel", "titel", "Firma", "firma", "Kundenname", "Artikelname", "Beschreibung", "Nummer", "Rechnungsnummer", "Auftragsnummer" })
-        {
-            if (item.TryGetValue(key, out var val) && val != null && !string.IsNullOrWhiteSpace(val.ToString()))
-            {
-                return val.ToString()!;
-            }
-        }
-        foreach (var kvp in item)
-        {
-            if (kvp.Value != null && !(kvp.Key.Equals("Id", StringComparison.OrdinalIgnoreCase) || kvp.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase)))
-            {
-                return kvp.Value.ToString()!;
-            }
-        }
-        return "Eintrag #" + GetFkId(item);
-    }
-
-    private string GetFkDisplay(List<Dictionary<string, object>>? list, object? idVal)
-    {
-        if (idVal == null || list == null) return idVal?.ToString() ?? "-";
-        if (!int.TryParse(idVal.ToString(), out var id)) return idVal.ToString()!;
-        if (id == 0) return "-";
-        var match = list.FirstOrDefault(x => GetFkId(x) == id);
-        if (match != null) return $"{GetFkLabel(match)} (ID: {id})";
-        return $"ID: {id}";
-    }
+        return $"ID: {val}";
+    }`;
+}).join('\n\n')}
 
     private void OpenAddModal()
     {
@@ -781,9 +770,10 @@ ${uniqueTargetTables.map(t => `            try { ${toCamelCase(t.name)}LookupLis
   const queriesPage = `@page "/queries"
 ${useAuth ? '@attribute [Authorize]' : ''}
 @inject StorageServiceManager StorageManager
+@inject IJSRuntime JS
 
 <div class="container-fluid py-3">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <div>
             <h3 class="fw-bold text-slate-800 mb-1"><i class="bi bi-search me-2 text-primary"></i>Abfragen</h3>
             <p class="text-secondary small mb-0">Führen Sie Datenabfragen aus oder filtern Sie Ihre Tabellen gezielt.</p>
@@ -791,7 +781,7 @@ ${useAuth ? '@attribute [Authorize]' : ''}
     </div>
 
     <div class="row">
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4 no-print">
             <div class="card shadow-sm border-0 rounded-3">
                 <div class="card-header bg-white py-3 fw-bold text-slate-800 border-bottom">
                     <i class="bi bi-list-nested me-2 text-primary"></i>Verfügbare Abfragen
@@ -819,8 +809,8 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         </div>
 
         <div class="col-md-8 mb-4">
-            <div class="card shadow-sm border-0 rounded-3">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+            <div class="card shadow-sm border-0 rounded-3 printable-report">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom no-print">
                     <h5 class="fw-bold text-slate-800 mb-0">@selectedQueryTitle</h5>
                     <button class="btn btn-sm btn-outline-primary fw-semibold" @onclick="RunQuery"><i class="bi bi-play-fill me-1"></i>Abfrage ausführen</button>
                 </div>
@@ -834,19 +824,27 @@ ${useAuth ? '@attribute [Authorize]' : ''}
                     }
                     else
                     {
-                        <div class="alert alert-light border mb-3">
+                        <div class="alert alert-light border mb-3 no-print">
                             <span class="badge bg-primary me-2">SQL Preview</span>
                             <code>@generatedSql</code>
                         </div>
 
                         @if (queryResults != null && queryResults.Any())
                         {
-                            var firstRow = queryResults.First();
-                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <div class="d-flex flex-wrap gap-2 mb-3 no-print">
+                                <span class="fw-bold text-secondary small align-self-center me-2">Exportieren:</span>
+                                <button class="btn btn-sm btn-outline-primary fw-semibold" @onclick="PrintExport"><i class="bi bi-printer me-1"></i> PDF / Drucken</button>
+                                <button class="btn btn-sm btn-outline-success fw-semibold" @onclick="ExportXlsx"><i class="bi bi-file-earmark-excel me-1"></i> Excel (.xlsx)</button>
+                                <button class="btn btn-sm btn-outline-info fw-semibold" @onclick="ExportCsv"><i class="bi bi-file-earmark-text me-1"></i> CSV</button>
+                                <button class="btn btn-sm btn-outline-warning fw-semibold" @onclick="ExportXml"><i class="bi bi-file-earmark-code me-1"></i> XML</button>
+                                <button class="btn btn-sm btn-outline-dark fw-semibold" @onclick="ExportJson"><i class="bi bi-code-square me-1"></i> JSON</button>
+                            </div>
+
+                            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light sticky-top">
                                         <tr>
-                                            @foreach (var key in firstRow.Keys)
+                                            @foreach (var key in queryResults.First().Keys)
                                             {
                                                 <th>@key</th>
                                             }
@@ -929,6 +927,106 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         generatedSql = "SELECT * FROM DataQuery WHERE Status = 'Active';";
         _ = RunQuery();
     }
+
+    private async Task PrintExport()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task ExportCsv()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv";
+        var keys = queryResults.First().Keys.ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.Append("\uFEFF");
+        var q = "\\\"";
+        var headerCols = keys.Select(k => q + k.Replace(q, q + q) + q);
+        sb.AppendLine(string.Join(";", headerCols));
+        foreach (var row in queryResults)
+        {
+            var rowCols = keys.Select(k => {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                return q + (val ?? "").Replace(q, q + q) + q;
+            });
+            sb.AppendLine(string.Join(";", rowCols));
+        }
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "text/csv;charset=utf-8");
+    }
+
+    private async Task ExportJson()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json";
+        var jsonContent = System.Text.Json.JsonSerializer.Serialize(queryResults, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        await JS.InvokeVoidAsync("exportFile", filename, jsonContent, "application/json;charset=utf-8");
+    }
+
+    private async Task ExportXml()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xml";
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + " encoding=" + q + "utf-8" + q + "?" + gt);
+        sb.AppendLine(lt + "AbfrageDaten" + gt);
+        foreach (var row in queryResults)
+        {
+            sb.AppendLine("  " + lt + "Eintrag" + gt);
+            foreach (var kvp in row)
+            {
+                var cleanKey = System.Text.RegularExpressions.Regex.Replace(kvp.Key, "[^a-zA-Z0-9_]", "_");
+                if (string.IsNullOrWhiteSpace(cleanKey)) cleanKey = "Feld";
+                var val = System.Security.SecurityElement.Escape(kvp.Value?.ToString() ?? "");
+                sb.AppendLine("    " + lt + cleanKey + gt + val + lt + "/" + cleanKey + gt);
+            }
+            sb.AppendLine("  " + lt + "/Eintrag" + gt);
+        }
+        sb.AppendLine(lt + "/AbfrageDaten" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/xml;charset=utf-8");
+    }
+
+    private async Task ExportXlsx()
+    {
+        if (queryResults == null || !queryResults.Any()) return;
+        var name = string.IsNullOrWhiteSpace(selectedTableName) ? "Abfrage" : selectedTableName;
+        var filename = name + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xls";
+        var keys = queryResults.First().Keys.ToList();
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + "?" + gt);
+        sb.AppendLine(lt + "?mso-application progid=" + q + "Excel.Sheet" + q + "?" + gt);
+        sb.AppendLine(lt + "Workbook xmlns=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + " xmlns:ss=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + gt);
+        sb.AppendLine(" " + lt + "Worksheet ss:Name=" + q + "Export" + q + gt);
+        sb.AppendLine("  " + lt + "Table" + gt);
+        sb.AppendLine("   " + lt + "Row" + gt);
+        foreach (var k in keys)
+        {
+            sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(k) + lt + "/Data" + gt + lt + "/Cell" + gt);
+        }
+        sb.AppendLine("   " + lt + "/Row" + gt);
+        foreach (var row in queryResults)
+        {
+            sb.AppendLine("   " + lt + "Row" + gt);
+            foreach (var k in keys)
+            {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(val ?? "") + lt + "/Data" + gt + lt + "/Cell" + gt);
+            }
+            sb.AppendLine("   " + lt + "/Row" + gt);
+        }
+        sb.AppendLine("  " + lt + "/Table" + gt);
+        sb.AppendLine(" " + lt + "/Worksheet" + gt);
+        sb.AppendLine(lt + "/Workbook" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/vnd.ms-excel;charset=utf-8");
+    }
 }
 `;
   files.push({ name: 'Queries.razor', path: `${root}/Pages/Queries.razor`, content: queriesPage, language: 'razor' });
@@ -939,16 +1037,49 @@ ${useAuth ? '@attribute [Authorize]' : ''}
 @inject StorageServiceManager StorageManager
 @inject IJSRuntime JS
 
+<style>
+@@media print {
+    .sidebar, .top-row, nav, header, aside, .no-print, button, .btn {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    body, .container-fluid {
+        background: white !important;
+        color: black !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+    .printable-report {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+}
+</style>
+
 <div class="container-fluid py-3">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <div>
             <h3 class="fw-bold text-slate-800 mb-1"><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>Berichte &amp; Analysen</h3>
-            <p class="text-secondary small mb-0">Generieren und drucken Sie Auswertungen Ihrer Unternehmensdaten.</p>
+            <p class="text-secondary small mb-0">Generieren und exportieren Sie Auswertungen Ihrer Unternehmensdaten in verschiedenen Formaten.</p>
         </div>
-        <button class="btn btn-primary fw-semibold" @onclick="PrintReport"><i class="bi bi-printer me-1"></i> Bericht drucken</button>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary btn-sm fw-semibold" @onclick="PrintReport"><i class="bi bi-printer me-1"></i> PDF / Drucken</button>
+            <button class="btn btn-outline-success btn-sm fw-semibold" @onclick="ExportXlsx"><i class="bi bi-file-earmark-excel me-1"></i> Excel (.xlsx)</button>
+            <button class="btn btn-outline-info btn-sm fw-semibold" @onclick="ExportCsv"><i class="bi bi-file-earmark-text me-1"></i> CSV</button>
+            <button class="btn btn-outline-warning btn-sm fw-semibold" @onclick="ExportXml"><i class="bi bi-file-earmark-code me-1"></i> XML</button>
+            <button class="btn btn-outline-dark btn-sm fw-semibold" @onclick="ExportJson"><i class="bi bi-code-square me-1"></i> JSON</button>
+        </div>
     </div>
 
-    <div class="row">
+    <div class="row no-print">
         ${tables.map(t => `
         <div class="col-md-6 col-lg-4 mb-4">
             <div class="card shadow-sm border-0 h-100">
@@ -976,7 +1107,7 @@ ${useAuth ? '@attribute [Authorize]' : ''}
 
     @if (!string.IsNullOrEmpty(activeReportName))
     {
-        <div class="card shadow-sm border-0 rounded-3 mt-2">
+        <div class="card shadow-sm border-0 rounded-3 mt-2 printable-report">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
                 <h5 class="fw-bold text-slate-800 mb-0"><i class="bi bi-file-earmark-pdf me-2 text-danger"></i>Bericht: @activeReportName</h5>
                 <span class="badge bg-success-subtle text-success border border-success-subtle">Status: Generiert</span>
@@ -1001,18 +1132,17 @@ ${useAuth ? '@attribute [Authorize]' : ''}
                 }
                 else
                 {
-                    <div class="alert alert-info py-2 mb-3">
+                    <div class="alert alert-info py-2 mb-3 no-print">
                         <b>Zusammenfassung:</b> Insgesammt <b>@reportCount</b> Datensätze in der Tabelle <b>@activeReportName</b> gefunden.
                     </div>
 
                     @if (activeReportData != null && activeReportData.Any())
                     {
-                        var firstRow = activeReportData.First();
                         <div class="table-responsive">
                             <table class="table table-bordered table-striped align-middle">
                                 <thead class="table-dark">
                                     <tr>
-                                        @foreach (var key in firstRow.Keys)
+                                        @foreach (var key in activeReportData.First().Keys)
                                         {
                                             <th>@key</th>
                                         }
@@ -1064,9 +1194,113 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         }
     }
 
+    private async Task EnsureReportLoaded()
+    {
+        if (string.IsNullOrEmpty(activeReportName) && ${tables.length > 0 ? 'true' : 'false'})
+        {
+            await GenerateReport("${tables[0]?.name || ''}");
+        }
+    }
+
     private async Task PrintReport()
     {
+        await EnsureReportLoaded();
         await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task ExportCsv()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv";
+        var keys = activeReportData.First().Keys.ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.Append("\uFEFF");
+        var q = "\\\"";
+        var headerCols = keys.Select(k => q + k.Replace(q, q + q) + q);
+        sb.AppendLine(string.Join(";", headerCols));
+        foreach (var row in activeReportData)
+        {
+            var rowCols = keys.Select(k => {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                return q + (val ?? "").Replace(q, q + q) + q;
+            });
+            sb.AppendLine(string.Join(";", rowCols));
+        }
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "text/csv;charset=utf-8");
+    }
+
+    private async Task ExportJson()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json";
+        var jsonContent = System.Text.Json.JsonSerializer.Serialize(activeReportData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        await JS.InvokeVoidAsync("exportFile", filename, jsonContent, "application/json;charset=utf-8");
+    }
+
+    private async Task ExportXml()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xml";
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + " encoding=" + q + "utf-8" + q + "?" + gt);
+        sb.AppendLine(lt + "BerichtsDaten" + gt);
+        foreach (var row in activeReportData)
+        {
+            sb.AppendLine("  " + lt + "Eintrag" + gt);
+            foreach (var kvp in row)
+            {
+                var cleanKey = System.Text.RegularExpressions.Regex.Replace(kvp.Key, "[^a-zA-Z0-9_]", "_");
+                if (string.IsNullOrWhiteSpace(cleanKey)) cleanKey = "Feld";
+                var val = System.Security.SecurityElement.Escape(kvp.Value?.ToString() ?? "");
+                sb.AppendLine("    " + lt + cleanKey + gt + val + lt + "/" + cleanKey + gt);
+            }
+            sb.AppendLine("  " + lt + "/Eintrag" + gt);
+        }
+        sb.AppendLine(lt + "/BerichtsDaten" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/xml;charset=utf-8");
+    }
+
+    private async Task ExportXlsx()
+    {
+        await EnsureReportLoaded();
+        if (activeReportData == null || !activeReportData.Any()) return;
+        var filename = "Bericht_" + activeReportName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xls";
+        var keys = activeReportData.First().Keys.ToList();
+        var q = "\\\"";
+        var lt = "<";
+        var gt = ">";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(lt + "?xml version=" + q + "1.0" + q + "?" + gt);
+        sb.AppendLine(lt + "?mso-application progid=" + q + "Excel.Sheet" + q + "?" + gt);
+        sb.AppendLine(lt + "Workbook xmlns=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + " xmlns:ss=" + q + "urn:schemas-microsoft-com:office:spreadsheet" + q + gt);
+        sb.AppendLine(" " + lt + "Worksheet ss:Name=" + q + "Export" + q + gt);
+        sb.AppendLine("  " + lt + "Table" + gt);
+        sb.AppendLine("   " + lt + "Row" + gt);
+        foreach (var k in keys)
+        {
+            sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(k) + lt + "/Data" + gt + lt + "/Cell" + gt);
+        }
+        sb.AppendLine("   " + lt + "/Row" + gt);
+        foreach (var row in activeReportData)
+        {
+            sb.AppendLine("   " + lt + "Row" + gt);
+            foreach (var k in keys)
+            {
+                var val = row.ContainsKey(k) && row[k] != null ? row[k].ToString() : "";
+                sb.AppendLine("    " + lt + "Cell" + gt + lt + "Data ss:Type=" + q + "String" + q + gt + System.Security.SecurityElement.Escape(val ?? "") + lt + "/Data" + gt + lt + "/Cell" + gt);
+            }
+            sb.AppendLine("   " + lt + "/Row" + gt);
+        }
+        sb.AppendLine("  " + lt + "/Table" + gt);
+        sb.AppendLine(" " + lt + "/Worksheet" + gt);
+        sb.AppendLine(lt + "/Workbook" + gt);
+        await JS.InvokeVoidAsync("exportFile", filename, sb.ToString(), "application/vnd.ms-excel;charset=utf-8");
     }
 }
 `;

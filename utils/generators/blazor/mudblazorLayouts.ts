@@ -23,6 +23,25 @@ ${useAuth ? '@inject AuthService Auth\n@inject NavigationManager Nav' : ''}
 <MudDialogProvider />
 <MudSnackbarProvider />
 
+<style>
+@@media print {
+    .mud-drawer-provider, .mud-drawer, .mud-drawer-responsive, .mud-appbar, .mud-popover-provider, .mud-snackbar-provider, .sidebar, .top-row, nav, header, aside, .no-print, button, .mud-button-root, .btn {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    body, html, main, .mud-layout, .mud-main-content, .page, article.content, .mud-container {
+        background: white !important;
+        color: black !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+</style>
+
 <MudLayout>
     <MudAppBar Elevation="1" Color="Color.Primary" Dense="true">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />

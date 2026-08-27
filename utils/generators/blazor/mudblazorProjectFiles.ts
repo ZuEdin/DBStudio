@@ -138,13 +138,27 @@ await builder.Build().RunAsync();
         </style>
     </div>
 
-    <!-- MudBlazor & IndexedDB Scripts -->
+    <!-- File Export, MudBlazor & IndexedDB Scripts -->
+    <script>
+      window.exportFile = function(filename, content, mimeType) {
+        var blob = new Blob([content], { type: mimeType });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+    </script>
     <script src="js/indexedDb.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>`;
   files.push({ name: 'index.html', path: `${root}/wwwroot/index.html`, content: indexHtml, language: 'html' });
+  files.push({ name: `${namespace}.styles.css`, path: `${root}/wwwroot/${namespace}.styles.css`, content: `/* Scoped CSS bundle */\n`, language: 'css' });
 
   // 6. app.css
   const appCss = `html, body {
@@ -157,6 +171,50 @@ await builder.Build().RunAsync();
 
 .mud-layout {
     min-height: 100vh;
+}
+
+@media print {
+    .mud-drawer-provider,
+    .mud-drawer,
+    .mud-drawer-responsive,
+    .mud-appbar,
+    .mud-popover-provider,
+    .mud-snackbar-provider,
+    .sidebar,
+    .top-row,
+    nav,
+    header,
+    aside,
+    .no-print,
+    button,
+    .mud-button-root,
+    .btn {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    body, html, main, .mud-layout, .mud-main-content, .page, article.content, .mud-container, .container-fluid {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+    }
+
+    .printable-report {
+        display: block !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
 }
 `;
   files.push({ name: 'app.css', path: `${root}/wwwroot/css/app.css`, content: appCss, language: 'css' });
