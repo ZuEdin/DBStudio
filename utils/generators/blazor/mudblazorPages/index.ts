@@ -25,7 +25,7 @@ export const generateMudBlazorPages = (
   files.push(generateMudBlazorDashboardPage(tables, config, root, useAuth));
 
   // 2. Table CRUD Pages ({className}List.razor)
-  files.push(...generateMudBlazorTableCrudPages(tables, namespace, root, useAuth, relationships));
+  files.push(...generateMudBlazorTableCrudPages(tables, namespace, root, useAuth, relationships, forms));
 
   // 3. Auth Pages (Login, Register, ForgotPassword, Profile)
   if (useAuth) {

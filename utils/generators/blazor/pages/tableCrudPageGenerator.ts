@@ -1,5 +1,5 @@
-import { Table, VirtualFile, Relationship, Field } from '../../../../types/index';
-import { toPascalCase, toCamelCase, findTargetTable } from '../../common';
+import { Table, VirtualFile, Relationship, Field, Form } from '../../../../types/index';
+import { toPascalCase, toCamelCase, findTargetTable, isNullable } from '../../common';
 import { getFKTableInfo } from './fkHelper';
 
 export const generateTableCrudPages = (
@@ -7,17 +7,30 @@ export const generateTableCrudPages = (
   namespace: string,
   root: string,
   useAuth: boolean = false,
-  relationships: Relationship[] = []
+  relationships: Relationship[] = [],
+  forms: Form[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
   tables.forEach(table => {
     const className = toPascalCase(table.name);
+    const pkField = table.fields.find(f => f.isPrimaryKey)?.name || 'id';
+    const pkPascal = toPascalCase(pkField);
     const isSystem = table.name.startsWith('sys_');
     let attributes = '';
     if (useAuth) {
       attributes = isSystem ? '@attribute [Authorize(Roles = "Admin")]' : '@attribute [Authorize]';
     }
+
+    const matchingForm = forms.find(f =>
+      f.sourceId === table.id ||
+      f.sourceId === table.name ||
+      f.sourceId?.toLowerCase() === table.name.toLowerCase() ||
+      f.name.toLowerCase() === table.name.toLowerCase()
+    ) || forms.find(f =>
+      f.name.toLowerCase().includes(table.name.toLowerCase()) ||
+      (f.sourceId && table.name.toLowerCase().includes(f.sourceId.toLowerCase()))
+    );
 
     let tableHeaders = '';
     let tableRows = '';
@@ -58,7 +71,7 @@ export const generateTableCrudPages = (
                             }
                         </td>\n`;
         } else if (f.type === 'DATE' || f.type === 'DATETIME') {
-          tableRows += `                        <td>@(item.${propName}?.ToString("dd.MM.yyyy") ?? "-")</td>\n`;
+          tableRows += `                        <td>@(${isNullable(f) ? `item.${propName}?.ToString("dd.MM.yyyy") ?? "-"` : `item.${propName}.ToString("dd.MM.yyyy")`})</td>\n`;
         } else {
           tableRows += `                        <td>@item.${propName}</td>\n`;
         }
@@ -80,7 +93,7 @@ export const generateTableCrudPages = (
                                 @foreach (var fkItem in ${targetInfo.camelName}LookupList)
                                 {
                                     var fkId = fkItem.${targetInfo.pkProp};
-                                    var fkLabel = fkItem.${targetInfo.labelProp}?.ToString() ?? "";
+                                    var fkLabel = $"{fkItem.${targetInfo.labelProp}}";
                                     <option value="@fkId">@(string.IsNullOrWhiteSpace(fkLabel) ? $"ID: {fkId}" : $"{fkLabel} (ID: {fkId})")</option>
                                 }
                             }
@@ -188,7 +201,7 @@ ${tableHeaders}
                         {
                             @foreach (var item in FilteredItems)
                             {
-                                <tr>
+                                <tr @ondblclick="() => OpenEditModal(item)" style="cursor: pointer;">
 ${tableRows}
                                     <td class="text-end">
                                         <button class="btn btn-sm btn-outline-secondary me-1" title="Bearbeiten" @onclick="() => OpenEditModal(item)">
@@ -320,7 +333,7 @@ ${uniqueTargetTables.map(t => {
         var match = ${info.camelName}LookupList.FirstOrDefault(x => x.${info.pkProp}.ToString() == val.ToString());
         if (match != null)
         {
-            var label = match.${info.labelProp}?.ToString();
+            var label = $"{match.${info.labelProp}}";
             return !string.IsNullOrWhiteSpace(label) ? $"{label} (ID: {val})" : $"ID: {val}";
         }
         return $"ID: {val}";
@@ -329,20 +342,22 @@ ${uniqueTargetTables.map(t => {
 
     private void OpenAddModal()
     {
-        activeItem = new ${className}();
+${matchingForm ? `        NavigationManager.NavigateTo("/forms/${matchingForm.id}");` : `        activeItem = new ${className}();
         isEditMode = false;
-        showModal = true;
+        showModal = true;`}
     }
 
     private void OpenEditModal(${className} item)
     {
-        activeItem = new ${className}();
+${matchingForm ? `        var idProp = typeof(${className}).GetProperty("Id") ?? typeof(${className}).GetProperty("id");
+        var idVal = idProp?.GetValue(item)?.ToString() ?? "";
+        NavigationManager.NavigateTo($"/forms/${matchingForm.id}/{idVal}");` : `        activeItem = new ${className}();
         foreach (var prop in typeof(${className}).GetProperties())
         {
             prop.SetValue(activeItem, prop.GetValue(item));
         }
         isEditMode = true;
-        showModal = true;
+        showModal = true;`}
     }
 
     private void CloseModal()

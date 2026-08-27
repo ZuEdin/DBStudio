@@ -25,7 +25,7 @@ export const generateBlazorPages = (
   files.push(generateDashboardPage(tables, config, root, useAuth));
 
   // 2. Table CRUD Pages ({className}List.razor)
-  files.push(...generateTableCrudPages(tables, namespace, root, useAuth, relationships));
+  files.push(...generateTableCrudPages(tables, namespace, root, useAuth, relationships, forms));
 
   // 3. Auth Pages (Login, Register, ForgotPassword, Profile)
   if (useAuth) {

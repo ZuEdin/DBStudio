@@ -1,4 +1,4 @@
-import { Table, VirtualFile, Relationship, Field } from '../../../../types/index';
+import { Table, VirtualFile, Relationship, Field, Form } from '../../../../types/index';
 import { toPascalCase, toCamelCase, resolveType, findTargetTable, isNullable } from '../../common';
 import { getFKTableInfo } from '../pages/fkHelper';
 
@@ -7,7 +7,8 @@ export const generateMudBlazorTableCrudPages = (
   namespace: string,
   root: string,
   useAuth: boolean = false,
-  relationships: Relationship[] = []
+  relationships: Relationship[] = [],
+  forms: Form[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -18,6 +19,16 @@ export const generateMudBlazorTableCrudPages = (
 
     const isSysTable = table.name.startsWith('sys_');
     const attributes = useAuth && isSysTable ? '@attribute [Authorize(Roles = "Admin")]' : (useAuth ? '@attribute [Authorize]' : '');
+
+    const matchingForm = forms.find(f =>
+      f.sourceId === table.id ||
+      f.sourceId === table.name ||
+      f.sourceId?.toLowerCase() === table.name.toLowerCase() ||
+      f.name.toLowerCase() === table.name.toLowerCase()
+    ) || forms.find(f =>
+      f.name.toLowerCase().includes(table.name.toLowerCase()) ||
+      (f.sourceId && table.name.toLowerCase().includes(f.sourceId.toLowerCase()))
+    );
 
     let mudTableHeaders = '';
     let mudTableRows = '';
@@ -52,7 +63,7 @@ export const generateMudBlazorTableCrudPages = (
         if (rawType === 'bool') {
           mudTableRows += `            <MudTd DataLabel="${f.name}">@(context.${fieldPascal} == true ? "Ja" : "Nein")</MudTd>\n`;
         } else if (rawType === 'DateTime') {
-          mudTableRows += `            <MudTd DataLabel="${f.name}">@(context.${fieldPascal}?.ToString("dd.MM.yyyy") ?? "-")</MudTd>\n`;
+          mudTableRows += `            <MudTd DataLabel="${f.name}">@(${fieldNullable ? `context.${fieldPascal}?.ToString("dd.MM.yyyy") ?? "-"` : `context.${fieldPascal}.ToString("dd.MM.yyyy")`})</MudTd>\n`;
         } else {
           mudTableRows += `            <MudTd DataLabel="${f.name}">@context.${fieldPascal}</MudTd>\n`;
         }
@@ -75,7 +86,7 @@ export const generateMudBlazorTableCrudPages = (
                                     @foreach (var fkItem in ${targetInfo.camelName}LookupList)
                                     {
                                         var fkId = fkItem.${targetInfo.pkProp};
-                                        var fkLabel = fkItem.${targetInfo.labelProp}?.ToString() ?? "";
+                                        var fkLabel = $"{fkItem.${targetInfo.labelProp}}";
                                         <MudSelectItem T="${selectType}" Value="@((${selectType})fkId)">@(string.IsNullOrWhiteSpace(fkLabel) ? $"ID: {fkId}" : $"{fkLabel} (ID: {fkId})")</MudSelectItem>
                                     }
                                 }
@@ -133,7 +144,7 @@ ${attributes}
         </div>
     </MudPaper>
 
-    <MudTable Items="@FilteredItems" Hover="true" Striped="true" Elevation="1" Loading="@isLoading" LoadingProgressColor="Color.Info">
+    <MudTable Items="@FilteredItems" Hover="true" Striped="true" Elevation="1" Loading="@isLoading" LoadingProgressColor="Color.Info" OnRowClick="@((TableRowClickEventArgs<${className}> args) => OpenEditModal(args.Item))" RowClass="cursor-pointer">
         <HeaderContent>
 ${mudTableHeaders}
             <MudTh Style="text-align: right;">Aktionen</MudTh>
@@ -232,7 +243,7 @@ ${uniqueTargetTables.map(t => {
         var match = ${info.camelName}LookupList.FirstOrDefault(x => x.${info.pkProp}.ToString() == val.ToString());
         if (match != null)
         {
-            var label = match.${info.labelProp}?.ToString();
+            var label = $"{match.${info.labelProp}}";
             return !string.IsNullOrWhiteSpace(label) ? $"{label} (ID: {val})" : $"ID: {val}";
         }
         return $"ID: {val}";
@@ -247,19 +258,20 @@ ${uniqueTargetTables.map(t => {
 
     private void OpenAddModal()
     {
-        activeItem = new ${className}();
+${matchingForm ? `        NavigationManager.NavigateTo("/forms/${matchingForm.id}");` : `        activeItem = new ${className}();
         isEditMode = false;
-        showModal = true;
+        showModal = true;`}
     }
 
     private void OpenEditModal(${className} item)
     {
-        activeItem = new ${className}
+${matchingForm ? `        var idVal = $"{item.${pkPascal}}";
+        NavigationManager.NavigateTo($"/forms/${matchingForm.id}/{idVal}");` : `        activeItem = new ${className}
         {
 ${table.fields.map(f => `            ${toPascalCase(f.name)} = item.${toPascalCase(f.name)}`).join(',\n')}
         };
         isEditMode = true;
-        showModal = true;
+        showModal = true;`}
     }
 
     private void CloseModal()
