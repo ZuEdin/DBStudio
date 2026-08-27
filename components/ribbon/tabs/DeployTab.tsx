@@ -132,9 +132,9 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
   return (
     <div className="flex gap-3 items-center h-full relative">
-        {/* Settings Overview Group - Compact, height-constrained to prevent ribbon stretching */}
-        <div className="relative flex flex-col justify-between h-[74px] w-[265px] shrink-0 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-2xs">
-           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-0.5">
+        {/* Settings Overview Group - Heights & spacing adjusted so badges fit cleanly */}
+        <div className="relative flex flex-col justify-between h-[88px] w-[270px] shrink-0 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-2xs">
+           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1">
              <div className="flex items-center gap-1.5 min-w-0">
                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">
@@ -150,7 +150,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
              </button>
            </div>
            
-           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs">
+           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs py-0.5">
               <div className="flex items-center gap-1 min-w-0" title={`Datenbank: ${getDbLabel(backendConfig.dbType)}`}>
                 <span className="text-[10px] text-slate-400 font-semibold shrink-0">DB:</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200 truncate text-[11px]">{getDbShortLabel(backendConfig.dbType)}</span>
@@ -169,16 +169,16 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
               </div>
            </div>
 
-           <div className="flex items-center gap-1 pt-0.5 border-t border-slate-100 dark:border-slate-800/80">
-              <span className="text-[9px] bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-bold truncate">
+           <div className="flex items-center gap-1 pt-1 border-t border-slate-100 dark:border-slate-800/80 overflow-hidden">
+              <span className="text-[9px] leading-tight bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 px-1.5 py-0.5 rounded font-bold shrink-0 whitespace-nowrap">
                 {getProtocolLabel(backendConfig.protocolMode)}
               </span>
               {backendConfig.useSwagger && (
-                <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1 py-0.2 rounded font-bold truncate">
+                <span className="text-[9px] leading-tight bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold shrink-0 whitespace-nowrap">
                   Swagger
                 </span>
               )}
-              <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1 py-0.2 rounded font-medium ml-auto truncate" title={`Styling: ${backendConfig.stylingFramework || 'tailwind'}`}>
+              <span className="text-[9px] leading-tight bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded font-medium ml-auto shrink-0 whitespace-nowrap truncate" title={`Styling: ${backendConfig.stylingFramework || 'tailwind'}`}>
                 {backendConfig.stylingFramework || 'tailwind'}
               </span>
            </div>

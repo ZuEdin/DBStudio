@@ -1,6 +1,61 @@
 import { Form, Table, VirtualFile } from '../../../../types/index';
 import { toPascalCase, toCamelCase } from '../../common';
 
+interface ExtractedField {
+  fieldId: string;
+  label: string;
+}
+
+const extractFieldsFromLayout = (element: any): ExtractedField[] => {
+  if (!element) return [];
+  const results: ExtractedField[] = [];
+
+  if (element.type === 'field' && element.fieldId) {
+    results.push({
+      fieldId: element.fieldId,
+      label: element.label || element.fieldId
+    });
+  }
+
+  if (element.children && Array.isArray(element.children)) {
+    for (const child of element.children) {
+      results.push(...extractFieldsFromLayout(child));
+    }
+  }
+
+  return results;
+};
+
+const getFormFields = (form: Form, targetTable?: Table): ExtractedField[] => {
+  const fields: ExtractedField[] = [];
+  const seen = new Set<string>();
+
+  const addField = (fieldId: string, label?: string) => {
+    if (fieldId && !seen.has(fieldId)) {
+      seen.add(fieldId);
+      fields.push({ fieldId, label: label || fieldId });
+    }
+  };
+
+  // 1. From form.fields
+  if (form.fields && Array.isArray(form.fields) && form.fields.length > 0) {
+    form.fields.forEach(f => addField(f.fieldId, f.label));
+  }
+
+  // 2. From form.layout
+  if (fields.length === 0 && form.layout) {
+    const layoutFields = extractFieldsFromLayout(form.layout);
+    layoutFields.forEach(f => addField(f.fieldId, f.label));
+  }
+
+  // 3. Fallback to targetTable fields
+  if (fields.length === 0 && targetTable && targetTable.fields && targetTable.fields.length > 0) {
+    targetTable.fields.forEach(f => addField(f.name, f.name));
+  }
+
+  return fields;
+};
+
 export const generateMudBlazorFormPages = (
   forms: Form[],
   tables: Table[],
@@ -12,15 +67,17 @@ export const generateMudBlazorFormPages = (
   forms.forEach(form => {
     const className = toPascalCase(form.name || 'CustomForm');
     const routeName = toCamelCase(form.name || 'customForm');
-    const targetTable = tables.find(t => t.id === form.sourceId || t.name === form.sourceId);
+    const targetTable = tables.find(t => t.id === form.sourceId || t.name === form.sourceId || t.name.toLowerCase() === form.sourceId?.toLowerCase());
     const tableName = targetTable ? targetTable.name : 'Data';
 
-    const fieldsMarkup = form.fields.map(f => {
+    const effectiveFields = getFormFields(form, targetTable);
+
+    const fieldsMarkup = effectiveFields.map(f => {
       const fieldId = f.fieldId;
       const label = f.label || f.fieldId;
       return `
         <MudItem xs="12" md="6">
-            <MudTextField T="string" Label="${label}" @bind-Value="formData.${fieldId}" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudTextField T="string" Label="${label}" @bind-Value="formData[\"${fieldId}\"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
         </MudItem>`;
     }).join('\n');
 
