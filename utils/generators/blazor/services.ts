@@ -185,37 +185,135 @@ namespace ${namespace}.Services
             catch { }
         }
 
+        private string ToCamelCase(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return input;
+            var clean = System.Text.RegularExpressions.Regex.Replace(input, @"[^a-zA-Z0-9\s_-]", " ");
+            var words = clean.Split(new[] { ' ', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length == 0) return input;
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < words.Length; i++)
+            {
+                var w = words[i].Trim();
+                if (string.IsNullOrEmpty(w)) continue;
+                if (sb.Length == 0)
+                {
+                    sb.Append(char.ToLowerInvariant(w[0])).Append(w.Substring(1));
+                }
+                else
+                {
+                    sb.Append(char.ToUpperInvariant(w[0])).Append(w.Substring(1));
+                }
+            }
+            return sb.Length > 0 ? sb.ToString() : input;
+        }
+
+        private string ToCamelCaseNoStopWords(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return input;
+            var stopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "und", "and", "oder", "or", "mit", "with" };
+            var clean = System.Text.RegularExpressions.Regex.Replace(input, @"[^a-zA-Z0-9\s_-]", " ");
+            var words = clean.Split(new[] { ' ', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            var sb = new System.Text.StringBuilder();
+            foreach (var w in words)
+            {
+                var trimmed = w.Trim();
+                if (string.IsNullOrEmpty(trimmed) || stopWords.Contains(trimmed)) continue;
+                if (sb.Length == 0)
+                {
+                    sb.Append(char.ToLowerInvariant(trimmed[0])).Append(trimmed.Substring(1));
+                }
+                else
+                {
+                    sb.Append(char.ToUpperInvariant(trimmed[0])).Append(trimmed.Substring(1));
+                }
+            }
+            return sb.Length > 0 ? sb.ToString() : input;
+        }
+
         public async Task<List<T>> GetAll<T>(string tableName) where T : class, new()
         {
             await AttachAuthHeaderAsync();
             try
             {
-                var response = await _http.GetAsync($"{tableName}");
-                if (!response.IsSuccessStatusCode)
-                {
-                    response = await _http.GetAsync($"data/{tableName}");
-                }
+                var camel = ToCamelCase(tableName);
+                var camelNoStop = ToCamelCaseNoStopWords(tableName);
 
-                if (response.IsSuccessStatusCode)
+                var candidates = new List<string>
                 {
-                    var content = await response.Content.ReadAsStringAsync();
+                    $"queries/{camel}?page=1&pageSize=1000",
+                    $"queries/{camelNoStop}?page=1&pageSize=1000",
+                    $"queries/{tableName}?page=1&pageSize=1000",
+                    $"queries/{camel}",
+                    $"queries/{camelNoStop}",
+                    $"queries/{tableName}",
+                    $"{tableName}?page=1&pageSize=1000",
+                    $"{tableName}",
+                    $"{camel}?page=1&pageSize=1000",
+                    $"{camel}",
+                    $"data/{tableName}"
+                };
+
+                HttpResponseMessage? response = null;
+                var tried = new HashSet<string>();
+                foreach (var endpoint in candidates)
+                {
+                    if (tried.Contains(endpoint)) continue;
+                    tried.Add(endpoint);
                     try
                     {
-                        var paged = JsonSerializer.Deserialize<PagedApiResponse<T>>(content, _jsonOptions);
-                        if (paged?.Data != null && paged.Data.Count > 0)
+                        var res = await _http.GetAsync(endpoint);
+                        if (res.IsSuccessStatusCode)
                         {
-                            return paged.Data;
+                            response = res;
+                            break;
                         }
                     }
                     catch { }
+                }
 
-                    var list = JsonSerializer.Deserialize<List<T>>(content, _jsonOptions);
-                    return list ?? new List<T>();
+                if (response != null && response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    if (string.IsNullOrWhiteSpace(content)) return new List<T>();
+
+                    using var doc = JsonDocument.Parse(content);
+                    var root = doc.RootElement;
+
+                    if (root.ValueKind == JsonValueKind.Object)
+                    {
+                        if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array)
+                        {
+                            var items = JsonSerializer.Deserialize<List<T>>(dataProp.GetRawText(), _jsonOptions);
+                            return items ?? new List<T>();
+                        }
+                        if (root.TryGetProperty("Data", out var dataPropPascal) && dataPropPascal.ValueKind == JsonValueKind.Array)
+                        {
+                            var items = JsonSerializer.Deserialize<List<T>>(dataPropPascal.GetRawText(), _jsonOptions);
+                            return items ?? new List<T>();
+                        }
+                        if (root.TryGetProperty("items", out var itemsProp) && itemsProp.ValueKind == JsonValueKind.Array)
+                        {
+                            var items = JsonSerializer.Deserialize<List<T>>(itemsProp.GetRawText(), _jsonOptions);
+                            return items ?? new List<T>();
+                        }
+                        if (root.TryGetProperty("Items", out var itemsPropPascal) && itemsPropPascal.ValueKind == JsonValueKind.Array)
+                        {
+                            var items = JsonSerializer.Deserialize<List<T>>(itemsPropPascal.GetRawText(), _jsonOptions);
+                            return items ?? new List<T>();
+                        }
+                    }
+                    else if (root.ValueKind == JsonValueKind.Array)
+                    {
+                        var items = JsonSerializer.Deserialize<List<T>>(root.GetRawText(), _jsonOptions);
+                        return items ?? new List<T>();
+                    }
                 }
                 return new List<T>();
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[ApiService] GetAll Fehler: {ex.Message}");
                 return new List<T>();
             }
         }
@@ -294,8 +392,18 @@ namespace ${namespace}.Services
         public StorageServiceManager(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
-            // Default Priority: IndexedDB (Offline-First)
-            CurrentService = (IStorageService)_serviceProvider.GetService(typeof(IndexedDbService))!;
+            // Default Priority: REST API (Connected to Server Database)
+            var apiService = _serviceProvider.GetService(typeof(ApiService)) as IStorageService;
+            if (apiService != null)
+            {
+                StorageType = "API";
+                CurrentService = apiService;
+            }
+            else
+            {
+                StorageType = "IndexedDB";
+                CurrentService = (IStorageService)_serviceProvider.GetService(typeof(IndexedDbService))!;
+            }
         }
 
         public void SetStorageType(string type)

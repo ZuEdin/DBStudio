@@ -444,6 +444,7 @@ ${table.fields.map(f => `            ${toPascalCase(f.name)} = item.${toPascalCa
   const queriesPage = `@page "/queries"
 ${useAuth ? '@attribute [Authorize]' : ''}
 @inject StorageServiceManager StorageManager
+@inject ApiService ApiService
 @inject IJSRuntime JS
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
@@ -458,7 +459,7 @@ ${useAuth ? '@attribute [Authorize]' : ''}
                 <MudText Typo="Typo.h6" Class="font-weight-bold mb-3">Verfügbare Abfragen</MudText>
                 <MudList T="string" Clickable="true" Dense="true">
                     ${queries.length > 0 ? queries.map((q, idx) => `
-                    <MudListItem Icon="@Icons.Material.Filled.ListAlt" OnClick="() => SelectQuery(${idx})">
+                    <MudListItem Icon="@Icons.Material.Filled.ListAlt" OnClick='() => SelectQuery(${idx}, "${q.name.replace(/'/g, "\\'")}")'>
                         <MudText Typo="Typo.subtitle2">${q.name}</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Typ: ${q.type || 'SELECT'}</MudText>
                     </MudListItem>
@@ -545,14 +546,25 @@ ${useAuth ? '@attribute [Authorize]' : ''}
     private bool isLoading = false;
     private List<Dictionary<string, object>>? queryResults;
 
+    protected override async Task OnInitializedAsync()
+    {
+        ${queries.length > 0 ? `await SelectQuery(0, "${queries[0].name.replace(/'/g, "\\'")}");` : tables.length > 0 ? `await SelectTableQuery("${tables[0].name.replace(/'/g, "\\'")}");` : ''}
+    }
+
     private async Task RunQuery()
     {
         isLoading = true;
+        StateHasChanged();
         try
         {
-            if (!string.IsNullOrEmpty(selectedTableName))
+            var target = !string.IsNullOrEmpty(selectedTableName) ? selectedTableName : "${tables.length > 0 ? tables[0].name : ''}";
+            if (!string.IsNullOrEmpty(target))
             {
-                queryResults = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>(selectedTableName);
+                queryResults = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>(target);
+                if ((queryResults == null || !queryResults.Any()) && ApiService != null)
+                {
+                    queryResults = await ApiService.GetAll<Dictionary<string, object>>(target);
+                }
             }
             else
             {
@@ -568,23 +580,24 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
-    private void SelectTableQuery(string tableName)
+    private async Task SelectTableQuery(string tableName)
     {
         selectedTableName = tableName;
         selectedQueryTitle = $"Abfrage: {tableName}";
         generatedSql = $"SELECT * FROM [{tableName}] ORDER BY 1 DESC;";
-        _ = RunQuery();
+        await RunQuery();
     }
 
-    private void SelectQuery(int index)
+    private async Task SelectQuery(int index, string queryName)
     {
-        selectedTableName = "";
-        selectedQueryTitle = "Abfrage #" + (index + 1);
-        generatedSql = "SELECT * FROM DataQuery WHERE Status = 'Active';";
-        _ = RunQuery();
+        selectedTableName = queryName;
+        selectedQueryTitle = "Abfrage: " + queryName;
+        generatedSql = $"SELECT * FROM [{queryName}];";
+        await RunQuery();
     }
 
     private async Task PrintExport()
@@ -694,6 +707,7 @@ ${useAuth ? '@attribute [Authorize]' : ''}
   const reportsPage = `@page "/reports"
 ${useAuth ? '@attribute [Authorize]' : ''}
 @inject StorageServiceManager StorageManager
+@inject ApiService ApiService
 @inject IJSRuntime JS
 
 <style>
@@ -821,6 +835,14 @@ ${useAuth ? '@attribute [Authorize]' : ''}
     private List<Dictionary<string, object>>? activeReportData;
     private bool isLoadingReport = false;
 
+    protected override async Task OnInitializedAsync()
+    {
+        if (${tables.length > 0 ? 'true' : 'false'})
+        {
+            await GenerateReport("${tables[0]?.name || ''}");
+        }
+    }
+
     private async Task GenerateReport(string tableName)
     {
         activeReportName = tableName;
@@ -828,6 +850,10 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         try
         {
             activeReportData = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>(tableName);
+            if ((activeReportData == null || !activeReportData.Any()) && ApiService != null)
+            {
+                activeReportData = await ApiService.GetAll<Dictionary<string, object>>(tableName);
+            }
             reportCount = activeReportData?.Count ?? 0;
         }
         catch
