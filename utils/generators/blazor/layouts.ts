@@ -1,4 +1,4 @@
-import { Table, BackendConfig, VirtualFile } from '../../../types/index';
+import { Table, Query, Report, BackendConfig, VirtualFile } from '../../../types/index';
 import { toCamelCase } from '../common';
 
 export const generateBlazorLayouts = (
@@ -6,7 +6,9 @@ export const generateBlazorLayouts = (
   config: BackendConfig,
   namespace: string,
   root: string,
-  useAuth: boolean = false
+  useAuth: boolean = false,
+  queries: Query[] = [],
+  reports: Report[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -92,7 +94,7 @@ ${useAuth ? `    private async Task Logout()
   tables.forEach(t => {
     const isSystem = t.name.startsWith('sys_');
     const link = `        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="${toCamelCase(t.name)}">
+            <NavLink class="nav-link" href="/${toCamelCase(t.name)}">
                 <i class="bi bi-table me-2"></i> ${t.name}
             </NavLink>
         </div>\n`;
@@ -105,7 +107,7 @@ ${useAuth ? `    private async Task Logout()
   });
 
   const navMenu = `<div class="top-row ps-3 navbar navbar-dark bg-dark">
-    <a class="navbar-brand text-truncate fw-bold" href="">
+    <a class="navbar-brand text-truncate fw-bold" href="/">
         <i class="bi bi-database me-2"></i>${config.projectName}
     </a>
 </div>
@@ -113,13 +115,25 @@ ${useAuth ? `    private async Task Logout()
 <div class="nav-scrollable flex-grow-1 py-3" style="overflow-y: auto;">
     <nav class="flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
                 <i class="bi bi-speedometer2 me-2"></i> Dashboard
             </NavLink>
         </div>
         <hr class="text-secondary my-2 mx-3" />
         <div class="px-3 text-uppercase text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Tabellen</div>
 ${navLinks}
+        <hr class="text-secondary my-2 mx-3" />
+        <div class="px-3 text-uppercase text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Analysen &amp; Auswertungen</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/queries">
+                <i class="bi bi-search me-2"></i> Abfragen
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/reports">
+                <i class="bi bi-file-earmark-bar-graph me-2"></i> Berichte
+            </NavLink>
+        </div>
     </nav>
 </div>
 `;

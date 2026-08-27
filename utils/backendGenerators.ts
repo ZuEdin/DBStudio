@@ -99,7 +99,7 @@ export const generateBackendCode = (
   } else if (activeConfig.frontendFramework === 'react') {
     const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents, macros);
     files = [...files, ...reactFiles];
-  } else if (activeConfig.frontendFramework === 'blazor') {
+  } else if (activeConfig.frontendFramework === 'blazor' || activeConfig.frontendFramework === 'mudblazor') {
     const blazorFiles = generateBlazor(tables, relationships, queries, activeConfig, forms, reports);
     files = [...files, ...blazorFiles];
   } else if (activeConfig.frontendFramework === 'maui') {
@@ -124,6 +124,7 @@ export const generateBackendCode = (
   // to "Project" & "Project.Client" (or Project.Maui) at root level + Solution File
   if (activeConfig.language === 'dotnet' && (
       activeConfig.frontendFramework === 'blazor' || 
+      activeConfig.frontendFramework === 'mudblazor' || 
       activeConfig.frontendFramework === 'maui' || 
       activeConfig.frontendFramework === 'maui-native'
   )) {

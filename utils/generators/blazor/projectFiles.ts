@@ -148,9 +148,57 @@ html, body {
     color: #1e293b;
 }
 
+/* Grundlegendes Layout für Mobile (untereinander) */
+.page {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Layout für Desktop (Nebeneinander) */
+@media (min-width: 641px) {
+    .page {
+        flex-direction: row;
+    }
+
+    .sidebar {
+        width: 250px; /* Hier definierst du die Breite der Sidebar */
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        z-index: 100; /* Verhindert, dass anderer Content darüber liegt */
+    }
+
+    .top-row {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+}
+
 .sidebar {
     background-color: #1e293b;
     min-height: 100vh;
+}
+
+/* Grundfarbe für die Links und Icons in der Sidebar */
+.sidebar .nav-item a,
+.sidebar .nav-item a .bi {
+    color: #d7d7d7 !important; /* Ein angenehmes, helles Grau */
+    text-decoration: none;
+    border-radius: 4px; /* Macht den Hover-Effekt runder und moderner */
+}
+
+/* Effekt beim Darüberfahren mit der Maus (Hover) oder wenn der Link aktiv ist */
+.sidebar .nav-item a:hover,
+.sidebar .nav-item a.active,
+.sidebar .nav-item a.active .bi {
+    color: #ffffff !important; /* Strahlendes Weiß */
+    background-color: rgba(255, 255, 255, 0.1); /* Leichter, transparenter Hintergrund */
 }
 
 .transition-card {

@@ -16,7 +16,7 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
   else if (version === '7.0') openApiVersion = '7.0.0';
   else if (version === '6.0') openApiVersion = '6.0.0';
 
-  const isBlazor = config.frontendFramework === 'blazor';
+  const isBlazor = config.frontendFramework === 'blazor' || config.frontendFramework === 'mudblazor';
   const isMaui = config.frontendFramework === 'maui';
   const isMauiNative = config.frontendFramework === 'maui-native';
   const projectName = (isBlazor || isMaui || isMauiNative) ? `${config.projectName}.Server` : config.projectName;

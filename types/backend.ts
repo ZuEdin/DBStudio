@@ -2,7 +2,7 @@ import { DbType } from './database';
 import { WordPressPluginConfig } from './wordpress';
 
 export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron' | 'python' | 'tauri' | 'wordpress';
-export type FrontendFramework = 'react' | 'angular' | 'angular-modern' | 'blazor' | 'vue' | 'electron' | 'maui' | 'maui-native' | 'none' | 'tauri';
+export type FrontendFramework = 'react' | 'angular' | 'angular-modern' | 'blazor' | 'mudblazor' | 'vue' | 'electron' | 'maui' | 'maui-native' | 'none' | 'tauri';
 export type StylingFramework = 'tailwind' | 'bootstrap' | 'none';
 
 export interface AuthConfig {

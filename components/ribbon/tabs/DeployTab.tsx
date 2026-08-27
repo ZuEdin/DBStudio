@@ -19,7 +19,8 @@ const getDefaultPort = (framework: FrontendFramework): number => {
         case 'angular':
         case 'angular-modern': return 4200;
         case 'vue': return 5173;
-        case 'blazor': return 5002;
+        case 'blazor':
+        case 'mudblazor': return 5002;
         case 'maui': return 5003;
         case 'maui-native': return 5004;
         default: return 3000;
@@ -68,7 +69,8 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
       case 'vue': return 'Vue.js';
       case 'angular-modern': return 'Angular 19 (Standalone & Signals)';
       case 'angular': return 'Angular (Klassisch / NgModule)';
-      case 'blazor': return 'Blazor (WASM)';
+      case 'blazor': return 'Blazor (Bootstrap 5 WASM)';
+      case 'mudblazor': return 'MudBlazor (Material Design WASM)';
       case 'maui': return '.NET MAUI (Blazor Hybrid)';
       case 'maui-native': return '.NET MAUI (XAML / Native)';
       case 'none': return 'Keins (Nur API)';
@@ -83,6 +85,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
       case 'angular-modern': return 'Angular 19';
       case 'angular': return 'Angular';
       case 'blazor': return 'Blazor';
+      case 'mudblazor': return 'MudBlazor';
       case 'maui': return '.NET MAUI';
       case 'maui-native': return 'MAUI Native';
       case 'none': return 'Nur API';
@@ -588,7 +591,11 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                             value={backendConfig.language}
                             onChange={e => {
                                 const lang = e.target.value as any;
-                                const updatedConfig = { ...backendConfig, language: lang };
+                                let newFrontend = backendConfig.frontendFramework;
+                                if (lang !== 'dotnet' && ['blazor', 'mudblazor', 'maui', 'maui-native'].includes(newFrontend)) {
+                                    newFrontend = 'react';
+                                }
+                                const updatedConfig = { ...backendConfig, language: lang, frontendFramework: newFrontend };
                                 if (lang === 'electron') {
                                     updatedConfig.deploymentConfig = {
                                         ...(backendConfig.deploymentConfig || { target: 'electron' }),
@@ -706,14 +713,21 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                                 setBackendConfig(updatedConfig);
                             }}
                         >
-                            <option value="react">React</option>
-                            <option value="vue">Vue.js</option>
-                            <option value="angular-modern">Angular 19 (Standalone & Signals)</option>
-                            <option value="angular">Angular (Klassisch / NgModule)</option>
-                            <option value="blazor">Blazor (WASM)</option>
-                            <option value="maui">.NET MAUI (Blazor Hybrid)</option>
-                            <option value="maui-native">.NET MAUI (XAML / Native)</option>
-                            <option value="none">Keins (Nur API)</option>
+                            {backendConfig.language === 'dotnet' && (
+                              <optgroup label=".NET Exklusive Frontends">
+                                <option value="blazor">Blazor (Bootstrap 5 WASM)</option>
+                                <option value="mudblazor">MudBlazor (Material Design WASM)</option>
+                                <option value="maui">.NET MAUI (Blazor Hybrid)</option>
+                                <option value="maui-native">.NET MAUI (XAML / Native)</option>
+                              </optgroup>
+                            )}
+                            <optgroup label="Universelle Web-Frontends">
+                              <option value="react">React</option>
+                              <option value="vue">Vue.js</option>
+                              <option value="angular-modern">Angular 19 (Standalone &amp; Signals)</option>
+                              <option value="angular">Angular (Klassisch / NgModule)</option>
+                              <option value="none">Keins (Nur API)</option>
+                            </optgroup>
                         </select>
                       </div>
 

@@ -167,3 +167,53 @@ export const sortTablesByDependencies = (tables: Table[], relationships: Relatio
     return sorted;
 };
 
+/**
+ * Finds target table referenced by a foreign key field.
+ */
+export const findTargetTable = (
+    field: Field,
+    currentTable: Table,
+    allTables: Table[],
+    relationships: Relationship[] = []
+): Table | null => {
+    if (field.isPrimaryKey) return null;
+
+    // 1. Check explicit relationships
+    for (const rel of relationships) {
+        const isFromTable = rel.fromTableId === currentTable.id || rel.fromTable?.toLowerCase() === currentTable.name.toLowerCase();
+        const isFromField = rel.fromFieldId === field.id || rel.fromField?.toLowerCase() === field.name.toLowerCase();
+        if (isFromTable && isFromField) {
+            const target = allTables.find(t => t.id === rel.toTableId || t.name.toLowerCase() === rel.toTable?.toLowerCase());
+            if (target && target.id !== currentTable.id) return target;
+        }
+    }
+
+    // 2. Check naming conventions (e.g., KundeId -> Kunden/Kunde, Artikel_id -> Artikel, etc.)
+    const fieldNameLower = field.name.toLowerCase();
+    if (fieldNameLower.endsWith('id') || fieldNameLower.endsWith('_id')) {
+        const prefix = fieldNameLower.replace(/(_id|id)$/i, '');
+        if (!prefix) return null;
+
+        for (const t of allTables) {
+            if (t.id === currentTable.id) continue;
+            const tNameLower = t.name.toLowerCase();
+            if (
+                tNameLower === prefix ||
+                tNameLower === prefix + 'n' ||
+                tNameLower === prefix + 's' ||
+                tNameLower === prefix + 'en' ||
+                prefix === tNameLower + 'n' ||
+                prefix === tNameLower + 's' ||
+                (prefix.endsWith('e') && tNameLower === prefix + 'n') ||
+                (prefix === 'auftrag' && tNameLower === 'auftraege') ||
+                (prefix === 'gutschrift' && tNameLower === 'gutschriften')
+            ) {
+                return t;
+            }
+        }
+    }
+
+    return null;
+};
+
+

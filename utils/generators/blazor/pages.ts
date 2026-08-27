@@ -1,12 +1,15 @@
-import { Table, BackendConfig, VirtualFile } from '../../../types/index';
-import { toPascalCase, toCamelCase } from '../common';
+import { Table, Query, Report, BackendConfig, VirtualFile, Relationship, Field } from '../../../types/index';
+import { toPascalCase, toCamelCase, findTargetTable } from '../common';
 
 export const generateBlazorPages = (
   tables: Table[],
   config: BackendConfig,
   namespace: string,
   root: string,
-  useAuth: boolean = false
+  useAuth: boolean = false,
+  queries: Query[] = [],
+  reports: Report[] = [],
+  relationships: Relationship[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -145,12 +148,31 @@ ${useAuth ? '@attribute [Authorize]' : ''}
     let tableRows = '';
     let formFields = '';
 
+    const fkLookups: { field: Field; targetTable: Table; propName: string }[] = [];
+    table.fields.forEach(f => {
+      const targetTable = findTargetTable(f, table, tables, relationships);
+      if (targetTable) {
+        fkLookups.push({ field: f, targetTable, propName: toPascalCase(f.name) });
+      }
+    });
+
+    const uniqueTargetTables = Array.from(
+      new Map(fkLookups.map(item => [item.targetTable.id, item.targetTable])).values()
+    );
+
     table.fields.forEach(f => {
       const propName = toPascalCase(f.name);
-      tableHeaders += `                        <th scope="col" class="fw-semibold text-secondary">${propName}</th>\n`;
+      const fkMatch = fkLookups.find(x => x.field.name === f.name);
 
-      if (f.type === 'BOOLEAN') {
-        tableRows += `                        <td>
+      if (fkMatch) {
+        const targetCamel = toCamelCase(fkMatch.targetTable.name);
+        tableHeaders += `                        <th scope="col" class="fw-semibold text-secondary">${propName} (${fkMatch.targetTable.name})</th>\n`;
+        tableRows += `                        <td>@GetFkDisplay(${targetCamel}LookupList, item.${propName})</td>\n`;
+      } else {
+        tableHeaders += `                        <th scope="col" class="fw-semibold text-secondary">${propName}</th>\n`;
+
+        if (f.type === 'BOOLEAN') {
+          tableRows += `                        <td>
                             @if (item.${propName} == true)
                             {
                                 <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-lg"></i> Ja</span>
@@ -160,16 +182,34 @@ ${useAuth ? '@attribute [Authorize]' : ''}
                                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="bi bi-x-lg"></i> Nein</span>
                             }
                         </td>\n`;
-      } else if (f.type === 'DATE' || f.type === 'DATETIME') {
-        tableRows += `                        <td>@(item.${propName}?.ToString("dd.MM.yyyy") ?? "-")</td>\n`;
-      } else {
-        tableRows += `                        <td>@item.${propName}</td>\n`;
+        } else if (f.type === 'DATE' || f.type === 'DATETIME') {
+          tableRows += `                        <td>@(item.${propName}?.ToString("dd.MM.yyyy") ?? "-")</td>\n`;
+        } else {
+          tableRows += `                        <td>@item.${propName}</td>\n`;
+        }
       }
 
       if (f.isPrimaryKey) {
         formFields += `                    <div class="mb-3">
                         <label class="form-label text-secondary small fw-bold">${propName} (Primärschlüssel)</label>
                         <input type="text" class="form-control bg-light" value="@(activeItem.${propName} == 0 ? "Wird automatisch generiert" : activeItem.${propName}.ToString())" disabled />
+                    </div>\n`;
+      } else if (fkMatch) {
+        const targetCamel = toCamelCase(fkMatch.targetTable.name);
+        formFields += `                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold">${propName} (${fkMatch.targetTable.name})</label>
+                        <select class="form-select" @bind="activeItem.${propName}">
+                            <option value="0">-- Bitte ${fkMatch.targetTable.name} auswählen --</option>
+                            @if (${targetCamel}LookupList != null)
+                            {
+                                @foreach (var fkItem in ${targetCamel}LookupList)
+                                {
+                                    var fkId = GetFkId(fkItem);
+                                    var fkLabel = GetFkLabel(fkItem);
+                                    <option value="@fkId">@fkLabel (ID: @fkId)</option>
+                                }
+                            }
+                        </select>
                     </div>\n`;
       } else {
         if (f.type === 'BOOLEAN') {
@@ -333,6 +373,8 @@ ${formFields}
     private bool isLoading = true;
     private string searchTerm = "";
 
+${uniqueTargetTables.map(t => `    private List<Dictionary<string, object>>? ${toCamelCase(t.name)}LookupList;`).join('\n')}
+
     private IEnumerable<${className}> FilteredItems
     {
         get
@@ -377,6 +419,7 @@ ${formFields}
         try
         {
             items = await StorageManager.CurrentService.GetAll<${className}>("${table.name}");
+${uniqueTargetTables.map(t => `            try { ${toCamelCase(t.name)}LookupList = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>("${t.name}"); } catch {}`).join('\n')}
         }
         catch
         {
@@ -386,6 +429,56 @@ ${formFields}
         {
             isLoading = false;
         }
+    }
+
+    private int GetFkId(Dictionary<string, object> item)
+    {
+        if (item == null) return 0;
+        foreach (var key in new[] { "Id", "id", "ID", "Pk", "pk" })
+        {
+            if (item.TryGetValue(key, out var val) && val != null)
+            {
+                if (int.TryParse(val.ToString(), out var parsedId)) return parsedId;
+            }
+        }
+        foreach (var kvp in item)
+        {
+            if (kvp.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase) && kvp.Value != null)
+            {
+                if (int.TryParse(kvp.Value.ToString(), out var parsedId)) return parsedId;
+            }
+        }
+        return 0;
+    }
+
+    private string GetFkLabel(Dictionary<string, object> item)
+    {
+        if (item == null) return "";
+        foreach (var key in new[] { "Name", "name", "Bezeichnung", "bezeichnung", "Titel", "titel", "Firma", "firma", "Kundenname", "Artikelname", "Beschreibung", "Nummer", "Rechnungsnummer", "Auftragsnummer" })
+        {
+            if (item.TryGetValue(key, out var val) && val != null && !string.IsNullOrWhiteSpace(val.ToString()))
+            {
+                return val.ToString()!;
+            }
+        }
+        foreach (var kvp in item)
+        {
+            if (kvp.Value != null && !(kvp.Key.Equals("Id", StringComparison.OrdinalIgnoreCase) || kvp.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase)))
+            {
+                return kvp.Value.ToString()!;
+            }
+        }
+        return "Eintrag #" + GetFkId(item);
+    }
+
+    private string GetFkDisplay(List<Dictionary<string, object>>? list, object? idVal)
+    {
+        if (idVal == null || list == null) return idVal?.ToString() ?? "-";
+        if (!int.TryParse(idVal.ToString(), out var id)) return idVal.ToString()!;
+        if (id == 0) return "-";
+        var match = list.FirstOrDefault(x => GetFkId(x) == id);
+        if (match != null) return $"{GetFkLabel(match)} (ID: {id})";
+        return $"ID: {id}";
     }
 
     private void OpenAddModal()
@@ -683,6 +776,301 @@ ${formFields}
 `;
     files.push({ name: 'Profile.razor', path: `${root}/Pages/Profile.razor`, content: profilePage, language: 'razor' });
   }
+
+  // Queries.razor (Abfragen)
+  const queriesPage = `@page "/queries"
+${useAuth ? '@attribute [Authorize]' : ''}
+@inject StorageServiceManager StorageManager
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-slate-800 mb-1"><i class="bi bi-search me-2 text-primary"></i>Abfragen</h3>
+            <p class="text-secondary small mb-0">Führen Sie Datenabfragen aus oder filtern Sie Ihre Tabellen gezielt.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-header bg-white py-3 fw-bold text-slate-800 border-bottom">
+                    <i class="bi bi-list-nested me-2 text-primary"></i>Verfügbare Abfragen
+                </div>
+                <div class="list-group list-group-flush">
+                    ${queries.length > 0 ? queries.map((q, idx) => `
+                    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3" @onclick="() => SelectQuery(${idx})">
+                        <div>
+                            <div class="fw-semibold text-slate-800">${q.name}</div>
+                            <small class="text-muted">Typ: ${q.type || 'SELECT'}</small>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </button>
+                    `).join('') : tables.map(t => `
+                    <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3" @onclick='() => SelectTableQuery("${t.name}")'>
+                        <div>
+                            <div class="fw-semibold text-slate-800">Alle ${t.name}</div>
+                            <small class="text-muted">Standardabfrage für ${t.name}</small>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h5 class="fw-bold text-slate-800 mb-0">@selectedQueryTitle</h5>
+                    <button class="btn btn-sm btn-outline-primary fw-semibold" @onclick="RunQuery"><i class="bi bi-play-fill me-1"></i>Abfrage ausführen</button>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="text-secondary small mt-2">Lade Abfrageergebnisse...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light border mb-3">
+                            <span class="badge bg-primary me-2">SQL Preview</span>
+                            <code>@generatedSql</code>
+                        </div>
+
+                        @if (queryResults != null && queryResults.Any())
+                        {
+                            var firstRow = queryResults.First();
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            @foreach (var key in firstRow.Keys)
+                                            {
+                                                <th>@key</th>
+                                            }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var row in queryResults)
+                                        {
+                                            <tr>
+                                                @foreach (var val in row.Values)
+                                                {
+                                                    <td>@(val?.ToString() ?? "-")</td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                                <span>Keine Daten für diese Abfrage vorhanden (@resultCount Datensätze)</span>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string selectedQueryTitle = "Standard-Abfrage";
+    private string selectedTableName = "";
+    private string generatedSql = "SELECT * FROM System_Tables;";
+    private int resultCount = 0;
+    private bool isLoading = false;
+    private List<Dictionary<string, object>>? queryResults;
+
+    private async Task RunQuery()
+    {
+        isLoading = true;
+        try
+        {
+            if (!string.IsNullOrEmpty(selectedTableName))
+            {
+                queryResults = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>(selectedTableName);
+            }
+            else
+            {
+                queryResults = new List<Dictionary<string, object>>();
+            }
+            resultCount = queryResults?.Count ?? 0;
+        }
+        catch
+        {
+            queryResults = new List<Dictionary<string, object>>();
+            resultCount = 0;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectTableQuery(string tableName)
+    {
+        selectedTableName = tableName;
+        selectedQueryTitle = $"Abfrage: {tableName}";
+        generatedSql = $"SELECT * FROM [{tableName}] ORDER BY 1 DESC;";
+        _ = RunQuery();
+    }
+
+    private void SelectQuery(int index)
+    {
+        selectedTableName = "";
+        selectedQueryTitle = "Abfrage #" + (index + 1);
+        generatedSql = "SELECT * FROM DataQuery WHERE Status = 'Active';";
+        _ = RunQuery();
+    }
+}
+`;
+  files.push({ name: 'Queries.razor', path: `${root}/Pages/Queries.razor`, content: queriesPage, language: 'razor' });
+
+  // Reports.razor (Berichte)
+  const reportsPage = `@page "/reports"
+${useAuth ? '@attribute [Authorize]' : ''}
+@inject StorageServiceManager StorageManager
+@inject IJSRuntime JS
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-slate-800 mb-1"><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>Berichte &amp; Analysen</h3>
+            <p class="text-secondary small mb-0">Generieren und drucken Sie Auswertungen Ihrer Unternehmensdaten.</p>
+        </div>
+        <button class="btn btn-primary fw-semibold" @onclick="PrintReport"><i class="bi bi-printer me-1"></i> Bericht drucken</button>
+    </div>
+
+    <div class="row">
+        ${tables.map(t => `
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <div class="bg-primary-subtle text-primary p-2 rounded">
+                            <i class="bi bi-file-earmark-text fs-4"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-slate-800 mb-0">${t.name} Übersicht</h6>
+                            <small class="text-muted">Datenbericht für ${t.name}</small>
+                        </div>
+                    </div>
+                    <p class="text-secondary small mb-3">
+                        Detaillierter Auswertungsbericht mit Zusammenfassungen aller Felder der Tabelle <b>${t.name}</b>.
+                    </p>
+                    <button class="btn btn-outline-primary btn-sm w-100 fw-semibold" @onclick='() => GenerateReport("${t.name}")'>
+                        <i class="bi bi-eye me-1"></i> Bericht anzeigen
+                    </button>
+                </div>
+            </div>
+        </div>
+        `).join('')}
+    </div>
+
+    @if (!string.IsNullOrEmpty(activeReportName))
+    {
+        <div class="card shadow-sm border-0 rounded-3 mt-2">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h5 class="fw-bold text-slate-800 mb-0"><i class="bi bi-file-earmark-pdf me-2 text-danger"></i>Bericht: @activeReportName</h5>
+                <span class="badge bg-success-subtle text-success border border-success-subtle">Status: Generiert</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
+                    <div>
+                        <h4 class="fw-bold text-primary">${config.projectName}</h4>
+                        <span class="text-muted small">Generiert am: @DateTime.Now.ToString("dd.MM.yyyy HH:mm")</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-light text-dark border">Datenquelle: @StorageManager.CurrentService.BackendName</span>
+                    </div>
+                </div>
+
+                @if (isLoadingReport)
+                {
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary spinner-border-sm"></div>
+                        <span class="ms-2 text-muted">Lade Daten für Bericht...</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info py-2 mb-3">
+                        <b>Zusammenfassung:</b> Insgesammt <b>@reportCount</b> Datensätze in der Tabelle <b>@activeReportName</b> gefunden.
+                    </div>
+
+                    @if (activeReportData != null && activeReportData.Any())
+                    {
+                        var firstRow = activeReportData.First();
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        @foreach (var key in firstRow.Keys)
+                                        {
+                                            <th>@key</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in activeReportData.Take(25))
+                                    {
+                                        <tr>
+                                            @foreach (var val in row.Values)
+                                            {
+                                                <td>@(val?.ToString() ?? "-")</td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string activeReportName = "";
+    private int reportCount = 0;
+    private List<Dictionary<string, object>>? activeReportData;
+    private bool isLoadingReport = false;
+
+    private async Task GenerateReport(string tableName)
+    {
+        activeReportName = tableName;
+        isLoadingReport = true;
+        try
+        {
+            activeReportData = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>(tableName);
+            reportCount = activeReportData?.Count ?? 0;
+        }
+        catch
+        {
+            activeReportData = new List<Dictionary<string, object>>();
+            reportCount = 0;
+        }
+        finally
+        {
+            isLoadingReport = false;
+        }
+    }
+
+    private async Task PrintReport()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+}
+`;
+  files.push({ name: 'Reports.razor', path: `${root}/Pages/Reports.razor`, content: reportsPage, language: 'razor' });
 
   return files;
 };

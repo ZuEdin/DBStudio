@@ -5,7 +5,7 @@ import { toPascalCase } from '../common';
 
 export const generateProgram = (config: BackendConfig, tables: Table[], relationships: Relationship[], queries: Query[], root: string): VirtualFile => {
   const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
-  const isBlazor = config.frontendFramework === 'blazor';
+  const isBlazor = config.frontendFramework === 'blazor' || config.frontendFramework === 'mudblazor';
   let dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));`;
   if (config.dbType === DbType.SQLite) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));`;
   if (config.dbType === DbType.MySQL) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"), ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));`;

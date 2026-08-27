@@ -10,7 +10,7 @@ import { generateDotNetSync } from './dotnet/sync';
 
 export const generateDotNet = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig): VirtualFile[] => {
   const files: VirtualFile[] = [];
-  const isBlazor = config.frontendFramework === 'blazor';
+  const isBlazor = config.frontendFramework === 'blazor' || config.frontendFramework === 'mudblazor';
   const isMaui = config.frontendFramework === 'maui';
   const isMauiNative = config.frontendFramework === 'maui-native';
   const serverName = (isBlazor || isMaui || isMauiNative) ? `${config.projectName}.Server` : config.projectName;

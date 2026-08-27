@@ -7,7 +7,7 @@ export const generateSolution = (config: BackendConfig): VirtualFile => {
   const solutionGuid = crypto.randomUUID().toUpperCase();
   
   const projectName = config.projectName;
-  const isBlazor = config.frontendFramework === 'blazor';
+  const isBlazor = config.frontendFramework === 'blazor' || config.frontendFramework === 'mudblazor';
   const isMaui = config.frontendFramework === 'maui';
   const isMauiNative = config.frontendFramework === 'maui-native';
   const serverName = (isBlazor || isMaui || isMauiNative) ? `${projectName}.Server` : projectName;
