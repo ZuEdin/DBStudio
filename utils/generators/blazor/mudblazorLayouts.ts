@@ -1,4 +1,4 @@
-import { Table, Query, Report, BackendConfig, VirtualFile } from '../../../types/index';
+import { Table, Query, Report, Form, CustomPage, BackendConfig, VirtualFile } from '../../../types/index';
 import { toCamelCase } from '../common';
 
 export const generateMudBlazorLayouts = (
@@ -8,7 +8,9 @@ export const generateMudBlazorLayouts = (
   root: string,
   useAuth: boolean = false,
   queries: Query[] = [],
-  reports: Report[] = []
+  reports: Report[] = [],
+  pages: CustomPage[] = [],
+  forms: Form[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -53,8 +55,8 @@ ${useAuth ? '@inject AuthService Auth\n@inject NavigationManager Nav' : ''}
         </MudChip>
 
         <MudSelect T="string" Value="@currentStorage" ValueChanged="OnStorageChanged" Dense="true" Margin="Margin.Dense" Style="width: 220px; color: white;" Variant="Variant.Outlined">
+            <MudSelectItem Value="@("API")">REST API (Server &amp; SQLite / SQL)</MudSelectItem>
             <MudSelectItem Value="@("IndexedDB")">IndexedDB (Lokal &amp; Offline)</MudSelectItem>
-            <MudSelectItem Value="@("API")">REST API (Server &amp; SQL)</MudSelectItem>
         </MudSelect>
 
 ${useAuth ? `        <AuthorizeView>
@@ -79,7 +81,7 @@ ${useAuth ? `        <AuthorizeView>
 
 @code {
     private bool _drawerOpen = true;
-    private string currentStorage = "IndexedDB";
+    private string currentStorage = "API";
 
     protected override void OnInitialized()
     {
@@ -131,6 +133,16 @@ ${useAuth ? `    private async Task Logout()
     }
   });
 
+  let formLinks = '';
+  forms.forEach(f => {
+    formLinks += `<MudNavLink Icon="@Icons.Material.Filled.Assignment" Href="/forms/${f.id}">${f.name}</MudNavLink>\n`;
+  });
+
+  let pageLinks = '';
+  pages.forEach(p => {
+    pageLinks += `<MudNavLink Icon="@Icons.Material.Filled.Web" Href="/pages/${p.id}">${p.name}</MudNavLink>\n`;
+  });
+
   const navMenu = `<MudNavMenu Class="mud-width-full py-2">
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="px-4 pt-2 pb-1 font-weight-bold">NAVIGATION</MudText>
     <MudNavLink Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" Href="/">Dashboard</MudNavLink>
@@ -138,6 +150,16 @@ ${useAuth ? `    private async Task Logout()
     <MudDivider Class="my-3" />
     <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="px-4 pb-1 font-weight-bold">TABELLEN</MudText>
     ${navLinks}
+
+    ${forms.length > 0 ? `
+    <MudDivider Class="my-3" />
+    <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="px-4 pb-1 font-weight-bold">FORMULARE</MudText>
+    ${formLinks}` : ''}
+
+    ${pages.length > 0 ? `
+    <MudDivider Class="my-3" />
+    <MudText Typo="Typo.subtitle2" Color="Color.Success" Class="px-4 pb-1 font-weight-bold">DESIGNER PAGES</MudText>
+    ${pageLinks}` : ''}
 
     <MudDivider Class="my-3" />
     <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="px-4 pb-1 font-weight-bold">ANALYSEN &amp; AUSWERTUNGEN</MudText>

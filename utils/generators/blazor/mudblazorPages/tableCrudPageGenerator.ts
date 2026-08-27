@@ -114,7 +114,7 @@ ${attributes}
         <div class="d-flex flex-column flex-md-row justify-space-between align-center gap-3">
             <div>
                 <div class="d-flex align-center gap-2">
-                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Link="" Size="Size.Small" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Href="/" Size="Size.Small" />
                     <MudText Typo="Typo.h5" Class="font-weight-bold">${table.name}</MudText>
                     <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
                         @(items?.Count ?? 0) Datensätze

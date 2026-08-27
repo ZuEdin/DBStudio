@@ -1,9 +1,11 @@
-import { Table, Query, Report, BackendConfig, VirtualFile, Relationship } from '../../../../types/index';
+import { Table, Query, Report, Form, CustomPage, BackendConfig, VirtualFile, Relationship } from '../../../../types/index';
 import { generateDashboardPage } from './dashboardPageGenerator';
 import { generateTableCrudPages } from './tableCrudPageGenerator';
 import { generateAuthPages } from './authPagesGenerator';
 import { generateQueriesPage } from './queriesPageGenerator';
 import { generateReportsPage } from './reportsPageGenerator';
+import { generateBlazorFormPages } from './customFormPageGenerator';
+import { generateBlazorCustomPages } from './customPageGenerator';
 
 export const generateBlazorPages = (
   tables: Table[],
@@ -13,7 +15,9 @@ export const generateBlazorPages = (
   useAuth: boolean = false,
   queries: Query[] = [],
   reports: Report[] = [],
-  relationships: Relationship[] = []
+  relationships: Relationship[] = [],
+  forms: Form[] = [],
+  pages: CustomPage[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -34,6 +38,12 @@ export const generateBlazorPages = (
   // 5. Reports Page (Reports.razor)
   files.push(generateReportsPage(tables, config, root, useAuth));
 
+  // 6. Custom Forms Pages ({FormName}Form.razor)
+  files.push(...generateBlazorFormPages(forms, tables, root, useAuth));
+
+  // 7. Custom Designer Pages ({PageName}Page.razor)
+  files.push(...generateBlazorCustomPages(pages, tables, root, useAuth));
+
   return files;
 };
 
@@ -42,5 +52,7 @@ export {
   generateTableCrudPages,
   generateAuthPages,
   generateQueriesPage,
-  generateReportsPage
+  generateReportsPage,
+  generateBlazorFormPages,
+  generateBlazorCustomPages
 };

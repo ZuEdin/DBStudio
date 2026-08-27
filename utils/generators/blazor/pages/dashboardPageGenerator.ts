@@ -25,7 +25,7 @@ export const generateDashboardPage = (
                         Verwalten Sie Datensätze, führen Sie CRUD-Operationen aus und durchsuchen Sie die Tabelle <b>${t.name}</b>.
                     </p>
                     <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
-                        <a href="${toCamelCase(t.name)}" class="btn btn-outline-primary btn-sm fw-semibold">
+                        <a href="/${toCamelCase(t.name)}" class="btn btn-outline-primary btn-sm fw-semibold">
                             <i class="bi bi-folder2-open me-1"></i> Tabelle öffnen
                         </a>
                         <small class="text-muted">${t.fields.length} Spalten</small>
@@ -51,26 +51,26 @@ ${useAuth ? '@attribute [Authorize]' : ''}
             <div class="row g-4">
                 <div class="col-md-6">
                     <div class="d-flex align-items-start gap-3">
-                        <div class="bg-success-subtle p-3 rounded-3 text-success">
-                            <i class="bi bi-shield-check fs-3"></i>
+                        <div class="bg-primary-subtle p-3 rounded-3 text-primary">
+                            <i class="bi bi-database-check fs-3"></i>
                         </div>
                         <div>
-                            <h5 class="fw-bold text-slate-800 mb-1">Offline-First (IndexedDB)</h5>
+                            <h5 class="fw-bold text-slate-800 mb-1">REST API &amp; SQLite-Verbindung (Primär)</h5>
                             <p class="text-secondary small mb-0">
-                                Standardmäßig speichert die Anwendung alle Daten lokal in der hochperformanten Browser-IndexedDB. Sie können jederzeit oben rechts die Datenquelle umschalten.
+                                Primäre Datenquelle: Daten werden direkt aus der Datenbank (SQLite, SQL Server, MySQL, PostgreSQL) über die REST-API bezogen.
                             </p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="d-flex align-items-start gap-3">
-                        <div class="bg-primary-subtle p-3 rounded-3 text-primary">
-                            <i class="bi bi-database-check fs-3"></i>
+                        <div class="bg-success-subtle p-3 rounded-3 text-success">
+                            <i class="bi bi-shield-check fs-3"></i>
                         </div>
                         <div>
-                            <h5 class="fw-bold text-slate-800 mb-1">REST API &amp; SQL-Verbindung</h5>
+                            <h5 class="fw-bold text-slate-800 mb-1">IndexedDB Fallback &amp; Offline</h5>
                             <p class="text-secondary small mb-0">
-                                Schnelle Umschaltung auf die ASP.NET Core REST-API, welche direkt mit MySQL, SQL Server, PostgreSQL oder SQLite kommuniziert.
+                                Sekundäre Datenquelle: Falls die Server-Datenbank nicht erreichbar ist oder der Modus gewechselt wird, werden Daten aus der Browser-IndexedDB bezogen.
                             </p>
                         </div>
                     </div>
@@ -111,13 +111,18 @@ ${useAuth ? '@attribute [Authorize]' : ''}
 
     private async Task LoadCounts()
     {
-        var service = StorageManager.CurrentService;
-        ${tables.map(t => `
-        try {
-            var ${toCamelCase(t.name)}List = await service.GetAll<${toPascalCase(t.name)}>("${t.name}");
-            counts["${t.name}"] = ${toCamelCase(t.name)}List.Count;
-        } catch { counts["${t.name}"] = 0; }
-        `).join('\n')}
+        foreach (var key in counts.Keys.ToList())
+        {
+            try
+            {
+                var list = await StorageManager.CurrentService.GetAll<Dictionary<string, object>>(key);
+                counts[key] = list?.Count ?? 0;
+            }
+            catch
+            {
+                counts[key] = 0;
+            }
+        }
     }
 
     public void Dispose()

@@ -9,7 +9,7 @@ namespace ${namespace}.Services
     {
         private readonly IServiceProvider _serviceProvider;
         public IStorageService CurrentService { get; private set; }
-        public string StorageType { get; private set; } = "IndexedDB";
+        public string StorageType { get; private set; } = "API";
 
         public event Action? OnStorageChanged;
 

@@ -1,4 +1,4 @@
-import { Table, Relationship, Query, BackendConfig, VirtualFile, Form, Report } from '../../../types/index';
+import { Table, Relationship, Query, BackendConfig, VirtualFile, Form, Report, CustomPage } from '../../../types/index';
 import { generateBlazorProjectFiles } from './projectFiles';
 import { generateBlazorServices } from './services';
 import { generateBlazorModels } from './models';
@@ -15,7 +15,8 @@ export const generateBlazor = (
   queries: Query[],
   config: BackendConfig,
   forms: Form[] = [],
-  reports: Report[] = []
+  reports: Report[] = [],
+  pages: CustomPage[] = []
 ): VirtualFile[] => {
   const root = `Frontend/${config.projectName}.Client`;
   const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
@@ -34,12 +35,12 @@ export const generateBlazor = (
     : generateBlazorProjectFiles(tables, config, namespace, root, targetFramework, version, useAuth);
 
   const layouts = isMudBlazor
-    ? generateMudBlazorLayouts(tables, config, namespace, root, useAuth, queries, reports)
-    : generateBlazorLayouts(tables, config, namespace, root, useAuth, queries, reports);
+    ? generateMudBlazorLayouts(tables, config, namespace, root, useAuth, queries, reports, pages, forms)
+    : generateBlazorLayouts(tables, config, namespace, root, useAuth, queries, reports, pages, forms);
 
-  const pages = isMudBlazor
-    ? generateMudBlazorPages(tables, config, namespace, root, useAuth, queries, reports, relationships)
-    : generateBlazorPages(tables, config, namespace, root, useAuth, queries, reports, relationships);
+  const pageFiles = isMudBlazor
+    ? generateMudBlazorPages(tables, config, namespace, root, useAuth, queries, reports, relationships, forms, pages)
+    : generateBlazorPages(tables, config, namespace, root, useAuth, queries, reports, relationships, forms, pages);
 
   return [
     // Project Manifest & Configs
@@ -55,7 +56,7 @@ export const generateBlazor = (
     ...layouts,
 
     // Rich Interactive Pages & Dashboard
-    ...pages,
+    ...pageFiles,
 
     // IndexedDB Offline JavaScript File
     generateBlazorIndexedDb(tables, root)

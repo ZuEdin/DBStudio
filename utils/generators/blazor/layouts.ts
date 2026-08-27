@@ -1,4 +1,4 @@
-import { Table, Query, Report, BackendConfig, VirtualFile } from '../../../types/index';
+import { Table, Query, Report, Form, CustomPage, BackendConfig, VirtualFile } from '../../../types/index';
 import { toCamelCase } from '../common';
 
 export const generateBlazorLayouts = (
@@ -8,7 +8,9 @@ export const generateBlazorLayouts = (
   root: string,
   useAuth: boolean = false,
   queries: Query[] = [],
-  reports: Report[] = []
+  reports: Report[] = [],
+  pages: CustomPage[] = [],
+  forms: Form[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -46,8 +48,8 @@ ${useAuth ? '@inject AuthService Auth\n@inject NavigationManager Nav' : ''}
             <div class="d-flex align-items-center gap-3">
                 <span class="fw-bold text-secondary small text-uppercase">Datenquelle:</span>
                 <select class="form-select form-select-sm shadow-none border-primary" style="width: auto; font-weight: 500;" @value="currentStorage" @onchange="OnStorageChanged">
+                    <option value="API">REST API (Server &amp; SQLite / SQL)</option>
                     <option value="IndexedDB">IndexedDB (Lokal &amp; Offline)</option>
-                    <option value="API">REST API (Server &amp; SQL)</option>
                 </select>
                 <span class="badge bg-light text-primary border border-primary-subtle d-none d-md-inline-block">
                     Modus: <b>@StorageManager.CurrentService.BackendName</b>
@@ -73,7 +75,7 @@ ${useAuth ? `                <AuthorizeView>
 </div>
 
 @code {
-    private string currentStorage = "IndexedDB";
+    private string currentStorage = "API";
 
     protected override void OnInitialized()
     {
@@ -89,7 +91,7 @@ ${useAuth ? `                <AuthorizeView>
 
     private void OnStorageChanged(ChangeEventArgs e)
     {
-        var val = e.Value?.ToString() ?? "IndexedDB";
+        var val = e.Value?.ToString() ?? "API";
         currentStorage = val;
         StorageManager.SetStorageType(val);
     }
@@ -125,6 +127,24 @@ ${useAuth ? `    private async Task Logout()
     }
   });
 
+  let formLinks = '';
+  forms.forEach(f => {
+    formLinks += `        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/forms/${f.id}">
+                <i class="bi bi-file-earmark-text me-2"></i> ${f.name}
+            </NavLink>
+        </div>\n`;
+  });
+
+  let pageLinks = '';
+  pages.forEach(p => {
+    pageLinks += `        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/pages/${p.id}">
+                <i class="bi bi-layout-text-window-reverse me-2"></i> ${p.name}
+            </NavLink>
+        </div>\n`;
+  });
+
   const navMenu = `<div class="top-row ps-3 navbar navbar-dark bg-dark">
     <a class="navbar-brand text-truncate fw-bold" href="/">
         <i class="bi bi-database me-2"></i>${config.projectName}
@@ -141,6 +161,14 @@ ${useAuth ? `    private async Task Logout()
         <hr class="text-secondary my-2 mx-3" />
         <div class="px-3 text-uppercase text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Tabellen</div>
 ${navLinks}
+        ${forms.length > 0 ? `
+        <hr class="text-secondary my-2 mx-3" />
+        <div class="px-3 text-uppercase text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Formulare</div>
+${formLinks}` : ''}
+        ${pages.length > 0 ? `
+        <hr class="text-secondary my-2 mx-3" />
+        <div class="px-3 text-uppercase text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Designer Pages</div>
+${pageLinks}` : ''}
         <hr class="text-secondary my-2 mx-3" />
         <div class="px-3 text-uppercase text-secondary fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;">Analysen &amp; Auswertungen</div>
         <div class="nav-item px-3">

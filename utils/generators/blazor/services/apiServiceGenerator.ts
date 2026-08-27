@@ -35,13 +35,15 @@ namespace ${namespace}.Services
     {
         private readonly HttpClient _http;
         private readonly IJSRuntime _js;
+        private readonly IndexedDbService _indexedDb;
         private readonly JsonSerializerOptions _jsonOptions;
-        public string BackendName => "REST API (MySQL / SQL Server / SQLite)";
+        public string BackendName => "REST API (SQLite / Server DB)";
 
-        public ApiService(HttpClient http, IJSRuntime js)
+        public ApiService(HttpClient http, IJSRuntime js, IndexedDbService indexedDb)
         {
             _http = http;
             _js = js;
+            _indexedDb = indexedDb;
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -189,7 +191,7 @@ namespace ${namespace}.Services
                                 }
                             }
 
-                            if (items != null)
+                            if (items != null && items.Count > 0)
                             {
                                 return items;
                             }
@@ -197,12 +199,19 @@ namespace ${namespace}.Services
                     }
                     catch { }
                 }
-
-                return new List<T>();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ApiService] GetAll Fehler: {ex.Message}");
+                Console.WriteLine($"[ApiService] GetAll Fehler (API): {ex.Message}");
+            }
+
+            // Fallback: If API returns no data or fails, attempt fetching from IndexedDB
+            try
+            {
+                return await _indexedDb.GetAll<T>(tableName);
+            }
+            catch
+            {
                 return new List<T>();
             }
         }
@@ -237,7 +246,14 @@ namespace ${namespace}.Services
                 }
                 catch { }
             }
-            return null;
+            try
+            {
+                return await _indexedDb.GetById<T>(tableName, id);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task Add<T>(string tableName, T record) where T : class, new()
@@ -258,10 +274,15 @@ namespace ${namespace}.Services
                 try
                 {
                     var res = await _http.PostAsJsonAsync(ep, record);
-                    if (res.IsSuccessStatusCode) return;
+                    if (res.IsSuccessStatusCode) break;
                 }
                 catch { }
             }
+            try
+            {
+                await _indexedDb.Add(tableName, record);
+            }
+            catch { }
         }
 
         public async Task Update<T>(string tableName, object id, T record) where T : class, new()
@@ -282,10 +303,15 @@ namespace ${namespace}.Services
                 try
                 {
                     var res = await _http.PutAsJsonAsync(ep, record);
-                    if (res.IsSuccessStatusCode) return;
+                    if (res.IsSuccessStatusCode) break;
                 }
                 catch { }
             }
+            try
+            {
+                await _indexedDb.Update(tableName, id, record);
+            }
+            catch { }
         }
 
         public async Task Delete(string tableName, object id)
@@ -306,10 +332,15 @@ namespace ${namespace}.Services
                 try
                 {
                     var res = await _http.DeleteAsync(ep);
-                    if (res.IsSuccessStatusCode) return;
+                    if (res.IsSuccessStatusCode) break;
                 }
                 catch { }
             }
+            try
+            {
+                await _indexedDb.Delete(tableName, id);
+            }
+            catch { }
         }
     }
 }

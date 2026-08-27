@@ -26,7 +26,7 @@ export const generateMudBlazorDashboardPage = (
                     </MudText>
                 </MudCardContent>
                 <MudCardActions Class="pt-0">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Link="${toCamelCase(t.name)}" StartIcon="@Icons.Material.Filled.FolderOpen">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Href="/${toCamelCase(t.name)}" StartIcon="@Icons.Material.Filled.FolderOpen">
                         Tabelle öffnen
                     </MudButton>
                     <MudSpacer />
@@ -53,22 +53,22 @@ ${useAuth ? '@attribute [Authorize]' : ''}
         <MudGrid>
             <MudItem xs="12" md="6">
                 <div class="d-flex align-center gap-3">
-                    <MudIcon Icon="@Icons.Material.Filled.OfflinePin" Color="Color.Success" Size="Size.Large" />
+                    <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Info" Size="Size.Large" />
                     <div>
-                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold">Offline-First (IndexedDB)</MudText>
+                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold">REST API &amp; SQLite-Verbindung (Primär)</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Speichert alle Daten lokal in der hochperformanten Browser-IndexedDB. Sie können jederzeit in der Kopfzeile die Datenquelle umschalten.
+                            Primäre Datenquelle: Nahtlose Anbindung an die ASP.NET Core REST-API mit Unterstützung für SQLite, SQL Server, MySQL und PostgreSQL.
                         </MudText>
                     </div>
                 </div>
             </MudItem>
             <MudItem xs="12" md="6">
                 <div class="d-flex align-center gap-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Info" Size="Size.Large" />
+                    <MudIcon Icon="@Icons.Material.Filled.OfflinePin" Color="Color.Success" Size="Size.Large" />
                     <div>
-                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold">REST API &amp; SQL-Verbindung</MudText>
+                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold">IndexedDB Fallback &amp; Offline</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Nahtlose Anbindung an die ASP.NET Core REST-API mit Unterstützung für MySQL, SQL Server, PostgreSQL und SQLite.
+                            Sekundäre Datenquelle: Speichert Daten lokal in der Browser-IndexedDB bei Unterbrechungen oder Manuellem Modus-Wechsel.
                         </MudText>
                     </div>
                 </div>

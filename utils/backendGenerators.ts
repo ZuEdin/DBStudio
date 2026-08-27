@@ -105,7 +105,7 @@ export const generateBackendCode = (
     const reactFiles = generateReact(tables, relationships, queries, activeConfig, forms, reports, pages, customComponents, macros);
     files = [...files, ...reactFiles];
   } else if (activeConfig.frontendFramework === 'blazor' || activeConfig.frontendFramework === 'mudblazor') {
-    const blazorFiles = generateBlazor(tables, relationships, queries, activeConfig, forms, reports);
+    const blazorFiles = generateBlazor(tables, relationships, queries, activeConfig, forms, reports, pages);
     files = [...files, ...blazorFiles];
   } else if (activeConfig.frontendFramework === 'maui') {
     const mauiFiles = generateMaui(tables, relationships, queries, activeConfig, forms, reports);

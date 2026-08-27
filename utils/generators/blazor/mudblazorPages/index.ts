@@ -1,8 +1,10 @@
-import { Table, Query, Report, BackendConfig, VirtualFile, Relationship } from '../../../../types/index';
+import { Table, Query, Report, Form, CustomPage, BackendConfig, VirtualFile, Relationship } from '../../../../types/index';
 import { generateMudBlazorDashboardPage } from './dashboardPageGenerator';
 import { generateMudBlazorTableCrudPages } from './tableCrudPageGenerator';
 import { generateMudBlazorQueriesPage } from './queriesPageGenerator';
 import { generateMudBlazorReportsPage } from './reportsPageGenerator';
+import { generateMudBlazorFormPages } from './customFormPageGenerator';
+import { generateMudBlazorCustomPages } from './customPageGenerator';
 import { generateAuthPages } from '../pages/authPagesGenerator';
 
 export const generateMudBlazorPages = (
@@ -13,7 +15,9 @@ export const generateMudBlazorPages = (
   useAuth: boolean = false,
   queries: Query[] = [],
   reports: Report[] = [],
-  relationships: Relationship[] = []
+  relationships: Relationship[] = [],
+  forms: Form[] = [],
+  pages: CustomPage[] = []
 ): VirtualFile[] => {
   const files: VirtualFile[] = [];
 
@@ -34,6 +38,12 @@ export const generateMudBlazorPages = (
   // 5. Reports Page (Reports.razor)
   files.push(generateMudBlazorReportsPage(tables, config, root, useAuth, reports));
 
+  // 6. Custom Forms Pages ({FormName}Form.razor)
+  files.push(...generateMudBlazorFormPages(forms, tables, root, useAuth));
+
+  // 7. Custom Designer Pages ({PageName}Page.razor)
+  files.push(...generateMudBlazorCustomPages(pages, tables, root, useAuth));
+
   return files;
 };
 
@@ -41,5 +51,7 @@ export {
   generateMudBlazorDashboardPage,
   generateMudBlazorTableCrudPages,
   generateMudBlazorQueriesPage,
-  generateMudBlazorReportsPage
+  generateMudBlazorReportsPage,
+  generateMudBlazorFormPages,
+  generateMudBlazorCustomPages
 };
