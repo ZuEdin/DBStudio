@@ -63,7 +63,7 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
                     createViewSql = `IF NOT EXISTS (SELECT * FROM sys.views WHERE name = '${viewName}') EXEC('CREATE VIEW [${viewName}] AS ${selectSql.replace(/'/g, "''")}');`;
                 }
                 const escapedViewSql = createViewSql.replace(/"/g, '""');
-                seedLogic += `                context.Database.ExecuteSqlRaw(@"${escapedViewSql}");\n`;
+                seedLogic += `                try { context.Database.ExecuteSqlRaw(@"${escapedViewSql}"); } catch (Exception viewEx) { Console.WriteLine($"[View Init Warning] {viewEx.Message}"); }\n`;
             }
         });
         seedLogic += `\n`;
@@ -155,7 +155,9 @@ ${tableBatchStatements}                    }
 `;
     });
 
-    const content = `using Microsoft.EntityFrameworkCore;
+    const content = `using System;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using ${safeNamespace}.Data;
 
 namespace ${safeNamespace}.Data
@@ -167,19 +169,24 @@ namespace ${safeNamespace}.Data
             // Increase command timeout for seeding large datasets
             context.Database.SetCommandTimeout(300);
 
-            // Execute entire seeding inside an explicit transaction for atomic commit and ultra-fast SQLite / SQL I/O
-            ${dbType === DbType.SQLite ? 'context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");\n' : ''}
-            using var transaction = context.Database.BeginTransaction();
             try
             {
-${seedLogic}
-                transaction.Commit();
+                context.Database.OpenConnection();
             }
             catch (Exception ex)
             {
-                try { transaction.Rollback(); } catch { }
-                Console.WriteLine("Seeding Error: " + ex.Message);
-                throw;
+                Console.WriteLine("[DB Init] Notice opening connection: " + ex.Message);
+            }
+
+            ${dbType === DbType.SQLite ? 'try { context.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;"); } catch { }\n' : ''}
+
+            try
+            {
+${seedLogic}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Seeding Overall Warning: " + ex.Message);
             }
             finally
             {
