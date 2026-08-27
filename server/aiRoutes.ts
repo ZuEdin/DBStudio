@@ -58,7 +58,7 @@ aiRouter.post("/refactor", async (req, res) => {
     const contentPrompt = `Du bist ein Senior Developer. Hier ist der Code der Datei '${fileName}' (${language}).\nProjekt-Kontext: ${language}, ${projectName}.\n\nCode:\n${currentCode}\n\nAufgabe: ${prompt}\n\nGib NUR den kompletten, neuen Code zurück, ohne Markdown-Formatierung.`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: contentPrompt
     });
     
