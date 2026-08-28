@@ -12,8 +12,10 @@ import {
     PageViewContext, 
     getNestedValueCaseInsensitive, 
     resolvePlaceholders, 
-    getRowLabelAndValue 
+    getRowLabelAndValue,
+    formatFieldValue
 } from '../utils/pageViewUtils';
+import { applyFilterRules, evaluateCondition } from '../utils/filterAndDisplayUtils';
 import { Loader2, AlertCircle, TrendingUp, CheckCircle, Tag, Search, Download, Check, Plus, Trash2, ArrowRight } from 'lucide-react';
 
 interface LiveNodeProps {
@@ -39,6 +41,9 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
 
     // Load data binding or query records
     useEffect(() => {
+        const dsId = node.props.dataSourceId || node.props.queryId;
+        const dsType = node.props.dataSourceType || (node.props.queryId ? 'query' : 'table');
+
         if (node.type === 'dropdown' && node.props.queryId) {
             setLoading(true);
             const query = queries.find(q => q.id === node.props.queryId);
@@ -47,14 +52,14 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
                 setFetchedData(data);
             }
             setLoading(false);
-        } else if ((node.type === 'table_view' || node.type === 'container') && node.props.dataSourceType) {
+        } else if ((node.type === 'table_view' || node.type === 'container' || node.type === 'card' || node.type === 'list_repeater' || node.type === 'dropdown') && dsId) {
             setLoading(true);
             try {
-                if (node.props.dataSourceType === 'table' && node.props.dataSourceId) {
-                    const table = tables.find(t => t.id === node.props.dataSourceId);
+                if (dsType === 'table') {
+                    const table = tables.find(t => t.id === dsId || t.name === dsId);
                     if (table) setFetchedData(table.data || []);
-                } else if (node.props.dataSourceType === 'query' && node.props.dataSourceId) {
-                    const query = queries.find(q => q.id === node.props.dataSourceId);
+                } else if (dsType === 'query') {
+                    const query = queries.find(q => q.id === dsId || q.name === dsId);
                     if (query && query.type === 'SELECT') {
                         const data = executeSelectQuery(query as any, tables, relationships);
                         setFetchedData(data);
@@ -64,36 +69,19 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
                  console.error(err);
             }
             setLoading(false);
-        } else if (node.type === 'list_repeater' && node.props.dataSourceId) {
-            setLoading(true);
-            try {
-                if (node.props.dataSourceType === 'table') {
-                    const table = tables.find(t => t.id === node.props.dataSourceId);
-                    if (table) setFetchedData(table.data || []);
-                } else {
-                    const query = queries.find(q => q.id === node.props.dataSourceId);
-                    if (query && query.type === 'SELECT') {
-                        const data = executeSelectQuery(query as any, tables, relationships);
-                        setFetchedData(data);
-                    }
-                }
-            } catch (err) {
-                console.error(err);
-            }
-            setLoading(false);
         } else if (node.type === 'custom_component' && node.props.customComponentId) {
             setLoading(true);
             try {
                 const comp = customComponents.find(c => c.id === node.props.customComponentId);
                 if (comp) {
                     const conf = comp.configuration || {};
-                    const dsType = conf.dataSourceType || (conf.tableId ? 'table' : '');
-                    const dsId = conf.dataSourceId || conf.tableId;
-                    if (dsType === 'table' && dsId) {
-                        const table = tables.find(t => t.id === dsId);
+                    const cDsType = conf.dataSourceType || (conf.tableId ? 'table' : '');
+                    const cDsId = conf.dataSourceId || conf.tableId;
+                    if (cDsType === 'table' && cDsId) {
+                        const table = tables.find(t => t.id === cDsId || t.name === cDsId);
                         if (table) setFetchedData(table.data || []);
-                    } else if (dsType === 'query' && dsId) {
-                        const query = queries.find(q => q.id === dsId);
+                    } else if (cDsType === 'query' && cDsId) {
+                        const query = queries.find(q => q.id === cDsId || q.name === cDsId);
                         if (query && query.type === 'SELECT') {
                             const data = executeSelectQuery(query as any, tables, relationships);
                             setFetchedData(data);
@@ -126,13 +114,13 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
         }
 
         let isVisible = false;
-        if (vOperator === '==') isVisible = (actualVal === vExpected);
-        else if (vOperator === '!=') isVisible = (actualVal !== vExpected);
-        else if (vOperator === '>') isVisible = (parseFloat(actualVal) > parseFloat(vExpected));
-        else if (vOperator === '<') isVisible = (parseFloat(actualVal) < parseFloat(vExpected));
+        if (vOperator === '==' || vOperator === 'equals') isVisible = (actualVal === vExpected);
+        else if (vOperator === '!=' || vOperator === 'not_equals') isVisible = (actualVal !== vExpected);
+        else if (vOperator === '>' || vOperator === 'greater_than') isVisible = (parseFloat(actualVal) > parseFloat(vExpected));
+        else if (vOperator === '<' || vOperator === 'less_than') isVisible = (parseFloat(actualVal) < parseFloat(vExpected));
         else if (vOperator === 'contains') isVisible = actualVal.toLowerCase().includes(vExpected.toLowerCase());
-        else if (vOperator === 'not_empty') isVisible = (actualVal !== '' && actualVal !== 'undefined' && actualVal !== 'null');
-        else if (vOperator === 'empty') isVisible = (actualVal === '' || actualVal === 'undefined' || actualVal === 'null');
+        else if (vOperator === 'not_empty' || vOperator === 'is_not_empty') isVisible = (actualVal !== '' && actualVal !== 'undefined' && actualVal !== 'null');
+        else if (vOperator === 'empty' || vOperator === 'is_empty') isVisible = (actualVal === '' || actualVal === 'undefined' || actualVal === 'null');
 
         if (!isVisible) return null;
     }
@@ -346,36 +334,86 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
              break;
         }
         case 'card': {
+             let cardContext = context;
+             if (node.props.dataSourceId) {
+                 const finalData = applyFilterRules(
+                     fetchedData,
+                     node.props.filterRules,
+                     node.props.filterLogic || 'AND',
+                     params,
+                     context,
+                     node.props.filterParamField,
+                     node.props.filterParamName,
+                     { isContainer: true, autoFilterBySelectedId: true }
+                 );
+                 if (finalData && finalData.length > 0) {
+                     cardContext = { ...context, ...finalData[0] };
+                 }
+             } else {
+                 const selId = params?.selectedId ?? params?.id ?? params?.selected_id;
+                 if (selId !== undefined && selId !== null && selId !== '') {
+                     for (const t of tables) {
+                         if (t.data && Array.isArray(t.data)) {
+                             const match = t.data.find(r => {
+                                 const rId = getNestedValueCaseInsensitive(r, 'id') ?? getNestedValueCaseInsensitive(r, 'Id') ?? getNestedValueCaseInsensitive(r, 'ID');
+                                 return evaluateCondition(rId, 'equals', selId);
+                             });
+                             if (match) {
+                                 cardContext = { ...context, ...match };
+                                 break;
+                             }
+                         }
+                     }
+                 }
+             }
+
              content = (
                   <div className={`bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden ${node.props.className || ''}`} style={node.props.style}>
                        {node.props.title && (
                            <div className={`px-4 py-3 border-b border-slate-200 bg-slate-50 font-medium text-slate-800 ${node.props.headerClassName || ''}`}>
-                               {resolvePlaceholders(node.props.title, context, params)}
+                               {resolvePlaceholders(node.props.title, cardContext, params)}
                            </div>
                        )}
                        <div className={`p-4 ${node.props.bodyClassName || ''}`}>
-                          {node.children?.map(c => <LiveNode key={c.id} node={c} context={context} />)}
+                          {node.children?.map(c => <LiveNode key={c.id} node={c} context={cardContext} />)}
                        </div>
                   </div>
              );
              break;
         }
         case 'container': {
-             let finalData = fetchedData;
-             if (node.props.filterParamField && node.props.filterParamName) {
-                 const filterField = node.props.filterParamField;
-                 const filterParam = node.props.filterParamName;
-                 const filterVal = params[filterParam];
-                 if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     finalData = fetchedData.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
-                 } else {
-                     finalData = [];
+             let containerContext = context;
+             if (node.props.dataSourceId) {
+                 const finalData = applyFilterRules(
+                     fetchedData,
+                     node.props.filterRules,
+                     node.props.filterLogic || 'AND',
+                     params,
+                     context,
+                     node.props.filterParamField,
+                     node.props.filterParamName,
+                     { isContainer: true, autoFilterBySelectedId: true }
+                 );
+                 if (finalData && finalData.length > 0) {
+                     containerContext = { ...context, ...finalData[0] };
+                 }
+             } else {
+                 const selId = params?.selectedId ?? params?.id ?? params?.selected_id;
+                 if (selId !== undefined && selId !== null && selId !== '') {
+                     for (const t of tables) {
+                         if (t.data && Array.isArray(t.data)) {
+                             const match = t.data.find(r => {
+                                 const rId = getNestedValueCaseInsensitive(r, 'id') ?? getNestedValueCaseInsensitive(r, 'Id') ?? getNestedValueCaseInsensitive(r, 'ID');
+                                 return evaluateCondition(rId, 'equals', selId);
+                             });
+                             if (match) {
+                                 containerContext = { ...context, ...match };
+                                 break;
+                             }
+                         }
+                     }
                  }
              }
-
-             const containerContext = (finalData && finalData.length > 0)
-                 ? { ...context, ...finalData[0] }
-                 : context;
 
              content = (
                   <div className={`w-full ${node.props.className || ''}`} style={node.props.style}>
@@ -387,7 +425,28 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
 
         case 'text': {
              const resolvedText = resolvePlaceholders(node.props.text || '', context, params);
-             content = <div className={`w-full break-words ${node.props.className || ''}`} style={node.props.style}>{resolvedText}</div>;
+             let finalText = resolvedText;
+             if (node.props.formatType && node.props.formatType !== 'none') {
+                 finalText = formatFieldValue(resolvedText, {
+                     formatType: node.props.formatType,
+                     dateFormat: node.props.dateFormat,
+                     customDateFormat: node.props.customDateFormat,
+                     currencyCode: node.props.currencyCode,
+                     currencyDecimals: node.props.currencyDecimals !== undefined ? Number(node.props.currencyDecimals) : 2,
+                     currencyPosition: node.props.currencyPosition || 'after',
+                     numberDecimals: node.props.numberDecimals !== undefined ? Number(node.props.numberDecimals) : 2,
+                     numberThousandsSeparator: node.props.numberThousandsSeparator !== false,
+                     numberIsPercent: !!node.props.numberIsPercent,
+                     textTransform: node.props.textTransform,
+                     truncateLength: node.props.truncateLength ? Number(node.props.truncateLength) : 50,
+                     booleanTrueText: node.props.booleanTrueText || 'Ja',
+                     booleanFalseText: node.props.booleanFalseText || 'Nein',
+                     prefix: node.props.prefix || '',
+                     suffix: node.props.suffix || '',
+                     emptyFallback: node.props.emptyFallback || '',
+                 });
+             }
+             content = <div className={`w-full break-words ${node.props.className || ''}`} style={node.props.style}>{finalText}</div>;
              break;
         }
 
@@ -527,22 +586,20 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
         }
 
         case 'dropdown': {
-             let finalData = fetchedData;
-             if (node.props.filterParamField && node.props.filterParamName) {
-                 const filterField = node.props.filterParamField;
-                 const filterParam = node.props.filterParamName;
-                 const filterVal = params[filterParam];
-                 if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     finalData = fetchedData.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
-                 } else {
-                     finalData = [];
-                 }
-             }
+             const finalData = applyFilterRules(
+                 fetchedData,
+                 node.props.filterRules,
+                 node.props.filterLogic || 'AND',
+                 params,
+                 context,
+                 node.props.filterParamField,
+                 node.props.filterParamName
+             );
 
              content = (
                   <div className={`p-2 ${node.props.className || ''}`}>
                        <select 
-                           className="border border-slate-300 rounded px-3 py-2 bg-white w-full max-w-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
+                           className="border border-slate-300 dark:border-slate-700 rounded px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 w-full max-w-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
                            style={node.props.style}
                            onChange={(e) => {
                                if (node.props.valueField) {
@@ -568,17 +625,15 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
         }
 
         case 'list_repeater': {
-             let finalData = fetchedData;
-             if (node.props.filterParamField && node.props.filterParamName) {
-                 const filterField = node.props.filterParamField;
-                 const filterParam = node.props.filterParamName;
-                 const filterVal = params[filterParam];
-                 if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                     finalData = fetchedData.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
-                 } else {
-                     finalData = [];
-                 }
-             }
+             const finalData = applyFilterRules(
+                 fetchedData,
+                 node.props.filterRules,
+                 node.props.filterLogic || 'AND',
+                 params,
+                 context,
+                 node.props.filterParamField,
+                 node.props.filterParamName
+             );
 
              content = (
                   <div className={`w-full space-y-3 ${node.props.className || ''}`} style={node.props.style}>
@@ -637,19 +692,22 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
                  }
              }
 
+             // 3. Merge with page params as fallback
+             const mergedParams: Record<string, any> = { ...(params || {}), ...mappedParams };
+
              content = (
                  <div className="w-full bg-slate-50/20 border border-dashed border-slate-200 hover:border-slate-300 rounded-lg p-3 transition relative group">
                      <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition duration-150 flex gap-1 pointer-events-none select-none">
                          <span className="text-[8px] bg-slate-800 text-slate-300 font-mono font-bold px-1 py-0.5 rounded shadow-sm">
                              sub-page: {subPage.name}
                          </span>
-                         {Object.keys(mappedParams).length > 0 && (
+                         {Object.keys(mergedParams).length > 0 && (
                              <span className="text-[8px] bg-emerald-100 text-emerald-800 font-mono font-bold px-1 py-0.5 rounded shadow-sm">
-                                 params: {Object.keys(mappedParams).join(', ')}
+                                 params: {Object.keys(mergedParams).join(', ')}
                              </span>
                          )}
                      </div>
-                     <PageParamsContext.Provider value={{ params: mappedParams, setParam: (k, v) => setParam(k, v) }}>
+                     <PageParamsContext.Provider value={{ params: mergedParams, setParam: (k, v) => setParam(k, v) }}>
                          <LiveNode node={subPage.layout} context={context} />
                      </PageParamsContext.Provider>
                  </div>

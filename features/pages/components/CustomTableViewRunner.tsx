@@ -5,6 +5,7 @@ import {
     getNestedValueCaseInsensitive, 
     resolvePlaceholders 
 } from '../utils/pageViewUtils';
+import { applyFilterRules } from '../utils/filterAndDisplayUtils';
 
 interface CustomTableViewRunnerProps {
     comp: any;
@@ -55,19 +56,16 @@ export const CustomTableViewRunner: React.FC<CustomTableViewRunnerProps> = ({
 
     // 3. Process data binding, parameters, searching, filtering, and sorting
     const processedData = useMemo(() => {
-        let data = [...fetchedData];
-
-        // A. Filter by parent/page parameter if configured (Master-Detail link)
-        if (node.props.filterParamField && node.props.filterParamName) {
-            const filterField = node.props.filterParamField;
-            const filterParam = node.props.filterParamName;
-            const filterVal = params[filterParam];
-            if (filterVal !== undefined && filterVal !== null && filterVal !== '') {
-                data = data.filter(row => String(getNestedValueCaseInsensitive(row, filterField) ?? '') === String(filterVal));
-            } else {
-                data = [];
-            }
-        }
+        // A. Filter by filter rules or parent/page parameter (Master-Detail link)
+        let data = applyFilterRules(
+            fetchedData,
+            node.props.filterRules,
+            node.props.filterLogic || 'AND',
+            params,
+            context,
+            node.props.filterParamField,
+            node.props.filterParamName
+        );
 
         // B. Apply search query (Global Search)
         if (conf.enableSearch && searchQuery.trim()) {
@@ -101,17 +99,14 @@ export const CustomTableViewRunner: React.FC<CustomTableViewRunnerProps> = ({
                 if (!isNaN(numA) && !isNaN(numB)) {
                     return sortOrder === 'asc' ? numA - numB : numB - numA;
                 }
-
                 const strA = String(valA).toLowerCase();
                 const strB = String(valB).toLowerCase();
-                return sortOrder === 'asc' 
-                    ? strA.localeCompare(strB, 'de') 
-                    : strB.localeCompare(strA, 'de');
+                return sortOrder === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
             });
         }
 
         return data;
-    }, [fetchedData, node.props, params, conf, searchQuery, selectedFilters, sortField, sortOrder]);
+    }, [fetchedData, node.props.filterRules, node.props.filterLogic, params, context, node.props.filterParamField, node.props.filterParamName, conf.enableSearch, searchQuery, conf.enableFilters, conf.filterFields, selectedFilters, sortField, sortOrder]);
 
     // 4. Toggle sorting order on column header click
     const handleSortToggle = (field: string) => {
@@ -190,41 +185,50 @@ export const CustomTableViewRunner: React.FC<CustomTableViewRunnerProps> = ({
                     </div>
                 ) : (
                     <div className={`grid gap-4 ${gridColsClass}`}>
-                        {processedData.map((row, rIdx) => (
-                            <div 
-                                key={rIdx} 
-                                onClick={() => {
-                                    if (node.props.enableSelection) {
-                                        const pKey = node.props.selectionParamName || 'selectedId';
-                                        setParam(pKey, row.id || row.Id || rIdx);
-                                        if (node.props.detailsPageId) {
-                                            navigate(node.props.detailsPageId, { [pKey]: row.id || row.Id || rIdx });
+                        {processedData.map((row, rIdx) => {
+                            const pKey = node.props.selectionParamName || 'selectedId';
+                            const rowId = row.id ?? row.Id ?? row.ID ?? rIdx;
+                            const selVal = params[pKey] ?? params['selectedId'];
+                            const isSelected = selVal !== undefined && selVal !== null && String(rowId) === String(selVal);
+
+                            return (
+                                <div 
+                                    key={rIdx} 
+                                    onClick={() => {
+                                        if (node.props.enableSelection !== false) {
+                                            setParam(pKey, rowId);
+                                            if (pKey !== 'selectedId') {
+                                                setParam('selectedId', rowId);
+                                            }
+                                            if (node.props.detailsPageId) {
+                                                navigate(node.props.detailsPageId, { [pKey]: rowId, selectedId: rowId });
+                                            }
                                         }
-                                    }
-                                }}
-                                className={`bg-white dark:bg-slate-900 border rounded-xl p-4 flex flex-col gap-2 transition cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-800 hover:shadow-md ${shadowClass} ${borderClass}`}
-                            >
-                                {conf.cardTemplate?.map((elem: any, eIdx: number) => {
-                                    const val = getNestedValueCaseInsensitive(row, elem.field);
-                                    return (
-                                        <div key={eIdx} className={`${elem.style || ''}`}>
-                                            {elem.label && <span className="text-[10px] text-slate-400 font-semibold block uppercase">{elem.label}</span>}
-                                            {elem.type === 'badge' ? (
-                                                <span className={`${elem.style || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-0.5 rounded-full text-[10px]'}`}>
-                                                    {String(val ?? '')}
-                                                </span>
-                                            ) : elem.type === 'button' ? (
-                                                <button className="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] rounded font-semibold uppercase">
-                                                    {String(val ?? elem.label ?? 'Button')}
-                                                </button>
-                                            ) : (
-                                                <span className="dark:text-slate-300">{String(val ?? '')}</span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ))}
+                                    }}
+                                    className={`bg-white dark:bg-slate-900 border rounded-xl p-4 flex flex-col gap-2 transition cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-800 hover:shadow-md ${shadowClass} ${borderClass} ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/20' : ''}`}
+                                >
+                                    {conf.cardTemplate?.map((elem: any, eIdx: number) => {
+                                        const val = getNestedValueCaseInsensitive(row, elem.field);
+                                        return (
+                                            <div key={eIdx} className={`${elem.style || ''}`}>
+                                                {elem.label && <span className="text-[10px] text-slate-400 font-semibold block uppercase">{elem.label}</span>}
+                                                {elem.type === 'badge' ? (
+                                                    <span className={`${elem.style || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2 py-0.5 rounded-full text-[10px]'}`}>
+                                                        {String(val ?? '')}
+                                                    </span>
+                                                ) : elem.type === 'button' ? (
+                                                    <button className="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] rounded font-semibold uppercase">
+                                                        {String(val ?? elem.label ?? 'Button')}
+                                                    </button>
+                                                ) : (
+                                                    <span className="dark:text-slate-300">{String(val ?? '')}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -308,50 +312,59 @@ export const CustomTableViewRunner: React.FC<CustomTableViewRunnerProps> = ({
                                     </td>
                                 </tr>
                             ) : (
-                                processedData.map((row, rIdx) => (
-                                    <tr 
-                                        key={rIdx} 
-                                        onClick={() => {
-                                            if (node.props.enableSelection) {
-                                                const pKey = node.props.selectionParamName || 'selectedId';
-                                                setParam(pKey, row.id || row.Id || rIdx);
-                                                if (node.props.detailsPageId) {
-                                                    navigate(node.props.detailsPageId, { [pKey]: row.id || row.Id || rIdx });
+                                processedData.map((row, rIdx) => {
+                                    const pKey = node.props.selectionParamName || 'selectedId';
+                                    const rowId = row.id ?? row.Id ?? row.ID ?? rIdx;
+                                    const selVal = params[pKey] ?? params['selectedId'];
+                                    const isSelected = selVal !== undefined && selVal !== null && String(rowId) === String(selVal);
+
+                                    return (
+                                        <tr 
+                                            key={rIdx} 
+                                            onClick={() => {
+                                                if (node.props.enableSelection !== false) {
+                                                    setParam(pKey, rowId);
+                                                    if (pKey !== 'selectedId') {
+                                                        setParam('selectedId', rowId);
+                                                    }
+                                                    if (node.props.detailsPageId) {
+                                                        navigate(node.props.detailsPageId, { [pKey]: rowId, selectedId: rowId });
+                                                    }
                                                 }
-                                            }
-                                        }}
-                                        className={`hover:bg-indigo-50/10 dark:hover:bg-indigo-950/20 cursor-pointer transition-colors ${conf.tableStyle === 'striped' && rIdx % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-850/30' : ''}`}
-                                    >
-                                        {conf.columns?.map((col: any, cIdx: number) => {
-                                            const cellVal = getNestedValueCaseInsensitive(row, col.field);
-                                            return (
-                                                <td 
-                                                    key={cIdx} 
-                                                    className={`${conf.tableStyle === 'compact' ? 'p-1.5' : 'p-3'} border-b border-slate-200 dark:border-slate-800`}
-                                                    style={{ textAlign: col.align || 'left' }}
-                                                >
-                                                    {col.type === 'badge' ? (
-                                                        <span className="bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/60 px-2 py-0.5 rounded-full text-[10px] font-bold inline-block">
-                                                            {String(cellVal ?? '')}
-                                                        </span>
-                                                    ) : col.type === 'currency' ? (
-                                                        <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">
-                                                            {Number(cellVal || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-                                                        </span>
-                                                    ) : col.type === 'date' ? (
-                                                        <span className="text-slate-500 dark:text-slate-400 font-mono">
-                                                            {cellVal ? new Date(String(cellVal)).toLocaleDateString('de-DE') : ''}
-                                                        </span>
-                                                    ) : col.type === 'number' ? (
-                                                        <span className="font-mono font-semibold dark:text-slate-200">{String(cellVal ?? '')}</span>
-                                                    ) : (
-                                                        <span className="dark:text-slate-300">{String(cellVal ?? '')}</span>
-                                                    )}
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))
+                                            }}
+                                            className={`hover:bg-indigo-50/20 dark:hover:bg-indigo-950/30 cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-950/40 font-semibold' : (conf.tableStyle === 'striped' && rIdx % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-850/30' : '')}`}
+                                        >
+                                            {conf.columns?.map((col: any, cIdx: number) => {
+                                                const cellVal = getNestedValueCaseInsensitive(row, col.field);
+                                                return (
+                                                    <td 
+                                                        key={cIdx} 
+                                                        className={`${conf.tableStyle === 'compact' ? 'p-1.5' : 'p-3'} border-b border-slate-200 dark:border-slate-800`}
+                                                        style={{ textAlign: col.align || 'left' }}
+                                                    >
+                                                        {col.type === 'badge' ? (
+                                                            <span className="bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/60 px-2 py-0.5 rounded-full text-[10px] font-bold inline-block">
+                                                                {String(cellVal ?? '')}
+                                                            </span>
+                                                        ) : col.type === 'currency' ? (
+                                                            <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">
+                                                                {Number(cellVal || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                                                            </span>
+                                                        ) : col.type === 'date' ? (
+                                                            <span className="text-slate-500 dark:text-slate-400 font-mono">
+                                                                {cellVal ? new Date(String(cellVal)).toLocaleDateString('de-DE') : ''}
+                                                            </span>
+                                                        ) : col.type === 'number' ? (
+                                                            <span className="font-mono font-semibold dark:text-slate-200">{String(cellVal ?? '')}</span>
+                                                        ) : (
+                                                            <span className="dark:text-slate-300">{String(cellVal ?? '')}</span>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                         {conf.columns && conf.columns.some((col: any) => col.footerType && col.footerType !== 'none') && (

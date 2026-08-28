@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { CustomComponentRunner } from './runner/CustomComponentRunner';
+import { formatFieldValue, resolvePlaceholders } from '../utils/pageViewUtils';
 
 interface SubPagePreviewNodeProps {
     node: PageComponent;
@@ -521,10 +522,34 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
              );
              break;
 
-        case 'text':
-             content = <div className={`p-2 w-full break-words ${node.props.className || ''}`} style={node.props.style}>{node.props.text || 'Text Block'}</div>;
+        case 'text': {
+             const rawText = node.props.text || 'Text Block';
+             // If mock preview text or format is applied
+             let previewDisplay = rawText;
+             if (node.props.formatType && node.props.formatType !== 'none') {
+                 previewDisplay = formatFieldValue(rawText, {
+                     formatType: node.props.formatType,
+                     dateFormat: node.props.dateFormat,
+                     customDateFormat: node.props.customDateFormat,
+                     currencyCode: node.props.currencyCode,
+                     currencyDecimals: node.props.currencyDecimals !== undefined ? Number(node.props.currencyDecimals) : 2,
+                     currencyPosition: node.props.currencyPosition || 'after',
+                     numberDecimals: node.props.numberDecimals !== undefined ? Number(node.props.numberDecimals) : 2,
+                     numberThousandsSeparator: node.props.numberThousandsSeparator !== false,
+                     numberIsPercent: !!node.props.numberIsPercent,
+                     textTransform: node.props.textTransform,
+                     truncateLength: node.props.truncateLength ? Number(node.props.truncateLength) : 50,
+                     booleanTrueText: node.props.booleanTrueText || 'Ja',
+                     booleanFalseText: node.props.booleanFalseText || 'Nein',
+                     prefix: node.props.prefix || '',
+                     suffix: node.props.suffix || '',
+                     emptyFallback: node.props.emptyFallback || '-',
+                 });
+             }
+             content = <div className={`p-2 w-full break-words ${node.props.className || ''}`} style={node.props.style}>{previewDisplay}</div>;
              isDropTarget = false;
              break;
+        }
 
         case 'button':
              content = <button className={`px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 m-1 shadow-2xs ${node.props.className || ''}`} style={node.props.style}>{node.props.label || 'Button'}</button>;

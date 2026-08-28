@@ -897,32 +897,38 @@ export const generateNode = (
     let nodeHtml = evaluateBaseNode(node, context);
 
     if (node.props?.visibilityField) {
-        const vField = node.props.visibilityField;
+        let vField = node.props.visibilityField.trim();
+        if (vField.startsWith('context.')) vField = vField.substring(8);
+        else if (vField.startsWith('row.')) vField = vField.substring(4);
+        else if (vField.startsWith('item.')) vField = vField.substring(5);
+        else if (vField.startsWith('params.')) vField = vField.substring(7);
+        else if (vField.startsWith('queryParams.')) vField = vField.substring(12);
+
         const vOperator = node.props.visibilityOperator || '==';
         const vExpected = node.props.visibilityValue || '';
         
         let valExpr = '';
         if (context.currentContextVar) {
-            valExpr = `(${context.currentContextVar}?.\['${vField}'\] !== undefined ? String(${context.currentContextVar}?.\['${vField}'\] ?? '') : (${context.currentContextVar}?.\['${toCamelCase(vField)}'\] !== undefined ? String(${context.currentContextVar}?.\['${toCamelCase(vField)}'\] ?? '') : String(queryParams?.\['${vField}'\] ?? '')))`;
+            valExpr = `(${context.currentContextVar}?.\['${vField}'\] ?? ${context.currentContextVar}?.\['${toCamelCase(vField)}'\] ?? queryParams?.\['${vField}'\])`;
         } else {
-            valExpr = `String(queryParams?.\['${vField}'\] ?? '')`;
+            valExpr = `queryParams?.\['${vField}'\]`;
         }
         
         let cond = 'true';
         if (vOperator === '==') {
-            cond = `${valExpr} === '${vExpected.replace(/'/g, "\\'")}'`;
+            cond = `${valExpr} == '${vExpected.replace(/'/g, "\\'")}'`;
         } else if (vOperator === '!=') {
-            cond = `${valExpr} !== '${vExpected.replace(/'/g, "\\'")}'`;
+            cond = `${valExpr} != '${vExpected.replace(/'/g, "\\'")}'`;
         } else if (vOperator === '>') {
-            cond = `parseFloat(${valExpr}) > parseFloat('${vExpected}')`;
+            cond = `+(${valExpr} ?? 0) > +${Number(vExpected) || 0}`;
         } else if (vOperator === '<') {
-            cond = `parseFloat(${valExpr}) < parseFloat('${vExpected}')`;
+            cond = `+(${valExpr} ?? 0) < +${Number(vExpected) || 0}`;
         } else if (vOperator === 'contains') {
-            cond = `${valExpr}.toLowerCase().includes('${vExpected.replace(/'/g, "\\'")}'.toLowerCase())`;
+            cond = `(${valExpr}?.toString()?.toLowerCase()?.includes('${vExpected.toLowerCase().replace(/'/g, "\\'")}'))`;
         } else if (vOperator === 'not_empty') {
-            cond = `${valExpr} !== '' && ${valExpr} !== 'undefined' && ${valExpr} !== 'null'`;
+            cond = `${valExpr} !== undefined && ${valExpr} !== null && ${valExpr} !== '' && ${valExpr} !== 'undefined' && ${valExpr} !== 'null'`;
         } else if (vOperator === 'empty') {
-            cond = `${valExpr} === '' || ${valExpr} === 'undefined' || ${valExpr} === 'null'`;
+            cond = `${valExpr} === undefined || ${valExpr} === null || ${valExpr} === '' || ${valExpr} === 'undefined' || ${valExpr} === 'null'`;
         }
         
         nodeHtml = `<ng-container *ngIf="${cond}">${nodeHtml}</ng-container>`;

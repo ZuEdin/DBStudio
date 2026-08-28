@@ -19,12 +19,51 @@ export const compilePlaceholders = (text: string, contextVar?: string): string =
   if (!normalized.includes('{')) return JSON.stringify(normalized);
   
   const replaced = normalized.replace(/\{([^{}]+)\}/g, (match, key) => {
-    const trimmedKey = key.trim();
-    if (contextVar) {
-      return `\${${contextVar}?.\['${trimmedKey}'\] || ${contextVar}?.\['${toCamelCase(trimmedKey)}'\] || searchParams.get('${trimmedKey}') || ''}`;
-    } else {
-      return `\${searchParams.get('${trimmedKey}') || ''}`;
+    const trimmed = key.trim();
+    let mainKey = trimmed;
+    let pipeType = '';
+    let pipeArg = '';
+
+    if (trimmed.includes('|')) {
+      const parts = trimmed.split('|');
+      mainKey = parts[0].trim();
+      const pipePart = parts[1].trim();
+      if (pipePart.startsWith('date')) {
+        pipeType = 'date';
+      } else if (pipePart.startsWith('currency')) {
+        pipeType = 'currency';
+      } else if (pipePart.startsWith('uppercase')) {
+        pipeType = 'uppercase';
+      } else if (pipePart.startsWith('lowercase')) {
+        pipeType = 'lowercase';
+      }
     }
+
+    let cleanKey = mainKey;
+    if (cleanKey.startsWith('context.')) cleanKey = cleanKey.substring(8);
+    else if (cleanKey.startsWith('row.')) cleanKey = cleanKey.substring(4);
+    else if (cleanKey.startsWith('item.')) cleanKey = cleanKey.substring(5);
+    else if (cleanKey.startsWith('params.')) cleanKey = cleanKey.substring(7);
+    else if (cleanKey.startsWith('queryParams.')) cleanKey = cleanKey.substring(12);
+
+    const valExpr = contextVar 
+      ? `(${contextVar}?.\['${cleanKey}'\] ?? ${contextVar}?.\['${toCamelCase(cleanKey)}'\] ?? searchParams.get('${cleanKey}') ?? '')`
+      : `(searchParams.get('${cleanKey}') ?? '')`;
+
+    if (pipeType === 'date') {
+      return `\${${valExpr} ? new Date(${valExpr}).toLocaleDateString('de-DE') : ''}`;
+    }
+    if (pipeType === 'currency') {
+      return `\${${valExpr} ? Number(${valExpr}).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : ''}`;
+    }
+    if (pipeType === 'uppercase') {
+      return `\${String(${valExpr}).toUpperCase()}`;
+    }
+    if (pipeType === 'lowercase') {
+      return `\${String(${valExpr}).toLowerCase()}`;
+    }
+
+    return `\${${valExpr}}`;
   });
   
   return `\`${replaced}\``;

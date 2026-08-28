@@ -8,17 +8,79 @@ const toCamelCase = (str: string): string => {
     .replace(/^[A-Z]/, (chr) => chr.toLowerCase());
 };
 
+const normalizeAngularDateFormat = (fmt: string): string => {
+  if (!fmt) return 'dd.MM.yyyy';
+  return fmt
+    .replace(/YYYY/g, 'yyyy')
+    .replace(/YY/g, 'yy')
+    .replace(/DD/g, 'dd')
+    .replace(/D/g, 'd');
+};
+
 export const compileAngularPlaceholders = (text: string, contextVar?: string): string => {
   if (!text) return '';
   const normalized = text.replace(/\{\{/g, '{').replace(/\}\}/g, '}');
   if (!normalized.includes('{')) return normalized;
   
   return normalized.replace(/\{([^{}]+)\}/g, (match, key) => {
-    const trimmedKey = key.trim();
+    const trimmed = key.trim();
+    let mainKey = trimmed;
+    let pipeType = '';
+    let pipeArg = '';
+
+    if (trimmed.includes('|')) {
+      const parts = trimmed.split('|');
+      mainKey = parts[0].trim();
+      const pipePart = parts.slice(1).join('|').trim();
+      const colonIdx = pipePart.indexOf(':');
+      if (colonIdx > -1) {
+        pipeType = pipePart.substring(0, colonIdx).trim();
+        pipeArg = pipePart.substring(colonIdx + 1).trim().replace(/^['"]|['"]$/g, '');
+      } else {
+        pipeType = pipePart.trim();
+      }
+    }
+
+    // Strip prefixes like "context.", "row.", "item.", "params.", "queryParams."
+    let cleanKey = mainKey;
+    if (cleanKey.startsWith('context.')) cleanKey = cleanKey.substring(8);
+    else if (cleanKey.startsWith('row.')) cleanKey = cleanKey.substring(4);
+    else if (cleanKey.startsWith('item.')) cleanKey = cleanKey.substring(5);
+    else if (cleanKey.startsWith('params.')) cleanKey = cleanKey.substring(7);
+    else if (cleanKey.startsWith('queryParams.')) cleanKey = cleanKey.substring(12);
+
+    const camelKey = toCamelCase(cleanKey);
+
+    let rawValExpr = '';
     if (contextVar) {
-      return `{{ ${contextVar}?.['${trimmedKey}'] || ${contextVar}?.['${toCamelCase(trimmedKey)}'] || ${contextVar}?.${trimmedKey} || ${contextVar}?.${toCamelCase(trimmedKey)} || queryParams?.['${trimmedKey}'] || '' }}`;
+      rawValExpr = `(${contextVar}?.['${cleanKey}'] ?? ${contextVar}?.['${camelKey}'] ?? queryParams?.['${cleanKey}'] ?? '')`;
     } else {
-      return `{{ queryParams?.['${trimmedKey}'] || '' }}`;
+      rawValExpr = `(queryParams?.['${cleanKey}'] ?? '')`;
+    }
+
+    if (pipeType === 'date') {
+      const ngFormat = normalizeAngularDateFormat(pipeArg || 'dd.MM.yyyy');
+      return `{{ ${rawValExpr} ? (${rawValExpr} | date:'${ngFormat}') : '' }}`;
+    }
+    if (pipeType === 'currency') {
+      const curr = pipeArg || 'EUR';
+      return `{{ ${rawValExpr} ? (${rawValExpr} | currency:'${curr}':'symbol':'1.2-2') : '' }}`;
+    }
+    if (pipeType === 'number' || pipeType === 'decimal') {
+      const decimals = Number(pipeArg) || 2;
+      return `{{ ${rawValExpr} ? (${rawValExpr} | number:'1.${decimals}-${decimals}') : '' }}`;
+    }
+    if (pipeType === 'uppercase') {
+      return `{{ (${rawValExpr}) | uppercase }}`;
+    }
+    if (pipeType === 'lowercase') {
+      return `{{ (${rawValExpr}) | lowercase }}`;
+    }
+
+    if (contextVar) {
+      return `{{ ${contextVar}?.['${cleanKey}'] || ${contextVar}?.['${camelKey}'] || queryParams?.['${cleanKey}'] || '' }}`;
+    } else {
+      return `{{ queryParams?.['${cleanKey}'] || '' }}`;
     }
   });
 };
@@ -35,8 +97,36 @@ export const generateTextNode = (node: any, context: NodeGeneratorContext): stri
     let classNameStr = node.props?.className || '';
     let styleAttr = node.props?.style ? `style="${Object.entries(node.props.style).map(([k,v]) => `${toKebabCase(k)}:${v}`).join(';')}"` : '';
     const defaultClass = context.isBootstrap ? 'text-break' : 'break-words';
-    const compiledText = compileAngularPlaceholders(node.props?.text || '', context.currentContextVar);
-    return `<div class="${defaultClass} ${classNameStr}" ${styleAttr}>${compiledText}</div>`;
+    
+    let rawText = node.props?.text || '';
+    const prefix = node.props?.prefix || '';
+    const suffix = node.props?.suffix || '';
+
+    // If formatType is explicitly set on component props and text has simple placeholder
+    if (node.props?.formatType && node.props?.formatType !== 'none' && !rawText.includes('|')) {
+        if (node.props.formatType === 'date') {
+            const fmt = normalizeAngularDateFormat(node.props.dateFormat || 'dd.MM.yyyy');
+            if (rawText.startsWith('{{') && rawText.endsWith('}}')) {
+                const inner = rawText.slice(2, -2).trim();
+                rawText = `{{${inner} | date:'${fmt}'}}`;
+            } else if (rawText.startsWith('{') && rawText.endsWith('}')) {
+                const inner = rawText.slice(1, -1).trim();
+                rawText = `{{${inner} | date:'${fmt}'}}`;
+            }
+        } else if (node.props.formatType === 'currency') {
+            const curr = node.props.currencyCode || 'EUR';
+            if (rawText.startsWith('{{') && rawText.endsWith('}}')) {
+                const inner = rawText.slice(2, -2).trim();
+                rawText = `{{${inner} | currency:'${curr}'}}`;
+            } else if (rawText.startsWith('{') && rawText.endsWith('}')) {
+                const inner = rawText.slice(1, -1).trim();
+                rawText = `{{${inner} | currency:'${curr}'}}`;
+            }
+        }
+    }
+
+    const compiledText = compileAngularPlaceholders(rawText, context.currentContextVar);
+    return `<div class="${defaultClass} ${classNameStr}" ${styleAttr}>${prefix}${compiledText}${suffix}</div>`;
 };
 
 export const generateButtonNode = (node: any, context: NodeGeneratorContext): string => {

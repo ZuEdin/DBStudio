@@ -17,6 +17,7 @@ import { SubformProperties } from './properties/SubformProperties';
 import { TabsAndAccordionProperties } from './properties/TabsAndAccordionProperties';
 import { StatCardProperties } from './properties/StatCardProperties';
 import { WidgetProperties } from './properties/WidgetProperties';
+import { TextProperties } from './properties/TextProperties';
 
 interface PropertiesPanelProps {
   page: CustomPage;
@@ -67,14 +68,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
           {/* Text component properties */}
           {selectedNode.type === 'text' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Text Inhalt</label>
-              <textarea
-                value={selectedNode.props.text || ''}
-                onChange={(e) => updateSelectedNodeProps({ text: e.target.value })}
-                className="w-full px-2 py-1 text-sm border border-slate-300 rounded min-h-[80px]"
-              />
-            </div>
+            <TextProperties
+              selectedNode={selectedNode}
+              updateSelectedNodeProps={updateSelectedNodeProps}
+              tables={tables}
+              queries={queries}
+            />
           )}
 
           {/* Button component properties */}
