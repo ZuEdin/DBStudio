@@ -1,140 +1,136 @@
-# API-zu-Tabelle-Importer API-Dokumentation
+# 📖 DB Studio Pro - API & Storage Dokumentation
 
-Dieses Dokument beschreibt die Funktionalität und Datenstrukturen des in der Software integrierten **API-zu-Tabelle-Importer**-Features. Er ermöglicht das automatische Auslesen beliebiger JSON REST-APIs, das Ablegen der generierten Tabellenstruktur in IndexedDB und das Generieren von produktivem Backend-Code für MS SQL Server, PostgreSQL oder MySQL.
-
----
-
-## 1. Lokale Schnittstelle zur API-Schema-Analyse
-
-Der Importer ermittelt die Struktur einer API anhand einer JSON-Struktur oder einer Live-Abfrage. 
-
-### Primärschlüssel-Erkennung & -Konfiguration
-Um redundante Spalten zu vermeiden und vorhandene Identifikatoren optimal zu nutzen, verfügt der Importer über eine intelligente Primärschlüssel-Steuerung:
-
-1. **Automatische Erkennung**: Beim Laden einer API sucht der Importer automatisch im Datensatz nach Spalten wie `id` (case-insensitiv) oder solchen, die auf `id` oder `_id` enden (z. B. `userId`, `customer_id`). Wird eine solche Spalte gefunden, wird sie automatisch als Primärschlüssel vorausgewählt.
-2. **Benutzerdefinierter PK**: Der Benutzer kann beim Speichern einer Tabelle oder Registrieren einer Backend-API flexibel wählen:
-   - **Eigener PK**: Eine beliebige detektierte Spalte aus dem API-Response wird als Primärschlüssel definiert (`isPrimaryKey: true`). In diesem Fall wird **keine** zusätzliche, künstliche `id`-Spalte generiert oder mitgelistet.
-   - **Automatische ID**: Ist kein passendes Feld im Datensatz vorhanden oder wünscht der Nutzer eine künstliche ID, generiert das System eine automatische, fortlaufende `id`-Spalte.
-
-### Typ-Inferenz (`inferFieldType`)
-Der Importer analysiert die Datentypen der erhaltenen JSON-Keys und weist ihnen SQL-kompatible Typen zu:
-
-| JSON Datentyp | Kriterium | Zugeordneter Datentyp |
-| :--- | :--- | :--- |
-| `Number` (Integer) | Wert > 631152000 (Timestamp-Test) | `DATETIME` |
-| `Number` (Integer) | Standard Ganzzahl | `INTEGER` |
-| `Number` (Float) | Kommazahl | `DECIMAL` |
-| `Boolean` | `true` oder `false` | `BOOLEAN` |
-| `String` | Gültiges Datum (YYYY-MM-DD) | `DATE` |
-| `String` | ISO-8601 Zeitstempel / Date-Parse | `DATETIME` |
-| `String` | Zeitangabe (HH:MM:SS) | `TIME` |
-| `String` | Jeder andere String | `VARCHAR` |
-| `Array` / `Object` | Verschachtelt | `TEXT` (oder JSON-flachgelegt) |
-
-### API-Authentifizierung (Authentifizierungsmöglichkeiten)
-Der Importer unterstützt standardmäßig vier gängige Authentifizierungsverfahren, um gesicherte Enterprise- und Public-APIs sicher abzufragen und zu integrieren:
-
-1. **Keine Authentifizierung (None)**: Standardmodus für öffentlich zugängliche Schnittstellen.
-2. **Bearer Token (JWT / OAuth2)**:
-   - Fügt automatisch den Header `Authorization: Bearer <token>` zu jeder ausgehenden Anfrage hinzu.
-   - Ideal für gesicherte APIs, die über temporäre oder statische OAuth-Token verfügen.
-3. **API-Key (Schlüssel-Wert-Paare)**:
-   - Ermöglicht das Senden eines API-Schlüssels auf zwei Wegen:
-     - **Header**: Ein benutzerdefinierter Header (z. B. `X-API-Key` oder `apikey`) wird mit einem optionalen Präfix gesendet.
-     - **Query-Parameter (URL)**: Der Schlüssel wird als URL-Parameter (z. B. `?api_key=secret_value`) an die Anfrage angehängt.
-4. **Basic Auth (Benutzername & Passwort)**:
-   - Führt im Browser und auf dem Server eine Base64-Codierung von `username:password` durch.
-   - Fügt den Header `Authorization: Basic <base64>` hinzu.
-
-Sämtliche Authentifizierungseinstellungen werden in der lokalen IndexedDB-Tabellenkonfiguration (`Table.apiConfig`) und bei Registrierung als Backend-API auch gesichert in der Server-Konfiguration (`api-configs.json`) gespeichert, sodass automatisierte Hintergrund-Synchronisierungen (Option B) oder Live-Proxies (Option A) reibungslos autorisiert werden können.
+Diese Dokumentation beschreibt die Schnittstellenarchitektur, die Speicher-Engines sowie die standardisierten API-Endpunkte für die Anbindung an diverse relationale Datenbanksysteme (MySQL, PostgreSQL, MSSQL, SQLite) und Backend-Frameworks (.NET 10, Node.js/Express, PHP/Laravel, Python/FastAPI).
 
 ---
 
-## 2. Unterstützte Test-APIs (Presets)
+## 1. Primäre Speicher-Engine: IndexedDB (Browser-Persistenz)
 
-Damit Sie das Feature sofort ohne eigene API testen können, sind folgende bewährte REST-Endpunkte direkt in der Benutzeroberfläche integriert:
+Als **Standard- und Prioritätsdatenbank** fungiert **IndexedDB**. Dadurch arbeitet die gesamte Applikation 100% autark, offline-fähig und persistent im Browser des Anwenders.
 
-### A. Benutzer-Daten (JSONPlaceholder)
-* **URL:** `https://jsonplaceholder.typicode.com/users`
-* **Methode:** `GET`
-* **Datenstruktur (Auszug):**
-  ```json
-  [
-    {
-      "id": 1,
-      "name": "Leanne Graham",
-      "username": "Bret",
-      "email": "Sincere@april.biz",
-      "phone": "1-770-736-8031 x56442",
-      "website": "hildegard.org"
-    }
-  ]
+### IndexedDB Schema (`DBStudioProDB`, Version 3)
+* **`projects_meta`** (KeyPath: `id`): Metadaten für Schnellansichten und die DB Studio Startseite.
+  ```typescript
+  interface ProjectMetadata {
+    id: string;             // UUID
+    name: string;           // z.B. "Kundenverwaltung.dbsp"
+    lastModified: number;   // Timestamp (Unix ms)
+    isCloud?: boolean;
+    owner?: string;
+    dbType?: 'SQLite' | 'SQL' | 'MySQL' | 'PostgreSQL' | 'NoSQL';
+    language?: 'csharp' | 'typescript' | 'php' | 'python';
+  }
   ```
-
-### B. Todo-Liste (JSONPlaceholder)
-* **URL:** `https://jsonplaceholder.typicode.com/todos`
-* **Methode:** `GET`
-* **Datenstruktur (Auszug):**
-  ```json
-  [
-    {
-      "userId": 1,
-      "id": 1,
-      "title": "delectus aut autem",
-      "completed": false
-    }
-  ]
-  ```
-
-### C. Produkt-Katalog (DummyJSON)
-* **URL:** `https://dummyjson.com/products`
-* **Methode:** `GET`
-* **Datenstruktur (Auszug):**
-  ```json
-  {
-    "products": [
-      {
-        "id": 1,
-        "title": "Essence Mascara Lash Princess",
-        "description": "The Essence Mascara Lash Princess...",
-        "category": "beauty",
-        "price": 9.99,
-        "stock": 94,
-        "rating": 4.94
-      }
-    ]
+* **`projects_data`** (KeyPath: `projectId`): Vollständiges relationales Schema inklusive Tabellendefinitionen, Feldern, Datensätzen, Relationen, Formularen, Berichten und Workflows.
+  ```typescript
+  interface ProjectPayload {
+    projectId: string;
+    data: {
+      tables: Table[];
+      relationships: Relationship[];
+      queries: Query[];
+      forms: Form[];
+      reports: Report[];
+      charts: Chart[];
+      workflows: Workflow[];
+      records: Record<string, any[]>; // Tabellen-Datensätze: tableId -> rows
+      backendConfig: BackendConfig;
+    };
   }
   ```
 
----
-
-## 3. Generierte Backend-Schnittstellen (für Ihren SQL Server)
-
-Sobald eine Struktur erfolgreich importiert wurde, kann das System automatisch den passenden SQL Server Sync-Code für drei große Backends ausgeben.
-
-### 1. .NET C# (Entity Framework Core)
-Der generierte C# Controller stellt einen `POST /api/[TableName]Sync/sync` Endpunkt bereit, der die Daten direkt von der Quelle liest, die lokale SQL Server Tabelle leert (`TRUNCATE`) und die neuen Einträge speichert.
-
-### 2. Node.js (Express + Prisma / Drizzle)
-Stellt einen `POST /api/sync-[tablename]` Endpunkt zur Verfügung, der Axios für den HTTP-Request nutzt und über ein Prisma-Modell performant in SQL Server schreibt.
-
-### 3. PHP (Laravel Eloquent)
-Bietet eine Laravel Migration und einen Sync-Controller unter `POST /api/[tablename]/sync` unter Verwendung des Laravel Http-Clients (`Http::get()`) und Database Transactions.
+### Storage-Service API (`/services/storageService.ts`)
+* `saveProjectToStorage(project: Project): Promise<void>` - Sichert Projekt und Datensätze in IndexedDB.
+* `getAllProjects(): Promise<Project[]>` - Lädt alle verfügbaren Datenbanken für die Startseite.
+* `getProjectById(id: string): Promise<Project | undefined>` - Lädt vollständige Schemata & Records.
+* `deleteProjectFromStorage(id: string): Promise<void>` - Löscht die Datenbank vollständig aus IndexedDB.
 
 ---
 
-## 4. Lokale IndexedDB Integration
+## 2. Einheitliche RDBMS-Abstraktionsschicht
 
-Nach dem erfolgreichen Datenabruf wird eine neue Tabelle im `useProjectStore` hinzugefügt:
+Die Schemadefinitionen und Datentypen sind abstrahiert aufgebaut, sodass ein Wechsel von **IndexedDB** zu **MySQL**, **PostgreSQL** oder **MSSQL** ohne Umbau der UI-Komponenten möglich ist.
 
-```typescript
-const newTable: Table = {
-    id: crypto.randomUUID(),
-    name: cleanTableName,
-    displayName: tableName,
-    isApiImport: true, // Markiert als API-Importierte Tabelle
-    columns: inferredFields, // Detektierte Spalten mit Typen
-    rows: processedRows // Die tatsächlichen Zeilendaten aus der API
-};
-```
-Die Daten stehen sofort für Formulare, Charts, Queries und Reports in der Benutzeroberfläche zur Verfügung.
+### Datentyp-Mapping
+
+| DB Studio Typ | IndexedDB / JS | SQLite | MySQL / MariaDB | PostgreSQL | MS SQL Server |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `INTEGER` | `number` | `INTEGER` | `INT` | `INTEGER` | `INT` |
+| `VARCHAR` | `string` | `TEXT` | `VARCHAR(255)` | `VARCHAR(255)` | `NVARCHAR(255)` |
+| `TEXT` | `string` | `TEXT` | `LONGTEXT` | `TEXT` | `NVARCHAR(MAX)` |
+| `DECIMAL` | `number` | `NUMERIC` | `DECIMAL(18,2)` | `NUMERIC(18,2)` | `DECIMAL(18,2)` |
+| `BOOLEAN` | `boolean` | `INTEGER` (0/1) | `TINYINT(1)` | `BOOLEAN` | `BIT` |
+| `DATETIME` | `string (ISO)` | `TEXT` | `DATETIME` | `TIMESTAMP` | `DATETIME2` |
+| `UUID` | `string` | `TEXT` | `CHAR(36)` | `UUID` | `UNIQUEIDENTIFIER` |
+
+---
+
+## 3. Standardisierte REST-Backend Schnittstellen
+
+Für externe Backends können die generierten Controller und ORM-Modelle direkt über folgende REST-Routen angesprochen werden:
+
+### 3.1 Projekt- und Schemamanagement
+* **`GET /api/projects`**
+  * Liefert Liste aller Datenbankprojekte mit Metadaten.
+* **`GET /api/projects/:id`**
+  * Lädt das vollständige Schema und die Datensätze.
+* **`POST /api/projects`**
+  * Erstellt oder aktualisiert ein Projekt.
+* **`DELETE /api/projects/:id`**
+  * Entfernt ein Projekt aus dem Server-Speicher.
+
+### 3.2 Generische Tabellen-CRUD-Endpunkte (Entity API)
+Für jede Tabelle (z. B. `Kunden`) generiert das Backend typisierte CRUD-Routen:
+
+* **`GET /api/data/:tableName`**
+  * Query-Parameter: `?page=1&limit=50&sort=ID&order=asc&search=Müller`
+  * Response: `{ items: [...], totalCount: 142, page: 1 }`
+* **`GET /api/data/:tableName/:id`**
+  * Liefert Einzeldatensatz anhand des Primärschlüssels.
+* **`POST /api/data/:tableName`**
+  * Erstellt einen neuen Datensatz (inklusive Validierung & AutoWert).
+  * Payload: `{ Name: "Musterfirma GmbH", Ort: "Berlin", Umsatz: 45000 }`
+* **`PUT /api/data/:tableName/:id`**
+  * Aktualisiert den angegebenen Datensatz.
+* **`DELETE /api/data/:tableName/:id`**
+  * Löscht den Datensatz unter Berücksichtigung von Fremdschlüssel-Kaskaden.
+
+### 3.3 Abfragen & SQL-Ausführung (Query Engine)
+* **`POST /api/query/execute`**
+  * Führt parametrisierte Abfragen oder dynamische SQL-Statements sicher aus.
+  * Payload:
+    ```json
+    {
+      "sql": "SELECT Kunden.Name, Aufträge.Betrag FROM Kunden INNER JOIN Aufträge ON Kunden.ID = Aufträge.KundenID WHERE Aufträge.Status = @status",
+      "parameters": {
+        "status": "Offen"
+      }
+    }
+    ```
+
+---
+
+## 4. Unterstützte Backend-Code-Generatoren
+
+1. **C# / .NET 10 (ASP.NET Core Web API)**
+   * Entity Framework Core 10 DbContext & Models
+   * Fluent API Konfiguration für Primär- und Fremdschlüssel
+   * Async Controller mit Swagger / OpenAPI Dokumentation
+2. **TypeScript / Node.js (Express + Prisma / Drizzle ORM)**
+   * Typsichere Schema-Deklarationen
+   * Zod-Validierungspipelines
+3. **PHP / Laravel 11**
+   * Eloquent Models & Migration Scripts
+   * Resource Controller & Form Requests
+4. **Python / FastAPI + SQLAlchemy 2.0**
+   * Pydantic V2 Schemas & Async Session CRUD Endpoints
+
+---
+
+## 5. Offline-Synchronisation & Wechsel zwischen Engines
+
+Im Menü **Datei -> Optionen** oder über das UI-Setting `config.storage` kann nahtlos zwischen:
+* **`local` (IndexedDB)**: Maximale Geschwindigkeit und autarkes Arbeiten.
+* **`server` (Remote REST API)**: Zentralisierte Multi-User Kollaboration.
+
+umgeschaltet werden. Bei einem Fehlschlagen der Server-Verbindung greift die Applikation transparent auf die lokale IndexedDB zurück.
