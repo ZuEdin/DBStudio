@@ -215,15 +215,15 @@ export const generateTableViewNode = (node: any, context: NodeGeneratorContext, 
     if (detailsPageRoute) {
         const code = `this.router.navigate(['${detailsPageRoute}'], { queryParams: { '${paramKey}': idVal } });`;
         if (clickTrigger === 'click') clickActionCode = code;
-        if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
+        if (clickTrigger === 'dblclick' || dblclickTrigger === 'dblclick') dblclickActionCode = code;
     } else if (formRoute) {
         const code = `this.router.navigate(['${formRoute}', idVal]);`;
         if (clickTrigger === 'click') clickActionCode = code;
-        if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
+        if (clickTrigger === 'dblclick' || dblclickTrigger === 'dblclick') dblclickActionCode = code;
     } else {
         const code = `this.router.navigate([], { relativeTo: this.route, queryParams: { '${paramKey}': idVal }, queryParamsHandling: 'merge' });`;
         if (clickTrigger === 'click') clickActionCode = code;
-        if (dblclickTrigger === 'dblclick') dblclickActionCode = code;
+        if (clickTrigger === 'dblclick' || dblclickTrigger === 'dblclick') dblclickActionCode = code;
     }
 
     context.methods.push(`
@@ -341,7 +341,15 @@ export const generateTableViewNode = (node: any, context: NodeGeneratorContext, 
                                 (click)="onRowClick_${suffix}(row, idx)"
                                 ${dblclickActionCode ? `(dblclick)="onRowDoubleClick_${suffix}(row, idx)"` : ''}
                             >
-                                ${columns.length > 0 ? columns.map((col: string) => `<td class="px-3 py-2 text-secondary">${ '{{ row[\'' + toCamelCase(col) + '\'] || row[\'' + col + '\'] || \'\' }}' }</td>`).join('\n') : `
+                                ${columns.length > 0 ? columns.map((col: string) => {
+                                    const colCamel = toCamelCase(col);
+                                    const isDateCol = /datum|date|faellig|created|updated/i.test(col);
+                                    const expr = `(row['${colCamel}'] ?? row['${col}'] ?? '')`;
+                                    if (isDateCol) {
+                                        return `<td class="px-3 py-2 text-secondary">{{ ${expr} ? (${expr}?.toString()?.replace(/(\\.\\d{3})\\d+/, '$1') | date:'dd.MM.yyyy') : '' }}</td>`;
+                                    }
+                                    return `<td class="px-3 py-2 text-secondary">{{ ${expr} }}</td>`;
+                                }).join('\n') : `
                                 <td *ngFor="let val of getObjValues(row)" class="px-3 py-2 text-secondary">{{ val }}</td>`}
                             </tr>
                             <tr *ngIf="${stateName}.length === 0">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { PageFilterRule, QuickFilterPreset, ColumnDisplayConfig } from '../../../types';
 import { getNestedValueCaseInsensitive } from './pageViewUtils';
+import { formatDate } from './formatUtils';
 
 export function applyFilterRules(
   data: any[],
@@ -160,7 +161,13 @@ export function formatColumnValue(value: any, config?: ColumnDisplayConfig): { f
     return { formatted: <span className="text-slate-300">-</span>, raw: value };
   }
 
+  const isIsoDate = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}:\d{2})?/.test(value.trim());
+
   if (!config || !config.format || config.format === 'text') {
+    if (isIsoDate) {
+      const formattedDate = formatDate(value, 'DD.MM.YYYY');
+      if (formattedDate) return { formatted: formattedDate, raw: value };
+    }
     return { formatted: String(value), raw: value };
   }
 
@@ -187,22 +194,12 @@ export function formatColumnValue(value: any, config?: ColumnDisplayConfig): { f
       };
     }
     case 'date': {
-      try {
-        const d = new Date(value);
-        if (isNaN(d.getTime())) return { formatted: String(value), raw: value };
-        return { formatted: d.toLocaleDateString('de-DE'), raw: d };
-      } catch {
-        return { formatted: String(value), raw: value };
-      }
+      const formattedDate = formatDate(value, 'DD.MM.YYYY');
+      return { formatted: formattedDate || String(value), raw: value };
     }
     case 'datetime': {
-      try {
-        const d = new Date(value);
-        if (isNaN(d.getTime())) return { formatted: String(value), raw: value };
-        return { formatted: d.toLocaleString('de-DE'), raw: d };
-      } catch {
-        return { formatted: String(value), raw: value };
-      }
+      const formattedDate = formatDate(value, 'DD.MM.YYYY HH:mm');
+      return { formatted: formattedDate || String(value), raw: value };
     }
     case 'boolean': {
       const isTrue = value === true || value === 'true' || value === 1 || value === '1';

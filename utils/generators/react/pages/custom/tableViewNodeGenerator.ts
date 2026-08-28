@@ -207,7 +207,15 @@ export const generateTableViewNode = (node: any, ctx: GeneratorContext): string 
                                           </div>
                                       </th>`).join('\n');
       
-      bodyCells = columns.map((col: string) => `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{String(row['${toCamelCase(col)}'] || row['${col}'] || '')}</td>`).join('\n');
+      bodyCells = columns.map((col: string) => {
+        const colCamel = toCamelCase(col);
+        const isDateCol = /datum|date|faellig|created|updated/i.test(col);
+        const expr = `(row['${colCamel}'] ?? row['${col}'] ?? '')`;
+        if (isDateCol) {
+          return `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{(() => { const v = String(${expr}); if (!v) return ''; const m = v.match(/^(\\d{4})-(\\d{2})-(\\d{2})/); return m ? \`\${m[3]}.\${m[2]}.\${m[1]}\` : (new Date(v.replace(/(\\.\\d{3})\\d+/, '$1')).toLocaleDateString('de-DE')); })()}</td>`;
+        }
+        return `<td key="${col}" className="px-3 py-2 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">{String(${expr})}</td>`;
+      }).join('\n');
       
       filterRow = `
                               {${showFiltersState} && (

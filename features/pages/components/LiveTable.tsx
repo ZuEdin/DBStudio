@@ -140,6 +140,7 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
     const paginatedRows = processedRows.slice(startIndex, startIndex + itemsPerPage);
 
     const triggerMode = node.props.rowClickTrigger || 'click';
+    const [localSelectedId, setLocalSelectedId] = useState<any>(null);
 
     const handleSort = (colName: string) => {
         if (sortField === colName) {
@@ -160,6 +161,7 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                 ?? row._raw?.[pkFieldName];
 
             if (idVal !== undefined && idVal !== null) {
+                setLocalSelectedId(idVal);
                 if (triggerMode === 'click') {
                     if (node.props.detailsPageId) {
                         navigate(node.props.detailsPageId, { [paramKey]: idVal, selectedId: idVal });
@@ -168,11 +170,6 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                         if (paramKey !== 'selectedId') {
                             setParam('selectedId', idVal);
                         }
-                    }
-                } else {
-                    setParam(paramKey, idVal);
-                    if (paramKey !== 'selectedId') {
-                        setParam('selectedId', idVal);
                     }
                 }
             }
@@ -189,6 +186,7 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                 ?? row._raw?.[pkFieldName];
 
             if (idVal !== undefined && idVal !== null) {
+                setLocalSelectedId(idVal);
                 if (node.props.detailsPageId) {
                     navigate(node.props.detailsPageId, { [paramKey]: idVal, selectedId: idVal });
                 } else {
@@ -362,7 +360,7 @@ export const LiveTable: React.FC<LiveTableProps> = ({ node, context, fetchedData
                                 {paginatedRows.length > 0 ? paginatedRows.map((row, idx) => {
                                     const rowPk = getNestedValueCaseInsensitive(row._raw, pkFieldName) ?? row._raw?.id ?? row._raw?.Id ?? row._raw?.ID;
                                     const selParamVal = params[node.props.selectionParamName || 'selectedId'] ?? params['selectedId'] ?? params['id'];
-                                    const isSelected = selParamVal !== undefined && selParamVal !== null && String(rowPk) === String(selParamVal);
+                                    const isSelected = (selParamVal !== undefined && selParamVal !== null && String(rowPk) === String(selParamVal)) || (localSelectedId !== null && localSelectedId !== undefined && String(rowPk) === String(localSelectedId));
                                     return (
                                         <tr 
                                             key={idx} 

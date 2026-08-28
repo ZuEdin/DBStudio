@@ -17,7 +17,12 @@ const normalizeAngularDateFormat = (fmt: string): string => {
     .replace(/D/g, 'd');
 };
 
-export const compileAngularPlaceholders = (text: string, contextVar?: string): string => {
+export const compileAngularPlaceholders = (
+  text: string, 
+  contextVar?: string, 
+  overrideFormatType?: string, 
+  overrideDateFormat?: string
+): string => {
   if (!text) return '';
   const normalized = text.replace(/\{\{/g, '{').replace(/\}\}/g, '}');
   if (!normalized.includes('{')) return normalized;
@@ -25,8 +30,8 @@ export const compileAngularPlaceholders = (text: string, contextVar?: string): s
   return normalized.replace(/\{([^{}]+)\}/g, (match, key) => {
     const trimmed = key.trim();
     let mainKey = trimmed;
-    let pipeType = '';
-    let pipeArg = '';
+    let pipeType = overrideFormatType || '';
+    let pipeArg = overrideDateFormat || '';
 
     if (trimmed.includes('|')) {
       const parts = trimmed.split('|');
@@ -51,6 +56,10 @@ export const compileAngularPlaceholders = (text: string, contextVar?: string): s
 
     const camelKey = toCamelCase(cleanKey);
 
+    if (!pipeType && /datum|date|faellig|created|updated/i.test(cleanKey)) {
+      pipeType = 'date';
+    }
+
     let rawValExpr = '';
     if (contextVar) {
       rawValExpr = `(${contextVar}?.['${cleanKey}'] ?? ${contextVar}?.['${camelKey}'] ?? queryParams?.['${cleanKey}'] ?? '')`;
@@ -60,7 +69,7 @@ export const compileAngularPlaceholders = (text: string, contextVar?: string): s
 
     if (pipeType === 'date') {
       const ngFormat = normalizeAngularDateFormat(pipeArg || 'dd.MM.yyyy');
-      return `{{ ${rawValExpr} ? (${rawValExpr} | date:'${ngFormat}') : '' }}`;
+      return `{{ ${rawValExpr} ? (${rawValExpr}?.toString()?.replace(/(\\.\\d{3})\\d+/, '$1') | date:'${ngFormat}') : '' }}`;
     }
     if (pipeType === 'currency') {
       const curr = pipeArg || 'EUR';
@@ -125,7 +134,7 @@ export const generateTextNode = (node: any, context: NodeGeneratorContext): stri
         }
     }
 
-    const compiledText = compileAngularPlaceholders(rawText, context.currentContextVar);
+    const compiledText = compileAngularPlaceholders(rawText, context.currentContextVar, node.props?.formatType, node.props?.dateFormat);
     return `<div class="${defaultClass} ${classNameStr}" ${styleAttr}>${prefix}${compiledText}${suffix}</div>`;
 };
 

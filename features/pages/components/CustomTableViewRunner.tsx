@@ -30,6 +30,9 @@ export const CustomTableViewRunner: React.FC<CustomTableViewRunnerProps> = ({
 }) => {
     const conf = comp.configuration || {};
 
+    const triggerMode = node.props.rowClickTrigger || 'click';
+    const [localSelectedId, setLocalSelectedId] = useState<any>(null);
+
     // 1. Local States for Search, Filtering, and Sorting
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({});
@@ -189,13 +192,28 @@ export const CustomTableViewRunner: React.FC<CustomTableViewRunnerProps> = ({
                             const pKey = node.props.selectionParamName || 'selectedId';
                             const rowId = row.id ?? row.Id ?? row.ID ?? rIdx;
                             const selVal = params[pKey] ?? params['selectedId'];
-                            const isSelected = selVal !== undefined && selVal !== null && String(rowId) === String(selVal);
+                            const isSelected = (selVal !== undefined && selVal !== null && String(rowId) === String(selVal)) || (localSelectedId !== null && localSelectedId !== undefined && String(rowId) === String(localSelectedId));
 
                             return (
                                 <div 
                                     key={rIdx} 
                                     onClick={() => {
                                         if (node.props.enableSelection !== false) {
+                                            setLocalSelectedId(rowId);
+                                            if (triggerMode === 'click') {
+                                                setParam(pKey, rowId);
+                                                if (pKey !== 'selectedId') {
+                                                    setParam('selectedId', rowId);
+                                                }
+                                                if (node.props.detailsPageId) {
+                                                    navigate(node.props.detailsPageId, { [pKey]: rowId, selectedId: rowId });
+                                                }
+                                            }
+                                        }
+                                    }}
+                                    onDoubleClick={() => {
+                                        if (node.props.enableSelection !== false && triggerMode === 'dblclick') {
+                                            setLocalSelectedId(rowId);
                                             setParam(pKey, rowId);
                                             if (pKey !== 'selectedId') {
                                                 setParam('selectedId', rowId);
@@ -316,13 +334,28 @@ export const CustomTableViewRunner: React.FC<CustomTableViewRunnerProps> = ({
                                     const pKey = node.props.selectionParamName || 'selectedId';
                                     const rowId = row.id ?? row.Id ?? row.ID ?? rIdx;
                                     const selVal = params[pKey] ?? params['selectedId'];
-                                    const isSelected = selVal !== undefined && selVal !== null && String(rowId) === String(selVal);
+                                    const isSelected = (selVal !== undefined && selVal !== null && String(rowId) === String(selVal)) || (localSelectedId !== null && localSelectedId !== undefined && String(rowId) === String(localSelectedId));
 
                                     return (
                                         <tr 
                                             key={rIdx} 
                                             onClick={() => {
                                                 if (node.props.enableSelection !== false) {
+                                                    setLocalSelectedId(rowId);
+                                                    if (triggerMode === 'click') {
+                                                        setParam(pKey, rowId);
+                                                        if (pKey !== 'selectedId') {
+                                                            setParam('selectedId', rowId);
+                                                        }
+                                                        if (node.props.detailsPageId) {
+                                                            navigate(node.props.detailsPageId, { [pKey]: rowId, selectedId: rowId });
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                            onDoubleClick={() => {
+                                                if (node.props.enableSelection !== false && triggerMode === 'dblclick') {
+                                                    setLocalSelectedId(rowId);
                                                     setParam(pKey, rowId);
                                                     if (pKey !== 'selectedId') {
                                                         setParam('selectedId', rowId);

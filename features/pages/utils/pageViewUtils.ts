@@ -161,7 +161,17 @@ export const resolvePlaceholders = (text: string, context?: Record<string, any>,
             return applyPipeChain(resolvedVal, pipeChain);
         }
 
-        return (resolvedVal !== undefined && resolvedVal !== null) ? String(resolvedVal) : '';
+        if (resolvedVal !== undefined && resolvedVal !== null && resolvedVal !== '') {
+            const isDateKey = /datum|date|faellig|created|updated/i.test(cleanKey);
+            const isIsoString = typeof resolvedVal === 'string' && /^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}:\d{2})?/.test(resolvedVal.trim());
+            if (isDateKey || isIsoString) {
+                const formattedDate = formatDate(resolvedVal, 'DD.MM.YYYY');
+                if (formattedDate) return formattedDate;
+            }
+            return String(resolvedVal);
+        }
+
+        return '';
     });
 };
 

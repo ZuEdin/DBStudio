@@ -54,8 +54,11 @@ export const parseToDate = (val: any): Date | null => {
         return isNaN(d.getTime()) ? null : d;
     }
     if (typeof val === 'string') {
-        const trimmed = val.trim();
+        let trimmed = val.trim();
         if (!trimmed) return null;
+
+        // Clean C# / SQL Server 7-digit subsecond ISO strings (e.g. 2026-02-01T00:00:00.0000000 -> 2026-02-01T00:00:00.000)
+        trimmed = trimmed.replace(/(\.\d{3})\d+/, '$1');
         
         // Handle numeric timestamps as strings
         if (/^\d{10,13}$/.test(trimmed)) {
@@ -68,6 +71,14 @@ export const parseToDate = (val: any): Date | null => {
         const deDateMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
         if (deDateMatch) {
             const [, day, month, year, hours = '0', minutes = '0', seconds = '0'] = deDateMatch;
+            const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10), parseInt(hours, 10), parseInt(minutes, 10), parseInt(seconds, 10));
+            if (!isNaN(d.getTime())) return d;
+        }
+
+        // Handle YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss
+        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+        if (isoMatch) {
+            const [, year, month, day, hours = '0', minutes = '0', seconds = '0'] = isoMatch;
             const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10), parseInt(hours, 10), parseInt(minutes, 10), parseInt(seconds, 10));
             if (!isNaN(d.getTime())) return d;
         }

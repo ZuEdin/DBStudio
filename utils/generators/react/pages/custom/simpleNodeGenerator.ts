@@ -13,7 +13,7 @@ const toPascalCase = (str: string): string => {
   return camel.charAt(0).toUpperCase() + camel.slice(1);
 };
 
-export const compilePlaceholders = (text: string, contextVar?: string): string => {
+export const compilePlaceholders = (text: string, contextVar?: string, defaultFormatType?: string): string => {
   if (!text) return '""';
   const normalized = text.replace(/\{\{/g, '{').replace(/\}\}/g, '}');
   if (!normalized.includes('{')) return JSON.stringify(normalized);
@@ -21,16 +21,15 @@ export const compilePlaceholders = (text: string, contextVar?: string): string =
   const replaced = normalized.replace(/\{([^{}]+)\}/g, (match, key) => {
     const trimmed = key.trim();
     let mainKey = trimmed;
-    let pipeType = '';
-    let pipeArg = '';
+    let pipeType = defaultFormatType || '';
 
     if (trimmed.includes('|')) {
       const parts = trimmed.split('|');
       mainKey = parts[0].trim();
       const pipePart = parts[1].trim();
-      if (pipePart.startsWith('date')) {
+      if (pipePart.startsWith('date') || pipePart.startsWith('datum')) {
         pipeType = 'date';
-      } else if (pipePart.startsWith('currency')) {
+      } else if (pipePart.startsWith('currency') || pipePart.startsWith('waehrung')) {
         pipeType = 'currency';
       } else if (pipePart.startsWith('uppercase')) {
         pipeType = 'uppercase';
@@ -46,12 +45,16 @@ export const compilePlaceholders = (text: string, contextVar?: string): string =
     else if (cleanKey.startsWith('params.')) cleanKey = cleanKey.substring(7);
     else if (cleanKey.startsWith('queryParams.')) cleanKey = cleanKey.substring(12);
 
+    if (!pipeType && /datum|date|faellig|created|updated/i.test(cleanKey)) {
+      pipeType = 'date';
+    }
+
     const valExpr = contextVar 
       ? `(${contextVar}?.\['${cleanKey}'\] ?? ${contextVar}?.\['${toCamelCase(cleanKey)}'\] ?? searchParams.get('${cleanKey}') ?? '')`
       : `(searchParams.get('${cleanKey}') ?? '')`;
 
     if (pipeType === 'date') {
-      return `\${${valExpr} ? new Date(${valExpr}).toLocaleDateString('de-DE') : ''}`;
+      return `\${(() => { const v = String(${valExpr} ?? ''); if (!v) return ''; const m = v.match(/^(\\d{4})-(\\d{2})-(\\d{2})/); return m ? \`\${m[3]}.\${m[2]}.\${m[1]}\` : (new Date(v.replace(/(\\.\\d{3})\\d+/, '$1')).toLocaleDateString('de-DE')); })()}`;
     }
     if (pipeType === 'currency') {
       return `\${${valExpr} ? Number(${valExpr}).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : ''}`;
@@ -82,7 +85,7 @@ export const generateSimpleNode = (node: any, ctx: GeneratorContext): string => 
           return `<div className="${classNameStr || 'p-4 border rounded'}" style={${styleStr}}>${childrenStr}</div>`;
       }
       case 'text': {
-          const compiledText = compilePlaceholders(node.props?.text || '', ctx.currentContextVar);
+          const compiledText = compilePlaceholders(node.props?.text || '', ctx.currentContextVar, node.props?.formatType);
           return `<div className="break-words ${classNameStr}" style={${styleStr}}>{${compiledText}}</div>`;
       }
       case 'button': {
