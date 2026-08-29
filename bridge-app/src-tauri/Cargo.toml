@@ -1,0 +1,17 @@
+[package]
+name = "dbstudio-local-bridge-desktop"
+version = "1.0.0"
+description = "DB Studio Local Bridge Desktop App"
+authors = ["DB Studio Team"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.6", features = [ "shell-open", "system-tray", "dialog-all", "fs-all", "path-all", "process-relaunch" ] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
