@@ -102,7 +102,7 @@ export const HonestComparisonSection: React.FC = () => {
             <tr>
               <td className="p-3 font-semibold text-white">DevOps &amp; Lokale Ausführung</td>
               <td className="p-3 text-emerald-400 font-bold">
-                <Check size={14} className="inline mr-1" /> Local Bridge (Port 5050), PHP Relay 2.0.0, Git &amp; FTP
+                <Check size={14} className="inline mr-1" /> Local Bridge (Port 5050), PHP Relay, Git &amp; FTP
               </td>
               <td className="p-3 text-neutral-400">
                 Manuelles Kopieren der .accdb Datei
@@ -116,17 +116,17 @@ export const HonestComparisonSection: React.FC = () => {
             </tr>
 
             <tr>
-              <td className="p-3 font-semibold text-white">Reifegrad &amp; Ökosystem</td>
-              <td className="p-3 text-emerald-400 font-bold">
-                100% (Produktionsreife Fullstack &amp; Bridge Suite)
+              <td className="p-3 font-semibold text-white">Reifegrad &amp; Status</td>
+              <td className="p-3 text-amber-300 font-bold">
+                ~82% (Vor-1.0 Beta • Ehrlicher Status)
               </td>
-              <td className="p-3 text-emerald-400">
+              <td className="p-3 text-neutral-300">
                 &gt; 30 Jahre Reife &amp; Stabilität
               </td>
-              <td className="p-3 text-emerald-400">
+              <td className="p-3 text-neutral-300">
                 Unbegrenzte Flexibilität
               </td>
-              <td className="p-3 text-emerald-400">
+              <td className="p-3 text-neutral-300">
                 Kommerziell etablierte Plattformen
               </td>
             </tr>
