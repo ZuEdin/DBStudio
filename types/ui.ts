@@ -94,7 +94,13 @@ export type PageComponentType =
   | 'testimonial' 
   | 'pricing_table' 
   | 'footer' 
-  | 'navbar';
+  | 'navbar'
+  | 'lv_tree_explorer'
+  | 'ekt_matrix'
+  | 'weather_widget'
+  | 'plan_defect_marker'
+  | 'signature_pad'
+  | 'girocode_qr';
 
 export interface PageComponent {
   id: string;

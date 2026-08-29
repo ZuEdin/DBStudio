@@ -4,7 +4,8 @@ import {
   Square, Columns, Rows, CreditCard, LayoutTemplate, Layers, 
   Type, MousePointerClick, List, Table2, Layout, Image as ImageIcon, Plus,
   Rocket, Grid as GridIcon, MessageSquare, DollarSign, PanelBottom, Navigation,
-  TrendingUp, AlertCircle, Tag, Sliders, Play, Search, FolderPlus, HelpCircle
+  TrendingUp, AlertCircle, Tag, Sliders, Play, Search, FolderPlus, HelpCircle,
+  FolderTree, Calculator, Sun, MapPin, FileSignature, QrCode, HardHat
 } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { useUIStore } from '../../../stores/useUIStore';
@@ -66,6 +67,100 @@ export const ComponentToolbox: React.FC<ComponentToolboxProps> = ({ onOpenTempla
           className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:outline-none transition"
         />
       </div>
+
+      {/* Bau- & ERP-Fachkomponenten Category */}
+      {(matchesSearch('LV') || matchesSearch('GAEB') || matchesSearch('Kalkulation') || matchesSearch('EKT') || matchesSearch('Wetter') || matchesSearch('Mangel') || matchesSearch('Unterschrift') || matchesSearch('GiroCode') || matchesSearch('QR')) && (
+        <div className="mb-4">
+          <div className="text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1.5 bg-amber-50/80 dark:bg-amber-950/60 px-2 py-1 rounded">
+            <HardHat size={12} className="text-amber-600 dark:text-amber-400"/> Bau- &amp; Kalkulations-Widgets
+          </div>
+          <div className="space-y-1.5">
+            {matchesSearch('LV') && (
+              <div 
+                draggable 
+                onDragStart={(e) => handleDragStart(e, 'lv_tree_explorer', { title: 'Leistungsverzeichnis Explorer' })} 
+                className="p-2 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2 cursor-grab hover:bg-amber-50/60 dark:hover:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-100 font-semibold active:cursor-grabbing bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs transition"
+              >
+                <div className="p-1 rounded bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200"><FolderTree size={14} /></div>
+                <div>
+                  <div>LV-Tree (GAEB / OZ)</div>
+                  <div className="text-[9px] font-normal text-slate-500 dark:text-slate-400">Hierarchisches Leistungsverzeichnis</div>
+                </div>
+              </div>
+            )}
+
+            {matchesSearch('EKT') && (
+              <div 
+                draggable 
+                onDragStart={(e) => handleDragStart(e, 'ekt_matrix', { title: 'EKT-Kalkulationsmatrix' })} 
+                className="p-2 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2 cursor-grab hover:bg-amber-50/60 dark:hover:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-100 font-semibold active:cursor-grabbing bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs transition"
+              >
+                <div className="p-1 rounded bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200"><Calculator size={14} /></div>
+                <div>
+                  <div>EKT-Kalkulationsmatrix</div>
+                  <div className="text-[9px] font-normal text-slate-500 dark:text-slate-400">Lohn-, Material- &amp; Gerätekosten</div>
+                </div>
+              </div>
+            )}
+
+            {matchesSearch('Wetter') && (
+              <div 
+                draggable 
+                onDragStart={(e) => handleDragStart(e, 'weather_widget', { title: 'Bautagesbericht & Wetter' })} 
+                className="p-2 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2 cursor-grab hover:bg-amber-50/60 dark:hover:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-100 font-semibold active:cursor-grabbing bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs transition"
+              >
+                <div className="p-1 rounded bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200"><Sun size={14} /></div>
+                <div>
+                  <div>Bautagebuch &amp; Wetter</div>
+                  <div className="text-[9px] font-normal text-slate-500 dark:text-slate-400">Witterung &amp; Kolonnenstunden</div>
+                </div>
+              </div>
+            )}
+
+            {matchesSearch('Mangel') && (
+              <div 
+                draggable 
+                onDragStart={(e) => handleDragStart(e, 'plan_defect_marker', { title: 'Plan- & Mängel-Marker' })} 
+                className="p-2 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2 cursor-grab hover:bg-amber-50/60 dark:hover:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-100 font-semibold active:cursor-grabbing bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs transition"
+              >
+                <div className="p-1 rounded bg-rose-100 dark:bg-rose-900 text-rose-800 dark:text-rose-200"><MapPin size={14} /></div>
+                <div>
+                  <div>Plan- &amp; Mängel-Marker</div>
+                  <div className="text-[9px] font-normal text-slate-500 dark:text-slate-400">Visueller Pin-Drop auf Bauplänen</div>
+                </div>
+              </div>
+            )}
+
+            {matchesSearch('Unterschrift') && (
+              <div 
+                draggable 
+                onDragStart={(e) => handleDragStart(e, 'signature_pad', { title: 'Digitale Bauherren-Unterschrift' })} 
+                className="p-2 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2 cursor-grab hover:bg-amber-50/60 dark:hover:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-100 font-semibold active:cursor-grabbing bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs transition"
+              >
+                <div className="p-1 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200"><FileSignature size={14} /></div>
+                <div>
+                  <div>Digitale Signatur / Pad</div>
+                  <div className="text-[9px] font-normal text-slate-500 dark:text-slate-400">Abnahme &amp; Freigaben vor Ort</div>
+                </div>
+              </div>
+            )}
+
+            {matchesSearch('GiroCode') && (
+              <div 
+                draggable 
+                onDragStart={(e) => handleDragStart(e, 'girocode_qr', { title: 'GiroCode EPC-QR-Code' })} 
+                className="p-2 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2 cursor-grab hover:bg-amber-50/60 dark:hover:bg-amber-950/40 text-xs text-amber-950 dark:text-amber-100 font-semibold active:cursor-grabbing bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs transition"
+              >
+                <div className="p-1 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200"><QrCode size={14} /></div>
+                <div>
+                  <div>GiroCode / EPC-QR</div>
+                  <div className="text-[9px] font-normal text-slate-500 dark:text-slate-400">E-Rechnung Überweisungsträger</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Subforms & Subpages Category */}
       {(matchesSearch('Subform') || matchesSearch('Master-Detail') || matchesSearch('Unterseite') || matchesSearch('Tabs') || matchesSearch('Repeater') || matchesSearch('Akkordeon')) && (

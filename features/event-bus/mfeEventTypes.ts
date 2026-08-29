@@ -5,6 +5,12 @@
 
 export type MfeDomain = 'SHELL' | 'CRM' | 'ARTICLES' | 'CALC' | 'BILLING' | 'STUDIO' | '*';
 
+export const MFE_DRAG_MIME_TYPES = {
+  ARTICLE: 'application/x-enterprise-article',
+  POSITION: 'application/x-enterprise-position',
+  ATTACHMENT: 'application/x-enterprise-attachment',
+} as const;
+
 export interface MfeBaseEvent<T = any> {
   eventId: string;
   eventType: string;
@@ -56,7 +62,7 @@ export interface CalcTotalsChangedPayload {
   totalLabor: number;
   totalMaterial: number;
   totalEquipment: number;
-  totalSubcontractor: number;
+  totalSubcontractor?: number;
   totalNet: number;
   totalGross: number;
 }
@@ -79,6 +85,29 @@ export interface BillingInvoiceCreatedPayload {
   invoiceType: 'ADVANCE' | 'PARTIAL' | 'FINAL';
 }
 
+export interface BillingPaymentReceivedPayload {
+  invoiceId: string;
+  paidAmount: number;
+  paidDate: string;
+  remainingAmount: number;
+}
+
+// Studio Schema & Query Sync Events
+export interface StudioSchemaModifiedPayload {
+  tableId?: string;
+  tableName?: string;
+  action: 'CREATE' | 'ALTER' | 'DROP';
+  timestamp: number;
+}
+
+export interface StudioQueryExecutedPayload {
+  queryId?: string;
+  queryName?: string;
+  rowCount: number;
+  executionTimeMs: number;
+  results?: any[];
+}
+
 // Drag & Drop Cross-MFE Payload
 export interface CrossMfeDragArticlePayload {
   type: 'ARTICLE';
@@ -88,4 +117,15 @@ export interface CrossMfeDragArticlePayload {
   unit: string;
   unitPriceMaterial: number;
   unitPriceLabor: number;
+}
+
+export interface CrossMfeDragPositionPayload {
+  type: 'POSITION';
+  positionId: string;
+  oz: string;
+  shortText: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalPrice: number;
 }

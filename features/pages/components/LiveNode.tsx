@@ -6,6 +6,12 @@ import { LiveTable } from './LiveTable';
 import { LiveForm } from './LiveForm';
 import { LiveSubform } from './LiveSubform';
 import { CustomComponentRunner } from './runner/CustomComponentRunner';
+import { LvTreeExplorerRunner } from './runner/LvTreeExplorerRunner';
+import { EktMatrixRunner } from './runner/EktMatrixRunner';
+import { WeatherAndDailyLogRunner } from './runner/WeatherAndDailyLogRunner';
+import { PlanDefectMarkerRunner } from './runner/PlanDefectMarkerRunner';
+import { SignaturePadRunner } from './runner/SignaturePadRunner';
+import { GiroCodeQrRunner } from './runner/GiroCodeQrRunner';
 import { exportDataToFile } from '../../../utils/exportHelper';
 import { 
     PageParamsContext, 
@@ -742,6 +748,36 @@ export const LiveNode: React.FC<LiveNodeProps> = ({ node, context }) => {
 
         case 'form_view': {
              content = <LiveForm node={node} context={context} />;
+             break;
+        }
+
+        case 'lv_tree_explorer': {
+             content = <LvTreeExplorerRunner props={node.props} />;
+             break;
+        }
+
+        case 'ekt_matrix': {
+             content = <EktMatrixRunner props={node.props} />;
+             break;
+        }
+
+        case 'weather_widget': {
+             content = <WeatherAndDailyLogRunner props={node.props} />;
+             break;
+        }
+
+        case 'plan_defect_marker': {
+             content = <PlanDefectMarkerRunner props={node.props} />;
+             break;
+        }
+
+        case 'signature_pad': {
+             content = <SignaturePadRunner props={node.props} />;
+             break;
+        }
+
+        case 'girocode_qr': {
+             content = <GiroCodeQrRunner props={node.props} />;
              break;
         }
 

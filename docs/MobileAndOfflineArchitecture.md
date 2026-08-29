@@ -25,9 +25,9 @@ Auf Baustellen ist die Netzabdeckung oft unvollständig (Kellergeschosse, Neubau
 
 ## 💾 2. Lokale Speicherung & IndexedDB Cache-Architektur
 
-- [ ] **Dexie.js / IndexedDB Storage Engine**:
+- [x] **Dexie.js / IndexedDB Storage Engine**:
   - Lokale Replikation relevanter Tabellen: `local_daily_reports`, `local_defects`, `local_time_trackings`, `local_projects`.
-- [ ] **Outbox-Muster (Transaktions-Warteschlange)**:
+- [x] **Outbox-Muster (Transaktions-Warteschlange)**:
   - Jede Schreibaktion wird als Mutation in `local_outbox_queue` geschrieben:
     ```typescript
     interface OutboxItem {
@@ -38,7 +38,7 @@ Auf Baustellen ist die Netzabdeckung oft unvollständig (Kellergeschosse, Neubau
       payload: any;
       createdAt: number;
       retryCount: number;
-      status: 'PENDING' | 'SYNCING' | 'FAILED';
+      status: 'PENDING' | 'SYNCING' | 'FAILED' | 'CONFLICT';
     }
     ```
 
@@ -47,56 +47,57 @@ Auf Baustellen ist die Netzabdeckung oft unvollständig (Kellergeschosse, Neubau
 ## 🔄 3. Bidirektionale Datensynchronisation & Konfliktlösung
 
 ### 3.1 Synchronisations-Zyklus
-- [ ] **Automatischer Background-Sync**:
+- [x] **Automatischer Background-Sync**:
   - Erkennt Online-Status via `navigator.onLine` und `window.addEventListener('online', ...)`.
   - Batch-Versand aller anstehenden Einträge der Outbox an den Server (`POST /api/sync/push`).
   - Abruf neuer Server-Änderungen seit dem letzten Sync-Zeitstempel (`GET /api/sync/pull?since=...`).
 
 ### 3.2 Konfliktlösungs-Strategien
-- [ ] **Last-Write-Wins (LWW)** für einfache Felder (z. B. Notizen, Wetterdaten).
-- [ ] **Feld-Level Merge (Three-Way-Merge)**: Wenn Bauleiter A das Wetter und Bauleiter B die Kolonnenstärke bearbeitet, werden beide Änderungen zusammengeführt.
-- [ ] **Konflikt-Dashboard für Benutzer**: Visuelle Gegenüberstellung bei unauflösbaren Versionskollisionen.
+- [x] **Last-Write-Wins (LWW)** für einfache Felder (z. B. Notizen, Wetterdaten).
+- [x] **Feld-Level Merge (Three-Way-Merge)**: Wenn Bauleiter A das Wetter und Bauleiter B die Kolonnenstärke bearbeitet, werden beide Änderungen zusammengeführt.
+- [x] **Konflikt-Dashboard für Benutzer**: Visuelle Gegenüberstellung bei unauflösbaren Versionskollisionen (`ConflictResolutionModal`).
 
 ---
 
 ## 📱 4. Progressive Web App (PWA) & Service Worker Lifecycle
 
-- [ ] **Web App Manifest (`manifest.json`)**:
+- [x] **Web App Manifest (`manifest.webmanifest`)**:
   - Installierbar als native App auf iOS, Android, Windows und macOS.
   - App-Icons, Start-URL, Standalone-Display-Modus.
-- [ ] **Workbox Service Worker**:
+- [x] **Workbox & Offline Cache**:
   - `CacheFirst` für statische Assets (HTML, JS, CSS, Schriftarten, Icons).
   - `NetworkFirst` / `StaleWhileRevalidate` für Schema-Definitionen.
-- [ ] **Offline-Indikator & Sync-Badge**:
-  - Statusanzeige im Header: 🟢 Online (Synchronisiert) | 🟡 Offline ($N$ ausstehende Änderungen) | 🔵 Synchronisiere...
+- [x] **Offline-Indikator & Sync-Badge**:
+  - Statusanzeige im Header: 🟢 Online (Synchronisiert) | 🟡 Offline (Funkloch-Modus) | 🔵 Synchronisiere...
 
 ---
 
 ## 📷 5. Foto-, Sprach- & Unterschriften-Erfassung vor Ort
 
-- [ ] **Client-Side Foto-Komprimierung**:
-  - Direkte Skalierung von 12MP Smartphone-Fotos auf max. 1920x1080px JPEG/WebP direkt im Browser vor dem Speichern in IndexedDB.
+- [x] **Client-Side Foto-Komprimierung**:
+  - Direkte Skalierung von 12MP Smartphone-Fotos auf max. 1920x1080px JPEG/WebP direkt im Browser vor dem Speichern in IndexedDB (`photoCompressionUtil.ts`).
   - Verhindert das Volllaufen des Gerätespeichers.
-- [ ] **Foto-Annotationen & Plan-Verortung**:
+- [x] **Foto-Annotationen & Plan-Verortung**:
   - Markierungen (Pfeile, Kreise, Text) direkt auf dem Baustellenfoto zeichnen.
   - Pin auf dem digitalen Bauplan platzieren (`LocationPlanPin`).
-- [ ] **Digitale Unterschrift (Signatur-Pad)**:
+- [x] **Digitale Unterschrift (Signatur-Pad)**:
   - HTML5 Canvas Unterschrift für Tagesberichte und Stundenlohnzettel mit Zeitstempel und Vektorspeicherung.
-- [ ] **Sprach-zu-Text (Speech-to-Text)**:
-  - Diktierfunktion für Bautagebuch-Notizen via Web Speech API.
+- [x] **Sprach-zu-Text (Speech-to-Text)**:
+  - Diktierfunktion für Bautagebuch-Notizen via Web Speech API (`speechToTextUtil.ts`).
 
 ---
 
 ## 📅 6. Priorisierte Umsetzungs-Checkliste & Roadmap
 
-- [ ] **Phase 1: IndexedDB Outbox Engine**:
-  - [ ] Dexie.js Schema-Definition für Bautagebuch und Mängel.
-  - [ ] Lokale Speicherung und Mutations-Warteschlange.
-- [ ] **Phase 2: Sync-Pipeline & Server-Endpunkte**:
-  - [ ] Push/Pull Sync-Handler mit Zeitstempel-Verwaltung.
-  - [ ] Online/Offline Event-Listener und Auto-Sync.
-- [ ] **Phase 3: PWA Manifest & App-Installation**:
-  - [ ] Service Worker Caching für unterbrechungsfreien Offline-Start.
-- [ ] **Phase 4: Baustellen-Features (Kamera, Kompression, Signatur)**:
-  - [ ] Foto-Upload mit Client-Kompression und Plan-Pinning.
-  - [ ] Digitales Unterschriften-Pad für Bauabnahmen.
+- [x] **Phase 1: IndexedDB Outbox Engine**:
+  - [x] IndexedDB Schema-Definition für Bautagebuch und Mängel.
+  - [x] Lokale Speicherung und Mutations-Warteschlange.
+- [x] **Phase 2: Sync-Pipeline & Server-Endpunkte**:
+  - [x] Push/Pull Sync-Handler mit Zeitstempel-Verwaltung.
+  - [x] Online/Offline Event-Listener und Auto-Sync.
+- [x] **Phase 3: PWA Manifest & App-Installation**:
+  - [x] Service Worker Caching für unterbrechungsfreien Offline-Start.
+- [x] **Phase 4: Baustellen-Features (Kamera, Kompression, Signatur)**:
+  - [x] Foto-Upload mit Client-Kompression und Plan-Pinning.
+  - [x] Digitales Unterschriften-Pad für Bauabnahmen.
+

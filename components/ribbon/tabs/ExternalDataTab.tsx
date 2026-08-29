@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Upload } from 'lucide-react';
+import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Layers, WifiOff } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,19 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
   const { t } = useTranslation();
   return (
     <div className="flex gap-4 h-full">
+      <RibbonGroup label="Baubranche & Schnittstellen">
+        <RibbonButton 
+          icon={<Layers className="text-emerald-600" />} 
+          label="GAEB / DATANORM / ZUGFeRD" 
+          onClick={() => onAction('open_gaeb_interfaces')} 
+        />
+        <RibbonButton 
+          icon={<WifiOff className="text-amber-600" />} 
+          label="Baustelle Offline-Sync" 
+          onClick={() => onAction('open_construction_offline')} 
+        />
+      </RibbonGroup>
+
       <RibbonGroup label="Lokaler Import">
         <RibbonButton icon={<FileSpreadsheet className="text-green-600" />} label="Excel Import" onClick={() => onAction('import_excel')} />
         <RibbonButton icon={<Database className="text-red-700" />} label="XML Import" onClick={() => onAction('import_access')} />
@@ -37,3 +50,4 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
     </div>
   );
 };
+

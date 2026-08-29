@@ -419,6 +419,16 @@ export const FormPrintModal: React.FC<FormPrintModalProps> = ({
                 />
                 <span>Unterformulare andrucken</span>
               </label>
+
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700 dark:text-slate-300 pt-1">
+                <input
+                  type="checkbox"
+                  checked={settings.isAcroFormFillable || false}
+                  onChange={(e) => setSettings((s) => ({ ...s, isAcroFormFillable: e.target.checked }))}
+                  className="rounded text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>Ausfüllbares PDF (AcroForm-Felder)</span>
+              </label>
             </div>
 
             {/* Footer Text */}

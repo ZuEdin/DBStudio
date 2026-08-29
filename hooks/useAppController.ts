@@ -1286,6 +1286,11 @@ export const useAppController = () => {
         case 'open_audit': ui.setShowAuditTrailModal(true); break;
         case 'open_deployment_modal': ui.setShowDeploymentModal(true); break;
         case 'open_offline_sync': ui.setShowOfflineSyncModal(true); break;
+        case 'open_construction_offline': ui.setShowConstructionOfflineModal(true); break;
+        case 'open_gaeb_interfaces':
+        case 'open_gaeb':
+        case 'open_datanorm':
+        case 'open_zugferd': ui.setShowIndustryInterfacesModal(true); break;
         case 'open_wordpress_generator':
         case 'wordpress_generator':
         case 'open_wordpress': ui.setShowWordPressModal(true); break;

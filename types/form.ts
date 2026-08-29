@@ -64,13 +64,15 @@ export interface DropdownItem {
 
 export interface FormElement {
   id: string;
-  type: 'container' | 'field' | 'label' | 'subform' | 'button' | 'dropdown_button' | 'tabs' | 'tab_page' | 'accordion';
+  type: 'container' | 'field' | 'label' | 'subform' | 'button' | 'dropdown_button' | 'tabs' | 'tab_page' | 'accordion' | 'collapse_section';
   fieldId?: string;
   label?: string;
   className?: string;
   width?: '1/12' | '1/6' | '1/4' | '1/3' | '5/12' | '1/2' | '7/12' | '2/3' | '3/4' | '5/6' | '11/12' | 'full';
   children?: FormElement[];
   dropdownItems?: DropdownItem[];
+  isCollapsedByDefault?: boolean;
+  isExpanded?: boolean;
   widgetType?:
     | 'text'
     | 'textarea'
@@ -91,6 +93,9 @@ export interface FormElement {
     | 'geolocation'
     | 'barcode-scanner'
     | 'currency'
+    | 'gaeb-picker'
+    | 'measurement-grid'
+    | 'four-eyes-approval'
     | 'accordion';
   calculationFormula?: string;
   isCalculated?: boolean;
@@ -167,6 +172,7 @@ export interface FormPrintSettings {
   showUserStamp?: boolean;
   includeSubformTables?: boolean;
   columnsPerRow?: 1 | 2 | 3;
+  isAcroFormFillable?: boolean;
 }
 
 export interface FormBeforeSavePayload {

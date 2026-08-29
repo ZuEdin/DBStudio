@@ -11,6 +11,9 @@ import { Din5008AddressWidget } from '../widgets/Din5008AddressWidget';
 import { GeoLocationWidget } from '../widgets/GeoLocationWidget';
 import { BarcodeScannerWidget } from '../widgets/BarcodeScannerWidget';
 import { CurrencyCalculationWidget } from '../widgets/CurrencyCalculationWidget';
+import { GaebPositionPickerWidget } from '../widgets/GaebPositionPickerWidget';
+import { MeasurementGridWidget } from '../widgets/MeasurementGridWidget';
+import { FourEyesApprovalWidget } from '../widgets/FourEyesApprovalWidget';
 
 interface FormWidgetProps {
   element: FormElement;
@@ -204,6 +207,51 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
     return (
       <div className={mergedClassName}>
         <CurrencyCalculationWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: GAEB Position Picker ---
+  if (widget === 'gaeb-picker') {
+    return (
+      <div className={mergedClassName}>
+        <GaebPositionPickerWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: Measurement Grid (Aufmaß-Schnelleingabe) ---
+  if (widget === 'measurement-grid') {
+    return (
+      <div className={mergedClassName}>
+        <MeasurementGridWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: 4-Eyes Approval & Digital Stamp ---
+  if (widget === 'four-eyes-approval') {
+    return (
+      <div className={mergedClassName}>
+        <FourEyesApprovalWidget
           id={elementId}
           label={element.hideLabel ? undefined : label}
           value={value}

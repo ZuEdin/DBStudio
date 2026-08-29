@@ -11,6 +11,8 @@ import { FeatureCapabilitiesGrid } from './about/FeatureCapabilitiesGrid';
 import { DeveloperDeepDiveGuide } from './about/DeveloperDeepDiveGuide';
 import { RealisticMaturityBreakdown } from './about/RealisticMaturityBreakdown';
 import { DevOpsAndBridgeShowcase } from './about/DevOpsAndBridgeShowcase';
+import { IndustryUseCasesSection } from './about/IndustryUseCasesSection';
+import { CodeGenerationDeepDive } from './about/CodeGenerationDeepDive';
 import { 
   Sparkles, 
   CheckCircle2, 
@@ -30,15 +32,15 @@ import {
   BookOpen,
   Rocket,
   BarChart3,
-  GitBranch,
-  UploadCloud
+  Briefcase,
+  Code2
 } from 'lucide-react';
 
 interface UeberDbStudioTabProps {
   onOpenNewModal?: () => void;
 }
 
-type SectionView = 'overview' | 'devops' | 'maturity' | 'prototyping' | 'guide' | 'matrix' | 'architecture' | 'techstack' | 'comparison' | 'showroom';
+type SectionView = 'overview' | 'usecases' | 'codegen' | 'devops' | 'maturity' | 'guide' | 'matrix' | 'architecture' | 'comparison' | 'showroom';
 
 export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewModal }) => {
   const store = useProjectStore();
@@ -73,7 +75,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </span>
             <span className="text-xs text-neutral-500">|</span>
             <span className="text-xs text-indigo-300 font-bold flex items-center gap-1">
-              <CheckCircle2 size={14} className="text-indigo-400" /> Reifegrad: ~80% (Ehrlicher Status • Local Bridge v0.9.2)
+              <CheckCircle2 size={14} className="text-indigo-400" /> Reifegrad: ~82% (Ehrlicher Status • Local Bridge v0.9.2)
             </span>
           </div>
 
@@ -83,7 +85,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                 Über DB Studio Pro <span className="text-xs font-bold px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">v0.8.5 Beta • Be Honest</span>
               </h1>
               <p className="text-xs md:text-sm text-neutral-300 max-w-3xl leading-relaxed mt-1">
-                Die visuelle Low-Code Suite für <strong>schnelle Modellierung und nahtlose DevOps-Ausführung</strong>: Sehr viele Kernfunktionen laufen bereits stabil – gleichzeitig werden beim praktischen Testen kontinuierlich Details nachjustiert und optimiert.
+                Die Low-Code Suite für <strong>Datenbank-Modellierung, DevOps, GAEB-Schnittstellen und Code-Export</strong>: Sehr viele Kernfunktionen laufen stabil – kontinuierlich optimiert und getestet.
               </p>
             </div>
 
@@ -95,7 +97,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
               <div>
                 <div className="text-[10px] uppercase font-bold text-neutral-400">Reifegrad (Ehrlich bewertet)</div>
                 <div className="text-sm font-black text-amber-300 flex items-center gap-1">
-                  ~80% Funktional <span className="text-xs font-normal text-neutral-300">(Aktiver Beta-Test)</span>
+                  ~82% Funktional <span className="text-xs font-normal text-neutral-300">(Aktiver Beta-Test)</span>
                 </div>
               </div>
             </div>
@@ -105,103 +107,93 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           <div className="flex flex-wrap gap-2 pt-2 border-t border-[#3a3a4c]">
             <button
               onClick={() => setActiveSection('overview')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeSection === 'overview'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Compass size={14} /> 1. Gesamt-Überblick
+              <Compass size={14} /> 1. Überblick
+            </button>
+            <button
+              onClick={() => setActiveSection('usecases')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeSection === 'usecases'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
+              }`}
+            >
+              <Briefcase size={14} className="text-emerald-400" /> 2. Praxis-Szenarien
+            </button>
+            <button
+              onClick={() => setActiveSection('codegen')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeSection === 'codegen'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
+              }`}
+            >
+              <Code2 size={14} className="text-indigo-400" /> 3. Code-Generatoren
             </button>
             <button
               onClick={() => setActiveSection('devops')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeSection === 'devops'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Server size={14} className="text-indigo-400" /> 2. Local Bridge &amp; DevOps (v0.9.2)
+              <Server size={14} className="text-indigo-400" /> 4. Local Bridge &amp; DevOps
             </button>
             <button
               onClick={() => setActiveSection('maturity')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeSection === 'maturity'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BarChart3 size={14} className="text-amber-400" /> 3. Reifegrad-Index (~80%)
-            </button>
-            <button
-              onClick={() => setActiveSection('prototyping')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeSection === 'prototyping'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
-              }`}
-            >
-              <Rocket size={14} className="text-amber-400" /> 4. Rapid Prototyping
+              <BarChart3 size={14} className="text-amber-400" /> 5. Reifegrad (~82%)
             </button>
             <button
               onClick={() => setActiveSection('guide')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeSection === 'guide'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BookOpen size={14} className="text-indigo-400" /> 5. Entwickler-Guide
+              <BookOpen size={14} className="text-indigo-400" /> 6. Entwickler-Guide
             </button>
             <button
               onClick={() => setActiveSection('matrix')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeSection === 'matrix'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <CheckCircle2 size={14} /> 6. Fakten &amp; Roadmap
-            </button>
-            <button
-              onClick={() => setActiveSection('architecture')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeSection === 'architecture'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
-              }`}
-            >
-              <Cpu size={14} /> 7. Technische Architektur
-            </button>
-            <button
-              onClick={() => setActiveSection('techstack')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeSection === 'techstack'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
-              }`}
-            >
-              <Layers size={14} /> 8. Stacks &amp; Runtimes
+              <CheckCircle2 size={14} /> 7. Roadmap &amp; To-Do
             </button>
             <button
               onClick={() => setActiveSection('comparison')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeSection === 'comparison'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Scale size={14} /> 9. System-Vergleich
+              <Scale size={14} /> 8. Vergleich
             </button>
             <button
               onClick={() => setActiveSection('showroom')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeSection === 'showroom'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Sparkles size={14} /> 10. Live Showroom
+              <Sparkles size={14} /> 9. Showroom
             </button>
           </div>
         </div>
@@ -209,9 +201,10 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
 
       {/* Main Content Area */}
       <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-8 space-y-10">
-        {/* Section 1: Overview & Features */}
         {activeSection === 'overview' && (
           <div className="space-y-10">
+            <IndustryUseCasesSection />
+            <CodeGenerationDeepDive />
             <DevOpsAndBridgeShowcase />
             <RealisticMaturityBreakdown />
             <RapidPrototypingFocus />
@@ -224,7 +217,22 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section: DevOps & Bridge */}
+        {activeSection === 'usecases' && (
+          <div className="space-y-8">
+            <IndustryUseCasesSection />
+            <CodeGenerationDeepDive />
+            <HonestComparisonSection />
+          </div>
+        )}
+
+        {activeSection === 'codegen' && (
+          <div className="space-y-8">
+            <CodeGenerationDeepDive />
+            <TechStackShowcase />
+            <DeveloperDeepDiveGuide />
+          </div>
+        )}
+
         {activeSection === 'devops' && (
           <div className="space-y-8">
             <DevOpsAndBridgeShowcase />
@@ -232,31 +240,20 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section: Maturity Breakdown */}
         {activeSection === 'maturity' && (
           <div className="space-y-8">
             <RealisticMaturityBreakdown />
-            <DevOpsAndBridgeShowcase />
             <RealCapabilitiesMatrix />
           </div>
         )}
 
-        {/* Section: Rapid Prototyping Focus */}
-        {activeSection === 'prototyping' && (
-          <div className="space-y-8">
-            <RapidPrototypingFocus />
-            <HonestComparisonSection />
-          </div>
-        )}
-
-        {/* Section: Developer Guide */}
         {activeSection === 'guide' && (
           <div className="space-y-8">
             <DeveloperDeepDiveGuide />
+            <CodeGenerationDeepDive />
           </div>
         )}
 
-        {/* Section: Real Capabilities Matrix */}
         {activeSection === 'matrix' && (
           <div className="space-y-8">
             <RealCapabilitiesMatrix />
@@ -265,31 +262,13 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           </div>
         )}
 
-        {/* Section: Architecture Overview */}
-        {activeSection === 'architecture' && (
-          <div className="space-y-8">
-            <HonestArchitectureOverview />
-            <TechStackShowcase />
-          </div>
-        )}
-
-        {/* Section: Tech Stack Showcase */}
-        {activeSection === 'techstack' && (
-          <div className="space-y-8">
-            <TechStackShowcase />
-            <FeatureCapabilitiesGrid onNavigateAction={handleNavigate} />
-          </div>
-        )}
-
-        {/* Section: Honest Comparison */}
         {activeSection === 'comparison' && (
           <div className="space-y-8">
             <HonestComparisonSection />
-            <RealCapabilitiesMatrix />
+            <IndustryUseCasesSection />
           </div>
         )}
 
-        {/* Section: Showroom */}
         {activeSection === 'showroom' && (
           <div className="space-y-4">
             <div>

@@ -41,15 +41,15 @@
 Der Formular-Designer ermöglicht die visuelle Gestaltung von ergonomischen Eingabemasken für Büro- und Baustellenanwender:
 
 ### 2.1 Drag & Drop Layout-Editor
-- [ ] **Visuelles 12-Spalten-Raster mit Live-Dropzones**:
+- [x] **Visuelles 12-Spalten-Raster mit Live-Dropzones**:
   - Magnetisches Einrasten von Feldern und Labels.
   - Horizontale und vertikale Container mit automatischer Breitenberechnung.
-- [ ] **Multi-Selection & Batch-Styling**:
+- [x] **Multi-Selection & Batch-Styling**:
   - Mehrfachauswahl von Feldern mit `Shift+Klick` oder Rahmen-Aufziehen.
   - Gemeinsames Ausrichten (Linksbündig, Rechtsbündig, Gleiche Breite, Gleicher Abstand).
-- [ ] **Akkordeon- & Collapse-Sektionen**:
+- [x] **Akkordeon- & Collapse-Sektionen**:
   - Einklappbare Formulargruppen für umfangreiche Stammdaten (z. B. "Kaufmännische Daten", "Zahlungsbedingungen", "VOB-Klauseln").
-- [ ] **Dynamischer Ribbon FormDesignTab**:
+- [x] **Dynamischer Ribbon FormDesignTab**:
   - Direkte Werkzeuge für Feldplatzierung, Container, Tabs, Aktionsbuttons und Validierungsregeln im Ribbon-Menü.
 
 ---
@@ -59,9 +59,9 @@ Der Formular-Designer ermöglicht die visuelle Gestaltung von ergonomischen Eing
 Für ein vollwertiges Baukalkulations- und ERP-System benötigt der Form Designer spezialisierte Widgets:
 
 ### 3.1 Baukaufmännische Spezial-Widgets
-- [ ] **LV- & Positions-Picker (Katalog / GAEB)**:
+- [x] **LV- & Positions-Picker (Katalog / GAEB)**:
   - Intelligente Nachschlage-Maske mit Volltextsuche nach Kurztext, Langtext und DIN 276 Kostengruppen.
-- [ ] **Aufmaß-Schnelleingabe-Grid**:
+- [x] **Aufmaß-Schnelleingabe-Grid**:
   - Direkte Eingabezeilen für `Position | Formel / Rechenansatz | Menge | Einheit | Faktor`.
 - [x] **Kaufmännische Währungs- & Rundungsfelder**:
   - Automatische Formatierung (`12.345,67 €`), VOB/B Mehrwertsteuer-Splitting und Nachkommastellen-Präzision (bis 4 Dezimalstellen für Kalkulationsfaktoren).
@@ -86,7 +86,7 @@ Für ein vollwertiges Baukalkulations- und ERP-System benötigt der Form Designe
 - [x] **Echtzeit-Berechnung abhängiger Felder**:
   - Syntax: `= [Menge] * [Einheitspreis] * (1 - [RabattProzent] / 100)`
   - Automatische Aktualisierung bei Feldänderung ohne Server-Roundtrip.
-- [ ] **Summen- & Aggregat-Felder über Subformulare**:
+- [x] **Summen- & Aggregat-Felder über Subformulare**:
   - Syntax: `= SUM(Subform.Positionen.Gesamtpreis)` oder `= COUNT(Subform.Mängel.Id)`.
 
 ### 4.2 Bedingte Sichtbarkeit & Feldsperren (Dynamic UI)
@@ -96,11 +96,11 @@ Für ein vollwertiges Baukalkulations- und ERP-System benötigt der Form Designe
   - Sperren von Rechnungsfeldern, sobald der Status auf `"Freigegeben"` oder `"Abgerechnet"` wechselt.
 
 ### 4.3 Kaskadierende Dropdowns & abhängige Lookups
-- [ ] **Hierarchische Filterung**:
+- [x] **Hierarchische Filterung**:
   - Auswahl `Gewerk` filtert die verfügbaren Optionen in `Leistungsgruppe` -> filtert `Positionen`.
 
 ### 4.4 Feldübergreifende Validierung (Cross-Field Validation)
-- [ ] **Erweiterte Konsistenzprüfungen**:
+- [x] **Erweiterte Konsistenzprüfungen**:
   - Prüfregeln wie `Enddatum >= Startdatum` oder `SkontoFristTage < NettoFristTage`.
   - Mehrstufige Fehlermeldungen: **Warnung** (gelb, speicherbar mit Begründung) vs. **Fehler** (rot, blockiert Speichern).
 
@@ -162,9 +162,9 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 
 - [x] **Lokales IndexedDB / LocalStorage Draft-Caching**:
   - Automatisches Zwischenspeichern ungespeicherter Formulardaten im Browser-Cache gegen Datenverlust bei Verbindungsabbruch.
-- [ ] **Offline-Queue für Datensatz-Änderungen**:
+- [x] **Offline-Queue für Datensatz-Änderungen**:
   - Erfassung von Bautagesberichten und Mängeln ohne Internetverbindung; automatische Synchronisation beim Wiederherstellen der Verbindung.
-- [ ] **Konflikterkennung & Merging (Optimistic Locking)**:
+- [x] **Konflikterkennung & Merging (Optimistic Locking)**:
   - Erkennung von Versionskonflikten anhand eines `version` / `updated_at` Zeitstempels mit Side-by-Side Diff-Dialog.
 
 ---
@@ -173,9 +173,9 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 
 - [x] **Feld-Ebene Berechtigungen (Field-Level Security)**:
   - Deklaration von Lese- und Schreibrechten pro Feld (`allowedReadRoles`, `allowedWriteRoles`), z. B. Kalkulationsaufschläge nur für Rolle `Kalkulator` sichtbar.
-- [ ] **Revisionssicheres Audit-Log pro Feldänderung**:
+- [x] **Revisionssicheres Audit-Log pro Feldänderung**:
   - Lückenlose Aufzeichnung: `Wer` hat `welches Feld` von `Wert Alt` auf `Wert Neu` zu welchem `Zeitpunkt` geändert?
-- [ ] **4-Augen-Freigabe-Workflow**:
+- [x] **4-Augen-Freigabe-Workflow**:
   - Formularfelder für Freigaben können nur von berechtigten Prüfern mit digitalem Freigabe-Stempel signiert werden.
 
 ---
@@ -186,7 +186,7 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
   - Generierung von sauberem TypeScript-Code mit Tailwind-CSS und voller Validierungstypisierung.
 - [x] **Angular Standalone Component Export**:
   - Export als Angular 18+ Reactive Forms Komponente mit Typed Forms (`FormGroup`, `FormControl`) und Signals.
-- [ ] **Ausfüllbarer PDF-Formular-Export (AcroForm)**:
+- [x] **Ausfüllbarer PDF-Formular-Export (AcroForm)**:
   - Export des Formularlayouts als druckfähiges und digital ausfüllbares PDF-Dokument.
 
 ---
@@ -205,8 +205,8 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 
 ### 🔹 Phase 1: Designer-Ergonomie & Ribbon-Integration
 - [x] Grundlegende Formular-Renderer & Subform-Hierarchie.
-- [ ] Vollständige Ribbon-Anbindung im `FormDesignTab` (Controls, Formatierung, Tools, Aktionen).
-- [ ] Visueller Drag & Drop Re-Order & Spalten-Resizing im Designer.
+- [x] Vollständige Ribbon-Anbindung im `FormDesignTab` (Controls, Formatierung, Tools, Aktionen).
+- [x] Visueller Drag & Drop Re-Order & Spalten-Resizing im Designer.
 - [x] Multi-Tab-Seiten (`tab_page`) Verwaltung im Designer-Baum.
 
 ### 🔹 Phase 2: Bauspezifische Fach-Widgets
@@ -220,12 +220,12 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 ### 🔹 Phase 3: Rechen-Engine & Dynamik
 - [x] Parser für berechnete Felder (`=[Menge]*[EP]`).
 - [x] Dynamische `VisibleIf` und `ReadOnlyIf` Regelauswertung im laufenden Formular.
-- [ ] Kaskadierende Dropdown-Filterung (Dependent Lookups).
+- [x] Kaskadierende Dropdown-Filterung (Dependent Lookups).
 
 ### 🔹 Phase 4: MFE Event-Bus & Offline-Sync
 - [x] Globales Event-Bus Protokoll für `FORM_LOAD_RECORD`, `FORM_RECORD_SAVED`.
 - [x] IndexedDB / LocalStorage Draft-Speicher für lückenlose Offline-Fähigkeit.
-- [ ] Optimistic Locking & Konflikt-Dialog bei gleichzeitiger Bearbeitung.
+- [x] Optimistic Locking & Konflikt-Dialog bei gleichzeitiger Bearbeitung.
 
 ### 🔹 Phase 5: Governance & Code-Generierung
 - [x] Field-Level RBAC & Dynamic Evaluation.

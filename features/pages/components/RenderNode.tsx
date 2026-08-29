@@ -7,6 +7,12 @@ import {
 } from 'lucide-react';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { CustomComponentRunner } from './runner/CustomComponentRunner';
+import { LvTreeExplorerRunner } from './runner/LvTreeExplorerRunner';
+import { EktMatrixRunner } from './runner/EktMatrixRunner';
+import { WeatherAndDailyLogRunner } from './runner/WeatherAndDailyLogRunner';
+import { PlanDefectMarkerRunner } from './runner/PlanDefectMarkerRunner';
+import { SignaturePadRunner } from './runner/SignaturePadRunner';
+import { GiroCodeQrRunner } from './runner/GiroCodeQrRunner';
 import { formatFieldValue, resolvePlaceholders } from '../utils/pageViewUtils';
 
 interface SubPagePreviewNodeProps {
@@ -602,6 +608,42 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
                       </div>
                   </div>
              );
+             isDropTarget = false;
+             break;
+        }
+
+        case 'lv_tree_explorer': {
+             content = <LvTreeExplorerRunner props={node.props} />;
+             isDropTarget = false;
+             break;
+        }
+
+        case 'ekt_matrix': {
+             content = <EktMatrixRunner props={node.props} />;
+             isDropTarget = false;
+             break;
+        }
+
+        case 'weather_widget': {
+             content = <WeatherAndDailyLogRunner props={node.props} />;
+             isDropTarget = false;
+             break;
+        }
+
+        case 'plan_defect_marker': {
+             content = <PlanDefectMarkerRunner props={node.props} />;
+             isDropTarget = false;
+             break;
+        }
+
+        case 'signature_pad': {
+             content = <SignaturePadRunner props={node.props} />;
+             isDropTarget = false;
+             break;
+        }
+
+        case 'girocode_qr': {
+             content = <GiroCodeQrRunner props={node.props} />;
              isDropTarget = false;
              break;
         }

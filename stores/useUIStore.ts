@@ -122,6 +122,10 @@ interface UIStore {
   setShowAuditTrailModal: (show: boolean) => void;
   showWordPressModal: boolean;
   setShowWordPressModal: (show: boolean) => void;
+  showConstructionOfflineModal: boolean;
+  setShowConstructionOfflineModal: (show: boolean) => void;
+  showIndustryInterfacesModal: boolean;
+  setShowIndustryInterfacesModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -251,6 +255,10 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowAuditTrailModal: (showAuditTrailModal) => set({ showAuditTrailModal }),
   showWordPressModal: false,
   setShowWordPressModal: (showWordPressModal) => set({ showWordPressModal }),
+  showConstructionOfflineModal: false,
+  setShowConstructionOfflineModal: (showConstructionOfflineModal) => set({ showConstructionOfflineModal }),
+  showIndustryInterfacesModal: false,
+  setShowIndustryInterfacesModal: (showIndustryInterfacesModal) => set({ showIndustryInterfacesModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

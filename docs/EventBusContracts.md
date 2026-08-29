@@ -19,20 +19,20 @@
 ## 🟢 1. Architektur-Prinzipien & Entkopplung
 
 - [x] **Strikte Isolation**: Frontends importieren niemals Quellcode direkt voneinander.
-- [ ] **Asynchrone Entkopplung**: Kommunikation erfolgt ausschließlich über den typisierten globalen Event-Bus.
-- [ ] **Vertragstreue (Contract-First)**: Jedes Event besitzt ein unveränderliches Payload-Schema mit Versionierung (`v1`, `v2`).
-- [ ] **Kein direkter DOM-Zugriff**: Keine Abhängigkeiten auf DOM-Elemente anderer Micro Frontends.
+- [x] **Asynchrone Entkopplung**: Kommunikation erfolgt ausschließlich über den typisierten globalen Event-Bus.
+- [x] **Vertragstreue (Contract-First)**: Jedes Event besitzt ein unveränderliches Payload-Schema mit Versionierung (`v1`, `v2`).
+- [x] **Kein direkter DOM-Zugriff**: Keine Abhängigkeiten auf DOM-Elemente anderer Micro Frontends.
 
 ---
 
 ## 📡 2. Event-Bus Infrastruktur & Lifecycle
 
-- [ ] **Global Event Bus Singleton**:
+- [x] **Global Event Bus Singleton**:
   - `window.__ENTERPRISE_EVENT_BUS__` als leichtgewichtiger, framework-agnostischer Pub/Sub-Kanal.
   - Sichere Event-Typisierung in TypeScript.
-- [ ] **Abonnement & Cleanup (Memory-Leak Schutz)**:
+- [x] **Abonnement & Cleanup (Memory-Leak Schutz)**:
   - Automatisches Unsubscribe beim Unmounten von React/Angular Komponenten via Custom Hook `useMfeEvent(type, handler)`.
-- [ ] **Event-History & Replay**:
+- [x] **Event-History & Replay**:
   - Puffer der letzten $N$ Events zur Initialisierung neu geladener Micro Frontends (`replayLastEvent`).
 
 ---
@@ -57,33 +57,33 @@ export interface MfeBaseEvent<T = any> {
 ## 🔄 4. MFE-spezifische Event-Verträge (Domain Contracts)
 
 ### 4.1 Shell & Navigation Events
-- [ ] `SHELL:PROJECT_SELECTED`:
+- [x] `SHELL:PROJECT_SELECTED`:
   - Payload: `{ projectId: string; projectNumber: string; customerId: string; title: string }`
   - Wirkung: Informiert alle geöffneten MFEs (CRM, Calc, Billing) über das aktive Bauvorhaben.
-- [ ] `SHELL:USER_AUTHENTICATED`:
+- [x] `SHELL:USER_AUTHENTICATED`:
   - Payload: `{ userId: string; roles: string[]; tenantId: string; permissions: string[] }`
 
 ### 4.2 CRM Events
-- [ ] `CRM:CUSTOMER_UPDATED`:
+- [x] `CRM:CUSTOMER_UPDATED`:
   - Payload: `{ customerId: string; companyName: string; paymentTermsDays: number; discountPercentage: number }`
   - Wirkung: Aktualisiert Zahlungskonditionen im Billing- und Calc-MFE.
 
 ### 4.3 Articles / Materialstamm Events
-- [ ] `ARTICLES:PRICE_CHANGED`:
+- [x] `ARTICLES:PRICE_CHANGED`:
   - Payload: `{ articleId: string; oldPrice: number; newPrice: number; validFrom: string }`
   - Wirkung: Markiert betroffene Positionen im Calc-MFE als "Preisaktualisierung verfügbar".
 
 ### 4.4 Calc / Kalkulation Events
-- [ ] `CALC:TOTALS_CHANGED`:
+- [x] `CALC:TOTALS_CHANGED`:
   - Payload: `{ projectId: string; totalLabor: number; totalMaterial: number; totalEquipment: number; totalNet: number; totalGross: number }`
   - Wirkung: Aktualisiert Projekt-KPIs in der Shell und Rechnungsbasis im Billing-MFE.
-- [ ] `CALC:OFFER_FINALIZED`:
+- [x] `CALC:OFFER_FINALIZED`:
   - Payload: `{ projectId: string; offerNumber: string; netAmount: number; positionsCount: number }`
 
 ### 4.5 Billing / Rechnungs-Events
-- [ ] `BILLING:INVOICE_CREATED`:
+- [x] `BILLING:INVOICE_CREATED`:
   - Payload: `{ invoiceId: string; invoiceNumber: string; projectId: string; customerId: string; netAmount: number; grossAmount: number; invoiceType: 'ADVANCE' | 'PARTIAL' | 'FINAL' }`
-- [ ] `BILLING:PAYMENT_RECEIVED`:
+- [x] `BILLING:PAYMENT_RECEIVED`:
   - Payload: `{ invoiceId: string; paidAmount: number; paidDate: string; remainingAmount: number }`
 
 ---
@@ -92,10 +92,10 @@ export interface MfeBaseEvent<T = any> {
 
 Zieht Artikel aus dem Artikelkatalog direkt in das Leistungsverzeichnis der Baukalkulation:
 
-- [ ] **Standardisiertes MIME-Type Format**:
+- [x] **Standardisiertes MIME-Type Format**:
   - `application/x-enterprise-article`
   - `application/x-enterprise-position`
-- [ ] **D&D Payload**:
+- [x] **D&D Payload**:
   ```json
   {
     "type": "ARTICLE",
@@ -107,33 +107,33 @@ Zieht Artikel aus dem Artikelkatalog direkt in das Leistungsverzeichnis der Bauk
     "unitPriceLabor": 45.00
   }
   ```
-- [ ] **Visuelle Drop-Zone Indikatoren**: Einheitliche Highlight-Rahmen über Domain-Grenzen hinweg.
+- [x] **Visuelle Drop-Zone Indikatoren**: Einheitliche Highlight-Rahmen über Domain-Grenzen hinweg.
 
 ---
 
 ## 🗄️ 6. Globaler Cache-, State- & Schema-Sync
 
-- [ ] `STUDIO:SCHEMA_MODIFIED`:
+- [x] `STUDIO:SCHEMA_MODIFIED`:
   - Wenn im Tabellendesigner Spalten/Tabellen geändert werden, feuert das Studio ein Event.
   - Abfrage- und Seitendesigner invalidieren ihren lokalen Schema-Cache sofort.
-- [ ] `STUDIO:QUERY_EXECUTED`:
+- [x] `STUDIO:QUERY_EXECUTED`:
   - Übermittelt Abfrage-Ergebnisse an abonnierende Widget-Container.
 
 ---
 
 ## 🛡️ 7. Fehlerbehandlung, Timeouts & Dead-Letter-Handling
 
-- [ ] **Dead-Letter-Queue (DLQ)**: Auffangen von Events ohne registrierte Empfänger zur Diagnose.
-- [ ] **Timeout bei Request-Response Mustern**: Automatischer Abbruch nach 5000ms bei synchronen MFE-Abfragen.
-- [ ] **DevTools Event-Inspector**: Visuelle Timeline aller gefeuerten Events im Debug-Modus.
+- [x] **Dead-Letter-Queue (DLQ)**: Auffangen von Events ohne registrierte Empfänger zur Diagnose.
+- [x] **Timeout bei Request-Response Mustern**: Automatischer Abbruch nach 5000ms bei synchronen MFE-Abfragen.
+- [x] **DevTools Event-Inspector**: Visuelle Timeline aller gefeuerten Events im Debug-Modus.
 
 ---
 
 ## 📅 8. Implementierungs-Checkliste & Phasenplan
 
-- [ ] **Phase 1**: Singleton Event-Bus Engine & TypeScript Base Types erstellen.
-- [ ] **Phase 2**: `useMfeEvent` & `publishMfeEvent` React Custom Hooks implementieren.
-- [ ] **Phase 3**: Shell- und Projektwechsel-Events (`SHELL:PROJECT_SELECTED`) anbinden.
-- [ ] **Phase 4**: Cross-MFE Drag & Drop Protokoll für Artikel -> Kalkulation umsetzen.
-- [ ] **Phase 5**: Schema-Synchronisation zwischen Studio-Modulen etablieren.
-- [ ] **Phase 6**: DevTools Event-Logger und Replay-Debugger integrieren.
+- [x] **Phase 1**: Singleton Event-Bus Engine & TypeScript Base Types erstellen.
+- [x] **Phase 2**: `useMfeEvent` & `publishMfeEvent` React Custom Hooks implementieren.
+- [x] **Phase 3**: Shell- und Projektwechsel-Events (`SHELL:PROJECT_SELECTED`) anbinden.
+- [x] **Phase 4**: Cross-MFE Drag & Drop Protokoll für Artikel -> Kalkulation umsetzen.
+- [x] **Phase 5**: Schema-Synchronisation zwischen Studio-Modulen etablieren.
+- [x] **Phase 6**: DevTools Event-Logger und Replay-Debugger integrieren.

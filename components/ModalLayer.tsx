@@ -33,6 +33,8 @@ import { OpenApiMockServerModal } from '../features/openapi/OpenApiMockServerMod
 import { SecurityRlsModal } from '../features/security/SecurityRlsModal';
 import { AuditTrailModal } from '../features/audit-trail/AuditTrailModal';
 import { WordPressGeneratorModal } from '../features/wordpress/WordPressGeneratorModal';
+import { OfflineSyncDashboardModal } from '../features/offline-sync';
+import { IndustryInterfacesModal } from '../features/industry-interfaces';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -401,6 +403,40 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {ui.showWordPressModal && (
         <WordPressGeneratorModal 
           onClose={() => ui.setShowWordPressModal(false)}
+        />
+      )}
+
+      {ui.showConstructionOfflineModal && (
+        <OfflineSyncDashboardModal
+          isOpen={ui.showConstructionOfflineModal}
+          onClose={() => ui.setShowConstructionOfflineModal(false)}
+        />
+      )}
+
+      {ui.showIndustryInterfacesModal && (
+        <IndustryInterfacesModal
+          isOpen={ui.showIndustryInterfacesModal}
+          onClose={() => ui.setShowIndustryInterfacesModal(false)}
+          onImportToTable={(tableName, rows) => {
+            // Import as new or updated table
+            const newTable = {
+              id: `tbl_${Date.now()}`,
+              name: tableName,
+              fields: [
+                { id: 'f_id', name: 'id', type: 'AUTONUMBER' as any, isPrimaryKey: true, required: true },
+                { id: 'f_oz', name: 'oz', type: 'OZ' as any, required: true },
+                { id: 'f_titel', name: 'titel', type: 'TEXT' as any },
+                { id: 'f_kurztext', name: 'kurztext', type: 'TEXT' as any, required: true },
+                { id: 'f_menge', name: 'menge', type: 'NUMBER' as any },
+                { id: 'f_einheit', name: 'einheit', type: 'GAEB_UNIT' as any },
+                { id: 'f_ep', name: 'einzelpreis', type: 'CURRENCY' as any },
+                { id: 'f_gp', name: 'gesamtpreis', type: 'CURRENCY' as any },
+              ],
+              data: rows.map((r, i) => ({ id: i + 1, ...r })),
+            };
+            addTable(newTable as any);
+            ui.addToast(`Tabelle "${tableName}" mit ${rows.length} Positionen erfolgreich importiert.`, 'success');
+          }}
         />
       )}
 

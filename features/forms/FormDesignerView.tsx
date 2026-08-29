@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import { Form, Table, Query, FormElement, Relationship, getWidthClasses } from '../../types/index';
-import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown, Zap, ArrowUp, ArrowDown, Trash2, PenTool, MapPin, Building2, QrCode, Euro, Navigation, FileCode, Code, Copy } from 'lucide-react';
+import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown, Zap, ArrowUp, ArrowDown, Trash2, PenTool, MapPin, Building2, QrCode, Euro, Navigation, FileCode, Code, Copy, ChevronsUpDown, BookOpen, Calculator, ShieldCheck, Printer } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
 import { FormCodeExportModal } from './components/FormCodeExportModal';
+import { FormPrintModal } from './components/FormPrintModal';
 
 interface FormDesignerViewProps {
   form: Form;
@@ -22,11 +23,13 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   const [linkingSubform, setLinkingSubform] = useState<Form | null>(null);
   const [showLookupModal, setShowLookupModal] = useState(false);
   const [showCodeExport, setShowCodeExport] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   const [dragOverTargetId, setDragOverTargetId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | 'inside' | null>(null);
   const [activeTab, setActiveTab] = useState<'layout' | 'validation'>('layout');
   const [activeDesignerTabs, setActiveDesignerTabs] = useState<Record<string, string>>({});
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   
   const mainFormTable = allTables.find(t => t.id === form.sourceId);
 
@@ -191,7 +194,41 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   React.useEffect(() => {
     if (!actionTrigger) return;
     if (actionTrigger.action === 'export_form') {
-        // ... export logic ...
+        setShowCodeExport(true);
+        return;
+    }
+    if (actionTrigger.action === 'form_export_code') {
+        setShowCodeExport(true);
+        return;
+    }
+    if (actionTrigger.action === 'form_open_print') {
+        setShowPrintModal(true);
+        return;
+    }
+    if (actionTrigger.action === 'form_duplicate') {
+        if (selectedElementId) handleDuplicateElement(selectedElementId);
+        return;
+    }
+    if (actionTrigger.action === 'form_delete') {
+        deleteSelected();
+        return;
+    }
+    if (actionTrigger.action === 'form_align_left' || actionTrigger.action === 'form_align_right') {
+        if (selectedElementId) {
+            updateFormLayout((layout) => {
+                const el = findElement(layout, selectedElementId);
+                if (el) el.width = '1/2';
+            });
+        }
+        return;
+    }
+    if (actionTrigger.action === 'form_match_width') {
+        if (selectedElementId) {
+            updateFormLayout((layout) => {
+                const el = findElement(layout, selectedElementId);
+                if (el) el.width = 'full';
+            });
+        }
         return;
     }
     
@@ -199,9 +236,7 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
     updateFormLayout((layout) => {
         let target = selectedElementId ? findElement(layout, selectedElementId) : layout;
         // If selected is a field, go to parent container
-        if (target && target.type !== 'container') {
-             // Basic finding of parent would be better, for now fallback to root if not container
-             // Ideally we traverse to find parent, but for simplicity:
+        if (target && target.type !== 'container' && target.type !== 'tab_page' && target.type !== 'collapse_section') {
              target = layout; 
         }
         if (!target) target = layout;
@@ -224,9 +259,6 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 { id: crypto.randomUUID(), label: '⚡ Makro 1 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] },
                 { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
             ];
-        } else if (actionTrigger.action === 'form_export_code') {
-            setShowCodeExport(true);
-            return;
         } else if (actionTrigger.action === 'form_add_container') {
             newEl.type = 'container'; newEl.className = 'p-4 border border-dashed border-slate-300 rounded bg-slate-50 min-h-[60px]';
         } else if (actionTrigger.action === 'form_add_2col') {
@@ -242,6 +274,31 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 { id: 'tabpage_' + crypto.randomUUID(), type: 'tab_page', label: 'Registerkarte 1', children: [] },
                 { id: 'tabpage_' + crypto.randomUUID(), type: 'tab_page', label: 'Registerkarte 2', children: [] }
             ];
+        } else if (actionTrigger.action === 'form_add_accordion') {
+            newEl.type = 'accordion';
+            newEl.className = 'my-4 space-y-2';
+            newEl.children = [
+                { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '1. Allgemeine Projektdaten', isExpanded: true, children: [] },
+                { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '2. Kaufmännische Vereinbarungen & VOB', isExpanded: false, children: [] }
+            ];
+        } else if (actionTrigger.action === 'form_add_gaeb_picker') {
+            newEl.type = 'field'; newEl.fieldId = 'gaeb_pos'; newEl.label = 'GAEB-Leistungskatalog & DIN 276'; newEl.widgetType = 'gaeb-picker'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_measurement_grid') {
+            newEl.type = 'field'; newEl.fieldId = 'measurement_grid'; newEl.label = 'Aufmaß-Schnelleingabe'; newEl.widgetType = 'measurement-grid'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_four_eyes') {
+            newEl.type = 'field'; newEl.fieldId = 'approval_status'; newEl.label = '4-Augen-Freigabe (VOB)'; newEl.widgetType = 'four-eyes-approval'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_signature') {
+            newEl.type = 'field'; newEl.fieldId = 'signature'; newEl.label = 'Digitale Signatur'; newEl.widgetType = 'signature'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_photo_marker') {
+            newEl.type = 'field'; newEl.fieldId = 'plan_marker'; newEl.label = 'Plan- & Mängel-Marker'; newEl.widgetType = 'photo-marker'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_din5008') {
+            newEl.type = 'field'; newEl.fieldId = 'address_din5008'; newEl.label = 'DIN 5008 Anschrift'; newEl.widgetType = 'din5008-address'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_geolocation') {
+            newEl.type = 'field'; newEl.fieldId = 'geo_location'; newEl.label = 'GPS-Standort'; newEl.widgetType = 'geolocation'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_barcode') {
+            newEl.type = 'field'; newEl.fieldId = 'barcode_scan'; newEl.label = 'Barcode / QR-Code'; newEl.widgetType = 'barcode-scanner'; newEl.className = 'mb-4';
+        } else if (actionTrigger.action === 'form_add_currency') {
+            newEl.type = 'field'; newEl.fieldId = 'currency_calc'; newEl.label = 'Währung & Steuerrechner'; newEl.widgetType = 'currency'; newEl.className = 'mb-4';
         }
 
         if (target && target.children) target.children.push(newEl);
@@ -332,6 +389,16 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                             label: 'Registerkarte 2',
                             children: []
                         }
+                    ]
+                });
+            } else if (data.type === 'accordion') {
+                container.children.push({
+                    id: 'accordion_' + crypto.randomUUID(),
+                    type: 'accordion',
+                    className: 'my-4 space-y-2',
+                    children: [
+                        { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '1. Allgemeine Projektdaten', isExpanded: true, children: [] },
+                        { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '2. Kaufmännische Vereinbarungen', isExpanded: false, children: [] }
                     ]
                 });
             } else if (data.type === 'field') {
@@ -498,6 +565,18 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                       label: data.label || 'Neues Widget',
                       widgetType: data.widgetType,
                       className: 'mb-4'
+                  };
+              }
+              // CASE H: Dropping accordion
+              else if (data.type === 'accordion') {
+                  itemToInsert = {
+                      id: 'accordion_' + crypto.randomUUID(),
+                      type: 'accordion',
+                      className: 'my-4 space-y-2',
+                      children: [
+                          { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '1. Allgemeine Projektdaten', isExpanded: true, children: [] },
+                          { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '2. Kaufmännische Vereinbarungen', isExpanded: false, children: [] }
+                      ]
                   };
               }
               
@@ -757,6 +836,92 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
           );
       }
 
+      if (el.type === 'accordion') {
+          return (
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div className={`${baseClass} ${el.className || 'my-4 space-y-2'}`} {...commonProps}>
+                      <SelectionOverlayActions />
+                      <GripHandle />
+                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5"><ChevronsUpDown size={14} className="text-blue-600" /> Akkordeon-Container</span>
+                          <button 
+                            type="button" 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const newSec: FormElement = {
+                                    id: 'collapse_' + crypto.randomUUID(),
+                                    type: 'collapse_section',
+                                    label: 'Neue Sektion',
+                                    isExpanded: true,
+                                    children: []
+                                };
+                                updateFormLayout((layout) => {
+                                    const acc = findElement(layout, el.id);
+                                    if (acc) {
+                                        if (!acc.children) acc.children = [];
+                                        acc.children.push(newSec);
+                                    }
+                                });
+                            }}
+                            className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"
+                          >
+                              <Plus size={10} strokeWidth={3} /> Sektion hinzufügen
+                          </button>
+                      </div>
+                      <div className="space-y-2">
+                          {el.children && el.children.length > 0 ? (
+                              el.children.map(renderElement)
+                          ) : (
+                              <div className="border border-dashed border-slate-300 p-4 rounded text-center text-xs text-slate-400">
+                                  Keine Sektionen vorhanden. Klicken Sie oben auf "+ Sektion hinzufügen".
+                              </div>
+                          )}
+                      </div>
+                  </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
+          );
+      }
+
+      if (el.type === 'collapse_section') {
+          const isExp = expandedSections[el.id] !== undefined ? expandedSections[el.id] : (el.isExpanded ?? true);
+          return (
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div 
+                    className={`${baseClass} border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white shadow-xs group relative`}
+                    onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
+                    onDragOver={handleElementDragOver}
+                    onDragLeave={handleElementDragLeave}
+                    onDrop={(e) => handleDropOnContainer(e, el.id)}
+                  >
+                      <SelectionOverlayActions />
+                      <div 
+                        className="bg-slate-100 dark:bg-slate-800/60 px-3 py-2 flex items-center justify-between cursor-pointer border-b border-slate-200 select-none"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedSections(prev => ({ ...prev, [el.id]: !isExp }));
+                        }}
+                      >
+                          <div className="flex items-center gap-2">
+                              <ChevronDown size={14} className={`text-slate-500 transition-transform ${isExp ? '' : '-rotate-90'}`} />
+                              <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">{el.label || 'Sektion'}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded font-mono">Einklappbar</span>
+                      </div>
+                      {isExp && (
+                          <div className="p-3 bg-slate-50/50 min-h-[60px]">
+                              {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-2 pointer-events-none">Hier Elemente ablegen</div>}
+                              {el.children?.map(renderElement)}
+                          </div>
+                      )}
+                  </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
+          );
+      }
+
       if (el.type === 'tab_page') {
           return (
               <React.Fragment key={el.id}>
@@ -793,7 +958,71 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                           <span className="block text-[10px] text-slate-400 italic mb-1.5 pointer-events-none">{el.label} (Beschriftung ausgeblendet)</span>
                       )}
                       <div className="flex gap-2 relative pointer-events-none">
-                        {el.widgetType === 'select' ? (
+                        {el.widgetType === 'gaeb-picker' ? (
+                             <div className="w-full bg-blue-50/50 border border-blue-200 rounded-lg p-2.5 flex items-center justify-between text-xs pointer-events-none">
+                                 <div className="flex items-center gap-2 text-blue-900 font-medium">
+                                     <BookOpen size={15} className="text-blue-600" />
+                                     <span>GAEB Leistungsposition / DIN 276</span>
+                                 </div>
+                                 <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded">Katalog-Suche</span>
+                             </div>
+                        ) : el.widgetType === 'measurement-grid' ? (
+                             <div className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs pointer-events-none">
+                                 <div className="flex items-center justify-between mb-1 text-[11px] font-bold text-slate-600">
+                                     <span className="flex items-center gap-1"><Calculator size={13} className="text-amber-600" /> Aufmaßzeilen</span>
+                                     <span className="text-emerald-700 font-mono font-bold">Summe: 0,00 m³</span>
+                                 </div>
+                                 <div className="grid grid-cols-4 gap-1 text-[10px] text-slate-400 bg-slate-100 p-1 rounded font-mono">
+                                     <span>Ansatz: A * B</span>
+                                     <span>Menge: 12.5</span>
+                                     <span>Einh: m³</span>
+                                     <span>Faktor: 1.0</span>
+                                 </div>
+                             </div>
+                        ) : el.widgetType === 'four-eyes-approval' ? (
+                             <div className="w-full bg-emerald-50/60 border border-emerald-300 rounded-lg p-2.5 flex items-center justify-between text-xs pointer-events-none">
+                                 <div className="flex items-center gap-2 text-emerald-950 font-medium">
+                                     <ShieldCheck size={16} className="text-emerald-600" />
+                                     <span>4-Augen-Freigabe & Freigabestempel</span>
+                                 </div>
+                                 <span className="bg-emerald-200 text-emerald-900 text-[10px] font-bold px-2 py-0.5 rounded">VOB Prüfpfad</span>
+                             </div>
+                        ) : el.widgetType === 'signature' ? (
+                             <div className="w-full bg-slate-50 border border-dashed border-slate-300 rounded-lg p-3 text-center text-xs text-slate-400 pointer-events-none flex items-center justify-center gap-2">
+                                 <PenTool size={14} className="text-slate-500" /> Digitale Unterschrift (Touch / Stift)
+                             </div>
+                        ) : el.widgetType === 'photo-marker' ? (
+                             <div className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 flex items-center justify-between text-xs text-slate-600 pointer-events-none">
+                                 <span className="flex items-center gap-1.5"><MapPin size={14} className="text-rose-500" /> Planmarker & Baustellenfoto</span>
+                                 <span className="text-[10px] bg-slate-200 px-1.5 py-0.5 rounded">Kamera / Plan</span>
+                             </div>
+                        ) : el.widgetType === 'din5008-address' ? (
+                             <div className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-500 pointer-events-none">
+                                 <div className="flex items-center gap-1.5 font-semibold text-slate-700 mb-1">
+                                     <Building2 size={13} className="text-indigo-600" /> DIN 5008 Adressblock (8 Zeilen)
+                                 </div>
+                                 <div className="text-[10px] text-slate-400 space-y-0.5 font-mono">
+                                     <div>Empfänger / Firma</div>
+                                     <div>Straße & Hausnummer</div>
+                                     <div>PLZ & Ort</div>
+                                 </div>
+                             </div>
+                        ) : el.widgetType === 'geolocation' ? (
+                             <div className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 flex items-center justify-between text-xs pointer-events-none">
+                                 <span className="flex items-center gap-1.5 text-slate-700"><Navigation size={13} className="text-blue-600" /> GPS-Koordinaten</span>
+                                 <span className="text-[10px] bg-blue-100 text-blue-800 font-mono px-1.5 py-0.5 rounded">52.5200° N, 13.4050° E</span>
+                             </div>
+                        ) : el.widgetType === 'barcode-scanner' ? (
+                             <div className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 flex items-center justify-between text-xs pointer-events-none">
+                                 <span className="flex items-center gap-1.5 text-slate-700"><QrCode size={13} className="text-purple-600" /> Scanner aktiv</span>
+                                 <span className="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">EAN-13 / QR</span>
+                             </div>
+                        ) : el.widgetType === 'currency' ? (
+                             <div className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 flex items-center justify-between text-xs pointer-events-none">
+                                 <span className="flex items-center gap-1.5 text-slate-700"><Euro size={13} className="text-emerald-600" /> Währungsrechner</span>
+                                 <span className="text-[11px] font-mono font-bold text-slate-800">0,00 € (inkl. 19% MwSt.)</span>
+                             </div>
+                        ) : el.widgetType === 'select' ? (
                              <div className="w-full relative pointer-events-none">
                                  <select className="w-full appearance-none bg-white border border-slate-300 text-slate-600 text-sm rounded px-3 py-2 shadow-sm pointer-events-none" disabled>
                                       <option>Auswählen...</option>
@@ -1185,6 +1414,33 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                      </span>
                      <Plus size={14} className="text-emerald-700" />
                   </div>
+
+                  <div 
+                     draggable 
+                     onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'accordion', label: 'Akkordeon' })); }}
+                     onClick={() => {
+                         updateFormLayout(layout => {
+                             if (!layout.children) layout.children = [];
+                             layout.children.push({
+                                 id: 'accordion_' + crypto.randomUUID(),
+                                 type: 'accordion',
+                                 className: 'my-4 space-y-2',
+                                 children: [
+                                     { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '1. Allgemeine Projektdaten', isExpanded: true, children: [] },
+                                     { id: 'collapse_' + crypto.randomUUID(), type: 'collapse_section', label: '2. Kaufmännische Vereinbarungen', isExpanded: false, children: [] }
+                                 ]
+                             });
+                         });
+                     }}
+                     className="bg-blue-50 border border-blue-300 p-2 rounded-lg cursor-grab text-xs flex items-center justify-between text-blue-950 hover:border-blue-400 hover:bg-blue-100/80 active:cursor-grabbing font-bold shadow-xs transition-colors"
+                     title="Einklappbare Akkordeon-Sektionen zur übersichtlichen Strukturierung"
+                  >
+                     <span className="flex items-center gap-2">
+                       <ChevronsUpDown size={14} className="text-blue-600" /> 
+                       Akkordeon (Einklappbar)
+                     </span>
+                     <Plus size={14} className="text-blue-700" />
+                  </div>
              </div>
 
              <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">Verfügbare Felder</h4>
@@ -1204,6 +1460,75 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
              <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Baufach-Widgets</h4>
              <div className="space-y-1.5">
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "gaeb-picker", label: "GAEB & DIN 276 Katalog" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "GAEB Leistungsposition / DIN 276",
+                                widgetType: "gaeb-picker",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-blue-50 border border-blue-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-blue-950 hover:bg-blue-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="GAEB Positionen und DIN 276 Kostengruppen auswählen"
+                 >
+                     <span className="flex items-center gap-1.5"><BookOpen size={13} className="text-blue-600" /> GAEB & DIN 276 Katalog</span>
+                     <Plus size={13} className="text-blue-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "measurement-grid", label: "Aufmaß-Schnelleingabe" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "Aufmaß-Schnelleingabe (Grid)",
+                                widgetType: "measurement-grid",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-amber-50 border border-amber-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-amber-950 hover:bg-amber-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="Schnelleingabe von Aufmaßen mit Formelberechnung"
+                 >
+                     <span className="flex items-center gap-1.5"><Calculator size={13} className="text-amber-600" /> Aufmaß-Grid (Schnelleingabe)</span>
+                     <Plus size={13} className="text-amber-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "four-eyes-approval", label: "4-Augen-Freigabe (VOB)" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "4-Augen-Freigabe & Freigabestempel",
+                                widgetType: "four-eyes-approval",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-emerald-50 border border-emerald-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-emerald-950 hover:bg-emerald-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="4-Augen-Freigabe mit Revisionsstempel"
+                 >
+                     <span className="flex items-center gap-1.5"><ShieldCheck size={13} className="text-emerald-600" /> 4-Augen-Freigabe (VOB)</span>
+                     <Plus size={13} className="text-emerald-700" />
+                 </div>
+
                  <div 
                     draggable 
                     onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "signature", label: "Digitale Signatur / Abnahme" })); }}
@@ -1421,6 +1746,18 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
             form={form} 
             table={mainFormTable} 
             onClose={() => setShowCodeExport(false)} 
+         />
+      )}
+
+      {showPrintModal && (
+         <FormPrintModal 
+            isOpen={showPrintModal}
+            form={form} 
+            sourceTable={mainFormTable} 
+            currentRecord={{}} 
+            allTables={allTables}
+            allForms={allForms}
+            onClose={() => setShowPrintModal(false)} 
          />
       )}
     </div>

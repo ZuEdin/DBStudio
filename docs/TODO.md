@@ -119,10 +119,16 @@ Um MS Access im Unternehmensumfeld abzulösen, konzentrieren wir uns auf diese 6
 - [x] Team-Cloud Kollaboration (Chat, Kanban, Cloud-Sync)
 
 ### 🟢 Alle Hauptpunkte der MS Access Paritäts-Roadmap wurden erfolgreich umgesetzt!
+- [x] **Table Designer & Relationen-Manager** (Felddefinitionen, Datentypen, Indizes, Primär-/Fremdschlüssel)
+- [x] **Query Designer (QBE & SQL-Editor)** (JOIN-Visualisierung, Action-Queries, Parametrisierte Prompt-Abfragen)
+- [x] **Report Designer (High-End Berichtswesen)** (Mehrstufige Gruppen, Aggregate, Barcodes/QR, Sub-Reports, PDF-Export)
+- [x] **Form Designer (Master-Detail & Validierung)** (Subforms, Lookup Combo-Boxes, Event-Handler, RBAC)
+- [x] **Page Designer (SDUI & Enterprise Construction MFE Suite)** (Kontextsensitive Ribbons, Bauspezifische Widgets, Low-Code Formel-Engine, Cross-MFE Event-Bus)
 - [x] **Gesteuerte Feld-Validierung & Formular-Ereignisse (Event Handler)**
-- [x] **VBA-Ersatz durch JS-Event Engine**
+- [x] **VBA-Ersatz durch JS-Event Engine & Makro-Flow-Builder**
 - [x] **MDB / ACCDB Schema-Import-Assistent & SQL Dialekt Konverter**
 - [x] **Audit Trail & Spaltenbezogene Rollenrechte (RBAC)**
+- [x] **Multi-Target Code-Generierung (React 18+ & Angular Signals)**
 
 ---
 
@@ -329,6 +335,27 @@ Hier ist der detaillierte technische Maßnahmenkatalog für die Bereiche **In-Br
   - Generiert **Flyway** (Versionierte `V002__*.sql` / Undo `U002__*.sql`), **Liquibase** (XML, YAML, SQL-Format), **EF Core C#** (.NET 10 `MigrationBuilder`), **Prisma Migrate SQL**, **Drizzle TypeScript** und **Knex.js JavaScript**.
 - [x] **4. Automatischer Data-Loss Warning & Pre-Flight Check:**
   - Pre-Flight Risikoscore (0–100), Zero-Downtime Empfehlungen (Expand-and-Contract Pattern, Concurrent Indexing) und visuelle Kennzeichnung kritischer Datenverluste.
+
+---
+
+### 🏗️ D. Page Designer, SDUI & MFE Event-Bus (Status: 100% ABGESCHLOSSEN ✅)
+*Vollständig implementiert in `/features/pages/` und `/features/event-bus/`:*
+
+- [x] **1. Kontextsensitive Ribbons & Modulares UI (No-Clutter Toolbar):**
+  - Dynamische Kontext-Ribbon-Gruppen im Designer-Menüband (`PageDesignTab.tsx`), die nur bei Auswahl relevanter Komponenten aufklappen (z.B. Tabellen-Formatierung, Formular-Validierung, Baukalkulations-Parameter, Sub-Page Mappings).
+- [x] **2. Bauspezifische Fach- & Kalkulations-Widgets:**
+  - **LV-Tree Explorer (`lv_tree_explorer`)**: Hierarchische GAEB / OZ-Gliederung mit Normal-, Grund-, Wahl- und Eventualpositionen samt Aufmaß-Kalkulator.
+  - **EKT-Kalkulationsmatrix (`ekt_matrix`)**: Live-Aufteilung in Lohn-, Material-, Geräte-, Sonstige- und Nachunternehmerkosten inkl. BGK/AGK/W&G-Zuschlagskalkulation.
+  - **Bautagesbericht & Wetter (`weather_widget`)**: Witterungserfassung, Temperatur, Niederschlag und Kolonnen-/Gerätestundenerfassung.
+  - **Plan- & Mängel-Marker (`plan_defect_marker`)**: Visuelle Pin-Drop Verortung von Mängeln auf Bauplänen mit Fotodokumentation.
+  - **Digitale Signatur (`signature_pad`)**: HTML5 Canvas Unterschriftenpad für Bauabnahmen und Stundenfreigaben.
+  - **GiroCode EPC-QR (`girocode_qr`)**: E-Rechnungskonforme Zahlungs-QR-Codes (SEPA / EPC Standard).
+- [x] **3. Client-Side Low-Code Formel-Engine (`expressionEngine.ts`):**
+  - Live-Auswertung von dynamischen Formeln (`{{ ROUND(Menge * Einzelpreis * (1 - Rabatt/100), 2) }}`), Aggregationen (`SUM`, `AVG`, `COUNT`), Datumsrechnung (`DATEADD`, `DATEDIFF`) und logischen Abfragen (`IF`, `COALESCE`).
+- [x] **4. Enterprise Micro Frontend (MFE) Event-Bus & Live Inspector:**
+  - Singleton `EnterpriseEventBus` mit Replay-Cache, typisierten Payloads, Request-Response Pattern, Dead-Letter-Queue und visuellem DevTools Inspector Modal (`EventBusInspectorModal.tsx`).
+- [x] **5. Multi-Framework Code-Generierung (React 18+ Tailwind & Angular Signals Standalone):**
+  - Saubere Codegenerierung für moderne React- und Angular 19/18-Architekturen mit Standalone Components und reaktiven Signals.
 
 ---
 

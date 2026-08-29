@@ -229,6 +229,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <option value="select">Dropdown (Lookup)</option>
                       </optgroup>
                       <optgroup label="Baufach & Baustelle">
+                        <option value="gaeb-picker">📖 GAEB-Leistungskatalog & DIN 276</option>
+                        <option value="measurement-grid">🧮 Aufmaß-Schnelleingabe (Grid)</option>
+                        <option value="four-eyes-approval">🛡️ 4-Augen-Freigabe (VOB)</option>
                         <option value="signature">✍️ Digitale Signatur (Abnahme)</option>
                         <option value="photo-marker">🗺️ Bauplan & Mängel-Marker</option>
                         <option value="din5008-address">🏢 DIN 5008 Anschriftenblock</option>

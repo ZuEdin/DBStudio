@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Plus, Zap, AlertCircle } from 'lucide-react';
+import { Layout, Plus, Zap, AlertCircle, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { Form, Table, FormElement, Query, getWidthClasses, FormValidationErrorItem } from '../../../../types/index';
 import { FormWidget } from '../../renderer/FormWidget';
 import { DropdownButtonWidget } from './DropdownButtonWidget';
@@ -78,6 +78,111 @@ const TabsContainerWidget: React.FC<{
   );
 };
 
+const AccordionContainerWidget: React.FC<{
+  el: FormElement;
+  renderChild: (childEl: FormElement) => React.ReactNode;
+}> = ({ el, renderChild }) => {
+  const sections = el.children || [];
+  const [openSectionIds, setOpenSectionIds] = React.useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    sections.forEach((sec, idx) => {
+      // First section is open by default unless marked otherwise
+      initial[sec.id] = sec.isCollapsedByDefault ? false : idx === 0;
+    });
+    return initial;
+  });
+
+  const toggleSection = (sectionId: string) => {
+    setOpenSectionIds((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  };
+
+  return (
+    <div
+      key={el.id}
+      id={`accordion-${el.id}`}
+      className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm my-4 divide-y divide-slate-200 dark:divide-slate-800 ${el.className || ''} ${getWidthClasses(el.width)}`.trim()}
+    >
+      {sections.map((section, idx) => {
+        const isOpen = openSectionIds[section.id] ?? !section.isCollapsedByDefault;
+        return (
+          <div key={section.id} className="w-full">
+            <button
+              type="button"
+              onClick={() => toggleSection(section.id)}
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/70 hover:bg-slate-100 dark:hover:bg-slate-800/60 flex items-center justify-between transition-colors text-left focus:outline-none"
+            >
+              <div className="flex items-center gap-2.5">
+                {isOpen ? (
+                  <ChevronDown size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                ) : (
+                  <ChevronRight size={16} className="text-slate-400 shrink-0" />
+                )}
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {section.label || `Bereich ${idx + 1}`}
+                </span>
+                {section.children && (
+                  <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono px-2 py-0.5 rounded-full">
+                    {section.children.length} Felder
+                  </span>
+                )}
+              </div>
+              <span className="text-xs text-slate-400">
+                {isOpen ? 'Einklappen' : 'Ausklappen'}
+              </span>
+            </button>
+            {isOpen && (
+              <div className="p-4 bg-white dark:bg-slate-900 space-y-4 border-t border-slate-100 dark:border-slate-800/60 animate-fadeIn">
+                {section.children?.map(renderChild)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const CollapseSectionWidget: React.FC<{
+  el: FormElement;
+  renderChild: (childEl: FormElement) => React.ReactNode;
+}> = ({ el, renderChild }) => {
+  const [isOpen, setIsOpen] = React.useState<boolean>(() => !el.isCollapsedByDefault);
+
+  return (
+    <div
+      key={el.id}
+      id={`collapse-${el.id}`}
+      className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm my-3 ${el.className || ''} ${getWidthClasses(el.width)}`.trim()}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/70 hover:bg-slate-100 dark:hover:bg-slate-800/60 flex items-center justify-between transition-colors text-left focus:outline-none"
+      >
+        <div className="flex items-center gap-2">
+          {isOpen ? (
+            <ChevronDown size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+          ) : (
+            <ChevronRight size={16} className="text-slate-400 shrink-0" />
+          )}
+          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+            {el.label || 'Ausklappbarer Bereich'}
+          </span>
+        </div>
+        <span className="text-xs text-slate-400">{isOpen ? 'Einklappen' : 'Ausklappen'}</span>
+      </button>
+      {isOpen && (
+        <div className="p-4 bg-white dark:bg-slate-900 space-y-4 border-t border-slate-100 dark:border-slate-800 animate-fadeIn">
+          {el.children?.map(renderChild)}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
   el,
   allForms,
@@ -140,6 +245,14 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
 
   if (el.type === 'tabs') {
     return <TabsContainerWidget key={el.id} el={el} renderChild={renderChild} />;
+  }
+
+  if (el.type === 'accordion') {
+    return <AccordionContainerWidget key={el.id} el={el} renderChild={renderChild} />;
+  }
+
+  if (el.type === 'collapse_section') {
+    return <CollapseSectionWidget key={el.id} el={el} renderChild={renderChild} />;
   }
 
   if (el.type === 'tab_page') {
