@@ -95,7 +95,7 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
   };
 
   return (
-    <div className="flex flex-col bg-slate-100 border-b border-slate-300 select-none relative z-20 transition-all duration-300 print:hidden">
+    <div className="flex flex-col bg-slate-100 border-b border-slate-300 select-none relative z-40 transition-all duration-300 print:hidden">
       {/* Tab Headers and Toggle */}
       <div className="flex bg-slate-800 text-white pt-1 px-2 gap-1 overflow-x-auto items-end justify-between">
         <div className="flex gap-1">

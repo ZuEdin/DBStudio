@@ -145,7 +145,7 @@ export const PageView: React.FC<PageViewProps> = ({ page, onSetView }) => {
         <div className="flex flex-col h-full bg-slate-50 font-sans overflow-auto relative">
           
           {/* Interactive Simulation Sandbox Bar */}
-          <div className="bg-slate-900 text-slate-100 px-6 py-2.5 flex flex-wrap items-center justify-between border-b border-slate-800 text-xs shadow-sm z-30 select-none">
+          <div className="bg-slate-900 text-slate-100 px-6 py-2.5 flex flex-wrap items-center justify-between border-b border-slate-800 text-xs shadow-sm relative z-10 select-none">
               <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="font-bold tracking-wider text-slate-300 uppercase text-[10px]">Simulation &amp; Sandbox</span>

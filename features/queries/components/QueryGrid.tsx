@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { QueryColumn, Table, AggregateFunction, Form, Query } from '../../../types/index';
-import { Trash2, GripVertical, Plus, Wand2 } from 'lucide-react';
+import { Trash2, GripVertical, Plus, Wand2, Sparkles, BookOpen } from 'lucide-react';
+import { FORMULA_TEMPLATES, transpileExpression } from '../utils/expressionTranspiler';
 
 const CalculatedFieldEditor: React.FC<{
   column: QueryColumn;
@@ -9,55 +10,88 @@ const CalculatedFieldEditor: React.FC<{
   onUpdate: (expr: string) => void;
 }> = ({ column, tables, onUpdate }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [activeTab, setActiveTab] = useState<'FIELDS' | 'TEMPLATES'>('TEMPLATES');
 
   return (
     <div className="relative w-full h-full">
       <input 
         type="text" 
-        className="w-full h-full p-1 border-none bg-blue-50 font-mono text-blue-900 outline-none focus:ring-1 focus:ring-blue-400" 
+        className="w-full h-full p-1 border-none bg-indigo-50/50 font-mono text-indigo-950 text-xs outline-none focus:ring-1 focus:ring-indigo-400" 
         value={column.expression || ''} 
-        placeholder='"Tabelle"."Preis" * 1.2'
+        placeholder='z.B. "Tabelle"."Menge" * "Tabelle"."Preis" oder Nz([Rabatt], 0)'
         onChange={e => onUpdate(e.target.value)} 
         onFocus={() => setIsFocused(true)}
-        onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+        onBlur={() => setTimeout(() => setIsFocused(false), 250)}
       />
       {isFocused && (
-        <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-y-auto bg-white border border-slate-200 shadow-xl rounded z-50 text-xs p-2 whitespace-normal flex flex-col gap-2">
-            <div className="text-slate-500 font-semibold mb-1 border-b pb-1">SQL Berechnungsvorschläge</div>
-            
-            <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <p className="font-semibold text-slate-700 mb-1">Syntax Beispiele:</p>
-                <div className="font-mono text-[10px] text-blue-700 space-y-1">
-                    <div>"Tabelle"."Menge" * "Tabelle"."Preis"</div>
-                    <div>"Kunden"."Vorname" || ' ' || "Kunden"."Nachname"</div>
-                </div>
-                <p className="text-slate-500 mt-1">Klicken Sie auf ein Feld unten, um es einzufügen.</p>
+        <div className="absolute top-full left-0 mt-1 w-80 max-h-72 overflow-y-auto bg-white border border-slate-200 shadow-2xl rounded-lg z-50 text-xs p-3 whitespace-normal flex flex-col gap-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+              <span className="font-bold text-slate-800 flex items-center gap-1">
+                <Sparkles size={13} className="text-indigo-600" /> Baukalkulations-Formeln
+              </span>
+              <div className="flex gap-1 bg-slate-100 p-0.5 rounded text-[10px]">
+                <button
+                  onClick={() => setActiveTab('TEMPLATES')}
+                  className={`px-1.5 py-0.5 rounded font-semibold transition-colors ${activeTab === 'TEMPLATES' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600'}`}
+                >
+                  Vorlagen
+                </button>
+                <button
+                  onClick={() => setActiveTab('FIELDS')}
+                  className={`px-1.5 py-0.5 rounded font-semibold transition-colors ${activeTab === 'FIELDS' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600'}`}
+                >
+                  Felder
+                </button>
+              </div>
             </div>
 
-            <div className="font-semibold text-slate-700 mt-1">Verfügbare Felder:</div>
-            {tables.map(t => (
-                <div key={t.id} className="mb-2">
-                    <div className="font-bold text-slate-600 border-b border-slate-100">{t.name}</div>
-                    <div className="flex flex-col gap-0.5 mt-1">
-                        {t.fields.map(f => {
-                            const fieldStr = `"${t.name}"."${f.name}"`;
-                            return (
-                                <button 
-                                    key={f.id} 
-                                    className="text-left font-mono text-[10px] bg-slate-50 hover:bg-blue-50 hover:text-blue-700 text-slate-600 p-1 rounded" 
-                                    onClick={(e) => { 
-                                        e.preventDefault(); 
-                                        const prefix = column.expression?.trim() ? column.expression + ' ' : '';
-                                        onUpdate(prefix + fieldStr); 
-                                    }}
-                                >
-                                    + {fieldStr}
-                                </button>
-                            );
-                        })}
+            {activeTab === 'TEMPLATES' ? (
+              <div className="space-y-2">
+                {FORMULA_TEMPLATES.map((tpl, idx) => (
+                  <div 
+                    key={idx}
+                    className="p-1.5 rounded bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 cursor-pointer transition-colors"
+                    onClick={() => {
+                      onUpdate(tpl.template);
+                    }}
+                  >
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-slate-700">{tpl.name}</span>
+                      <span className="text-[9px] px-1 py-0.5 bg-slate-200 text-slate-600 rounded font-mono">{tpl.category}</span>
                     </div>
-                </div>
-            ))}
+                    <div className="font-mono text-[10px] text-indigo-700 mt-0.5 truncate">{tpl.template}</div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{tpl.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {tables.map(t => (
+                  <div key={t.id} className="mb-1">
+                    <div className="font-bold text-slate-600 text-[11px] border-b border-slate-100 pb-0.5">{t.name}</div>
+                    <div className="grid grid-cols-2 gap-1 mt-1">
+                      {t.fields.map(f => {
+                        const fieldStr = `"${t.name}"."${f.name}"`;
+                        return (
+                          <button 
+                            key={f.id} 
+                            className="text-left font-mono text-[10px] bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 p-1 rounded border border-slate-100 truncate" 
+                            onClick={(e) => { 
+                              e.preventDefault(); 
+                              const prefix = column.expression?.trim() ? column.expression + ' ' : '';
+                              onUpdate(prefix + fieldStr); 
+                            }}
+                            title={fieldStr}
+                          >
+                            + {f.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
         </div>
       )}
     </div>

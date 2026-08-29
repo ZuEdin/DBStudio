@@ -24,6 +24,7 @@ export interface ReportColumn {
   order: number;
   renderType?: ColumnRenderType;
   formattingRules?: FormattingRule[];
+  width?: string;
 }
 
 export interface ReportSummary {
@@ -40,6 +41,139 @@ export interface GroupLevel {
   showHeader?: boolean;
   showFooter?: boolean;
   pageBreakAfter?: boolean;
+  repeatOnEveryPage?: boolean;
+}
+
+export interface Din5008Config {
+  enabled: boolean;
+  formType: 'FormA' | 'FormB'; // Form A: 27mm top distance, Form B: 45mm top distance
+  senderLine: string; // e.g. "Musterbau GmbH • Baustr. 1 • 10115 Berlin"
+  recipientAddress: string; // e.g. "Bauherr GmbH\nMax-Muster-Str. 4\n80331 München"
+  infoblock: {
+    ourRef?: string; // Unser Zeichen / Bearbeiter
+    customerNo?: string; // Kundennummer
+    invoiceNo?: string; // Rechnungs- / Vorgangsnummer
+    projectNo?: string; // Baustellen / Projekt-Nr.
+    servicePeriod?: string; // Leistungszeitraum
+    date?: string; // Belegdatum
+    phone?: string;
+    email?: string;
+  };
+  threeColumnFooter: {
+    col1Title?: string;
+    col1Text?: string; // Company registry, court, CEO
+    col2Title?: string;
+    col2Text?: string; // Bank, IBAN, BIC
+    col3Title?: string;
+    col3Text?: string; // Tax ID, VAT, Gläubiger-ID
+  };
+}
+
+export interface CommercialVobConfig {
+  enabled: boolean;
+  enableCarryOver: boolean; // Seitenübertrag oben / unten
+  vatSplitting: {
+    standard19: number; // Sum 19%
+    reduced7: number; // Sum 7%
+    taxFree13b: number; // Sum §13b VOB
+  };
+  deductions: {
+    warrantyRetentionPercent?: number; // z.B. 5% Gewährleistungseinbehalt
+    constructionInsurancePercent?: number; // z.B. 1% Bauwesenversicherung / Baustrom
+    advancePaymentsDeducted?: number; // Bereits geleistete Abschlagszahlungen
+    skontoPercent?: number; // Skontosatz z.B. 2%
+    skontoDays?: number; // Tage z.B. 14 Tage
+  };
+  paymentTermsText?: string;
+}
+
+export interface EpcQrCodeConfig {
+  enabled: boolean;
+  recipientName: string;
+  iban: string;
+  bic?: string;
+  amount?: number;
+  reference?: string; // Verwendungszweck (z.B. RE-2026-0042)
+}
+
+export interface SwissQrCodeConfig {
+  enabled: boolean;
+  iban: string; // CH or LI IBAN
+  creditor: {
+    name: string;
+    street: string;
+    houseNo?: string;
+    postalCode: string;
+    city: string;
+    country: string; // e.g. 'CH'
+  };
+  debtor?: {
+    name: string;
+    street: string;
+    houseNo?: string;
+    postalCode: string;
+    city: string;
+    country: string;
+  };
+  amount?: number;
+  currency: 'CHF' | 'EUR';
+  referenceType: 'QRR' | 'SCOR' | 'NON';
+  reference?: string; // 27-digit QR-Reference or SCOR
+  additionalInformation?: string;
+}
+
+export interface ZugferdConfig {
+  enabled: boolean;
+  profile: 'MINIMUM' | 'BASIC_WL' | 'BASIC' | 'EN16931' | 'EXTENDED' | 'XRECHNUNG';
+  invoiceNumber: string;
+  issueDate?: string;
+  dueDate?: string;
+  buyerReference?: string; // Leitweg-ID for German public sector
+  sellerName: string;
+  sellerVatId: string;
+  buyerName: string;
+  buyerVatId?: string;
+  currency: string; // EUR
+  pdfCompliance: 'PDF/A-1b' | 'PDF/A-3b' | 'STANDARD';
+}
+
+export interface StationeryBackgroundConfig {
+  enabled: boolean;
+  page1OverlayUrl?: string; // Data URL or Image URL for page 1 letterhead
+  page2OverlayUrl?: string; // Data URL or Image URL for follow-up pages
+  opacity: number; // e.g. 0.95
+  fitMode: 'fitPage' | 'original' | 'stretch';
+}
+
+export interface FreeformCanvasElement {
+  id: string;
+  type: 'label' | 'box' | 'line' | 'image' | 'formula' | 'signature';
+  section: 'reportHeader' | 'pageHeader' | 'detail' | 'pageFooter' | 'reportFooter';
+  x: number; // mm
+  y: number; // mm
+  width: number; // mm
+  height: number; // mm
+  content: string; // text, formula 'SUM(price)', image URL or data
+  style?: TextStyle;
+  borderWidth?: number;
+  borderColor?: string;
+  backgroundColor?: string;
+}
+
+export interface PrintReportEventPayload {
+  reportId: string;
+  reportName?: string;
+  parameters?: Record<string, any>;
+  outputFormat: 'pdf_download' | 'print_dialog' | 'blob_stream' | 'email_direct';
+  recipientEmail?: string;
+}
+
+export interface BandSectionConfig {
+  reportHeader: { visible: boolean; height?: number; text?: string; coverPage?: boolean };
+  pageHeader: { visible: boolean; height?: number; repeatLogo?: boolean };
+  detailBand: { keepTogether?: boolean; alternateZebra?: boolean };
+  pageFooter: { visible: boolean; showPageNumbers?: boolean; printDate?: boolean };
+  reportFooter: { visible: boolean; showGrandTotal?: boolean; signatureBox?: boolean; closingText?: string };
 }
 
 export interface ReportStyles {
@@ -51,10 +185,11 @@ export interface ReportStyles {
 }
 
 export interface SubReportConfig {
-  reportId: string; // ID of the target report to render as sub-report
-  foreignKeyFieldId: string; // FK in child report that connects to parent
-  parentKeyFieldId: string; // PK in parent report
+  reportId: string;
+  foreignKeyFieldId: string;
+  parentKeyFieldId: string;
   title?: string;
+  inline?: boolean;
 }
 
 export interface ReportChartConfig {
@@ -79,6 +214,14 @@ export interface ReportSettings {
   companyLogoUrl?: string;
   logoPosition?: 'left' | 'center' | 'right';
   logoWidth?: number;
+  din5008?: Din5008Config;
+  commercialVob?: CommercialVobConfig;
+  epcQrCode?: EpcQrCodeConfig;
+  swissQrCode?: SwissQrCodeConfig;
+  zugferd?: ZugferdConfig;
+  stationery?: StationeryBackgroundConfig;
+  freeformElements?: FreeformCanvasElement[];
+  bandSections?: BandSectionConfig;
 }
 
 export interface DashboardWidget {

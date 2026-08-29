@@ -6,7 +6,37 @@ export enum DbType {
   NoSQL = 'NoSQL'
 }
 
-export type FieldType = 'INTEGER' | 'INT' | 'ID' | 'BIGINT' | 'VARCHAR' | 'CHAR' | 'TEXT' | 'DATE' | 'TIME' | 'DATETIME' | 'BOOLEAN' | 'DECIMAL' | 'DOUBLE' | 'FLOAT' | 'REAL' | 'TINYINT' | 'TIMESTAMP' | 'ENUM' | 'UUID' | 'EMAIL' | 'PHONE' | 'URL';
+export type FieldType = 
+  | 'INTEGER' 
+  | 'INT' 
+  | 'ID' 
+  | 'BIGINT' 
+  | 'VARCHAR' 
+  | 'CHAR' 
+  | 'TEXT' 
+  | 'DATE' 
+  | 'TIME' 
+  | 'DATETIME' 
+  | 'BOOLEAN' 
+  | 'DECIMAL' 
+  | 'DOUBLE' 
+  | 'FLOAT' 
+  | 'REAL' 
+  | 'TINYINT' 
+  | 'TIMESTAMP' 
+  | 'ENUM' 
+  | 'UUID' 
+  | 'EMAIL' 
+  | 'PHONE' 
+  | 'URL'
+  | 'CURRENCY'
+  | 'PERCENTAGE'
+  | 'UNIT_MEASURE'
+  | 'ORDNUNGSZAHL'
+  | 'IBAN'
+  | 'BIC'
+  | 'COLOR_HEX'
+  | 'JSON';
 
 export interface SequenceConfig {
   enabled: boolean;
@@ -41,6 +71,11 @@ export interface Field {
   inlineEditable?: boolean;
   isCalculated?: boolean;
   calculationFormula?: string;
+  isStored?: boolean;
+  unit?: string;
+  currencySymbol?: string;
+  isRowVersion?: boolean;
+  isSoftDelete?: boolean;
   sequenceConfig?: SequenceConfig;
 }
 

@@ -1,16 +1,20 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Table, ApiQueryParam, Field, Relationship } from '../../types/index';
-import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink, Layout, List, GripVertical, ArrowUpDown, Shuffle, Settings2, HelpCircle, Zap, SlidersHorizontal, ShieldAlert } from 'lucide-react';
+import { Plus, Trash2, Upload, RefreshCw, Loader2, Sliders, Filter, X, ExternalLink, Layout, List, GripVertical, ArrowUpDown, Shuffle, Settings2, HelpCircle, Zap, SlidersHorizontal, ShieldAlert, FileCode2, CheckSquare } from 'lucide-react';
 import { VirtualTable } from '../../components/VirtualTable';
 import { fetchApiData } from '../../utils/apiImportHelper';
 import { useDataFilter } from '../../hooks/useDataFilter';
 import { RecordDetailModal } from '../../components/modals/RecordDetailModal';
 import { KanbanBoard } from './components/KanbanBoard';
-import { evaluateFormFormula } from '../../utils/formulaEvaluator';
 import { generateNextSequenceValue } from '../../utils/sequenceHelper';
 import { AdvancedFilterModal } from './components/AdvancedFilterModal';
 import { CascadeDeleteModal } from './components/CascadeDeleteModal';
+import { DataCellRenderer } from './components/DataCellRenderer';
+import { GaebDatanormImportModal } from './components/GaebDatanormImportModal';
+import { ValidationRulesModal } from './components/ValidationRulesModal';
+import { computeRowValues } from './utils/tableCellFormatters';
+import { validateTableRecord } from './utils/validationEngine';
 import { useProjectStore } from '../../stores/useProjectStore';
 
 interface TableViewProps {
@@ -85,6 +89,8 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   // Modals state
   const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
   const [showCascadeDeleteModal, setShowCascadeDeleteModal] = useState(false);
+  const [showImportBridgeModal, setShowImportBridgeModal] = useState(false);
+  const [showValidationRulesModal, setShowValidationRulesModal] = useState(false);
   const [recordForDelete, setRecordForDelete] = useState<Record<string, any> | null>(null);
   
   // View Mode: List or Kanban
@@ -486,159 +492,72 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
   };
 
   const renderRow = (row: any, rowIndex: number) => {
-      const computedRow = { ...row };
-      const calculatedFields = table.fields.filter(f => f.isCalculated || Boolean(f.calculationFormula));
-      let changed = true;
-      let passes = 0;
-      while (changed && passes < 5) {
-          changed = false;
-          passes++;
-          for (const field of calculatedFields) {
-              if (field.calculationFormula) {
-                  const newVal = evaluateFormFormula(field.calculationFormula, computedRow);
-                  if (computedRow[field.name] !== newVal) {
-                      computedRow[field.name] = newVal;
-                      changed = true;
-                  }
-              }
-          }
-      }
+    const computedRow = computeRowValues(row, table.fields);
+    const rowValidationErrors = validateTableRecord(computedRow, table);
 
-      return (
-          <div 
-              onDragOver={(e) => {
-                  e.preventDefault();
-              }}
-              onDrop={(e) => {
-                  e.preventDefault();
-                  const srcIdxStr = e.dataTransfer.getData('text/row-index');
-                  if (srcIdxStr) {
-                      const srcIdx = parseInt(srcIdxStr, 10);
-                      if (!isNaN(srcIdx)) {
-                          handleRowReorder(srcIdx, rowIndex);
-                      }
-                  }
-              }}
-              className="flex border-b border-slate-100 hover:bg-sky-50 group h-full items-center text-sm text-slate-700"
-          >
-              {/* Drag Handle */}
-              <div 
-                  draggable
-                  onDragStart={(e) => {
-                      e.dataTransfer.setData('text/row-index', String(rowIndex));
-                      e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  className="w-8 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 border-r border-slate-100 h-full bg-slate-50/50"
-                  title="Zeile verschieben (Drag & Drop)"
-              >
-                  <GripVertical size={14} />
-              </div>
-
-              {headers.map((header, colIdx) => {
-                const field = table.fields.find(f => f.name === header);
-                const isAutoInc = field?.isAutoIncrement;
-                const isCalculated = field?.isCalculated || Boolean(field?.calculationFormula);
-                let rawVal = computedRow[header] ?? '';
-
-
-            const rel = relationships.find(r => r.fromTableId === table.id && r.fromFieldId === field?.id);
-            const isFK = !!rel;
-            const showLink = isFK && rawVal;
-
-            let inputType = "text";
-            let inputValue: any = rawVal;
-            
-            if (field?.type === 'INTEGER' || field?.type === 'DECIMAL' || field?.type === 'REAL') {
-                inputType = "number";
-            } else if (field?.type === 'DATE') {
-                inputType = "date";
-                if (rawVal) {
-                    const d = new Date(rawVal);
-                    if (!isNaN(d.getTime())) {
-                        inputValue = d.toISOString().split('T')[0];
-                    }
-                }
-            } else if (field?.type === 'TIME') {
-                inputType = "time";
-                if (typeof rawVal === 'string' && rawVal.length > 5) {
-                    inputValue = rawVal.substring(0, 5);
-                }
-            } else if (field?.type === 'DATETIME' || field?.type === 'TIMESTAMP') {
-                inputType = "datetime-local";
-                if (rawVal) {
-                    const d = new Date(rawVal);
-                    if (!isNaN(d.getTime())) {
-                        inputValue = d.toISOString().slice(0, 16);
-                    }
-                }
-            } else if (field?.type === 'BOOLEAN') {
-                inputType = "checkbox";
-                inputValue = Boolean(rawVal) && String(rawVal).toLowerCase() !== 'false' && String(rawVal) !== '0';
-            } else if (field?.type === 'ENUM') {
-                inputType = "enum";
-                inputValue = rawVal !== undefined && rawVal !== null ? String(rawVal) : '';
+    return (
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const srcIdxStr = e.dataTransfer.getData('text/row-index');
+          if (srcIdxStr) {
+            const srcIdx = parseInt(srcIdxStr, 10);
+            if (!isNaN(srcIdx)) {
+              handleRowReorder(srcIdx, rowIndex);
             }
+          }
+        }}
+        className="flex border-b border-slate-100 hover:bg-sky-50/70 group h-full items-center text-sm text-slate-700 transition-colors"
+      >
+        {/* Drag Handle */}
+        <div
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('text/row-index', String(rowIndex));
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+          className="w-8 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 border-r border-slate-100 h-full bg-slate-50/50"
+          title="Zeile verschieben (Drag & Drop)"
+        >
+          <GripVertical size={14} />
+        </div>
 
-            return (
-                <div key={`${rowIndex}-${header}-${colIdx}`} className={`w-40 shrink-0 border-r border-slate-100 h-full relative ${isAutoInc ? 'bg-slate-50' : isCalculated ? 'bg-amber-50/50' : ''} flex items-center`}>
-                    {inputType === 'checkbox' ? (
-                        <div className="flex-1 flex items-center justify-center">
-                            <input
-                                type="checkbox"
-                                checked={inputValue as boolean}
-                                onChange={(e) => { handleDataChange(row, header, e.target.checked) }}
-                                onFocus={() => setActiveColumn(header)}
-                                disabled={isAutoInc || isCalculated}
-                                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                            />
-                        </div>
-                    ) : inputType === 'enum' ? (
-                        <select
-                            value={inputValue as string}
-                            onChange={(e) => { handleDataChange(row, header, e.target.value) }}
-                            onFocus={() => setActiveColumn(header)}
-                            disabled={isAutoInc || isCalculated}
-                            className={`flex-1 h-full px-2 w-full bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-indigo-500 text-xs font-medium text-slate-800 ${isCalculated ? 'cursor-default font-semibold text-amber-900' : ''} ${showLink ? 'pr-8' : ''}`}
-                        >
-                            <option value="">(Leer)</option>
-                            {(field?.enumValues || []).map((enumVal, eIdx) => (
-                                <option key={eIdx} value={enumVal}>{enumVal}</option>
-                            ))}
-                            {/* If current value is not in enum list, preserve it */}
-                            {inputValue && !(field?.enumValues || []).includes(inputValue as string) && (
-                                <option value={inputValue as string}>{inputValue as string} (Benutzerdefiniert)</option>
-                            )}
-                        </select>
-                    ) : (
-                        <input
-                            type={inputType}
-                            value={inputValue as string} 
-                            title={isCalculated ? `⚡ Berechnet: ${field?.calculationFormula} = ${String(rawVal)}` : String(rawVal)} 
-                            onChange={(e) => { handleDataChange(row, header, e.target.value) }}
-                            onFocus={() => setActiveColumn(header)}
-                            readOnly={isAutoInc || isCalculated}
-                            className={`flex-1 h-full px-2 w-full bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-inset focus:ring-blue-500 ${isAutoInc ? 'cursor-not-allowed italic text-slate-400' : isCalculated ? 'cursor-default font-semibold text-amber-900 font-mono text-xs' : ''} ${showLink ? 'pr-8' : ''}`}
-                        />
-                    )}
-                    {showLink && (
-                        <button 
-                            onClick={() => setDetailView({ targetTableId: rel.toTableId, recordId: rawVal })}
-                            className="absolute right-1 top-1 bottom-1 p-1 text-blue-400 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors flex items-center justify-center"
-                            title="Datensatz anzeigen"
-                        >
-                            <ExternalLink size={12} />
-                        </button>
-                    )}
-                </div>
-            )
-          })}
-          <div className="w-10 shrink-0 flex justify-center">
-              <button onClick={() => deleteRow(row)} className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Trash2 size={14} />
-              </button>
-          </div>
+        {headers.map((header, colIdx) => {
+          const field = table.fields.find((f) => f.name === header);
+          if (!field) return null;
+          const rel = relationships.find((r) => r.fromTableId === table.id && r.fromFieldId === field.id);
+
+          return (
+            <DataCellRenderer
+              key={`${rowIndex}-${header}-${colIdx}`}
+              field={field}
+              row={row}
+              computedRow={computedRow}
+              rowIndex={rowIndex}
+              colIndex={colIdx}
+              relationship={rel}
+              validationErrors={rowValidationErrors}
+              onDataChange={handleDataChange}
+              onOpenDetailView={(targetTableId, recordId) => setDetailView({ targetTableId, recordId })}
+              onFocus={(hdr) => setActiveColumn(hdr)}
+            />
+          );
+        })}
+
+        <div className="w-10 shrink-0 flex justify-center">
+          <button
+            onClick={() => deleteRow(row)}
+            className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Zeile löschen"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
-      );
+    );
   };
 
   const targetTable = detailView ? allTables.find(t => t.id === detailView.targetTableId) : null;
@@ -718,11 +637,29 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             )}
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowValidationRulesModal(true)}
+              className={`flex items-center gap-1 px-3 py-1 rounded text-xs border font-semibold transition-colors ${
+                (table.validationRules || []).length > 0
+                  ? 'bg-purple-600 border-purple-400 text-white'
+                  : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-200'
+              }`}
+              title="Gültigkeitsregeln & Validierung"
+            >
+              <CheckSquare size={14} /> Validierung {(table.validationRules || []).length > 0 ? `(${(table.validationRules || []).length})` : ''}
+            </button>
+            <button
+              onClick={() => setShowImportBridgeModal(true)}
+              className="flex items-center gap-1 bg-emerald-700 hover:bg-emerald-600 border border-emerald-500 text-white px-3 py-1 rounded text-xs font-semibold shadow-xs"
+              title="GAEB, DATANORM oder ZUGFeRD Importieren"
+            >
+              <FileCode2 size={14} /> GAEB / Datanorm
+            </button>
             <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportCSV} />
             <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm border border-slate-600">
               <Upload size={16} /> CSV
             </button>
-            <button onClick={addRow} className="flex items-center gap-1 bg-green-600 hover:bg-green-50 px-3 py-1 rounded text-sm font-semibold">
+            <button onClick={addRow} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-sm font-semibold">
               <Plus size={16} /> Neu
             </button>
           </div>
@@ -1022,6 +959,30 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
             setShowCascadeDeleteModal(false);
             setRecordForDelete(null);
           }}
+        />
+      )}
+
+      {showImportBridgeModal && (
+        <GaebDatanormImportModal
+          isOpen={showImportBridgeModal}
+          onClose={() => setShowImportBridgeModal(false)}
+          currentTable={table}
+          onImportAsNewTable={(newTable) => onTableChange(newTable)}
+          onAppendToCurrentTable={(rows) => {
+            onTableChange({
+              ...table,
+              data: [...(table.data || []), ...rows],
+            });
+          }}
+        />
+      )}
+
+      {showValidationRulesModal && (
+        <ValidationRulesModal
+          isOpen={showValidationRulesModal}
+          onClose={() => setShowValidationRulesModal(false)}
+          table={table}
+          onUpdateRules={(rules) => onTableChange({ ...table, validationRules: rules })}
         />
       )}
     </div>

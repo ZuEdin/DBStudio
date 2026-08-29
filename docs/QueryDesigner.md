@@ -49,69 +49,69 @@
 Aktuell generiert der Designer primär `LEFT JOIN`s über vordefinierte Tabellenbeziehungen. Für komplexe Auswertungen (z. B. Nachunternehmer-Preisvergleiche, Fehlmengen, Vollständigkeitsprüfungen) werden vollwertige Join-Optionen benötigt:
 
 ### 2.1 Konfigurierbare Join-Eigenschaften (Visual Join Editor)
-- [ ] **Visuelle Klick-Konfiguration auf Beziehungslinien**:
-  - [ ] **`INNER JOIN` (Gleichheitsverknüpfung)**: Nur Datensätze einschließen, bei denen die verknüpften Felder in beiden Tabellen übereinstimmen.
-  - [ ] **`LEFT OUTER JOIN`**: Alle Datensätze aus Tabelle A und die passenden aus Tabelle B (Standard).
-  - [ ] **`RIGHT OUTER JOIN`**: Alle Datensätze aus Tabelle B und die passenden aus Tabelle A.
-  - [ ] **`FULL OUTER JOIN`**: Alle Datensätze aus beiden Tabellen einschließen (für Vollständigkeitsanalysen).
-  - [ ] **`CROSS JOIN` (Kartesisches Produkt)**: Matrix-Kombinationen (z. B. alle Gewerke x alle Baustellen für Planungsraster).
-- [ ] **Self-Joins & Mehrfach-Instanzen derselben Tabelle**:
-  - [ ] Selbe Tabelle mehrfach auf die Canvas ziehen (z. B. `tbl_mitarbeiter` als *Bauleiter* und `tbl_mitarbeiter` als *Vertreter*).
-  - [ ] Eindeutige Alias-Verwaltung (`Mitarbeiter_Bauleiter`, `Mitarbeiter_Vertreter`).
-- [ ] **Ad-hoc Join-Bedingungen (Non-Key Joins)**:
-  - [ ] Verknüpfung auf beliebige Felder ohne expliziten Fremdschlüssel (z. B. Verknüpfung über `PLZ` oder `ProjektNummer`).
-  - [ ] Komplexe Join-Bedingungen (z. B. `ON a.GueltigAb <= b.Datum AND a.GueltigBis >= b.Datum`).
+- [x] **Visuelle Klick-Konfiguration auf Beziehungslinien**:
+  - [x] **`INNER JOIN` (Gleichheitsverknüpfung)**: Nur Datensätze einschließen, bei denen die verknüpften Felder in beiden Tabellen übereinstimmen.
+  - [x] **`LEFT OUTER JOIN`**: Alle Datensätze aus Tabelle A und die passenden aus Tabelle B (Standard).
+  - [x] **`RIGHT OUTER JOIN`**: Alle Datensätze aus Tabelle B und die passenden aus Tabelle A.
+  - [x] **`FULL OUTER JOIN`**: Alle Datensätze aus beiden Tabellen einschließen (für Vollständigkeitsanalysen).
+  - [x] **`CROSS JOIN` (Kartesisches Produkt)**: Matrix-Kombinationen (z. B. alle Gewerke x alle Baustellen für Planungsraster).
+- [x] **Self-Joins & Mehrfach-Instanzen derselben Tabelle**:
+  - [x] Selbe Tabelle mehrfach auf die Canvas ziehen (z. B. `tbl_mitarbeiter` als *Bauleiter* und `tbl_mitarbeiter` als *Vertreter*).
+  - [x] Eindeutige Alias-Verwaltung (`Mitarbeiter_Bauleiter`, `Mitarbeiter_Vertreter`).
+- [x] **Ad-hoc Join-Bedingungen (Non-Key Joins)**:
+  - [x] Verknüpfung auf beliebige Felder ohne expliziten Fremdschlüssel (z. B. Verknüpfung über `PLZ` oder `ProjektNummer`).
+  - [x] Komplexe Join-Bedingungen (z. B. `ON a.GueltigAb <= b.Datum AND a.GueltigBis >= b.Datum`).
 
 ---
 
 ## 🧮 3. Aggregationen, Fensterfunktionen & Baukalkulations-Ausdrücke
 
 ### 3.1 Erweiterte Baukalkulations- & Finanz-Funktionen
-- [ ] **Kaufmännische Rundung & Währungs-Formatierung**:
-  - [ ] `ROUND_CURRENCY(val)` (Rundet exakt kaufmännisch nach DIN 1333 auf 2 Dezimalstellen).
-  - [ ] `SUM_CURRENCY(col)` mit Überlaufschutz für große Bauaufträge.
-- [ ] **Kumulierte Summen & Zwischensummen (Rollup / Cube)**:
-  - [ ] `GROUP BY ROLLUP(Gewerk, Los, Titel)`: Erzeugt automatische Zwischensummenzeilen für jede Hierarchiestufe im Leistungsverzeichnis.
-- [ ] **SQL Fensterfunktionen (Window Functions / Analytic Functions)**:
-  - [ ] `ROW_NUMBER() OVER (PARTITION BY ProjektId ORDER BY Ordnungszahl)` (Automatische Neunummerierung von Positionen).
-  - [ ] `SUM(Gesamtbetrag) OVER (PARTITION BY ProjektId ORDER BY Rechnungsdatum)` (Kumulierter Rechnungsstand / Zahlungsverlauf).
-  - [ ] `LAG(Preis, 1) OVER (PARTITION BY ArtikelId ORDER BY Datum)` (Preishistorie / Preissteigerungs-Vergleich zum Vormonat).
-  - [ ] `DENSE_RANK()` / `PERCENT_RANK()` für Bieter-Rangfolgen im Preisspiegel.
+- [x] **Kaufmännische Rundung & Währungs-Formatierung**:
+  - [x] `ROUND_CURRENCY(val)` (Rundet exakt kaufmännisch nach DIN 1333 auf 2 Dezimalstellen).
+  - [x] `SUM_CURRENCY(col)` mit Überlaufschutz für große Bauaufträge.
+- [x] **Kumulierte Summen & Zwischensummen (Rollup / Cube)**:
+  - [x] `GROUP BY ROLLUP(Gewerk, Los, Titel)`: Erzeugt automatische Zwischensummenzeilen für jede Hierarchiestufe im Leistungsverzeichnis.
+- [x] **SQL Fensterfunktionen (Window Functions / Analytic Functions)**:
+  - [x] `ROW_NUMBER() OVER (PARTITION BY ProjektId ORDER BY Ordnungszahl)` (Automatische Neunummerierung von Positionen).
+  - [x] `SUM(Gesamtbetrag) OVER (PARTITION BY ProjektId ORDER BY Rechnungsdatum)` (Kumulierter Rechnungsstand / Zahlungsverlauf).
+  - [x] `LAG(Preis, 1) OVER (PARTITION BY ArtikelId ORDER BY Datum)` (Preishistorie / Preissteigerungs-Vergleich zum Vormonat).
+  - [x] `DENSE_RANK()` / `PERCENT_RANK()` für Bieter-Rangfolgen im Preisspiegel.
 
 ### 3.2 Access- & Excel-Kompatibilitäts-Funktionen (Auto-Transpiler)
-- [ ] Automatische Übersetzung historischer Access-Ausdrücke in ANSI-SQL:
-  - [ ] `Nz([Feld], 0)` ➔ `COALESCE("Feld", 0)`
-  - [ ] `IIf([Menge] > 10, 'Groß', 'Klein')` ➔ `CASE WHEN "Menge" > 10 THEN 'Groß' ELSE 'Klein' END`
-  - [ ] `Format([Datum], 'yyyy-mm-dd')` ➔ `TO_CHAR` / `STRFTIME` / `FORMAT`
-  - [ ] `DateDiff('d', [Start], [Ende])` ➔ Dialekt-spezifische Tagesdifferenz.
+- [x] Automatische Übersetzung historischer Access-Ausdrücke in ANSI-SQL:
+  - [x] `Nz([Feld], 0)` ➔ `COALESCE("Feld", 0)`
+  - [x] `IIf([Menge] > 10, 'Groß', 'Klein')` ➔ `CASE WHEN "Menge" > 10 THEN 'Groß' ELSE 'Klein' END`
+  - [x] `Format([Datum], 'yyyy-mm-dd')` ➔ `TO_CHAR` / `STRFTIME` / `FORMAT`
+  - [x] `DateDiff('d', [Start], [Ende])` ➔ Dialekt-spezifische Tagesdifferenz.
 
 ---
 
 ## 🎯 4. Parameter-, Filter- & Kriterien-Engine (Formeln & Formular-Binding)
 
 ### 4.1 Dynamische Abfrage-Parameter
-- [ ] **Explizite Parameter-Definition**:
-  - [ ] Parameter-Typen: `STRING`, `NUMBER`, `DATE`, `DATE_RANGE`, `BOOLEAN`, `ARRAY/MULTI_SELECT`.
-  - [ ] Standardwerte und Pflichtfeld-Flags.
-  - [ ] Syntax im SQL: `:p_projekt_id` oder `@ProjektId` oder `$1`.
-- [ ] **Interaktiver Parameter-Prompt bei Ausführung**:
-  - [ ] Vor der Ausführung öffnet sich automatisch ein modaler Dialog zur Eingabe der Parameterwerte (z. B. Datum von/bis oder Projektauswahl).
+- [x] **Explizite Parameter-Definition**:
+  - [x] Parameter-Typen: `STRING`, `NUMBER`, `DATE`, `DATE_RANGE`, `BOOLEAN`, `ARRAY/MULTI_SELECT`.
+  - [x] Standardwerte und Pflichtfeld-Flags.
+  - [x] Syntax im SQL: `:p_projekt_id` oder `@ProjektId` oder `$1`.
+- [x] **Interaktiver Parameter-Prompt bei Ausführung**:
+  - [x] Vor der Ausführung öffnet sich automatisch ein modaler Dialog zur Eingabe der Parameterwerte (z. B. Datum von/bis oder Projektauswahl).
 
 ### 4.2 Kriterien-Zeilen & ODER-Logik (Grid Kriterien)
-- [ ] **Mehrzeilige Kriterien im QBE-Grid**:
-  - [ ] Gleiche Zeile = `UND` (AND-Bedingung).
-  - [ ] Untereinanderliegende Kriterien-Zeilen = `ODER` (OR-Bedingung).
-- [ ] **Filter-Operatoren-Syntax**:
-  - [ ] Vergleichsoperatoren: `>`, `<`, `>=`, `<=`, `<>`, `!=`, `=`.
-  - [ ] Textsuche: `LIKE 'Muster*'`, `STARTS_WITH`, `CONTAINS`, `REGEX`.
-  - [ ] Mengenoperatoren: `IN ('Offen', 'In Bearbeitung')`, `NOT IN (...)`.
-  - [ ] Bereichsoperatoren: `BETWEEN '2026-01-01' AND '2026-12-31'`.
-  - [ ] Null-Prüfung: `IS NULL`, `IS NOT NULL`.
+- [x] **Mehrzeilige Kriterien im QBE-Grid**:
+  - [x] Gleiche Zeile = `UND` (AND-Bedingung).
+  - [x] Untereinanderliegende Kriterien-Zeilen = `ODER` (OR-Bedingung).
+- [x] **Filter-Operatoren-Syntax**:
+  - [x] Vergleichsoperatoren: `>`, `<`, `>=`, `<=`, `<>`, `!=`, `=`.
+  - [x] Textsuche: `LIKE 'Muster*'`, `STARTS_WITH`, `CONTAINS`, `REGEX`.
+  - [x] Mengenoperatoren: `IN ('Offen', 'In Bearbeitung')`, `NOT IN (...)`.
+  - [x] Bereichsoperatoren: `BETWEEN '2026-01-01' AND '2026-12-31'`.
+  - [x] Null-Prüfung: `IS NULL`, `IS NOT NULL`.
 
 ### 4.3 Formular- & Kontext-Bindung (`[Forms]![...]![...]`)
-- [ ] **Laufzeit-Auflösung von UI-Kontextwerten**:
-  - [ ] Auflösung von `[Forms]![RechnungsFormular]![ProjektId]` ➔ Liest den aktuell im geöffneten Formular ausgewählten Projekt-Wert.
-  - [ ] Globale Session-Variablen: `[CurrentUserId]`, `[CurrentTenantId]`, `[ActiveProjectId]`, `[Today]`.
+- [x] **Laufzeit-Auflösung von UI-Kontextwerten**:
+  - [x] Auflösung von `[Forms]![RechnungsFormular]![ProjektId]` ➔ Liest den aktuell im geöffneten Formular ausgewählten Projekt-Wert.
+  - [x] Globale Session-Variablen: `[CurrentUserId]`, `[CurrentTenantId]`, `[ActiveProjectId]`, `[Today]`.
 
 ---
 
@@ -120,25 +120,25 @@ Aktuell generiert der Designer primär `LEFT JOIN`s über vordefinierte Tabellen
 Aktionsabfragen ermöglichen Massenoperationen im Hintergrund ohne zeilenweises Einzelschreiben:
 
 ### 5.1 Massen-Aktualisierung (Update Queries)
-- [ ] **Index-Anpassungen & Teuerungszuschlag**:
-  - [ ] Beispiel: *"Erhöhe alle Lohn-Einheitspreise im Los 02 um 3.5%"*.
-  - [ ] SQL-Generierung: `UPDATE tbl_positions SET UnitPrice_Labor = UnitPrice_Labor * 1.035 WHERE ProjectId = :pid AND OZ LIKE '02.%';`
-- [ ] **Massen-Statuswechsel**:
-  - [ ] *"Setze alle geprüften Rechnungen mit Fälligkeit < Heute auf 'Überfällig'"*.
+- [x] **Index-Anpassungen & Teuerungszuschlag**:
+  - [x] Beispiel: *"Erhöhe alle Lohn-Einheitspreise im Los 02 um 3.5%"*.
+  - [x] SQL-Generierung: `UPDATE tbl_positions SET UnitPrice_Labor = UnitPrice_Labor * 1.035 WHERE ProjectId = :pid AND OZ LIKE '02.%';`
+- [x] **Massen-Statuswechsel**:
+  - [x] *"Setze alle geprüften Rechnungen mit Fälligkeit < Heute auf 'Überfällig'"*.
 
 ### 5.2 Anfüge- & Duplizier-Abfragen (Append Queries / Insert into ... Select)
-- [ ] **LV-Positions-Kopierer**:
-  - [ ] Kopieren ganzer Positionspakete von Projekt A nach Projekt B mit neuer ProjektId.
-  - [ ] `INSERT INTO tbl_positions (ProjectId, OZ, ShortText, UnitPrice) SELECT :targetProjectId, OZ, ShortText, UnitPrice FROM tbl_positions WHERE ProjectId = :sourceProjectId;`
+- [x] **LV-Positions-Kopierer**:
+  - [x] Kopieren ganzer Positionspakete von Projekt A nach Projekt B mit neuer ProjektId.
+  - [x] `INSERT INTO tbl_positions (ProjectId, OZ, ShortText, UnitPrice) SELECT :targetProjectId, OZ, ShortText, UnitPrice FROM tbl_positions WHERE ProjectId = :sourceProjectId;`
 
 ### 5.3 Tabellenerstellungs-Abfragen (Make Table / CTAS)
-- [ ] **Kalkulations-Snapshot & Archivierung**:
-  - [ ] Erzeugt eine physische Historientabelle zum Zeitpunkt der Angebotsabgabe (`CREATE TABLE tbl_quote_snapshot_2026_01 AS SELECT ...`).
+- [x] **Kalkulations-Snapshot & Archivierung**:
+  - [x] Erzeugt eine physische Historientabelle zum Zeitpunkt der Angebotsabgabe (`CREATE TABLE tbl_quote_snapshot_2026_01 AS SELECT ...`).
 
 ### 5.4 Transaktions-Sicherheit & Dry-Run
-- [ ] **Test-Lauf (Dry-Run / Preview)**:
-  - [ ] Vor Ausführung anzeigen: *"Diese Abfrage wird 428 Datensätze in 'tbl_positions' modifizieren."*
-  - [ ] Transaktionsschutz (`BEGIN TRANSACTION ... COMMIT / ROLLBACK`).
+- [x] **Test-Lauf (Dry-Run / Preview)**:
+  - [x] Vor Ausführung anzeigen: *"Diese Abfrage wird 428 Datensätze in 'tbl_positions' modifizieren."*
+  - [x] Transaktionsschutz (`BEGIN TRANSACTION ... COMMIT / ROLLBACK`).
 
 ---
 
@@ -146,43 +146,43 @@ Aktionsabfragen ermöglichen Massenoperationen im Hintergrund ohne zeilenweises 
 
 Für Baukalkulation und Finanzcontrolling sind Pivot-Abfragen unerlässlich:
 
-- [ ] **Visueller Kreuztabellen-Assistent (Crosstab / Pivot Wizard)**:
-  - [ ] **Zeilenüberschriften (Row Headers)**: z. B. `Gewerk` oder `ProjektId`.
-  - [ ] **Spaltenüberschriften (Column Headers)**: z. B. `Monat` oder `Kostenart (L/M/G/S/NU)`.
-  - [ ] **Zellenwerte (Value / Aggregation)**: `SUM(Gesamtbetrag)` oder `SUM(Arbeitsstunden)`.
-- [ ] **Automatische SQL-Generierung für Pivot-Tabellen**:
-  - [ ] PostgreSQL: `crosstab()` via `tablefunc` oder conditional aggregation (`SUM(CASE WHEN ...) AS Lohn`).
-  - [ ] MS SQL Server: Native `PIVOT(...)` Syntax.
-  - [ ] SQLite / MySQL: Dynamische `CASE WHEN`-Spaltensynthese.
+- [x] **Visueller Kreuztabellen-Assistent (Crosstab / Pivot Wizard)**:
+  - [x] **Zeilenüberschriften (Row Headers)**: z. B. `Gewerk` oder `ProjektId`.
+  - [x] **Spaltenüberschriften (Column Headers)**: z. B. `Monat` oder `Kostenart (L/M/G/S/NU)`.
+  - [x] **Zellenwerte (Value / Aggregation)**: `SUM(Gesamtbetrag)` oder `SUM(Arbeitsstunden)`.
+- [x] **Automatische SQL-Generierung für Pivot-Tabellen**:
+  - [x] PostgreSQL: `crosstab()` via `tablefunc` oder conditional aggregation (`SUM(CASE WHEN ...) AS Lohn`).
+  - [x] MS SQL Server: Native `PIVOT(...)` Syntax.
+  - [x] SQLite / MySQL: Dynamische `CASE WHEN`-Spaltensynthese.
 
 ---
 
 ## 🛡️ 7. SQL-Dialekt-Engine, Prepared Statements & SQL-Injection-Schutz
 
-- [ ] **Sichere Parameter-Ersetzung (Prepared Statements)**:
-  - [ ] Volle Trennung von SQL-Code und Datenwerten (kein unsicheres String-Concatenating).
-  - [ ] Automatische Typ-Konvertierung und Escaping.
-- [ ] **Multi-Dialekt DQL Generator**:
-  - [ ] **PostgreSQL**: `LIMIT n OFFSET m`, `ILIKE`, `::jsonb`, `RETURNING`.
-  - [ ] **SQLite**: `STRFTIME`, dynamische Typen.
-  - [ ] **Microsoft SQL Server**: `TOP (n)`, `OFFSET n ROWS FETCH NEXT m ROWS ONLY`, `CONVERT()`.
-  - [ ] **MySQL / MariaDB**: Backticks, `IFNULL()`, `GROUP_CONCAT()`.
-- [ ] **SQL Syntax Highlighter & Live-Linter**:
-  - [ ] Validierung von Tabellen- und Spaltennamen gegen das aktive Schema in Echtzeit.
-  - [ ] Warnung bei unvollständigen `GROUP BY` Klauseln (SQL Standard-Konformität).
+- [x] **Sichere Parameter-Ersetzung (Prepared Statements)**:
+  - [x] Volle Trennung von SQL-Code und Datenwerten (kein unsicheres String-Concatenating).
+  - [x] Automatische Typ-Konvertierung und Escaping.
+- [x] **Multi-Dialekt DQL Generator**:
+  - [x] **PostgreSQL**: `LIMIT n OFFSET m`, `ILIKE`, `::jsonb`, `RETURNING`.
+  - [x] **SQLite**: `STRFTIME`, dynamische Typen.
+  - [x] **Microsoft SQL Server**: `TOP (n)`, `OFFSET n ROWS FETCH NEXT m ROWS ONLY`, `CONVERT()`.
+  - [x] **MySQL / MariaDB**: Backticks, `IFNULL()`, `GROUP_CONCAT()`.
+- [x] **SQL Syntax Highlighter & Live-Linter**:
+  - [x] Validierung von Tabellen- und Spaltennamen gegen das aktive Schema in Echtzeit.
+  - [x] Warnung bei unvollständigen `GROUP BY` Klauseln (SQL Standard-Konformität).
 
 ---
 
 ## 🚀 8. Performance, Virtualisiertes Live-Preview & Explain-Plan
 
-- [ ] **Explain-Plan & Query-Kostenanalyse**:
-  - [ ] Visualisierung des Ausführungsplans (Sequential Scan vs. Index Scan).
-  - [ ] Erkennung fehlender Indizes mit 1-Klick-Button: *"Empfohlenen Index auf `tbl_positions.ProjectId` erstellen"*.
-- [ ] **Virtualisiertes Daten-Grid für Vorschau**:
-  - [ ] Schnelles Rendern von bis zu 100.000 Ergebniszeilen im Designer mit virtuellem DOM.
-- [ ] **Query Execution Timeout & Limitierung**:
-  - [ ] Standard-Limit im Entwurfsmodus (`LIMIT 500`) zur Vermeidung von Browser-Freezes.
-  - [ ] Abbrechbare Abfragen (AbortController).
+- [x] **Explain-Plan & Query-Kostenanalyse**:
+  - [x] Visualisierung des Ausführungsplans (Sequential Scan vs. Index Scan).
+  - [x] Erkennung fehlender Indizes mit 1-Klick-Button: *"Empfohlenen Index auf `tbl_positions.ProjectId` erstellen"*.
+- [x] **Virtualisiertes Daten-Grid für Vorschau**:
+  - [x] Schnelles Rendern von bis zu 100.000 Ergebniszeilen im Designer mit virtuellem DOM.
+- [x] **Query Execution Timeout & Limitierung**:
+  - [x] Standard-Limit im Entwurfsmodus (`LIMIT 500`) zur Vermeidung von Browser-Freezes.
+  - [x] Abbrechbare Abfragen (AbortController).
 
 ---
 
@@ -190,20 +190,13 @@ Für Baukalkulation und Finanzcontrolling sind Pivot-Abfragen unerlässlich:
 
 Jede gespeicherte Abfrage kann direkt als Backend-Schnittstelle exportiert werden:
 
-- [ ] **Automatischer REST-API-Endpunkt Generator**:
-  - [ ] `GET /api/queries/v1/ProjektKostenUebersicht?projektId=1001`
-  - [ ] Automatische Swagger / OpenAPI 3.0 Dokumentations-Generierung für die Abfrage.
-- [ ] **TypeScript Data-Access Hook Generator**:
-  - [ ] Generiert typsichere React/Angular Hooks:
-    ```typescript
-    export const useProjektKostenUebersicht = (projektId: string) => {
-      return useQuery(['query', 'ProjektKostenUebersicht', projektId], () => 
-        apiClient.get<ProjektKostenRow[]>(`/api/queries/ProjektKostenUebersicht`, { params: { projektId } })
-      );
-    };
-    ```
-- [ ] **Event-Bus Trigger**:
-  - [ ] Option: Nach Ausführung einer Aktionsabfrage automatisch MFE-Event feuern (z. B. `CALCULATION_UPDATED`).
+- [x] **Automatischer REST-API-Endpunkt Generator**:
+  - [x] `GET /api/queries/v1/ProjektKostenUebersicht?projektId=1001`
+  - [x] Automatische Swagger / OpenAPI 3.0 Dokumentations-Generierung für die Abfrage.
+- [x] **TypeScript Data-Access Hook Generator**:
+  - [x] Generiert typsichere React/Angular Hooks mit TanStack Query (`useQuery`).
+- [x] **Event-Bus Trigger**:
+  - [x] Option: Nach Ausführung einer Aktionsabfrage automatisch MFE-Event feuern (z. B. `CALCULATION_UPDATED`).
 
 ---
 

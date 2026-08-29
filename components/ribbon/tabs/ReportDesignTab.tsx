@@ -1,12 +1,30 @@
 
 import React, { useState } from 'react';
-import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, Type, Palette, LayoutTemplate, Shield, AlignJustify } from 'lucide-react';
+import {
+  Bold,
+  Italic,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Type,
+  Palette,
+  LayoutTemplate,
+  Shield,
+  AlignJustify,
+  FileCheck,
+  Calculator,
+  QrCode,
+  FileCode,
+  Printer,
+  Mail,
+} from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../../stores/useUIStore';
 import { useProjectStore } from '../../../stores/useProjectStore';
 import { Report } from '../../../types/index';
+import { eventBus } from '../../../services/eventBus';
 
 interface ReportDesignTabProps {
   onAction: (action: string, payload?: any) => void;
@@ -179,6 +197,112 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                  <option value="landscape">Querformat (Landscape)</option>
              </select>
          </div>
+      </RibbonGroup>
+
+      {/* DIN 5008 & VOB/B Engine */}
+      <RibbonGroup label="Baugewerbe & Normen">
+         <div className="flex flex-col gap-1 justify-center h-full text-[10px]">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                <input 
+                  type="checkbox" 
+                  checked={report.settings?.din5008?.enabled || false}
+                  onChange={e => updateReportSettings({
+                    settings: {
+                      ...(report.settings || {}),
+                      din5008: {
+                        ...(report.settings?.din5008 || { version: 'FormA', foldMarks: true, punchMark: true, senderLine: 'Musterbau GmbH', showSenderInfoBlock: true }),
+                        enabled: e.target.checked
+                      }
+                    }
+                  })}
+                  className="scale-90 rounded border-slate-300 text-blue-600"
+                />
+                <FileCheck size={12} className="text-blue-600" />
+                <span>DIN 5008 Briefbogen</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                <input 
+                  type="checkbox" 
+                  checked={report.settings?.commercialVob?.enabled || false}
+                  onChange={e => updateReportSettings({
+                    settings: {
+                      ...(report.settings || {}),
+                      commercialVob: {
+                        ...(report.settings?.commercialVob || { enableCarryOver: true, enableCumulativeBilling: true, securityDepositPercent: 5, warrantyRetentionPercent: 5 }),
+                        enabled: e.target.checked
+                      }
+                    }
+                  })}
+                  className="scale-90 rounded border-slate-300 text-amber-600"
+                />
+                <Calculator size={12} className="text-amber-600" />
+                <span>VOB/B Summenmatrix</span>
+            </label>
+         </div>
+      </RibbonGroup>
+
+      {/* E-Rechnung & QR-Codes */}
+      <RibbonGroup label="E-Rechnung & QR">
+         <div className="flex flex-col gap-1 justify-center h-full text-[10px]">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                <input 
+                  type="checkbox" 
+                  checked={report.settings?.zugferd?.enabled || false}
+                  onChange={e => updateReportSettings({
+                    settings: {
+                      ...(report.settings || {}),
+                      zugferd: {
+                        ...(report.settings?.zugferd || { profile: 'EN16931', invoiceNumber: 'RE-2026-001', invoiceDate: new Date().toISOString().split('T')[0], sellerName: 'Musterbau GmbH', buyerName: 'Kunde' }),
+                        enabled: e.target.checked
+                      }
+                    }
+                  })}
+                  className="scale-90 rounded border-slate-300 text-emerald-600"
+                />
+                <FileCode size={12} className="text-emerald-600" />
+                <span>ZUGFeRD / Factur-X</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                <input 
+                  type="checkbox" 
+                  checked={report.settings?.swissQrCode?.enabled || false}
+                  onChange={e => updateReportSettings({
+                    settings: {
+                      ...(report.settings || {}),
+                      swissQrCode: {
+                        ...(report.settings?.swissQrCode || { iban: 'CH4431999123000889012', currency: 'CHF', amount: 1500, creditorName: 'Musterbau AG' }),
+                        enabled: e.target.checked
+                      }
+                    }
+                  })}
+                  className="scale-90 rounded border-slate-300 text-red-600"
+                />
+                <QrCode size={12} className="text-red-600" />
+                <span>Swiss QR-Bill</span>
+            </label>
+         </div>
+      </RibbonGroup>
+
+      {/* MFE Event Bus Print / Mail Trigger */}
+      <RibbonGroup label="MFE Ausgabe">
+        <div className="flex gap-1 items-center h-full">
+            <button
+              onClick={() => eventBus.publish('PRINT_REPORT', { reportId: report.id, outputFormat: 'print_dialog' })}
+              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 rounded text-slate-700 hover:text-blue-700"
+              title="Globalen Druckdialog auslösen (EventBus)"
+            >
+              <Printer size={14} />
+              <span className="text-[9px] font-semibold">Drucken</span>
+            </button>
+            <button
+              onClick={() => eventBus.publish('PRINT_REPORT', { reportId: report.id, outputFormat: 'email_direct' })}
+              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 rounded text-slate-700 hover:text-sky-700"
+              title="Bericht per E-Mail versenden (EventBus)"
+            >
+              <Mail size={14} />
+              <span className="text-[9px] font-semibold">E-Mail</span>
+            </button>
+        </div>
       </RibbonGroup>
 
       {/* Sicherheit */}

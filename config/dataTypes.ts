@@ -216,5 +216,118 @@ export const DATA_TYPES: Record<string, DataTypeDefinition> = {
       typescript: "string",
       sql: { type: () => "TIME" }
     }
+  },
+  CURRENCY: {
+    label: "Währung / Geld (€)",
+    hasPrecision: true,
+    defaultPrecision: 18,
+    defaultScale: 2,
+    mappings: {
+      csharp: { 
+        type: "decimal",
+        attributes: ({ precision, scale }) => [`[Column(TypeName = "decimal(${precision || 18}, ${scale || 2})")]`, `[DataType(DataType.Currency)]`]
+      },
+      sequelize: { 
+        type: ({ precision, scale }) => `DataTypes.DECIMAL(${precision || 18}, ${scale || 2})` 
+      },
+      typescript: "number",
+      sql: { type: ({ precision, scale }) => `DECIMAL(${precision || 18}, ${scale || 2})` }
+    }
+  },
+  PERCENTAGE: {
+    label: "Prozentsatz (%)",
+    hasPrecision: true,
+    defaultPrecision: 5,
+    defaultScale: 2,
+    mappings: {
+      csharp: { 
+        type: "decimal",
+        attributes: ({ precision, scale }) => [`[Column(TypeName = "decimal(${precision || 5}, ${scale || 2})")]`]
+      },
+      sequelize: { 
+        type: ({ precision, scale }) => `DataTypes.DECIMAL(${precision || 5}, ${scale || 2})` 
+      },
+      typescript: "number",
+      sql: { type: ({ precision, scale }) => `DECIMAL(${precision || 5}, ${scale || 2})` }
+    }
+  },
+  UNIT_MEASURE: {
+    label: "Mengeneinheit (m, m², Stk...)",
+    hasLength: true,
+    defaultLength: 15,
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[MaxLength(15)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(15)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(15)" }
+    }
+  },
+  ORDNUNGSZAHL: {
+    label: "Ordnungszahl / GAEB-OZ",
+    hasLength: true,
+    defaultLength: 30,
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[MaxLength(30)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(30)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(30)" }
+    }
+  },
+  IBAN: {
+    label: "IBAN (Bankkonto)",
+    hasLength: true,
+    defaultLength: 34,
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[MaxLength(34)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(34)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(34)" }
+    }
+  },
+  BIC: {
+    label: "BIC / SWIFT",
+    hasLength: true,
+    defaultLength: 11,
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[MaxLength(11)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(11)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(11)" }
+    }
+  },
+  COLOR_HEX: {
+    label: "Farbe (Hex-Code)",
+    hasLength: true,
+    defaultLength: 9,
+    mappings: {
+      csharp: { 
+        type: "string",
+        attributes: () => [`[MaxLength(9)]`]
+      },
+      sequelize: { type: () => "DataTypes.STRING(9)" },
+      typescript: "string",
+      sql: { type: () => "VARCHAR(9)" }
+    }
+  },
+  JSON: {
+    label: "JSON / Flexibles Objekt",
+    mappings: {
+      csharp: { type: "string" },
+      sequelize: { type: () => "DataTypes.JSON" },
+      typescript: "any",
+      sql: { type: ({ dbType }) => dbType === 'PostgreSQL' ? 'JSONB' : 'TEXT' }
+    }
   }
 };

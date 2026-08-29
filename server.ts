@@ -10,6 +10,7 @@ import { deployRouter } from "./server/deployRoutes";
 import { apiRouter } from "./server/apiRoutes";
 import { mailerRouter, backupRouter } from "./server/mailerRoutes";
 import { aiRouter } from "./server/aiRoutes";
+import { reportRouter } from "./server/reportRoutes";
 
 async function startServer() {
   const app = express();
@@ -45,6 +46,7 @@ async function startServer() {
   app.use("/api/backend-apis", apiRouter);
   app.use("/api/mailer", mailerRouter);
   app.use("/api/backup", backupRouter);
+  app.use("/api/reports", reportRouter);
 
   // Mount remaining project and AI assistant routes directly to /api
   app.use("/api", projectRouter);

@@ -22,6 +22,7 @@ interface CanvasProps {
   onConnect?: (sourceTableId: string, sourceFieldId: string, targetTableId: string, targetFieldId: string) => void;
   isInteractive?: boolean;
   onRelationshipContextMenu?: (event: React.MouseEvent, relId: string) => void;
+  onRelationshipClick?: (event: React.MouseEvent, relId: string) => void;
   onNodeDoubleClick?: (tableId: string) => void;
 }
 
@@ -42,6 +43,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   onConnect,
   isInteractive = false,
   onRelationshipContextMenu,
+  onRelationshipClick,
   onNodeDoubleClick,
 }) => {
   const [dragState, setDragState] = useState<DragState>(null);
@@ -719,6 +721,7 @@ export const Canvas: React.FC<CanvasProps> = ({
             hoveredRelId={hoveredRelId}
             setHoveredRelId={setHoveredRelId}
             onRelationshipContextMenu={onRelationshipContextMenu}
+            onRelationshipClick={onRelationshipClick}
             onRemoveNode={onRemoveNode}
         />
 

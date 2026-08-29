@@ -2,6 +2,7 @@
 import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
 import { quoteIdentifier, toPascalCase } from './generators/common';
 import { resolveFormValue } from '../features/queries/utils/queryExecution';
+import { transpileExpression } from '../features/queries/utils/expressionTranspiler';
 
 export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType, useRawNames: boolean = false, context?: Record<string, any>): string => {
     if (nodes.length === 0) return '';
@@ -24,7 +25,15 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
         
         let fieldExpr = '';
         if (c.isCalculated) {
-            fieldExpr = `(${c.expression})`;
+            const dialectMap: Record<DbType, 'SQLITE' | 'POSTGRES' | 'MYSQL' | 'MSSQL'> = {
+                [DbType.SQLite]: 'SQLITE',
+                [DbType.PostgreSQL]: 'POSTGRES',
+                [DbType.MySQL]: 'MYSQL',
+                [DbType.SQL]: 'MSSQL',
+                [DbType.NoSQL]: 'POSTGRES'
+            };
+            const transpiled = transpileExpression(c.expression || '', dialectMap[dbType] || 'SQLITE');
+            fieldExpr = `(${transpiled})`;
         } else {
             // Try to find the correct node alias
             let nodeAlias = '';
@@ -100,7 +109,15 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                 }
 
                 if (onClause) {
-                    joins += `\nLEFT JOIN ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
+                    const joinKeyword = rel.joinType === 'INNER' 
+                        ? 'INNER JOIN' 
+                        : rel.joinType === 'RIGHT' 
+                        ? 'RIGHT OUTER JOIN' 
+                        : rel.joinType === 'FULL' 
+                        ? 'FULL OUTER JOIN' 
+                        : 'LEFT JOIN';
+
+                    joins += `\n${joinKeyword} ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
                     joinedNodeIds.add(targetNode.id);
                     queue.push(targetNode.id);
                 }

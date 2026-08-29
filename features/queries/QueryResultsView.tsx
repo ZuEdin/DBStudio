@@ -1,11 +1,13 @@
 
-import React from 'react';
-import { Query } from '../../types/index';
-import { FileSpreadsheet, FileText, FileJson, Download, Filter, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Query, DbType } from '../../types/index';
+import { FileSpreadsheet, FileText, FileJson, Download, Filter, X, ArrowUp, ArrowDown, ArrowUpDown, Activity } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useDataFilter } from '../../hooks/useDataFilter';
+import { useProjectStore } from '../../stores/useProjectStore';
+import { QueryCostPlanModal } from './components/QueryCostPlanModal';
 
 interface QueryResultsViewProps {
   query: Query;
@@ -13,6 +15,11 @@ interface QueryResultsViewProps {
 }
 
 export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, results }) => {
+  const [showCostPlan, setShowCostPlan] = useState(false);
+  const tables = useProjectStore((state) => state.tables);
+  const backendConfig = useProjectStore((state) => state.backendConfig);
+  const dbType = backendConfig?.dbType || DbType.SQLite;
+
   if (!query) return null;
 
   if (query.type !== 'SELECT') {
@@ -84,6 +91,14 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
           </h2>
           
           <div className="flex gap-4 items-center">
+             <button 
+                onClick={() => setShowCostPlan(true)}
+                className="flex items-center gap-1 px-3 py-1 rounded text-xs border bg-indigo-900 border-indigo-700 hover:bg-indigo-800 text-indigo-200 transition-colors font-medium"
+                title="Ausführungsplan und Index-Empfehlungen anzeigen"
+              >
+                  <Activity size={14} className="text-indigo-400" /> EXPLAIN Plan
+             </button>
+
              <button 
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-1 px-3 py-1 rounded text-xs border transition-colors ${showFilters || Object.keys(filters).length > 0 ? 'bg-orange-500 border-orange-400 text-white' : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'}`}
@@ -205,6 +220,16 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
            {Object.keys(filters).length > 0 ? `${filteredData.length} gefiltert von ${results.length}` : `${results.length} Datensätze`}
         </div>
       </div>
+
+      {showCostPlan && (
+        <QueryCostPlanModal
+          isOpen={showCostPlan}
+          onClose={() => setShowCostPlan(false)}
+          query={query}
+          tables={tables}
+          dbType={dbType}
+        />
+      )}
     </div>
   );
 };

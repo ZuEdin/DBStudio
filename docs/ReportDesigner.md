@@ -47,23 +47,23 @@
 Im Enterprise-Reporting (insbesondere bei Rechnungen, Leistungsverzeichnissen und Bautagebüchern) reicht ein einfaches Tabellenlayout nicht aus. Benötigt wird eine **Banded Report Engine** mit strikt getrennten Sektionen:
 
 ### 2.1 Sektions-Hierarchie
-- [ ] **Berichtskopf (Report Header)**:
+- [x] **Berichtskopf (Report Header)**:
   - Wird genau **einmal** ganz am Anfang des Gesamtdokuments gedruckt (z. B. Deckblatt, Projekt-Titelbild, Anschreiben).
-- [ ] **Seitenkopf (Page Header)**:
+- [x] **Seitenkopf (Page Header)**:
   - Wird oben auf **jeder Seite** wiederholt (z. B. Minilogo, Projektname, Bauvorhaben, Datum, Spaltenüberschriften).
-- [ ] **Gruppenkopf (Group Header - Ebene n)**:
+- [x] **Gruppenkopf (Group Header - Ebene n)**:
   - Beginnt bei jedem Gruppenwechsel (z. B. `Gewerk 01 - Rohbauarbeiten`, `Titel 02 - Erdarbeiten`).
   - Option: *"Auf jeder Folgeseite wiederholen, falls Gruppe umbrochen wird"* (`RepeatOnEveryPage`).
   - Option: *"Neue Seite bei Gruppenwechsel beginnen"* (`PageBreakBefore`).
-- [ ] **Detail-Bereich (Detail Band)**:
+- [x] **Detail-Bereich (Detail Band)**:
   - Wird für jeden einzelnen Datensatz / jede LV-Position gedruckt.
   - Dynamische Zeilenhöhe (Textumbruch für lange Leistungsbeschreibungen).
   - Option: *"Zeile nicht trennen"* (`KeepTogether` – verhindert halbe Zeilen am Seitenende).
-- [ ] **Gruppenfuß (Group Footer - Ebene n)**:
+- [x] **Gruppenfuß (Group Footer - Ebene n)**:
   - Summenzeile der Gruppe (z. B. `Summe Titel 02: 48.250,00 €`).
-- [ ] **Seitenfuß (Page Footer)**:
+- [x] **Seitenfuß (Page Footer)**:
   - Wird unten auf **jeder Seite** gedruckt (z. B. Seitenzahl `"Seite X von Y"`, Druckdatum, Bearbeiter).
-- [ ] **Berichtsfuß (Report Footer)**:
+- [x] **Berichtsfuß (Report Footer)**:
   - Wird genau **einmal** am Ende des Gesamtdokuments gedruckt (z. B. Gesamtsumme Netto/MwSt/Brutto, Skontovermerk, Zahlungsbedingungen, Unterschriftsfelder).
 
 ---
@@ -73,19 +73,19 @@ Im Enterprise-Reporting (insbesondere bei Rechnungen, Leistungsverzeichnissen un
 Für rechtskonforme Angebote, Rechnungen und Bautagesberichte nach deutschem Standard:
 
 ### 3.1 DIN 5008 Konformität (Form A / Form B)
-- [ ] **Absenderzeile (Rücksendeangabe)**:
+- [x] **Absenderzeile (Rücksendeangabe)**:
   - Einzeilige Mini-Absenderzeile im Adressfenster (Schriftgröße 7-8pt): `Musterbau GmbH • Baustraße 1 • 10115 Berlin`.
-- [ ] **Empfänger-Adressfeld (Fensterbriefumschlag C4/C5)**:
+- [x] **Empfänger-Adressfeld (Fensterbriefumschlag C4/C5)**:
   - Exakte Positionierung nach DIN 5008 (45mm x 85mm; Abstand von oben: Form A 27mm, Form B 45mm).
   - Zusatz-/Vermerkzone (z. B. `Einschreiben`, `Elektronische Vorabmitteilung`).
-- [ ] **Infoblock / Bezugszeichenblock (Rechts)**:
+- [x] **Infoblock / Bezugszeichenblock (Rechts)**:
   - Rechtsbündiger oder tabellarischer Block mit:
     - *Unser Zeichen / Bearbeiter*
     - *Ihre Kundennummer / Rechnungsnummer*
     - *Projekt- / Baustellen-Nr.*
     - *Datum / Leistungszeitraum*
     - *Telefon / E-Mail*
-- [ ] **Dreispaltiger Firmen-Geschäftsfuß (Footer)**:
+- [x] **Dreispaltiger Firmen-Geschäftsfuß (Footer)**:
   - Spalte 1: Firmensitz, Registergericht, HRB-Nummer, Geschäftsführer.
   - Spalte 2: Bankverbindung, IBAN, BIC, Bankname.
   - Spalte 3: Steuernummer, USt-IdNr., Gläubiger-ID.
@@ -97,19 +97,19 @@ Für rechtskonforme Angebote, Rechnungen und Bautagesberichte nach deutschem Sta
 Im Baugewerbe und bei mehrseitigen Rechnungen ist die korrekte Seitenübertragsrechnung zwingend vorgeschrieben:
 
 ### 4.1 Seitenübertrag (Carry-Over / Page Totals)
-- [ ] **Übertrag am Seitenende (Bottom Carry-Over)**:
+- [x] **Übertrag am Seitenende (Bottom Carry-Over)**:
   - Automatische Berechnung: `"Übertrag auf Seite (N+1): 124.500,00 €"`.
-- [ ] **Übertrag am Seitenanfang (Top Carry-Over)**:
+- [x] **Übertrag am Seitenanfang (Top Carry-Over)**:
   - Automatische Wiederholung auf Folgeseite: `"Übertrag von Seite N: 124.500,00 €"`.
-- [ ] **GAEB-Hierarchie-Summen**:
+- [x] **GAEB-Hierarchie-Summen**:
   - `Summe Position` ➔ `Summe Untertitel` ➔ `Summe Titel` ➔ `Summe Los` ➔ `Summe Gewerk` ➔ `Gesamtsumme Angebot`.
-- [ ] **Umsatzsteuer-Aufschlüsselung (Multi-Tax Matrix)**:
+- [x] **Umsatzsteuer-Aufschlüsselung (Multi-Tax Matrix)**:
   - Automatische Tabelle im Rechnungsfuß nach Steuersätzen:
     - Netto 19% (z. B. Material/Leistung): `100.000,00 €` ➔ MwSt: `19.000,00 €`
     - Netto 7% (z. B. Sonderleistungen): `5.000,00 €` ➔ MwSt: `350,00 €`
     - Netto 0% (§13b UStG Bauleistungen / Steuerschuldnerschaft): `50.000,00 €` ➔ MwSt: `0,00 €`
     - **Gesamtbetrag Brutto**: `174.350,00 €`
-- [ ] **Sicherheitseinbehalt & Abzüge**:
+- [x] **Sicherheitseinbehalt & Abzüge**:
   - Automatische Abzugsberechnung:
     - `- 5% Gewährleistungseinbehalt (VOB/B)`
     - `- 1% Bauwesenversicherung / Baustrom`
@@ -122,26 +122,26 @@ Im Baugewerbe und bei mehrseitigen Rechnungen ist die korrekte Seitenübertragsr
 
 Ermöglicht verschachtelte Dokumente wie z. B. **Rechnung mit integriertem Aufmaßblatt** oder **Projektbericht mit Mängelprotokoll**:
 
-- [ ] **Master-Detail Verknüpfung**:
+- [x] **Master-Detail Verknüpfung**:
   - Übergabe von Primärschlüsseln aus dem Hauptbericht an den Sub-Report (`MasterField: "id" -> ChildField: "invoice_id"`).
-- [ ] **Inline- vs. Block-Sub-Reports**:
+- [x] **Inline- vs. Block-Sub-Reports**:
   - *Inline-Sub-Report*: Rendert direkt innerhalb des Detail-Bandes einer Position (z. B. Stückliste/Kalkulationsansatz zu einer LV-Position).
   - *Nachgelagerter Sub-Report*: Beginnt auf einer neuen Seite nach dem Hauptdokument (z. B. Anhang, AGBs, Fotodokumentation).
-- [ ] **Unabhängige Spaltenraster im Sub-Report**:
+- [x] **Unabhängige Spaltenraster im Sub-Report**:
   - Hauptbericht mit 4 Spalten, Sub-Report mit 8 Spalten ohne Layout-Kollision.
 
 ---
 
 ## 🔲 6. Barcode-, QR-Code- & ZUGFeRD / XRechnung-Engine
 
-- [ ] **EPC-QR-Code (GiroCode)**:
+- [x] **EPC-QR-Code (GiroCode)**:
   - Automatisches Generieren des europäischen Standard-Bank-QR-Codes im Rechnungsfuß.
   - Ermöglicht dem Kunden das sekundenschnelle Bezahlen per Banking-App ohne Tippfehler bei IBAN/Betrag/Verwendungszweck.
-- [ ] **Schweizer QR-Rechnung (Swiss QR Code)**:
+- [x] **Schweizer QR-Rechnung (Swiss QR Code)**:
   - QR-Bill Zahlteil nach Schweizer Standard mit Zahlungsreferenz (QRR) und Kreuz im Zentrum.
-- [ ] **Industrie-Barcodes**:
+- [x] **Industrie-Barcodes**:
   - `Code 128`, `Code 39`, `EAN-13`, `DataMatrix` (z. B. für Lieferschein-Nummern, Inventar-Tags und Materialetiketten).
-- [ ] **E-Rechnung (ZUGFeRD 2.2 / XRechnung Factur-X)**:
+- [x] **E-Rechnung (ZUGFeRD 2.2 / XRechnung Factur-X)**:
   - Generierung von hybriden **PDF/A-3** Dokumenten mit eingebetteter `factur-x.xml`.
   - Pflicht ab 2025/2026 für B2B-Geschäftsverkehr in Deutschland und Europa.
 
@@ -151,53 +151,50 @@ Ermöglicht verschachtelte Dokumente wie z. B. **Rechnung mit integriertem Aufma
 
 Erweiterung von der reinen Spalten-Tabelle hin zum vollwertigen visuellen Dokumenten-Gestalter:
 
-- [ ] **Frei platzierbare Report-Elemente**:
-  - [ ] **Textfeld / Label**: Statischer Text oder dynamische Datenbindung (`{{ Kunde.Firma }}`).
-  - [ ] **Rechteck / Rahmen / Trennlinien**: Dekorative Boxen, Hintergrundflächen, Signaturlinien.
-  - [ ] **Bild / Logo**: Firmenlogos, Stempel, Prüfsiegel, Unterschriften.
-  - [ ] **Formel-Container**: `SUM()`, Datumsausdrücke, String-Verkettung.
-  - [ ] **Rich-Text / HTML-Block**: Formatierte Leistungsbeschreibungen mit Fettdruck, Listen und Absätzen.
-- [ ] **Ausrichtungs- & Layout-Hilfen**:
-  - [ ] Millimeter-/Punkt-Lineal (A4: 210mm x 297mm).
-  - [ ] Magnetische Fanglinien (Snap-to-Grid & Snap-to-Object).
-  - [ ] Ausrichtungs-Werkzeuge (Links-, Rechts-, Zentriert-, Oben-, Untenbündig, Gleichmäßiger Abstand).
+- [x] **Frei platzierbare Report-Elemente**:
+  - [x] **Textfeld / Label**: Statischer Text oder dynamische Datenbindung (`{{ Kunde.Firma }}`).
+  - [x] **Rechteck / Rahmen / Trennlinien**: Dekorative Boxen, Hintergrundflächen, Signaturlinien.
+  - [x] **Bild / Logo**: Firmenlogos, Stempel, Prüfsiegel, Unterschriften.
+  - [x] **Formel-Container**: `SUM()`, Datumsausdrücke, String-Verkettung.
+  - [x] **Rich-Text / HTML-Block**: Formatierte Leistungsbeschreibungen mit Fettdruck, Listen und Absätzen.
+- [x] **Ausrichtungs- & Layout-Hilfen**:
+  - [x] Millimeter-/Punkt-Lineal (A4: 210mm x 297mm).
+  - [x] Magnetische Fanglinien (Snap-to-Grid & Snap-to-Object).
+  - [x] Ausrichtungs-Werkzeuge (Links-, Rechts-, Zentriert-, Oben-, Untenbündig, Gleichmäßiger Abstand).
 
 ---
 
 ## 🖨️ 8. Druck-, Paginierungs- & PDF-Export-Engine
 
-- [ ] **Perfekte PDF-Seitenumbruch-Kontrolle**:
-  - [ ] Waisen- und Witwenkontrolle (Verhindert einzelne Zeilen am oberen/unteren Seitenrand).
-  - [ ] Unterschriftenfeld darf nicht isoliert auf einer leeren letzten Seite stehen (`KeepWithNext`).
-- [ ] **Dynamische Paginierung**:
-  - [ ] `"Seite {PAGE_NUM} von {TOTAL_PAGES}"` (Zweiphasen-Rendering).
-- [ ] **Hintergrund-Briefpapier (Stationery Overlay / Underlay)**:
-  - [ ] Einbinden eines hochauflösenden PDF-Briefbogens als Hintergrund (Wasserzeichen / Firmenlayout).
-  - [ ] Getrenntes Briefpapier für *Seite 1* (mit Logo/Briefkopf) und *Folgeseiten* (schlichter Kopf).
-- [ ] **Archivierungsstandard PDF/A-1b & PDF/A-3b**:
-  - [ ] Vollständige Einbettung aller Schriften (Font Embedding).
-  - [ ] Konformität für revisionssichere Langzeitarchivierung (GoBD).
+- [x] **Perfekte PDF-Seitenumbruch-Kontrolle**:
+  - [x] Waisen- und Witwenkontrolle (Verhindert einzelne Zeilen am oberen/unteren Seitenrand).
+  - [x] Unterschriftenfeld darf nicht isoliert auf einer leeren letzten Seite stehen (`KeepWithNext`).
+- [x] **Dynamische Paginierung**:
+  - [x] `"Seite {PAGE_NUM} von {TOTAL_PAGES}"` (Zweiphasen-Rendering).
+- [x] **Hintergrund-Briefpapier (Stationery Overlay / Underlay)**:
+  - [x] Einbinden eines hochauflösenden PDF-Briefbogens als Hintergrund (Wasserzeichen / Firmenlayout).
+  - [x] Getrenntes Briefpapier für *Seite 1* (mit Logo/Briefkopf) und *Folgeseiten* (schlichter Kopf).
+- [x] **Archivierungsstandard PDF/A-1b & PDF/A-3b**:
+  - [x] Vollständige Einbettung aller Schriften (Font Embedding).
+  - [x] Konformität für revisionssichere Langzeitarchivierung (GoBD).
 
 ---
 
 ## ⚡ 9. Micro Frontend (MFE) Export & Druck-Service Integration
 
-- [ ] **MFE Print-Event-Bus**:
-  - [ ] Senden von Druckaufträgen aus anderen Micro Frontends:
+- [x] **MFE Print-Event-Bus**:
+  - [x] Senden von Druckaufträgen aus anderen Micro Frontends:
     ```typescript
-    eventBus.publish({
-      type: 'PRINT_REPORT',
-      payload: {
-        reportId: 'rep_schlussrechnung_vob',
-        parameters: { invoiceId: 'INV-2026-0042' },
-        outputFormat: 'pdf_download' // 'print_dialog' | 'blob_stream'
-      }
+    eventBus.publish('PRINT_REPORT', {
+      reportId: 'rep_schlussrechnung_vob',
+      parameters: { invoiceId: 'INV-2026-0042' },
+      outputFormat: 'pdf_download' // 'print_dialog' | 'email_direct'
     });
     ```
-- [ ] **Headless PDF Generation Service (Server-Side)**:
-  - [ ] Node.js / Puppeteer / PDFKit Backend-Endpunkt: `POST /api/reports/render-pdf` für automatisierte Hintergrund-Generierung und nächtlichen Rechnungsversand.
-- [ ] **E-Mail-Versand-Integration**:
-  - [ ] Direktes Versenden des generierten PDF-Berichts als E-Mail-Anhang an Kunden/Nachunternehmer.
+- [x] **Headless PDF Generation Service (Server-Side)**:
+  - [x] Node.js Backend-Endpunkt: `POST /api/reports/render-pdf` für automatisierte Hintergrund-Generierung und nächtlichen Rechnungsversand.
+- [x] **E-Mail-Versand-Integration**:
+  - [x] Direktes Versenden des generierten PDF-Berichts als E-Mail-Anhang an Kunden/Nachunternehmer.
 
 ---
 

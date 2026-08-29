@@ -8,6 +8,7 @@ interface RelationshipLinesProps {
     hoveredRelId: string | null;
     setHoveredRelId: (id: string | null) => void;
     onRelationshipContextMenu?: (event: React.MouseEvent, relId: string) => void;
+    onRelationshipClick?: (event: React.MouseEvent, relId: string) => void;
     onRemoveNode?: (id: string) => void;
 }
 
@@ -18,6 +19,7 @@ export const RelationshipLines: React.FC<RelationshipLinesProps> = ({
     hoveredRelId,
     setHoveredRelId,
     onRelationshipContextMenu,
+    onRelationshipClick,
     onRemoveNode
 }) => {
     const getFieldPos = (node: TableNode, table: Table, fieldId: string, side: 'left' | 'right') => {
@@ -80,11 +82,12 @@ export const RelationshipLines: React.FC<RelationshipLinesProps> = ({
                             <g 
                                 key={rel.id} 
                                 className="pointer-events-auto"
+                                onClick={(e) => onRelationshipClick && onRelationshipClick(e, rel.id)}
                                 onContextMenu={(e) => onRelationshipContextMenu && onRelationshipContextMenu(e, rel.id)}
                                 onMouseEnter={() => setHoveredRelId(rel.id)}
                                 onMouseLeave={() => setHoveredRelId(null)}
                             >
-                                <title>{titleText}</title>
+                                <title>{titleText} (Klick für Join-Eigenschaften)</title>
                                 <path d={d} stroke="transparent" strokeWidth="16" fill="none" className="cursor-pointer" />
                                 <path 
                                     d={d} 

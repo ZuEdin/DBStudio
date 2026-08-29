@@ -1,5 +1,23 @@
 export type AggregateFunction = 'GROUP_BY' | 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX' | 'FIRST' | 'LAST' | 'EXPRESSION';
 
+export type QueryParameterType = 'STRING' | 'NUMBER' | 'DATE' | 'BOOLEAN' | 'ARRAY';
+
+export interface QueryParameter {
+  id: string;
+  name: string;
+  type: QueryParameterType;
+  defaultValue?: any;
+  description?: string;
+  required?: boolean;
+}
+
+export interface QueryJoinOverride {
+  fromNodeId: string;
+  toNodeId: string;
+  joinType: 'INNER' | 'LEFT' | 'RIGHT' | 'FULL' | 'CROSS';
+  customCondition?: string;
+}
+
 export interface QueryColumn {
   id: string;
   tableId: string;
@@ -22,6 +40,8 @@ export interface SelectQuery {
   name: string;
   nodes: any[]; // Using any[] here to avoid circular imports of TableNode
   columns: QueryColumn[];
+  parameters?: QueryParameter[];
+  joinOverrides?: QueryJoinOverride[];
 }
 
 export interface Criterion {

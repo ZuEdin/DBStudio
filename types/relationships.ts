@@ -1,4 +1,5 @@
 export type ReferentialAction = 'NO ACTION' | 'CASCADE' | 'SET NULL' | 'RESTRICT';
+export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL' | 'CROSS';
 
 export interface Relationship {
   id: string;
@@ -11,6 +12,7 @@ export interface Relationship {
   toTable?: string;
   toField?: string;
   type: '1:1' | '1:n' | '1:N' | 'n:m' | 'N:M';
+  joinType?: JoinType;
   comment?: string;
   referentialIntegrity?: boolean;
   onDelete?: ReferentialAction;
