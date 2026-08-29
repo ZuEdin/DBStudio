@@ -15,7 +15,7 @@ import {
 interface ItemContextMenuProps {
   x: number;
   y: number;
-  itemType: "table" | "query" | "report" | "form" | "chart" | "workflow";
+  itemType: "table" | "query" | "report" | "form" | "chart" | "workflow" | "page";
   onAction: (
     action: "view" | "view_data" | "export" | "rename" | "duplicate" | "delete",
   ) => void;
@@ -59,13 +59,22 @@ export const ItemContextMenu: React.FC<ItemContextMenuProps> = ({
       onClick={(e) => e.stopPropagation()}
     >
       {itemType === "report" ? (
-        <button
-          onClick={() => onAction("view")}
-          className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800"
-        >
-          <FileText size={14} />
-          <span>Öffnen</span>
-        </button>
+        <>
+          <button
+            onClick={() => onAction("view_data")}
+            className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800"
+          >
+            <FileText size={14} />
+            <span>Berichtsansicht (Vorschau)</span>
+          </button>
+          <button
+            onClick={() => onAction("view")}
+            className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800"
+          >
+            <Eye size={14} />
+            <span>Entwurfsansicht</span>
+          </button>
+        </>
       ) : itemType === "form" ? (
         <>
           <button
@@ -73,7 +82,7 @@ export const ItemContextMenu: React.FC<ItemContextMenuProps> = ({
             className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800"
           >
             <Layout size={14} />
-            <span>Öffnen</span>
+            <span>Formularansicht</span>
           </button>
           <button
             onClick={() => onAction("view")}
@@ -97,7 +106,15 @@ export const ItemContextMenu: React.FC<ItemContextMenuProps> = ({
           className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800"
         >
           <GitFork size={14} />
-          <span>Öffnen</span>
+          <span>Workflow-Designer</span>
+        </button>
+      ) : itemType === "page" ? (
+        <button
+          onClick={() => onAction("view")}
+          className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-slate-800"
+        >
+          <Layout size={14} />
+          <span>Seiten-Designer</span>
         </button>
       ) : (
         <>

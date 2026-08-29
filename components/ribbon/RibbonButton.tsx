@@ -9,16 +9,31 @@ interface RibbonButtonProps {
   size?: 'normal' | 'large';
   className?: string;
   disabled?: boolean;
+  active?: boolean;
+  title?: string;
 }
 
-export const RibbonButton: React.FC<RibbonButtonProps> = ({ icon, label, sublabel, onClick, size = 'normal', className = '', disabled = false }) => (
+export const RibbonButton: React.FC<RibbonButtonProps> = ({ 
+  icon, 
+  label, 
+  sublabel, 
+  onClick, 
+  size = 'normal', 
+  className = '', 
+  disabled = false,
+  active = false,
+  title
+}) => (
   <button 
     onClick={disabled ? undefined : onClick}
     disabled={disabled}
+    title={title}
     className={`flex flex-col items-center justify-center p-2 rounded transition-colors ${size === 'large' ? 'w-20' : 'w-16'} ${
       disabled 
         ? 'opacity-40 cursor-not-allowed text-slate-400 hover:bg-transparent' 
-        : 'hover:bg-sky-100 hover:text-sky-900'
+        : active
+          ? 'bg-blue-100 text-blue-900 font-semibold ring-1 ring-blue-400'
+          : 'hover:bg-sky-100 hover:text-sky-900'
     } ${className}`}
   >
     <div className={`${size === 'large' ? 'scale-150 mb-2' : 'mb-1'}`}>

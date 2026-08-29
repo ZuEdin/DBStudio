@@ -13,6 +13,8 @@ import { CreateTab } from './ribbon/tabs/CreateTab';
 import { PagesTab } from './ribbon/tabs/PagesTab';
 import { ExternalDataTab } from './ribbon/tabs/ExternalDataTab';
 import { DeployTab } from './ribbon/tabs/DeployTab';
+import { TableDesignTab } from './ribbon/tabs/TableDesignTab';
+import { QueryDesignTab } from './ribbon/tabs/QueryDesignTab';
 import { FormDesignTab } from './ribbon/tabs/FormDesignTab';
 import { ReportDesignTab } from './ribbon/tabs/ReportDesignTab';
 import { WorkflowDesignTab } from './ribbon/tabs/WorkflowDesignTab';
@@ -40,13 +42,17 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
 
   // Automatisch zum Kontext-Tab wechseln
   useEffect(() => {
-    if (currentView.type === 'form_designer') {
+    if (currentView.type === 'table_edit' || currentView.type === 'table_create' || currentView.type === 'table_data') {
+      setActiveTab('table_design');
+    } else if (currentView.type === 'query_designer' || currentView.type === 'query_results') {
+      setActiveTab('query_design');
+    } else if (currentView.type === 'form_designer' || currentView.type === 'form_view') {
       setActiveTab('form_design');
-    } else if (currentView.type === 'report_designer') {
+    } else if (currentView.type === 'report_designer' || currentView.type === 'report_view') {
       setActiveTab('report_design');
     } else if (currentView.type === 'workflow_designer') {
       setActiveTab('workflow_design');
-    } else if (currentView.type === 'page_designer') {
+    } else if (currentView.type === 'page_designer' || currentView.type === 'page_view') {
       setActiveTab('page_design');
     } else if (currentView.type === 'relationships') {
       setActiveTab('er_diagram');
@@ -77,6 +83,10 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
             onOpenSettings={() => setShowConnectionModal(true)} 
           />
         );
+      case 'table_design':
+        return <TableDesignTab onAction={onAction} />;
+      case 'query_design':
+        return <QueryDesignTab onAction={onAction} />;
       case 'form_design':
         return <FormDesignTab onAction={onAction} />;
       case 'report_design':
@@ -154,8 +164,24 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
             Bereitstellung & Generator
             </button>
             
-            {/* Context Tabs */}
-            {currentView.type === 'form_designer' && (
+            {/* Context Tabs for Active Objects & Views */}
+            {(currentView.type === 'table_edit' || currentView.type === 'table_create' || currentView.type === 'table_data') && (
+            <button 
+                onClick={() => setActiveTab('table_design')}
+                className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-amber-500 ${activeTab === 'table_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-amber-950/80 text-amber-200 hover:bg-amber-900'}`}
+            >
+                Tabellen-Entwurf
+            </button>
+            )}
+            {(currentView.type === 'query_designer' || currentView.type === 'query_results') && (
+            <button 
+                onClick={() => setActiveTab('query_design')}
+                className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-cyan-500 ${activeTab === 'query_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-cyan-950/80 text-cyan-200 hover:bg-cyan-900'}`}
+            >
+                Abfrage-Entwurf
+            </button>
+            )}
+            {(currentView.type === 'form_designer' || currentView.type === 'form_view') && (
             <button 
                 onClick={() => setActiveTab('form_design')}
                 className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-indigo-500 ${activeTab === 'form_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-indigo-900 hover:bg-indigo-800'}`}
@@ -163,7 +189,7 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
                 {t('ribbon.form_design')}
             </button>
             )}
-            {currentView.type === 'report_designer' && (
+            {(currentView.type === 'report_designer' || currentView.type === 'report_view') && (
             <button 
                 onClick={() => setActiveTab('report_design')}
                 className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-purple-500 ${activeTab === 'report_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-purple-900 hover:bg-purple-800'}`}
@@ -179,7 +205,7 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
                 Workflow Design
             </button>
             )}
-            {currentView.type === 'page_designer' && (
+            {(currentView.type === 'page_designer' || currentView.type === 'page_view') && (
             <button 
                 onClick={() => setActiveTab('page_design')}
                 className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-indigo-400 ${activeTab === 'page_design' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-indigo-950 text-indigo-200 hover:bg-indigo-900'}`}
@@ -192,7 +218,7 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
                 onClick={() => setActiveTab('er_diagram')}
                 className={`px-4 py-1 rounded-t-lg text-sm whitespace-nowrap border-t-2 border-blue-500 ${activeTab === 'er_diagram' ? 'bg-slate-100 text-slate-900 font-semibold' : 'bg-blue-900 hover:bg-blue-800'}`}
             >
-                ER-Diagramm
+                Beziehungs-Tools
             </button>
             )}
         </div>

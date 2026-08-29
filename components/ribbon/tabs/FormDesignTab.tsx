@@ -25,10 +25,20 @@ import {
   Image,
   Mail,
   ChevronsUpDown,
+  Eye,
+  LayoutTemplate,
+  FormInput,
+  CheckSquare,
+  Calendar,
+  ListOrdered,
+  Subtitles,
+  SplitSquareVertical
 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
+import { useUIStore } from '../../../stores/useUIStore';
+import { useProjectStore } from '../../../stores/useProjectStore';
 
 interface FormDesignTabProps {
   onAction: (action: string, payload?: any) => void;
@@ -36,16 +46,112 @@ interface FormDesignTabProps {
 
 export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
   const { t } = useTranslation();
+  const ui = useUIStore();
+  const store = useProjectStore();
+
+  const { currentView, activeObject } = ui;
+  const isFormView = currentView.type === 'form_view';
+  const isFormDesigner = currentView.type === 'form_designer';
+  const formId = (activeObject && 'layout' in activeObject ? activeObject.id : null) ||
+    (currentView.type === 'form_designer' || currentView.type === 'form_view' ? currentView.formId : store.forms[0]?.id);
 
   return (
-    <div className="flex gap-4 h-full overflow-x-auto">
-      {/* 1. Layout & Standard-Steuerelemente */}
-      <RibbonGroup label="Layout & Container">
+    <div className="flex gap-4 h-full items-stretch overflow-x-auto pb-1 max-w-full">
+      {/* 1. Ansichten */}
+      <RibbonGroup label="Ansichten">
         <RibbonButton
-          icon={<Type />}
-          label={t('ribbon.actions.label')}
-          onClick={() => onAction('form_add_label')}
+          icon={<LayoutTemplate className="text-indigo-600" />}
+          label="Entwurfsansicht"
+          active={isFormDesigner}
+          onClick={() => {
+            if (formId) ui.setCurrentView({ type: 'form_designer', formId });
+          }}
+          size="large"
+          title="Visueller Formular-Designer"
         />
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[120px]">
+          <button
+            onClick={() => {
+              if (formId) ui.setCurrentView({ type: 'form_view', formId });
+            }}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium ${
+              isFormView
+                ? 'bg-emerald-100 text-emerald-900 font-semibold'
+                : 'text-slate-700 hover:bg-sky-100 hover:text-sky-900'
+            }`}
+            title="Formular-Ansicht (Live Dateneingabe)"
+          >
+            <Eye size={13} className="text-emerald-600 shrink-0" />
+            <span className="truncate">Formularansicht</span>
+          </button>
+          <button
+            onClick={() => onAction('form_export_code')}
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            title="Quellcode (React / HTML / C# Razor) generieren"
+          >
+            <Code size={13} className="text-purple-600 shrink-0" />
+            <span className="truncate">Code generieren</span>
+          </button>
+        </div>
+      </RibbonGroup>
+
+      {/* 2. Steuerelemente (Toolbox) */}
+      <RibbonGroup label="Steuerelemente">
+        <RibbonButton
+          icon={<FormInput className="text-blue-600" />}
+          label="Textfeld"
+          onClick={() => onAction('form_add_text_input')}
+          size="large"
+          title="Fügt ein Eingabefeld für Text oder Zahlen hinzu"
+        />
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[115px] border-r border-slate-200/50 pr-2">
+          <button
+            onClick={() => onAction('form_add_dropdown_input')}
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            title="Kombinationsfeld / Lookup Dropdown"
+          >
+            <ListOrdered size={13} className="text-indigo-600 shrink-0" />
+            <span className="truncate">Dropdown / Lookup</span>
+          </button>
+          <button
+            onClick={() => onAction('form_add_checkbox_input')}
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            title="Kontrollkästchen / Checkbox"
+          >
+            <CheckSquare size={13} className="text-teal-600 shrink-0" />
+            <span className="truncate">Kontrollkästchen</span>
+          </button>
+          <button
+            onClick={() => onAction('form_add_date_input')}
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            title="Datumsauswahl / Kalenderfeld"
+          >
+            <Calendar size={13} className="text-purple-600 shrink-0" />
+            <span className="truncate">Datumsauswahl</span>
+          </button>
+        </div>
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[115px]">
+          <button
+            onClick={() => onAction('form_add_subform')}
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            title="Unterformular für 1:n Master-Detail Beziehungen (z.B. Rechnungspositionen)"
+          >
+            <SplitSquareVertical size={13} className="text-blue-600 shrink-0" />
+            <span className="truncate">Unterformular</span>
+          </button>
+          <button
+            onClick={() => onAction('form_add_label')}
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            title="Bezeichnungsfeld / Statischer Text"
+          >
+            <Type size={13} className="text-slate-600 shrink-0" />
+            <span className="truncate">Bezeichnungsfeld</span>
+          </button>
+        </div>
+      </RibbonGroup>
+
+      {/* 3. Layout & Container */}
+      <RibbonGroup label="Layout & Container">
         <RibbonButton
           icon={<Box className="text-blue-600" />}
           label={t('ribbon.actions.container')}
@@ -68,7 +174,7 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
         />
       </RibbonGroup>
 
-      {/* 2. Schaltflächen & Interaktion */}
+      {/* 4. Schaltflächen & Aktionen */}
       <RibbonGroup label="Aktionen & Makros">
         <RibbonButton
           icon={<Zap className="text-amber-500 fill-amber-400" />}
@@ -87,7 +193,7 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
         />
       </RibbonGroup>
 
-      {/* 3. Bauspezifische Fach-Widgets */}
+      {/* 5. Bau- & Fach-Widgets */}
       <RibbonGroup label="Bau- & Fach-Widgets">
         <RibbonButton
           icon={<BookOpen className="text-blue-600" />}
@@ -101,13 +207,8 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
         />
         <RibbonButton
           icon={<ShieldCheck className="text-indigo-600" />}
-          label="4-Augen-Freigabe"
+          label="4-Augen"
           onClick={() => onAction('form_add_four_eyes')}
-        />
-        <RibbonButton
-          icon={<Coins className="text-emerald-600" />}
-          label="Währungsrechner"
-          onClick={() => onAction('form_add_currency')}
         />
         <RibbonButton
           icon={<PenTool className="text-purple-600" />}
@@ -120,39 +221,14 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
           onClick={() => onAction('form_add_photo_marker')}
         />
         <RibbonButton
-          icon={<Mail className="text-teal-600" />}
-          label="DIN 5008 Brief"
-          onClick={() => onAction('form_add_din5008')}
-        />
-        <RibbonButton
-          icon={<MapPin className="text-red-500" />}
-          label="GPS-Standort"
-          onClick={() => onAction('form_add_geolocation')}
-        />
-        <RibbonButton
           icon={<Barcode className="text-slate-700" />}
-          label="Barcode/QR"
+          label="GiroCode QR"
           onClick={() => onAction('form_add_barcode')}
         />
       </RibbonGroup>
 
-      {/* 4. Anordnung & Ausrichtung */}
+      {/* 6. Anordnung */}
       <RibbonGroup label="Anordnung">
-        <RibbonButton
-          icon={<AlignLeft className="text-slate-700" />}
-          label="Links bündig"
-          onClick={() => onAction('form_align_left')}
-        />
-        <RibbonButton
-          icon={<AlignRight className="text-slate-700" />}
-          label="Rechts bündig"
-          onClick={() => onAction('form_align_right')}
-        />
-        <RibbonButton
-          icon={<Maximize2 className="text-slate-700" />}
-          label="Gleiche Breite"
-          onClick={() => onAction('form_match_width')}
-        />
         <RibbonButton
           icon={<Copy className="text-blue-600" />}
           label="Duplizieren"
@@ -165,17 +241,12 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
         />
       </RibbonGroup>
 
-      {/* 5. Druck & Export */}
-      <RibbonGroup label="Druck & Export" isLast>
+      {/* 7. Druck & Export */}
+      <RibbonGroup label="Druck" isLast>
         <RibbonButton
           icon={<Printer className="text-blue-600" />}
           label="Drucken / PDF"
           onClick={() => onAction('form_open_print')}
-        />
-        <RibbonButton
-          icon={<Code className="text-emerald-600" />}
-          label="Code Export"
-          onClick={() => onAction('form_export_code')}
         />
       </RibbonGroup>
     </div>

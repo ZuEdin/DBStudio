@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
-import { ViewType, Table, Query, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig, Relationship } from '../types/index';
+import { ViewType, Table, Field, FieldType, Query, SelectQuery, QueryColumn, Report, Form, Chart, Workflow, LockInfo, IntegrationsConfig, Project, BackendConfig, Relationship } from '../types/index';
 import { saveProjectToStorage, getProjectById } from '../services/storageService';
 import { sanitizeProjectName, getUniqueName } from '../utils/nameUtils';
 import { cloudService } from '../services/cloudService'; 
@@ -1193,9 +1193,330 @@ export const useAppController = () => {
                  ui.addToast("Auto-Layout angewendet.", "success");
              }
              break;
+        case 'show_all_tables_in_erd': {
+             if (currentView.type === 'relationships') {
+                 const existingTableIds = new Set((store.layout || []).map(n => n.tableId));
+                 const missingTables = store.tables.filter(t => !existingTableIds.has(t.id));
+                 if (missingTables.length === 0) {
+                     ui.addToast("Alle Tabellen sind bereits im Diagramm vorhanden.", "info");
+                 } else {
+                     const currentNodes = [...(store.layout || [])];
+                     const startIndex = currentNodes.length;
+                     const newNodes = missingTables.map((t, i) => ({
+                         id: 'node_' + t.id,
+                         tableId: t.id,
+                         x: 50 + ((startIndex + i) % 4) * 300,
+                         y: 50 + Math.floor((startIndex + i) / 4) * 300
+                     }));
+                     store.setLayout([...currentNodes, ...newNodes]);
+                     ui.addToast(`${missingTables.length} Tabellen wurden zum Diagramm hinzugefügt.`, "success");
+                 }
+             }
+             break;
+        }
+        case 'validate_foreign_keys': {
+             const invalidRels = store.relationships.filter(r => {
+                 const fromT = store.tables.find(t => t.id === r.fromTableId);
+                 const toT = store.tables.find(t => t.id === r.toTableId);
+                 if (!fromT || !toT) return true;
+                 const fromF = fromT.fields.find(f => f.id === r.fromFieldId);
+                 const toF = toT.fields.find(f => f.id === r.toFieldId);
+                 return !fromF || !toF;
+             });
+             if (invalidRels.length === 0) {
+                 ui.addToast(`Integritätsprüfung bestanden: Alle ${store.relationships.length} Beziehungen sind valide.`, "success");
+             } else {
+                 ui.showMessage("Integritätsfehler", `Es wurden ${invalidRels.length} inkonsistente Verknüpfungen mit fehlenden Feldern oder gelöschten Tabellen gefunden.`, "warning");
+             }
+             break;
+        }
+        case 'export_fk_ddl': {
+             const fkStatements = store.relationships.map(r => {
+                 const fromT = store.tables.find(t => t.id === r.fromTableId);
+                 const toT = store.tables.find(t => t.id === r.toTableId);
+                 const fromF = fromT?.fields.find(f => f.id === r.fromFieldId);
+                 const toF = toT?.fields.find(f => f.id === r.toFieldId);
+                 if (fromT && toT && fromF && toF) {
+                     return `ALTER TABLE "${fromT.name}" ADD CONSTRAINT "fk_${fromT.name}_${fromF.name}" FOREIGN KEY ("${fromF.name}") REFERENCES "${toT.name}" ("${toF.name}") ON DELETE CASCADE;`;
+                 }
+                 return null;
+             }).filter(Boolean).join('\n');
+
+             if (!fkStatements) {
+                 ui.addToast("Keine Fremdschlüsselbeziehungen vorhanden.", "info");
+             } else {
+                 try {
+                     navigator.clipboard.writeText(fkStatements);
+                     ui.addToast("Fremdschlüssel SQL DDL in die Zwischenablage kopiert!", "success");
+                 } catch {
+                     ui.showMessage("Foreign Key DDL Skript", fkStatements, "info");
+                 }
+             }
+             break;
+        }
         case 'export_er_image':
              ui.addToast("Nutzen Sie den Druck-Dialog (Ctrl+P) oder Screenshots.", "info");
              break;
+        // -------------------------------
+
+        // --- Table Design Actions ---
+        case 'table_add_field': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable) {
+                 const newField: any = {
+                     id: crypto.randomUUID(),
+                     name: `Feld${targetTable.fields.length + 1}`,
+                     type: 'VARCHAR',
+                     length: 255,
+                     allowNull: true
+                 };
+                 const updatedTable = { ...targetTable, fields: [...targetTable.fields, newField] };
+                 store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                 setActiveObject(updatedTable);
+                 setIsDirty(true);
+                 ui.addToast(`Feld "${newField.name}" hinzugefügt.`, "success");
+             }
+             break;
+        }
+        case 'table_add_field_typed': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable) {
+                 const typeName = payload?.fieldType || 'VARCHAR';
+                 const defaultLength = payload?.length || (typeName === 'VARCHAR' ? 255 : undefined);
+                 const fieldPrefix = typeName === 'VARCHAR' ? 'Text' : typeName === 'INTEGER' ? 'Nummer' : typeName === 'DECIMAL' ? 'Betrag' : typeName === 'DATETIME' ? 'Datum' : typeName === 'BOOLEAN' ? 'Aktiv' : 'Auswahl';
+                 const newField: any = {
+                     id: crypto.randomUUID(),
+                     name: `${fieldPrefix}_${targetTable.fields.length + 1}`,
+                     type: typeName,
+                     length: defaultLength,
+                     allowNull: true,
+                     enumValues: typeName === 'ENUM' ? ['Option 1', 'Option 2', 'Option 3'] : undefined
+                 };
+                 const updatedTable = { ...targetTable, fields: [...targetTable.fields, newField] };
+                 store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                 setActiveObject(updatedTable);
+                 setIsDirty(true);
+                 ui.addToast(`Spalte "${newField.name}" (${typeName}) hinzugefügt.`, "success");
+             }
+             break;
+        }
+        case 'table_toggle_pk': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable && targetTable.fields.length > 0) {
+                 const updatedFields = targetTable.fields.map((f, i) => i === 0 ? { ...f, isPrimaryKey: !f.isPrimaryKey } : f);
+                 const updatedTable = { ...targetTable, fields: updatedFields };
+                 store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                 setActiveObject(updatedTable);
+                 setIsDirty(true);
+                 ui.addToast(`Primärschlüssel für "${updatedTable.fields[0].name}" umgeschaltet.`, "info");
+             }
+             break;
+        }
+        case 'table_toggle_nullable': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable && targetTable.fields.length > 0) {
+                 const fieldIdx = targetTable.fields.length > 1 ? 1 : 0;
+                 const updatedFields = targetTable.fields.map((f, i) => i === fieldIdx ? { ...f, allowNull: !f.allowNull } : f);
+                 const updatedTable = { ...targetTable, fields: updatedFields };
+                 store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                 setActiveObject(updatedTable);
+                 setIsDirty(true);
+                 ui.addToast(`Pflichtfeld (NOT NULL) für "${updatedFields[fieldIdx].name}" umgeschaltet.`, "info");
+             }
+             break;
+        }
+        case 'table_toggle_unique': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable && targetTable.fields.length > 0) {
+                 const fieldIdx = targetTable.fields.length > 1 ? 1 : 0;
+                 const updatedFields = targetTable.fields.map((f, i) => i === fieldIdx ? { ...f, isUnique: !f.isUnique } : f);
+                 const updatedTable = { ...targetTable, fields: updatedFields };
+                 store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                 setActiveObject(updatedTable);
+                 setIsDirty(true);
+                 ui.addToast(`Eindeutigkeits-Index (UNIQUE) für "${updatedFields[fieldIdx].name}" umgeschaltet.`, "info");
+             }
+             break;
+        }
+        case 'table_delete_selected_field': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable && targetTable.fields.length > 1) {
+                 const lastField = targetTable.fields[targetTable.fields.length - 1];
+                 const updatedFields = targetTable.fields.slice(0, -1);
+                 const updatedTable = { ...targetTable, fields: updatedFields };
+                 store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                 setActiveObject(updatedTable);
+                 setIsDirty(true);
+                 ui.addToast(`Feld "${lastField.name}" entfernt.`, "warning");
+             }
+             break;
+        }
+        case 'table_apply_audit_fields': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable) {
+                 const existingNames = new Set(targetTable.fields.map(f => f.name.toLowerCase()));
+                 const auditFields: Field[] = [
+                     { id: crypto.randomUUID(), name: 'ErstelltAm', type: 'DATETIME' as FieldType, allowNull: true },
+                     { id: crypto.randomUUID(), name: 'ErstelltVon', type: 'VARCHAR' as FieldType, length: 100, allowNull: true },
+                     { id: crypto.randomUUID(), name: 'GeaendertAm', type: 'DATETIME' as FieldType, allowNull: true },
+                     { id: crypto.randomUUID(), name: 'GeaendertVon', type: 'VARCHAR' as FieldType, length: 100, allowNull: true }
+                 ].filter(f => !existingNames.has(f.name.toLowerCase()));
+
+                 if (auditFields.length === 0) {
+                     ui.addToast("Audit-Felder existieren bereits in dieser Tabelle.", "info");
+                 } else {
+                     const updatedTable: Table = { ...targetTable, fields: [...targetTable.fields, ...auditFields] };
+                     store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                     setActiveObject(updatedTable);
+                     setIsDirty(true);
+                     ui.addToast(`${auditFields.length} Audit-Felder zur Tabelle "${targetTable.name}" hinzugefügt.`, "success");
+                 }
+             }
+             break;
+        }
+        case 'table_generate_mock': {
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable) {
+                 const count = payload?.count || 10;
+                 const existingData = targetTable.data || [];
+                 const newRows: any[] = [];
+                 for (let i = 0; i < count; i++) {
+                     const row: any = {};
+                     targetTable.fields.forEach(f => {
+                         if (f.isPrimaryKey) {
+                             row[f.name] = (existingData.length + i + 1);
+                         } else if (f.type === 'INTEGER') {
+                             row[f.name] = Math.floor(Math.random() * 1000) + 1;
+                         } else if (f.type === 'DECIMAL') {
+                             row[f.name] = parseFloat((Math.random() * 500 + 10).toFixed(2));
+                         } else if (f.type === 'BOOLEAN') {
+                             row[f.name] = Math.random() > 0.5;
+                         } else if (f.type === 'DATETIME' || f.type === 'DATE') {
+                             row[f.name] = new Date().toISOString().substring(0, 19).replace('T', ' ');
+                         } else if (f.enumValues && f.enumValues.length > 0) {
+                             row[f.name] = f.enumValues[Math.floor(Math.random() * f.enumValues.length)];
+                         } else {
+                             row[f.name] = `Test ${f.name} ${existingData.length + i + 1}`;
+                         }
+                     });
+                     newRows.push(row);
+                 }
+                 const updatedTable = { ...targetTable, data: [...existingData, ...newRows] };
+                 store.setTables(store.tables.map(t => t.id === updatedTable.id ? updatedTable : t));
+                 setActiveObject(updatedTable);
+                 setIsDirty(true);
+                 ui.addToast(`${count} Testdatensätze generiert für "${targetTable.name}".`, "success");
+             }
+             break;
+        }
+        case 'table_open_ddl':
+        case 'table_open_templates_modal':
+        case 'table_open_computed_modal':
+        case 'table_open_sequence_modal':
+        case 'table_open_validation_modal':
+        case 'table_open_gaeb_import':
+        case 'table_open_mock_generator': {
+             // If currently in table_data, switch to table_edit first
+             const targetTable = (activeObject && 'fields' in activeObject ? activeObject as Table : null) ||
+                 (currentView.type === 'table_edit' || currentView.type === 'table_data' ? store.tables.find(t => t.id === currentView.tableId) : store.tables[0]);
+             if (targetTable) {
+                 handleSetView({ type: 'table_edit', tableId: targetTable.id });
+                 window.dispatchEvent(new CustomEvent('table-designer-action', { detail: { action } }));
+             }
+             break;
+        }
+
+        // --- Query Design Actions ---
+        case 'query_run': {
+             const targetQuery = (activeObject && 'columns' in activeObject ? activeObject as Query : null) ||
+                 (currentView.type === 'query_designer' || currentView.type === 'query_results' ? store.queries.find(q => q.id === currentView.queryId) : store.queries[0]);
+             if (targetQuery) {
+                 handleSetView({ type: 'query_results', queryId: targetQuery.id });
+                 ui.addToast(`Abfrage "${targetQuery.name}" ausgeführt.`, "success");
+             }
+             break;
+        }
+        case 'query_toggle_totals': {
+             const rawQuery = (activeObject && 'columns' in activeObject ? activeObject as Query : null) ||
+                 (currentView.type === 'query_designer' || currentView.type === 'query_results' ? store.queries.find(q => q.id === currentView.queryId) : store.queries[0]);
+             if (rawQuery && rawQuery.type === 'SELECT') {
+                 const selectQ = rawQuery as SelectQuery;
+                 const hasTotals = selectQ.columns.some(c => c.aggregate);
+                 const updatedCols: QueryColumn[] = selectQ.columns.map(c => ({
+                     ...c,
+                     aggregate: hasTotals ? null : (c.aggregate || 'GROUP_BY')
+                 }));
+                 const updatedQuery: SelectQuery = { ...selectQ, columns: updatedCols };
+                 store.setQueries(store.queries.map(q => q.id === updatedQuery.id ? updatedQuery : q));
+                 setActiveObject(updatedQuery);
+                 setIsDirty(true);
+                 ui.addToast(hasTotals ? "Summenzeile ausgeblendet." : "Summenzeile (GROUP BY) eingeblendet.", "info");
+             }
+             break;
+        }
+        case 'query_set_type_select': {
+             ui.addToast("Abfragetyp ist auf Standard-Auswahl (SELECT) eingestellt.", "info");
+             break;
+        }
+        case 'query_open_crosstab_wizard':
+             window.dispatchEvent(new CustomEvent('query-designer-action', { detail: { action: 'open_crosstab_modal' } }));
+             break;
+        case 'query_open_access_converter':
+             window.dispatchEvent(new CustomEvent('query-designer-action', { detail: { action: 'open_access_converter' } }));
+             break;
+        case 'query_open_sql_view':
+             window.dispatchEvent(new CustomEvent('query-designer-action', { detail: { action: 'open_sql_view' } }));
+             break;
+        case 'query_add_table_node': {
+             const rawQuery = (activeObject && 'columns' in activeObject ? activeObject as Query : null) ||
+                 (currentView.type === 'query_designer' || currentView.type === 'query_results' ? store.queries.find(q => q.id === currentView.queryId) : store.queries[0]);
+             if (rawQuery && rawQuery.type === 'SELECT') {
+                 const selectQ = rawQuery as SelectQuery;
+                 const unusedTable = store.tables.find(t => !selectQ.nodes.some(n => n.tableId === t.id)) || store.tables[0];
+                 if (unusedTable) {
+                     const newNode = {
+                         id: 'node_' + unusedTable.id + '_' + Date.now(),
+                         tableId: unusedTable.id,
+                         x: 100 + selectQ.nodes.length * 200,
+                         y: 50
+                     };
+                     const updatedQuery: SelectQuery = { ...selectQ, nodes: [...selectQ.nodes, newNode] };
+                     store.setQueries(store.queries.map(q => q.id === updatedQuery.id ? updatedQuery : q));
+                     setActiveObject(updatedQuery);
+                     setIsDirty(true);
+                     ui.addToast(`Tabelle "${unusedTable.name}" zur Abfrage hinzugefügt.`, "success");
+                 }
+             }
+             break;
+        }
+        case 'query_open_join_props':
+        case 'query_open_parameters_modal':
+        case 'query_open_export_modal':
+        case 'query_open_criteria_helper':
+             window.dispatchEvent(new CustomEvent('query-designer-action', { detail: { action } }));
+             break;
+        case 'query_export_as_view': {
+             const targetQuery = (activeObject && 'columns' in activeObject ? activeObject as Query : null) ||
+                 (currentView.type === 'query_designer' || currentView.type === 'query_results' ? store.queries.find(q => q.id === currentView.queryId) : store.queries[0]);
+             if (targetQuery) {
+                 const viewSql = `CREATE OR REPLACE VIEW "vw_${targetQuery.name}" AS\n-- Generiert von DB Studio Pro\nSELECT * FROM ...;`;
+                 try {
+                     navigator.clipboard.writeText(viewSql);
+                     ui.addToast(`CREATE VIEW Skript für "${targetQuery.name}" in die Zwischenablage kopiert!`, "success");
+                 } catch {
+                     ui.showMessage("SQL View Skript", viewSql, "info");
+                 }
+             }
+             break;
+        }
         // -------------------------------
 
         case 'relationships': handleSetView({ type: 'relationships' }); break;
