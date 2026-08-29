@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Table, Query, FormValidationRule, FormElement } from '../../../types/index';
-import { evaluateFormFormula } from '../../../utils/formulaEvaluator';
+import { evaluateFormFormula } from '../utils/formCalculationEngine';
+import { resolveLookupOptions } from '../utils/cascadingLookupEngine';
 import { generateNextSequenceValue } from '../../../utils/sequenceHelper';
 import { logAuditTrail } from '../../../utils/auditTrail';
 import { useProjectStore } from '../../../stores/useProjectStore';
+import { isElementVisible, isElementReadOnly } from '../utils/formConditionEvaluator';
+import { saveFormDraft, clearFormDraft } from '../utils/formOfflineDrafts';
+import { eventBus } from '../../../services/eventBus';
+import { validateFormRecord } from '../utils/formValidationEngine';
+import { FormValidationErrorItem } from '../../../types/index';
 
 interface UseFormViewStateProps {
   form: Form;
@@ -88,6 +94,8 @@ export const useFormViewState = ({
   } | null>(null);
 
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [errorsByField, setErrorsByField] = useState<Record<string, FormValidationErrorItem[]>>({});
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
 
   const sourceTable = allTables.find((t) => t.id === form.sourceId);
   const isUnbound = !form.sourceId || form.sourceId === '';
@@ -298,12 +306,47 @@ export const useFormViewState = ({
 
     const updatedRecord = { ...record };
 
+    // Collect linked subform records for Subform Aggregate calculations (SUM, AVG, COUNT, MIN, MAX)
+    const subformsData: Record<string, Record<string, any>[]> = {};
+    const collectSubforms = (el: any) => {
+      if (!el) return;
+      if (el.type === 'subform' && el.subform) {
+        const subDef = allForms.find((f) => f.id === el.subform.formId);
+        const subTable = allTables.find((t) => t.id === subDef?.sourceId);
+        if (subTable && subDef) {
+          const masterLinkFieldId = el.subform.masterLinkFieldId;
+          const childLinkFieldId = el.subform.childLinkFieldId;
+          const masterFieldObj = getFieldObj(masterLinkFieldId);
+          const masterFieldName = masterFieldObj ? masterFieldObj.name : masterLinkFieldId;
+          const masterVal = updatedRecord[masterFieldName] ?? (masterFieldObj ? updatedRecord[masterFieldObj.name.toLowerCase()] : undefined) ?? updatedRecord[masterLinkFieldId] ?? updatedRecord.id;
+
+          const childFieldObj = subTable.fields.find(
+            (f) => f.id === childLinkFieldId || f.name === childLinkFieldId || f.name?.toLowerCase() === (childLinkFieldId || '').toLowerCase()
+          );
+          const childFieldName = childFieldObj ? childFieldObj.name : childLinkFieldId;
+
+          const linkedRows = (subTable.data || []).filter(
+            (r) => String(r[childFieldName] ?? '') === String(masterVal ?? '')
+          );
+
+          if (subDef.name) subformsData[subDef.name] = linkedRows;
+          if (subTable.name) subformsData[subTable.name] = linkedRows;
+          if (el.label) subformsData[el.label] = linkedRows;
+          subformsData[el.subform.formId] = linkedRows;
+        }
+      }
+      if (Array.isArray(el.children)) {
+        el.children.forEach(collectSubforms);
+      }
+    };
+    collectSubforms(form.layout);
+
     const walkAndCalculate = (el: any) => {
       if (!el) return;
       if ((el.widgetType === 'calculated' || el.isCalculated) && el.calculationFormula && el.fieldId) {
         const targetName = getFieldName(el.fieldId);
         if (targetName) {
-          const calculatedVal = evaluateFormFormula(el.calculationFormula, updatedRecord);
+          const calculatedVal = evaluateFormFormula(el.calculationFormula, updatedRecord, { subforms: subformsData });
           updatedRecord[targetName] = calculatedVal;
         }
       }
@@ -319,10 +362,22 @@ export const useFormViewState = ({
   const handleInputChange = (fieldName: string, value: any) => {
     if (isReadOnly) return;
 
+    const oldValue = isCreating || isUnbound ? tempRecord[fieldName] : currentRecord[fieldName];
+
     if (isCreating || isUnbound) {
       setTempRecord((prev) => {
         const nextRec = { ...prev, [fieldName]: value };
         return recalculateCalculatedFields(nextRec);
+      });
+      eventBus.publishFormFieldChange({
+        formId: form.id,
+        formName: form.name,
+        fieldId: fieldName,
+        fieldName,
+        oldValue,
+        newValue: value,
+        formData: { ...tempRecord, [fieldName]: value },
+        timestamp: Date.now(),
       });
       return;
     }
@@ -351,6 +406,17 @@ export const useFormViewState = ({
     const nextRec = recalculateCalculatedFields({ ...newData[originalIndex], [fieldName]: value });
     newData[originalIndex] = nextRec;
     onTableChange({ ...sourceTable, data: newData });
+
+    eventBus.publishFormFieldChange({
+      formId: form.id,
+      formName: form.name,
+      fieldId: fieldName,
+      fieldName,
+      oldValue,
+      newValue: value,
+      formData: nextRec,
+      timestamp: Date.now(),
+    });
   };
 
   const getFieldObj = (fieldIdOrName: string) => {
@@ -432,81 +498,20 @@ export const useFormViewState = ({
 
   const validateRecord = (record: Record<string, any>): boolean => {
     setValidationError(null);
-    if (!sourceTable) return true;
+    const result = validateFormRecord(form, sourceTable, record, allTables);
+    setErrorsByField(result.errorsByField);
 
-    for (const field of sourceTable.fields) {
-      if (!field.allowNull && !field.isAutoIncrement && !field.sequenceConfig?.enabled && field.type !== 'BOOLEAN') {
-        const val = record[field.name];
-        if (val === undefined || val === null || String(val).trim() === '') {
-          setValidationError(`Pflichtfeld-Fehler: '${field.name}' darf nicht leer sein.`);
-          return false;
-        }
-      }
-    }
-
-    if (form.validationRules || form.layout) {
-      // Gather validation rules from both form-level and recursive element-level
-      const allRules: FormValidationRule[] = [...(form.validationRules || [])];
-      
-      const collectElementRules = (el?: FormElement) => {
-        if (!el) return;
-        if (el.validationRules && el.validationRules.length > 0) {
-          allRules.push(...el.validationRules);
-        }
-        if (el.children) {
-          el.children.forEach(collectElementRules);
-        }
-      };
-      collectElementRules(form.layout);
-
-      for (const rule of allRules) {
-        const fieldName = getFieldName(rule.fieldId);
-        const val = record[fieldName];
-
-        if (rule.type === 'required' && (val === undefined || val === null || String(val).trim() === '')) {
-          setValidationError(rule.errorMessage || `Feld '${fieldName}' ist erforderlich.`);
-          return false;
-        }
-
-        if (rule.type === 'regex' && rule.regexPattern && val) {
-          try {
-            const re = new RegExp(rule.regexPattern);
-            if (!re.test(String(val))) {
-              setValidationError(rule.errorMessage || `Feld '${fieldName}' entspricht nicht dem erforderlichen Muster.`);
-              return false;
-            }
-          } catch (e) {
-            console.error('Invalid Regex in validation rule', e);
-          }
-        }
-
-        if (rule.type === 'min' && rule.minValue !== undefined && val !== undefined && val !== null && String(val).trim() !== '') {
-          if (Number(val) < rule.minValue) {
-            setValidationError(rule.errorMessage || `Feld '${fieldName}' muss mindestens ${rule.minValue} sein.`);
-            return false;
-          }
-        }
-
-        if (rule.type === 'max' && rule.maxValue !== undefined && val !== undefined && val !== null && String(val).trim() !== '') {
-          if (Number(val) > rule.maxValue) {
-            setValidationError(rule.errorMessage || `Feld '${fieldName}' darf höchstens ${rule.maxValue} sein.`);
-            return false;
-          }
-        }
-
-        if (rule.type === 'custom_js' && rule.customJsCode) {
-          try {
-            const evalFn = new Function('record', 'value', 'fieldName', rule.customJsCode);
-            const isValid = evalFn(record, val, fieldName);
-            if (isValid === false) {
-              setValidationError(rule.errorMessage || `Validierung für Feld '${fieldName}' fehlgeschlagen.`);
-              return false;
-            }
-          } catch (e) {
-            console.error('Error executing custom JS validation rule', e);
-          }
-        }
-      }
+    if (!result.isValid) {
+      const firstError = result.blockingErrors[0];
+      const msg = firstError ? firstError.message : 'Validierungsfehler im Formular.';
+      setValidationError(msg);
+      eventBus.publishFormValidationFailed({
+        formId: form.id,
+        formName: form.name,
+        errors: result.errors,
+        timestamp: Date.now(),
+      });
+      return false;
     }
 
     return true;
@@ -519,9 +524,19 @@ export const useFormViewState = ({
     if (parentRecord && linkConfig) {
       const masterFieldObj = getFieldObj(linkConfig.masterFieldId);
       const masterFieldName = masterFieldObj ? masterFieldObj.name : linkConfig.masterFieldId;
-      const childFieldObj = sourceTable.fields.find((f) => f.id === linkConfig.childFieldId || f.name === linkConfig.childFieldId || f.name?.toLowerCase() === (linkConfig.childFieldId || '').toLowerCase());
+      const childFieldObj = sourceTable.fields.find(
+        (f) =>
+          f.id === linkConfig.childFieldId ||
+          f.name === linkConfig.childFieldId ||
+          f.name?.toLowerCase() === (linkConfig.childFieldId || '').toLowerCase()
+      );
       const childFieldName = childFieldObj ? childFieldObj.name : linkConfig.childFieldId;
-      const masterVal = parentRecord[masterFieldName] ?? (masterFieldObj ? parentRecord[masterFieldObj.name.toLowerCase()] : undefined) ?? parentRecord[linkConfig.masterFieldId] ?? parentRecord.id ?? parentRecord.Id;
+      const masterVal =
+        parentRecord[masterFieldName] ??
+        (masterFieldObj ? parentRecord[masterFieldObj.name.toLowerCase()] : undefined) ??
+        parentRecord[linkConfig.masterFieldId] ??
+        parentRecord.id ??
+        parentRecord.Id;
       if (masterVal !== undefined && childFieldName) {
         if (recordToSave[childFieldName] === undefined || recordToSave[childFieldName] === '') {
           recordToSave[childFieldName] = masterVal;
@@ -530,6 +545,19 @@ export const useFormViewState = ({
     }
 
     if (!validateRecord(recordToSave)) return;
+
+    const beforePayload = eventBus.publishFormBeforeSave({
+      formId: form.id,
+      formName: form.name,
+      formData: recordToSave,
+      isNew: true,
+      timestamp: Date.now(),
+    });
+
+    if (beforePayload.cancel) {
+      setValidationError(beforePayload.cancelReason || 'Speichervorgang vom Event-Bus abgebrochen.');
+      return;
+    }
 
     sourceTable.fields.forEach((f) => {
       if (f.sequenceConfig?.enabled && !recordToSave[f.name]) {
@@ -552,6 +580,15 @@ export const useFormViewState = ({
       action: 'INSERT',
       user: 'admin',
       details: `Datensatz in Formular '${form.name}' neu angelegt.`,
+    });
+
+    eventBus.publishFormAfterSave({
+      formId: form.id,
+      formName: form.name,
+      recordId: recordToSave.id || recordToSave.ID,
+      formData: recordToSave,
+      isNew: true,
+      timestamp: Date.now(),
     });
 
     setIsCreating(false);
@@ -695,69 +732,37 @@ export const useFormViewState = ({
     }
   };
 
-  const getLookupOptions = (config: any) => {
-    let rows: any[] = [];
-    let fields: any[] = [];
-
-    const table = allTables.find((t) => t.id === config.tableId);
-    if (table) {
-      rows = [...(table.data || [])];
-      fields = table.fields.map((f) => ({ id: f.id, name: f.name, isPrimaryKey: f.isPrimaryKey }));
-    } else if (queries && executeQuery) {
-      const query = queries.find((q) => q.id === config.tableId);
-      if (query && query.type === 'SELECT') {
-        const context: Record<string, any> = {};
-        if (form.name && currentRecord) {
-          for (const key in currentRecord) {
-            context[`forms.${form.name.toLowerCase()}.${key.toLowerCase()}`] = currentRecord[key];
-          }
-        }
-        rows = [...executeQuery(query, context)];
-        fields = query.columns.map((c) => ({ id: c.id, name: c.alias || c.fieldName, isPrimaryKey: false }));
-      }
-    }
-
-    if (rows.length === 0) return [];
-
-    if (config.sort && config.sort.fieldId) {
-      const sortField = fields.find((f) => f.id === config.sort.fieldId);
-      if (sortField) {
-        const fieldName = sortField.name;
-        const direction = config.sort.direction || 'ASC';
-        rows.sort((a, b) => {
-          const valA = a[fieldName];
-          const valB = b[fieldName];
-          if (valA === undefined || valA === null) return 1;
-          if (valB === undefined || valB === null) return -1;
-
-          let comparison = 0;
-          if (typeof valA === 'number' && typeof valB === 'number') {
-            comparison = valA - valB;
-          } else {
-            comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
-          }
-          return direction === 'ASC' ? comparison : -comparison;
-        });
-      }
-    }
-
-    if (config.displayFormat && config.displayFormat.length > 0) {
-      return rows.map((row) => {
-        const label = config.displayFormat
-          .map((item: any) => {
-            const f = fields.find((field) => field.id === item.fieldId);
-            return `${item.prefix || ''}${f ? row[f.name] : ''}${item.suffix || ''}`;
-          })
-          .join('');
-        const valField = fields.find((f) => f.id === config.valueFieldId) || fields.find((f) => f.isPrimaryKey);
-        return { value: valField ? row[valField.name] : '', label: label };
-      });
-    }
-    return rows.map((row) => ({ value: row.id || Object.values(row)[0], label: Object.values(row).slice(0, 2).join(' ') }));
+  const getLookupOptions = (config: any, element?: FormElement) => {
+    return resolveLookupOptions(
+      config,
+      element,
+      currentRecord,
+      allTables,
+      queries,
+      executeQuery
+    );
   };
 
   const handleSubformSaveFromModal = (updatedTable: Table) => {
     onTableChange(updatedTable);
+    // Recalculate master record formulas (e.g. Subform SUM totals)
+    if (sourceTable && currentRecord) {
+      const nextRec = recalculateCalculatedFields(currentRecord);
+      if (JSON.stringify(nextRec) !== JSON.stringify(currentRecord)) {
+        let originalIndex = -1;
+        const pkField = sourceTable.fields.find((f) => f.isPrimaryKey) || sourceTable.fields.find((f) => f.name.toLowerCase() === 'id');
+        if (pkField && currentRecord[pkField.name] !== undefined) {
+          originalIndex = (sourceTable.data || []).findIndex((row) => String(row[pkField.name]) === String(currentRecord[pkField.name]));
+        } else {
+          originalIndex = (sourceTable.data || []).findIndex((row) => row === currentRecord);
+        }
+        if (originalIndex !== -1) {
+          const newData = [...(sourceTable.data || [])];
+          newData[originalIndex] = nextRec;
+          onTableChange({ ...sourceTable, data: newData });
+        }
+      }
+    }
     setSubformModal(null);
   };
 
@@ -767,43 +772,7 @@ export const useFormViewState = ({
       return false;
     }
 
-    if (!el.visibilityCondition || !el.visibilityCondition.fieldId) return true;
-    const targetField = sourceTable?.fields.find((f) => f.id === el.visibilityCondition!.fieldId);
-    if (!targetField) return true;
-
-    const val = currentRecord[targetField.name];
-    const checkVal = el.visibilityCondition.value;
-    const op = el.visibilityCondition.operator || 'eq';
-
-    if (op === 'empty') {
-      return val === undefined || val === null || String(val).trim() === '';
-    }
-    if (op === 'not_empty') {
-      return val !== undefined && val !== null && String(val).trim() !== '';
-    }
-    if (op === 'eq') {
-      return String(val || '').toLowerCase() === String(checkVal || '').toLowerCase();
-    }
-    if (op === 'neq') {
-      return String(val || '').toLowerCase() !== String(checkVal || '').toLowerCase();
-    }
-    if (op === 'contains') {
-      return String(val || '').toLowerCase().includes(String(checkVal || '').toLowerCase());
-    }
-    if (op === 'gt') {
-      return Number(val) > Number(checkVal);
-    }
-    if (op === 'lt') {
-      return Number(val) < Number(checkVal);
-    }
-    if (op === 'gte') {
-      return Number(val) >= Number(checkVal);
-    }
-    if (op === 'lte') {
-      return Number(val) <= Number(checkVal);
-    }
-
-    return true;
+    return isElementVisible(el, currentRecord, ['admin', 'kalkulator', 'bauleiter']);
   };
 
   const handleQuickCreateSave = (updatedTable: Table) => {
@@ -859,6 +828,9 @@ export const useFormViewState = ({
     setSubformModal,
     validationError,
     setValidationError,
+    errorsByField,
+    isPrintModalOpen,
+    setIsPrintModalOpen,
     sourceTable,
     isUnbound,
     isReadOnly,

@@ -1,10 +1,16 @@
 
 import React, { useState } from 'react';
-import { FormElement, Table, getWidthClasses } from '../../../types/index';
-import { Plus, Search, User, Loader2, FileText } from 'lucide-react';
+import { FormElement, Table, getWidthClasses, FormValidationErrorItem } from '../../../types/index';
+import { Plus, Search, User, Loader2, FileText, AlertCircle, AlertTriangle } from 'lucide-react';
 import { UserPickerModal } from '../components/UserPickerModal';
 import { MarkdownEditor } from '../../../components/common/MarkdownEditor';
 import { MarkdownViewer } from '../../../components/common/MarkdownViewer';
+import { SignaturePadWidget } from '../widgets/SignaturePadWidget';
+import { BlueprintPhotoMarkerWidget } from '../widgets/BlueprintPhotoMarkerWidget';
+import { Din5008AddressWidget } from '../widgets/Din5008AddressWidget';
+import { GeoLocationWidget } from '../widgets/GeoLocationWidget';
+import { BarcodeScannerWidget } from '../widgets/BarcodeScannerWidget';
+import { CurrencyCalculationWidget } from '../widgets/CurrencyCalculationWidget';
 
 interface FormWidgetProps {
   element: FormElement;
@@ -12,10 +18,11 @@ interface FormWidgetProps {
   sourceTable?: Table;
   isReadOnly: boolean;
   onChange: (fieldName: string, value: any) => void;
-  getLookupOptions: (lookupConfig: any) => any[];
+  getLookupOptions: (lookupConfig: any, element?: FormElement) => any[];
   onOpenLookupModal?: (tableId: string, fieldName: string, formId?: string) => void;
   onContextMenu?: (e: React.MouseEvent, fieldName: string, value: any) => void;
   onFocusField?: (fieldName: string) => void;
+  fieldErrors?: FormValidationErrorItem[];
 }
 
 export const FormWidget: React.FC<FormWidgetProps> = ({
@@ -27,12 +34,41 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   getLookupOptions,
   onOpenLookupModal,
   onContextMenu,
-  onFocusField
+  onFocusField,
+  fieldErrors = [],
 }) => {
   const field = sourceTable?.fields.find(f => f.id === element.fieldId);
   const fieldName = field?.name || '';
   const label = element.label || fieldName;
   const elementId = `field_${element.id}`;
+
+  const hasBlockingError = fieldErrors.some((e) => e.severity === 'error');
+  const hasWarning = fieldErrors.some((e) => e.severity === 'warning');
+
+  const errorClass = hasBlockingError
+    ? 'border-rose-500 focus:ring-rose-500 focus:border-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+    : hasWarning
+    ? 'border-amber-500 focus:ring-amber-500 focus:border-amber-500 bg-amber-50/30 dark:bg-amber-950/20'
+    : '';
+
+  const renderFieldErrors = () => {
+    if (!fieldErrors || fieldErrors.length === 0) return null;
+    return (
+      <div className="mt-1 space-y-0.5">
+        {fieldErrors.map((err) => (
+          <div
+            key={err.id || err.message}
+            className={`text-[11px] font-medium flex items-center gap-1 ${
+              err.severity === 'error' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+            }`}
+          >
+            {err.severity === 'error' ? <AlertCircle size={12} className="shrink-0" /> : <AlertTriangle size={12} className="shrink-0" />}
+            <span>{err.message}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const widthClass = getWidthClasses(element.width);
   const mergedClassName = `${element.className || ''} ${widthClass}`.trim();
@@ -86,6 +122,96 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
               </div>
           </div>
       );
+  }
+
+  // --- RENDER: Signature Pad ---
+  if (widget === 'signature') {
+    return (
+      <div className={mergedClassName}>
+        <SignaturePadWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: Blueprint & Photo Marker ---
+  if (widget === 'photo-marker') {
+    return (
+      <div className={mergedClassName}>
+        <BlueprintPhotoMarkerWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: DIN 5008 Address Block ---
+  if (widget === 'din5008-address') {
+    return (
+      <div className={mergedClassName}>
+        <Din5008AddressWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: Geo Location ---
+  if (widget === 'geolocation') {
+    return (
+      <div className={mergedClassName}>
+        <GeoLocationWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: Barcode / QR Scanner ---
+  if (widget === 'barcode-scanner') {
+    return (
+      <div className={mergedClassName}>
+        <BarcodeScannerWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
+  }
+
+  // --- RENDER: Commercial / Currency Calculation ---
+  if (widget === 'currency') {
+    return (
+      <div className={mergedClassName}>
+        <CurrencyCalculationWidget
+          id={elementId}
+          label={element.hideLabel ? undefined : label}
+          value={value}
+          isReadOnly={isReadOnly}
+          onChange={(val) => onChange(fieldName, val)}
+        />
+      </div>
+    );
   }
 
   // --- RENDER: Current User (WhoAmI) ---
@@ -209,7 +335,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
   }
 
   if (widget === 'select') {
-      const options = element.lookup ? getLookupOptions(element.lookup) : [{ value: '', label: '(Keine Datenquelle konfiguriert)' }];
+      const options = element.lookup ? getLookupOptions(element.lookup, element) : [{ value: '', label: '(Keine Datenquelle konfiguriert)' }];
       return (
           <div className={mergedClassName}>
               {!element.hideLabel && <label htmlFor={elementId} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{label}</label>}
@@ -225,7 +351,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                 >
                     <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Auswählen...</option>
                     {options.map((opt, idx) => (
-                        <option key={`${opt.value}-${idx}`} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{opt.label}</option>
+                        <option key={`${opt.value}-${idx}`} value={opt.value} disabled={opt.disabled} className={`bg-white dark:bg-slate-800 ${opt.disabled ? 'text-slate-400 italic' : 'text-slate-900 dark:text-white'}`}>{opt.label}</option>
                     ))}
                 </select>
                 {element.lookup && element.lookup.allowQuickCreate && onOpenLookupModal && !isReadOnly && (
@@ -281,9 +407,10 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                   onChange={(e) => onChange(fieldName, e.target.value)}
                   onFocus={() => onFocusField && onFocusField(fieldName)}
                   onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                  className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs"
+                  className={`w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${errorClass}`}
                   rows={3}
               />
+              {renderFieldErrors()}
           </div>
       );
   }
@@ -318,8 +445,9 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
             onChange={(e) => onChange(fieldName, e.target.value)}
             onFocus={() => onFocusField && onFocusField(fieldName)}
             onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-            className={`w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${field?.isAutoIncrement ? 'bg-slate-50 dark:bg-slate-900' : ''}`}
+            className={`w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-2xs ${errorClass} ${field?.isAutoIncrement ? 'bg-slate-50 dark:bg-slate-900' : ''}`}
           />
+          {renderFieldErrors()}
       </div>
   );
 };

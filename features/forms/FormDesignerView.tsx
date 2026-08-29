@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { Form, Table, Query, FormElement, Relationship, getWidthClasses } from '../../types/index';
-import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown, Zap, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { Layout, Eye, Edit3, Monitor, GripVertical, Type, Box, List, Columns, Plus, ChevronDown, Zap, ArrowUp, ArrowDown, Trash2, PenTool, MapPin, Building2, QrCode, Euro, Navigation, FileCode, Code, Copy } from 'lucide-react';
 import { LinkSubformModal } from './components/LinkSubformModal';
 import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
+import { FormCodeExportModal } from './components/FormCodeExportModal';
 
 interface FormDesignerViewProps {
   form: Form;
@@ -20,7 +21,10 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [linkingSubform, setLinkingSubform] = useState<Form | null>(null);
   const [showLookupModal, setShowLookupModal] = useState(false);
+  const [showCodeExport, setShowCodeExport] = useState(false);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
+  const [dragOverTargetId, setDragOverTargetId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | 'inside' | null>(null);
   const [activeTab, setActiveTab] = useState<'layout' | 'validation'>('layout');
   const [activeDesignerTabs, setActiveDesignerTabs] = useState<Record<string, string>>({});
   
@@ -103,6 +107,46 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       });
   };
 
+  const handleDuplicateElement = (id: string) => {
+      updateFormLayout((layout) => {
+          const cloneAndInsert = (parent: FormElement): boolean => {
+              if (!parent.children) return false;
+              const idx = parent.children.findIndex(c => c.id === id);
+              if (idx > -1) {
+                  const original = parent.children[idx];
+                  const clone = JSON.parse(JSON.stringify(original));
+                  const assignNewIds = (el: FormElement) => {
+                      el.id = crypto.randomUUID();
+                      if (el.label && el.type !== 'container' && el.type !== 'tabs') {
+                          el.label = `${el.label} (Kopie)`;
+                      }
+                      if (el.children) el.children.forEach(assignNewIds);
+                  };
+                  assignNewIds(clone);
+                  parent.children.splice(idx + 1, 0, clone);
+                  setSelectedElementId(clone.id);
+                  return true;
+              }
+              return parent.children.some(c => cloneAndInsert(c));
+          };
+          cloneAndInsert(layout);
+      });
+  };
+
+  const widthSequence = ['1/12', '1/6', '1/4', '1/3', '5/12', '1/2', '7/12', '2/3', '3/4', '5/6', '11/12', 'full'];
+
+  const handleWidthStep = (id: string, delta: number) => {
+      updateFormLayout((layout) => {
+          const target = findElement(layout, id);
+          if (!target) return;
+          const current = target.width || 'full';
+          let idx = widthSequence.indexOf(current);
+          if (idx === -1) idx = widthSequence.length - 1;
+          const nextIdx = Math.max(0, Math.min(widthSequence.length - 1, idx + delta));
+          target.width = widthSequence[nextIdx] as any;
+      });
+  };
+
   // --- Event Handlers ---
   const handlePropertyChange = (key: keyof FormElement, value: any) => {
       if (!selectedElementId) return;
@@ -180,6 +224,9 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 { id: crypto.randomUUID(), label: '⚡ Makro 1 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] },
                 { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
             ];
+        } else if (actionTrigger.action === 'form_export_code') {
+            setShowCodeExport(true);
+            return;
         } else if (actionTrigger.action === 'form_add_container') {
             newEl.type = 'container'; newEl.className = 'p-4 border border-dashed border-slate-300 rounded bg-slate-50 min-h-[60px]';
         } else if (actionTrigger.action === 'form_add_2col') {
@@ -311,6 +358,16 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                         { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
                     ]
                 });
+            } else if (data.type === 'widget') {
+                // New Specialized Construction Widget
+                container.children.push({
+                    id: crypto.randomUUID(),
+                    type: 'field',
+                    fieldId: data.fieldId || '',
+                    label: data.label || 'Neues Widget',
+                    widgetType: data.widgetType,
+                    className: 'mb-4'
+                });
             } else if (data.type === 'form') {
                 // New Subform
                 setLinkingSubform(allForms.find(f => f.id === data.formId) || null);
@@ -321,11 +378,14 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       setDraggedElementId(null);
   };
 
-  // 3. Drop on Element (Insert Before) - For Reordering & Inserting new items
+  // 3. Drop on Element (Insert Before / After) - For Reordering & Inserting new items
   const handleDropOnElement = (e: React.DragEvent, targetElementId: string) => {
       e.preventDefault(); e.stopPropagation();
       const json = e.dataTransfer.getData('application/json');
       if (!json) return;
+
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const isAfter = (e.clientY - rect.top) > (rect.height / 2);
 
       try {
           const data = JSON.parse(json);
@@ -429,22 +489,37 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                   };
               }
               
+              // CASE G: Dropping specialized widget
+              else if (data.type === 'widget') {
+                  itemToInsert = {
+                      id: crypto.randomUUID(),
+                      type: 'field',
+                      fieldId: data.fieldId || '',
+                      label: data.label || 'Neues Widget',
+                      widgetType: data.widgetType,
+                      className: 'mb-4'
+                  };
+              }
+              
               // Perform Insertion
               if (itemToInsert) {
-                  const insertBefore = (parent: FormElement): boolean => {
+                  const insertRelative = (parent: FormElement): boolean => {
                       if (!parent.children) return false;
                       const idx = parent.children.findIndex(c => c.id === targetElementId);
                       if (idx > -1) {
-                          parent.children.splice(idx, 0, itemToInsert!);
+                          const insertIdx = isAfter ? idx + 1 : idx;
+                          parent.children.splice(insertIdx, 0, itemToInsert!);
                           return true;
                       }
-                      return parent.children.some(c => insertBefore(c));
+                      return parent.children.some(c => insertRelative(c));
                   };
-                  insertBefore(layout);
+                  insertRelative(layout);
               }
           });
       } catch (e) { console.error(e); }
       setDraggedElementId(null);
+      setDragOverTargetId(null);
+      setDropPosition(null);
   };
 
   const handleLinkSubform = (m: string, c: string) => {
@@ -469,42 +544,101 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       const isSelected = el.id === selectedElementId;
       const isDragging = el.id === draggedElementId;
       
+      const handleElementDragOver = (e: React.DragEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const relY = e.clientY - rect.top;
+          const isAfter = relY > (rect.height / 2);
+          setDragOverTargetId(el.id);
+          setDropPosition(isAfter ? 'after' : 'before');
+      };
+
+      const handleElementDragLeave = (e: React.DragEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (dragOverTargetId === el.id) {
+              setDragOverTargetId(null);
+              setDropPosition(null);
+          }
+      };
+
       const commonProps = {
           onClick: (e: React.MouseEvent) => { e.stopPropagation(); setSelectedElementId(el.id); },
           draggable: true,
           onDragStart: (e: React.DragEvent) => handleDragStart(e, el.id),
-          onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); }, // Allow Drop
+          onDragOver: handleElementDragOver,
+          onDragLeave: handleElementDragLeave,
           onDrop: (e: React.DragEvent) => handleDropOnElement(e, el.id)
       };
 
       const widthClass = getWidthClasses(el.width);
       const baseClass = `relative border transition-all cursor-pointer ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 z-10' : 'border-transparent hover:border-blue-300'} ${isDragging ? 'opacity-40' : 'opacity-100'} ${widthClass}`.trim();
 
+      // Drop Indicator Line
+      const DropIndicator = ({ position }: { position: 'before' | 'after' }) => {
+          if (dragOverTargetId !== el.id || dropPosition !== position) return null;
+          return (
+              <div className={`w-full py-0.5 flex items-center justify-center z-30 pointer-events-none ${position === 'before' ? '-mt-1 mb-1' : 'mt-1 -mb-1'}`}>
+                  <div className="w-full h-1.5 bg-blue-500 rounded-full shadow-md shadow-blue-500/40 flex items-center justify-center relative animate-pulse">
+                      <span className="absolute bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow border border-blue-400">
+                          {position === 'before' ? '↑ Hier davor einfügen' : '↓ Hier danach einfügen'}
+                      </span>
+                  </div>
+              </div>
+          );
+      };
+
       // Floating Action overlay on selected element
       const SelectionOverlayActions = () => {
           if (!isSelected || el.id === form.layout?.id) return null;
+          const currentWidth = el.width || 'auto';
           return (
-              <div className="absolute -top-3 right-1.5 bg-blue-600 text-white text-[10px] rounded flex items-center shadow-md z-30 overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="absolute -top-3.5 right-1.5 bg-slate-900 text-white text-[10px] rounded-md flex items-center shadow-lg z-30 overflow-hidden border border-slate-700/80 divide-x divide-slate-700" onClick={e => e.stopPropagation()}>
+                  <span className="px-1.5 py-0.5 text-[9px] font-mono text-indigo-300 font-bold bg-slate-800" title="Aktuelle Breite">
+                      {currentWidth}
+                  </span>
+                  <button 
+                      onClick={(e) => { e.preventDefault(); handleWidthStep(el.id, -1); }}
+                      className="px-1.5 py-0.5 hover:bg-slate-700 transition-colors font-bold text-slate-300 hover:text-white"
+                      title="Spaltenbreite verkleinern (-)"
+                  >
+                      -
+                  </button>
+                  <button 
+                      onClick={(e) => { e.preventDefault(); handleWidthStep(el.id, 1); }}
+                      className="px-1.5 py-0.5 hover:bg-slate-700 transition-colors font-bold text-slate-300 hover:text-white"
+                      title="Spaltenbreite vergrößern (+)"
+                  >
+                      +
+                  </button>
                   <button 
                       onClick={(e) => { e.preventDefault(); handleMoveElementDirect(el.id, 'up'); }}
-                      className="p-1 hover:bg-blue-700 transition-colors border-r border-blue-500/50"
+                      className="p-1 hover:bg-slate-700 transition-colors text-slate-300 hover:text-white"
                       title="Nach oben verschieben"
                   >
-                      <ArrowUp size={10} />
+                      <ArrowUp size={11} />
                   </button>
                   <button 
                       onClick={(e) => { e.preventDefault(); handleMoveElementDirect(el.id, 'down'); }}
-                      className="p-1 hover:bg-blue-700 transition-colors border-r border-blue-500/50"
+                      className="p-1 hover:bg-slate-700 transition-colors text-slate-300 hover:text-white"
                       title="Nach unten verschieben"
                   >
-                      <ArrowDown size={10} />
+                      <ArrowDown size={11} />
+                  </button>
+                  <button 
+                      onClick={(e) => { e.preventDefault(); handleDuplicateElement(el.id); }}
+                      className="p-1 hover:bg-slate-700 transition-colors text-indigo-300 hover:text-indigo-100"
+                      title="Element duplizieren"
+                  >
+                      <Copy size={11} />
                   </button>
                   <button 
                       onClick={(e) => { e.preventDefault(); deleteSelected(); }}
-                      className="p-1 hover:bg-red-600 transition-colors"
+                      className="p-1 hover:bg-red-600 transition-colors text-red-300 hover:text-white"
                       title="Element löschen"
                   >
-                      <Trash2 size={10} />
+                      <Trash2 size={11} />
                   </button>
               </div>
           );
@@ -519,23 +653,27 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
       if (el.type === 'container') {
           return (
-              <div 
-                key={el.id} 
-                className={`${baseClass} ${el.className} min-h-[40px] group/container relative`}
-                onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={(e) => handleDropOnContainer(e, el.id)}
-                draggable // Containers are draggable too
-                onDragStart={(e) => handleDragStart(e, el.id)}
-              >
-                  <SelectionOverlayActions />
-                  {/* Container Grip - Top Right */}
-                  <div className="absolute right-0 top-0 p-1 cursor-move text-slate-300 hover:text-blue-500 opacity-0 group-hover/container:opacity-100 z-20 bg-white/50 rounded">
-                      <GripVertical size={14} />
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div 
+                    className={`${baseClass} ${el.className} min-h-[40px] group/container relative`}
+                    onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
+                    onDragOver={handleElementDragOver}
+                    onDragLeave={handleElementDragLeave}
+                    onDrop={(e) => handleDropOnContainer(e, el.id)}
+                    draggable // Containers are draggable too
+                    onDragStart={(e) => handleDragStart(e, el.id)}
+                  >
+                      <SelectionOverlayActions />
+                      {/* Container Grip - Top Right */}
+                      <div className="absolute right-0 top-0 p-1 cursor-move text-slate-300 hover:text-blue-500 opacity-0 group-hover/container:opacity-100 z-20 bg-white/50 rounded">
+                          <GripVertical size={14} />
+                      </div>
+                      {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-4 border-2 border-dashed border-slate-200 rounded pointer-events-none">Hier Elemente ablegen</div>}
+                      {el.children?.map(renderElement)}
                   </div>
-                  {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-4 border-2 border-dashed border-slate-200 rounded pointer-events-none">Hier Elemente ablegen</div>}
-                  {el.children?.map(renderElement)}
-              </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
 
@@ -545,213 +683,241 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
           const activePage = tabPages.find(p => p.id === activeTabPageId) || tabPages[0];
 
           return (
-              <div 
-                key={el.id} 
-                className={`${baseClass} bg-slate-50 dark:bg-slate-900/40 p-4 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl group relative`}
-                onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={(e) => handleDropOnContainer(e, el.id)}
-                draggable
-                onDragStart={(e) => handleDragStart(e, el.id)}
-              >
-                  <SelectionOverlayActions />
-                  <div className="absolute right-0 top-0 p-1 cursor-move text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 z-20 bg-white/50 dark:bg-slate-800/50 rounded">
-                      <GripVertical size={14} />
-                  </div>
-
-                  {/* Tab Headers in Designer */}
-                  <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 px-2 rounded-t-lg items-center justify-between">
-                      <div className="flex overflow-x-auto whitespace-nowrap">
-                          {tabPages.map((tab, idx) => {
-                              const isActive = tab.id === activeTabPageId;
-                              return (
-                                  <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setActiveDesignerTabs(prev => ({ ...prev, [el.id]: tab.id })); setSelectedElementId(tab.id); }}
-                                    className={`px-3 py-1.5 text-xs font-semibold border-b-2 transition-all ${
-                                      isActive
-                                        ? 'border-blue-600 text-blue-600 bg-white dark:bg-slate-900 shadow-sm'
-                                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 hover:bg-slate-200/50'
-                                    }`}
-                                  >
-                                      {tab.label || `Registerkarte ${idx + 1}`}
-                                  </button>
-                              );
-                          })}
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div 
+                    className={`${baseClass} bg-slate-50 dark:bg-slate-900/40 p-4 border border-dashed border-slate-300 dark:border-slate-800 rounded-xl group relative`}
+                    onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
+                    onDragOver={handleElementDragOver}
+                    onDragLeave={handleElementDragLeave}
+                    onDrop={(e) => handleDropOnContainer(e, el.id)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, el.id)}
+                  >
+                      <SelectionOverlayActions />
+                      <div className="absolute right-0 top-0 p-1 cursor-move text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 z-20 bg-white/50 dark:bg-slate-800/50 rounded">
+                          <GripVertical size={14} />
                       </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            // Add a new tab page
-                            const newTabPage: FormElement = {
-                                id: 'tabpage_' + crypto.randomUUID(),
-                                type: 'tab_page',
-                                label: 'Neue Registerkarte',
-                                children: []
-                            };
-                            const updatedLayout = JSON.parse(JSON.stringify(form.layout));
-                            const foundTabs = findElement(updatedLayout, el.id);
-                            if (foundTabs) {
-                                if (!foundTabs.children) foundTabs.children = [];
-                                foundTabs.children.push(newTabPage);
-                                onFormChange({ ...form, layout: updatedLayout });
-                                setActiveDesignerTabs(prev => ({ ...prev, [el.id]: newTabPage.id }));
-                                setSelectedElementId(newTabPage.id);
-                            }
-                        }}
-                        className="m-1 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"
-                      >
-                          <Plus size={10} strokeWidth={3} /> Tab hinzufügen
-                      </button>
-                  </div>
 
-                  {/* Active Tab Page Content */}
-                  <div className="p-2 border-x border-b border-slate-200 dark:border-slate-800 rounded-b-lg bg-white dark:bg-slate-900/20 min-h-[80px]">
-                      {activePage ? renderElement(activePage) : <div className="text-xs text-slate-400 text-center py-4">Keine Registerkarten vorhanden</div>}
+                      {/* Tab Headers in Designer */}
+                      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 px-2 rounded-t-lg items-center justify-between">
+                          <div className="flex overflow-x-auto whitespace-nowrap">
+                              {tabPages.map((tab, idx) => {
+                                  const isActive = tab.id === activeTabPageId;
+                                  return (
+                                      <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setActiveDesignerTabs(prev => ({ ...prev, [el.id]: tab.id })); setSelectedElementId(tab.id); }}
+                                        className={`px-3 py-1.5 text-xs font-semibold border-b-2 transition-all ${
+                                          isActive
+                                            ? 'border-blue-600 text-blue-600 bg-white dark:bg-slate-900 shadow-sm'
+                                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 hover:bg-slate-200/50'
+                                        }`}
+                                      >
+                                          {tab.label || `Registerkarte ${idx + 1}`}
+                                      </button>
+                                  );
+                              })}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Add a new tab page
+                                const newTabPage: FormElement = {
+                                    id: 'tabpage_' + crypto.randomUUID(),
+                                    type: 'tab_page',
+                                    label: 'Neue Registerkarte',
+                                    children: []
+                                };
+                                const updatedLayout = JSON.parse(JSON.stringify(form.layout));
+                                const foundTabs = findElement(updatedLayout, el.id);
+                                if (foundTabs) {
+                                    if (!foundTabs.children) foundTabs.children = [];
+                                    foundTabs.children.push(newTabPage);
+                                    onFormChange({ ...form, layout: updatedLayout });
+                                    setActiveDesignerTabs(prev => ({ ...prev, [el.id]: newTabPage.id }));
+                                    setSelectedElementId(newTabPage.id);
+                                }
+                            }}
+                            className="m-1 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1"
+                          >
+                              <Plus size={10} strokeWidth={3} /> Tab hinzufügen
+                          </button>
+                      </div>
+
+                      {/* Active Tab Page Content */}
+                      <div className="p-2 border-x border-b border-slate-200 dark:border-slate-800 rounded-b-lg bg-white dark:bg-slate-900/20 min-h-[80px]">
+                          {activePage ? renderElement(activePage) : <div className="text-xs text-slate-400 text-center py-4">Keine Registerkarten vorhanden</div>}
+                      </div>
                   </div>
-              </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
 
       if (el.type === 'tab_page') {
           return (
-              <div 
-                key={el.id} 
-                className={`${baseClass} bg-slate-50/50 p-2 border border-dashed border-slate-200 dark:border-slate-800 rounded min-h-[60px] group relative`}
-                onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={(e) => handleDropOnContainer(e, el.id)}
-              >
-                  <SelectionOverlayActions />
-                  <div className="text-[10px] text-slate-400 font-semibold mb-2 flex items-center justify-between border-b border-slate-100 pb-1">
-                      <span>Registerkarte: {el.label}</span>
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div 
+                    className={`${baseClass} bg-slate-50/50 p-2 border border-dashed border-slate-200 dark:border-slate-800 rounded min-h-[60px] group relative`}
+                    onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}
+                    onDragOver={handleElementDragOver}
+                    onDragLeave={handleElementDragLeave}
+                    onDrop={(e) => handleDropOnContainer(e, el.id)}
+                  >
+                      <SelectionOverlayActions />
+                      <div className="text-[10px] text-slate-400 font-semibold mb-2 flex items-center justify-between border-b border-slate-100 pb-1">
+                          <span>Registerkarte: {el.label}</span>
+                      </div>
+                      {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-2 pointer-events-none">Hier Elemente ablegen</div>}
+                      {el.children?.map(renderElement)}
                   </div>
-                  {el.children?.length === 0 && <div className="text-xs text-slate-400 text-center py-2 pointer-events-none">Hier Elemente ablegen</div>}
-                  {el.children?.map(renderElement)}
-              </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
       
       if (el.type === 'field') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} bg-white p-3 pr-4 pl-8 rounded-lg border border-slate-200 group shadow-sm hover:shadow transition-shadow`} {...commonProps}>
-                  <SelectionOverlayActions />
-                  <GripHandle />
-                  {!el.hideLabel ? (
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5 pointer-events-none">{el.label}</label>
-                  ) : (
-                      <span className="block text-[10px] text-slate-400 italic mb-1.5 pointer-events-none">{el.label} (Beschriftung ausgeblendet)</span>
-                  )}
-                  <div className="flex gap-2 relative pointer-events-none">
-                    {el.widgetType === 'select' ? (
-                         <div className="w-full relative pointer-events-none">
-                             <select className="w-full appearance-none bg-white border border-slate-300 text-slate-600 text-sm rounded px-3 py-2 shadow-sm pointer-events-none" disabled>
-                                  <option>Auswählen...</option>
-                             </select>
-                             <div className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
-                                <ChevronDown size={14} />
-                             </div>
-                         </div>
-                    ) : el.widgetType === 'markdown' ? (
-                         <div className="w-full bg-slate-50 border border-slate-300 rounded-lg overflow-hidden shadow-2xs pointer-events-none">
-                             <div className="bg-slate-100 px-2.5 py-1 border-b border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
-                                 <div className="flex items-center gap-1.5 font-semibold text-slate-500">
-                                     <span className="font-bold text-slate-700">B</span>
-                                     <span className="italic text-slate-700">I</span>
-                                     <span>H1</span>
-                                     <span>H2</span>
-                                     <span>• Liste</span>
-                                     <span>📊 Tabelle</span>
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div className={`${baseClass} ${el.className} bg-white p-3 pr-4 pl-8 rounded-lg border border-slate-200 group shadow-sm hover:shadow transition-shadow`} {...commonProps}>
+                      <SelectionOverlayActions />
+                      <GripHandle />
+                      {!el.hideLabel ? (
+                          <label className="block text-sm font-medium text-slate-700 mb-1.5 pointer-events-none">{el.label}</label>
+                      ) : (
+                          <span className="block text-[10px] text-slate-400 italic mb-1.5 pointer-events-none">{el.label} (Beschriftung ausgeblendet)</span>
+                      )}
+                      <div className="flex gap-2 relative pointer-events-none">
+                        {el.widgetType === 'select' ? (
+                             <div className="w-full relative pointer-events-none">
+                                 <select className="w-full appearance-none bg-white border border-slate-300 text-slate-600 text-sm rounded px-3 py-2 shadow-sm pointer-events-none" disabled>
+                                      <option>Auswählen...</option>
+                                 </select>
+                                 <div className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                    <ChevronDown size={14} />
                                  </div>
-                                 <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono font-bold">Markdown</span>
                              </div>
-                             <div className="p-2.5 text-xs text-slate-400 font-mono leading-relaxed">
-                                 # Überschrift<br/>
-                                 - **Formatierter Text** und Listen...
+                        ) : el.widgetType === 'markdown' ? (
+                             <div className="w-full bg-slate-50 border border-slate-300 rounded-lg overflow-hidden shadow-2xs pointer-events-none">
+                                 <div className="bg-slate-100 px-2.5 py-1 border-b border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
+                                     <div className="flex items-center gap-1.5 font-semibold text-slate-500">
+                                         <span className="font-bold text-slate-700">B</span>
+                                         <span className="italic text-slate-700">I</span>
+                                         <span>H1</span>
+                                         <span>H2</span>
+                                         <span>• Liste</span>
+                                         <span>📊 Tabelle</span>
+                                     </div>
+                                     <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono font-bold">Markdown</span>
+                                 </div>
+                                 <div className="p-2.5 text-xs text-slate-400 font-mono leading-relaxed">
+                                     # Überschrift<br/>
+                                     - **Formatierter Text** und Listen...
+                                 </div>
                              </div>
-                         </div>
-                    ) : el.widgetType === 'textarea' ? (
-                         <textarea className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none min-h-[80px]" placeholder="Text eingeben..." readOnly />
-                    ) : (el.widgetType === 'checkbox' || el.widgetType === 'switch') ? (
-                         <div className="flex items-center gap-2 pointer-events-none py-1.5">
-                             {el.widgetType === 'switch' ? (
-                                  <div className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full border-2 border-transparent bg-slate-200 transition-colors pointer-events-none">
-                                      <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition pointer-events-none" />
-                                  </div>
-                             ) : (
-                                  <input type="checkbox" className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" readOnly />
-                             )}
-                             <span className="text-sm text-slate-600">{el.widgetType === 'switch' ? 'Schalter' : 'Aktivieren'}</span>
-                         </div>
-                    ) : (
-                         <input type="text" className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none" placeholder="Eingabe..." readOnly />
-                    )}
-                    {el.widgetType === 'select' && el.lookup?.allowQuickCreate && (
-                        <div className="h-9 w-9 shrink-0 bg-emerald-50 border border-emerald-200 rounded flex items-center justify-center text-emerald-600 shadow-sm pointer-events-none" title="Quick Create aktiv">
-                            <Plus size={16} strokeWidth={2.5} />
-                        </div>
-                    )}
+                        ) : el.widgetType === 'textarea' ? (
+                             <textarea className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none min-h-[80px]" placeholder="Text eingeben..." readOnly />
+                        ) : (el.widgetType === 'checkbox' || el.widgetType === 'switch') ? (
+                             <div className="flex items-center gap-2 pointer-events-none py-1.5">
+                                 {el.widgetType === 'switch' ? (
+                                      <div className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed rounded-full border-2 border-transparent bg-slate-200 transition-colors pointer-events-none">
+                                          <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition pointer-events-none" />
+                                      </div>
+                                 ) : (
+                                      <input type="checkbox" className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" readOnly />
+                                 )}
+                                 <span className="text-sm text-slate-600">{el.widgetType === 'switch' ? 'Schalter' : 'Aktivieren'}</span>
+                             </div>
+                        ) : (
+                             <input type="text" className="w-full bg-slate-50 border border-slate-300 text-slate-400 text-sm rounded px-3 py-2 shadow-none pointer-events-none" placeholder="Eingabe..." readOnly />
+                        )}
+                        {el.widgetType === 'select' && el.lookup?.allowQuickCreate && (
+                            <div className="h-9 w-9 shrink-0 bg-emerald-50 border border-emerald-200 rounded flex items-center justify-center text-emerald-600 shadow-sm pointer-events-none" title="Quick Create aktiv">
+                                <Plus size={16} strokeWidth={2.5} />
+                            </div>
+                        )}
+                      </div>
                   </div>
-              </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
       
       if (el.type === 'label') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} pl-8 py-2 group relative`} {...commonProps}>
-                  <SelectionOverlayActions />
-                  <GripHandle />
-                  {el.label}
-              </div>
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div className={`${baseClass} ${el.className} pl-8 py-2 group relative`} {...commonProps}>
+                      <SelectionOverlayActions />
+                      <GripHandle />
+                      {el.label}
+                  </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
 
       if (el.type === 'button') {
           return (
-              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2 relative`} {...commonProps}>
-                  <SelectionOverlayActions />
-                  <GripHandle />
-                  <button className={`${el.className} pointer-events-none opacity-90 shadow-sm transition-all focus:ring`}>
-                      {el.label || 'Button'}
-                  </button>
-                  {el.actions && el.actions.length > 0 && (
-                      <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow border border-white">
-                          {el.actions.length}
-                      </div>
-                  )}
-              </div>
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2 relative`} {...commonProps}>
+                      <SelectionOverlayActions />
+                      <GripHandle />
+                      <button className={`${el.className} pointer-events-none opacity-90 shadow-sm transition-all focus:ring`}>
+                          {el.label || 'Button'}
+                      </button>
+                      {el.actions && el.actions.length > 0 && (
+                          <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow border border-white">
+                              {el.actions.length}
+                          </div>
+                      )}
+                  </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
 
       if (el.type === 'dropdown_button') {
           const count = el.dropdownItems?.length || 0;
           return (
-              <div key={el.id} className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2 relative`} {...commonProps}>
-                  <SelectionOverlayActions />
-                  <GripHandle />
-                  <div className="inline-flex items-center gap-2 pointer-events-none">
-                      <button className={`${el.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm'} opacity-90 transition-all flex items-center gap-2`}>
-                          <span>{el.label || 'Aktionen'}</span>
-                          <ChevronDown size={14} />
-                      </button>
-                      <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold border border-slate-300">
-                          {count} {count === 1 ? 'Sub-Button' : 'Sub-Buttons'}
-                      </span>
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div className={`${baseClass} pl-8 pr-2 py-2 group inline-block mr-2 relative`} {...commonProps}>
+                      <SelectionOverlayActions />
+                      <GripHandle />
+                      <div className="inline-flex items-center gap-2 pointer-events-none">
+                          <button className={`${el.className || 'bg-slate-800 text-white font-bold py-2 px-4 rounded-lg shadow-sm'} opacity-90 transition-all flex items-center gap-2`}>
+                              <span>{el.label || 'Aktionen'}</span>
+                              <ChevronDown size={14} />
+                          </button>
+                          <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold border border-slate-300">
+                              {count} {count === 1 ? 'Sub-Button' : 'Sub-Buttons'}
+                          </span>
+                      </div>
                   </div>
-              </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
 
       if (el.type === 'subform') {
           return (
-              <div key={el.id} className={`${baseClass} ${el.className} p-4 pl-6 group relative`} {...commonProps}>
-                  <SelectionOverlayActions />
-                  <GripHandle />
-                  <div className="font-bold text-indigo-700 pointer-events-none">Subform: {el.label}</div>
-                  <div className="text-xs text-indigo-400">Verknüpftes Formular</div>
-              </div>
+              <React.Fragment key={el.id}>
+                  <DropIndicator position="before" />
+                  <div className={`${baseClass} ${el.className} p-4 pl-6 group relative`} {...commonProps}>
+                      <SelectionOverlayActions />
+                      <GripHandle />
+                      <div className="font-bold text-indigo-700 pointer-events-none">Subform: {el.label}</div>
+                      <div className="text-xs text-indigo-400">Verknüpftes Formular</div>
+                  </div>
+                  <DropIndicator position="after" />
+              </React.Fragment>
           );
       }
       return null;
@@ -1028,27 +1194,178 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                      <div 
                         key={f.fieldId} 
                         draggable 
-                        onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'field', fieldId: f.fieldId, label: f.label })); }} 
+                        onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "field", fieldId: f.fieldId, label: f.label })); }} 
                         className="bg-white border p-1.5 rounded cursor-grab text-sm hover:shadow-sm flex gap-2 hover:border-blue-400 active:cursor-grabbing"
                      >
                          <GripVertical size={14} className="text-slate-400"/> {f.label}
                      </div>
                  ))}
              </div>
-             <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Schaltflächen & Makros</h4>
-             <div className="space-y-1">
+
+             <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Baufach-Widgets</h4>
+             <div className="space-y-1.5">
                  <div 
                     draggable 
-                    onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'button', label: '⚡ Makro ausführen' })); }}
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "signature", label: "Digitale Signatur / Abnahme" })); }}
                     onClick={() => {
                         updateFormLayout(layout => {
                             if (!layout.children) layout.children = [];
                             layout.children.push({
                                 id: crypto.randomUUID(),
-                                type: 'button',
-                                label: '⚡ Makro ausführen',
-                                className: 'bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
-                                actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }]
+                                type: "field",
+                                fieldId: "",
+                                label: "Digitale Signatur (Abnahme)",
+                                widgetType: "signature",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-emerald-50 border border-emerald-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-emerald-950 hover:bg-emerald-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="Signaturpad mit Hash-Verifikation"
+                 >
+                     <span className="flex items-center gap-1.5"><PenTool size={13} className="text-emerald-600" /> Signatur / Abnahme</span>
+                     <Plus size={13} className="text-emerald-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "photo-marker", label: "Bauplan & Mängel-Marker" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "Bauplan & Mängel-Marker",
+                                widgetType: "photo-marker",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-sky-50 border border-sky-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-sky-950 hover:bg-sky-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="Bauplan-Visualisierung mit Mängel-Markern"
+                 >
+                     <span className="flex items-center gap-1.5"><MapPin size={13} className="text-sky-600" /> Plan- & Fotomarker</span>
+                     <Plus size={13} className="text-sky-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "din5008-address", label: "DIN 5008 Anschrift" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "Empfängeradresse (DIN 5008)",
+                                widgetType: "din5008-address",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-amber-50 border border-amber-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-amber-950 hover:bg-amber-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="Normgerechte DIN 5008 Anschriftenzone"
+                 >
+                     <span className="flex items-center gap-1.5"><Building2 size={13} className="text-amber-600" /> DIN 5008 Anschrift</span>
+                     <Plus size={13} className="text-amber-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "geolocation", label: "GPS Baustellen-Standort" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "GPS Baustellen-Standort",
+                                widgetType: "geolocation",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-teal-50 border border-teal-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-teal-950 hover:bg-teal-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="GPS-Koordinaten mit Genauigkeit & Kartenansicht"
+                 >
+                     <span className="flex items-center gap-1.5"><Navigation size={13} className="text-teal-600" /> GPS Standort</span>
+                     <Plus size={13} className="text-teal-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "barcode-scanner", label: "Barcode / QR Scanner" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "Material / Artikel Barcode",
+                                widgetType: "barcode-scanner",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-purple-50 border border-purple-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-purple-950 hover:bg-purple-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="Kamera-Barcode und QR-Code Erfassung"
+                 >
+                     <span className="flex items-center gap-1.5"><QrCode size={13} className="text-purple-600" /> Barcode / QR Scan</span>
+                     <Plus size={13} className="text-purple-700" />
+                 </div>
+
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "widget", widgetType: "currency", label: "Währung & VOB/B Steuer" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "field",
+                                fieldId: "",
+                                label: "Rechnungssumme & Sicherheitseinbehalt",
+                                widgetType: "currency",
+                                className: "mb-4"
+                            });
+                        });
+                    }}
+                    className="bg-indigo-50 border border-indigo-300 p-1.5 rounded cursor-grab text-xs flex items-center justify-between text-indigo-950 hover:bg-indigo-100/80 active:cursor-grabbing font-medium transition-colors"
+                    title="Währungsrechner mit VOB/B-Sicherheitseinbehalt"
+                 >
+                     <span className="flex items-center gap-1.5"><Euro size={13} className="text-indigo-600" /> Währung / VOB Steuer</span>
+                     <Plus size={13} className="text-indigo-700" />
+                 </div>
+             </div>
+
+             <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Code Export</h4>
+             <button
+               type="button"
+               onClick={() => setShowCodeExport(true)}
+               className="w-full bg-slate-800 hover:bg-slate-900 text-white p-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+             >
+               <Code size={14} className="text-amber-400" /> Code Export (React / Angular)
+             </button>
+
+             <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Schaltflächen & Makros</h4>
+             <div className="space-y-1">
+                 <div 
+                    draggable 
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "button", label: "⚡ Makro ausführen" })); }}
+                    onClick={() => {
+                        updateFormLayout(layout => {
+                            if (!layout.children) layout.children = [];
+                            layout.children.push({
+                                id: crypto.randomUUID(),
+                                type: "button",
+                                label: "⚡ Makro ausführen",
+                                className: "bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4",
+                                actions: [{ id: crypto.randomUUID(), trigger: "OnClick", actionType: "RunMacro", macroId: "" }]
                             });
                         });
                     }}
@@ -1061,18 +1378,18 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
                  <div 
                     draggable 
-                    onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'dropdown_button', label: 'Aktionen' })); }}
+                    onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "dropdown_button", label: "Aktionen" })); }}
                     onClick={() => {
                         updateFormLayout(layout => {
                             if (!layout.children) layout.children = [];
                             layout.children.push({
                                 id: crypto.randomUUID(),
-                                type: 'dropdown_button',
-                                label: 'Aktionen',
-                                className: 'bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4',
+                                type: "dropdown_button",
+                                label: "Aktionen",
+                                className: "bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-2 mb-4",
                                 dropdownItems: [
-                                    { id: crypto.randomUUID(), label: '⚡ Makro 1 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] },
-                                    { id: crypto.randomUUID(), label: '⚡ Makro 2 ausführen', actions: [{ id: crypto.randomUUID(), trigger: 'OnClick', actionType: 'RunMacro', macroId: '' }] }
+                                    { id: crypto.randomUUID(), label: "⚡ Makro 1 ausführen", actions: [{ id: crypto.randomUUID(), trigger: "OnClick", actionType: "RunMacro", macroId: "" }] },
+                                    { id: crypto.randomUUID(), label: "⚡ Makro 2 ausführen", actions: [{ id: crypto.randomUUID(), trigger: "OnClick", actionType: "RunMacro", macroId: "" }] }
                                 ]
                             });
                         });
@@ -1091,13 +1408,21 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
              <h4 className="font-bold text-xs text-slate-500 uppercase mt-4 mb-2">Unterformulare</h4>
              <div className="space-y-1">
                  {allForms.filter(f => f.id !== form.id).map(f => (
-                     <div key={f.id} draggable onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'form', formId: f.id })); }} className="bg-indigo-50 border border-indigo-200 p-1.5 rounded cursor-grab text-sm flex gap-2 text-indigo-700 hover:border-indigo-400 active:cursor-grabbing">
+                     <div key={f.id} draggable onDragStart={e => { e.dataTransfer.setData("application/json", JSON.stringify({ type: "form", formId: f.id })); }} className="bg-indigo-50 border border-indigo-200 p-1.5 rounded cursor-grab text-sm flex gap-2 text-indigo-700 hover:border-indigo-400 active:cursor-grabbing">
                          <Layout size={14}/> {f.name}
                      </div>
                  ))}
              </div>
           </div>
       </div>
+
+      {showCodeExport && (
+         <FormCodeExportModal 
+            form={form} 
+            table={mainFormTable} 
+            onClose={() => setShowCodeExport(false)} 
+         />
+      )}
     </div>
   );
 };

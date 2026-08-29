@@ -210,7 +210,12 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                     settings: {
                       ...(report.settings || {}),
                       din5008: {
-                        ...(report.settings?.din5008 || { version: 'FormA', foldMarks: true, punchMark: true, senderLine: 'Musterbau GmbH', showSenderInfoBlock: true }),
+                        formType: 'FormA',
+                        senderLine: 'Musterbau GmbH • Baustr. 1 • 10115 Berlin',
+                        recipientAddress: 'Bauherr GmbH\nMax-Muster-Str. 4\n80331 München',
+                        infoblock: { date: new Date().toLocaleDateString('de-DE') },
+                        threeColumnFooter: {},
+                        ...(report.settings?.din5008 || {}),
                         enabled: e.target.checked
                       }
                     }
@@ -228,7 +233,10 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                     settings: {
                       ...(report.settings || {}),
                       commercialVob: {
-                        ...(report.settings?.commercialVob || { enableCarryOver: true, enableCumulativeBilling: true, securityDepositPercent: 5, warrantyRetentionPercent: 5 }),
+                        enableCarryOver: true,
+                        vatSplitting: { standard19: 0, reduced7: 0, taxFree13b: 0 },
+                        deductions: { warrantyRetentionPercent: 5 },
+                        ...(report.settings?.commercialVob || {}),
                         enabled: e.target.checked
                       }
                     }
@@ -252,7 +260,14 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                     settings: {
                       ...(report.settings || {}),
                       zugferd: {
-                        ...(report.settings?.zugferd || { profile: 'EN16931', invoiceNumber: 'RE-2026-001', invoiceDate: new Date().toISOString().split('T')[0], sellerName: 'Musterbau GmbH', buyerName: 'Kunde' }),
+                        profile: 'EN16931',
+                        invoiceNumber: 'RE-2026-001',
+                        sellerName: 'Musterbau GmbH',
+                        sellerVatId: 'DE123456789',
+                        buyerName: 'Kunde',
+                        currency: 'EUR',
+                        pdfCompliance: 'PDF/A-3b',
+                        ...(report.settings?.zugferd || {}),
                         enabled: e.target.checked
                       }
                     }
@@ -270,7 +285,11 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                     settings: {
                       ...(report.settings || {}),
                       swissQrCode: {
-                        ...(report.settings?.swissQrCode || { iban: 'CH4431999123000889012', currency: 'CHF', amount: 1500, creditorName: 'Musterbau AG' }),
+                        iban: 'CH4431999123000889012',
+                        currency: 'CHF',
+                        referenceType: 'NON',
+                        creditor: { name: 'Musterbau AG', street: 'Bahnhofstrasse', postalCode: '8001', city: 'Zürich', country: 'CH' },
+                        ...(report.settings?.swissQrCode || {}),
                         enabled: e.target.checked
                       }
                     }

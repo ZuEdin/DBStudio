@@ -14,6 +14,7 @@ import { AdvancedFilterModal } from './components/FormView/AdvancedFilterModal';
 import { LookupModal } from './components/FormView/LookupModal';
 import { SubformModal } from './components/FormView/SubformModal';
 import { FormElementRenderer } from './components/FormView/FormElementRenderer';
+import { FormPrintModal } from './components/FormPrintModal';
 
 interface FormViewProps {
   form: Form;
@@ -89,6 +90,7 @@ export const FormView: React.FC<FormViewProps> = (props) => {
       getFieldName={state.getFieldName}
       evalVisibility={state.evalVisibility}
       FormViewComponent={FormView}
+      errorsByField={state.errorsByField}
     />
   );
 
@@ -113,6 +115,7 @@ export const FormView: React.FC<FormViewProps> = (props) => {
           currentIndex={state.currentIndex}
           dataLength={state.data.length}
           onClose={onClose}
+          onOpenPrintModal={() => state.setIsPrintModalOpen(true)}
           headerColorClass={headerColorClass}
         />
 
@@ -329,6 +332,17 @@ export const FormView: React.FC<FormViewProps> = (props) => {
           relationships={relationships}
           onConfirmDelete={state.handleCascadeDeleteConfirm}
           onClose={() => state.setShowCascadeDeleteModal(false)}
+        />
+      )}
+
+      {state.isPrintModalOpen && (
+        <FormPrintModal
+          isOpen={state.isPrintModalOpen}
+          onClose={() => state.setIsPrintModalOpen(false)}
+          form={form}
+          currentRecord={state.currentRecord}
+          sourceTable={state.sourceTable}
+          allTables={allTables}
         />
       )}
     </div>

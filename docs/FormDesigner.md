@@ -63,19 +63,19 @@ Für ein vollwertiges Baukalkulations- und ERP-System benötigt der Form Designe
   - Intelligente Nachschlage-Maske mit Volltextsuche nach Kurztext, Langtext und DIN 276 Kostengruppen.
 - [ ] **Aufmaß-Schnelleingabe-Grid**:
   - Direkte Eingabezeilen für `Position | Formel / Rechenansatz | Menge | Einheit | Faktor`.
-- [ ] **Kaufmännische Währungs- & Rundungsfelder**:
+- [x] **Kaufmännische Währungs- & Rundungsfelder**:
   - Automatische Formatierung (`12.345,67 €`), VOB/B Mehrwertsteuer-Splitting und Nachkommastellen-Präzision (bis 4 Dezimalstellen für Kalkulationsfaktoren).
-- [ ] **DIN 5008 Adress-Block Widget**:
+- [x] **DIN 5008 Adress-Block Widget**:
   - Standardisiertes 8-zeiliges Anschriftenfeld (Zusatz-, Vermerkzone, Anschriftzone) mit automatischer PLZ/Ort-Prüfung.
 
 ### 3.2 Baustellen- & Mobile-Erfassung
-- [ ] **Digitale Unterschrift (Signature Pad)**:
+- [x] **Digitale Unterschrift (Signature Pad)**:
   - Touch- und Stift-fähiges Signaturfeld für Baustellenabnahmen, Regieberichte und Stundenzettel mit Zeitstempel und Hash-Prüfsumme.
-- [ ] **Foto- & Dokumenten-Upload mit Planmarker**:
+- [x] **Foto- & Dokumenten-Upload mit Planmarker**:
   - Upload von Baustellenfotos direkt aus der Kamera, Zuweisung von Mangel-Kategorien und Pin-Platzierung auf PDF-Bauplänen.
-- [ ] **GPS-Standort & Baustellen-Geocoding**:
+- [x] **GPS-Standort & Baustellen-Geocoding**:
   - Ein-Klick-Übernahme der aktuellen GPS-Koordinaten und Adress-Rückwärtsauflösung.
-- [ ] **Barcode & QR-Code Scanner**:
+- [x] **Barcode & QR-Code Scanner**:
   - Kamera-basierter Scanner für Lieferschein-Barcodes, EAN-13 Materialcodes und Geräte-Inventar-Tags.
 
 ---
@@ -83,16 +83,16 @@ Für ein vollwertiges Baukalkulations- und ERP-System benötigt der Form Designe
 ## 🧠 4. Low-Code Logik-, Validierungs- & Rechen-Engine
 
 ### 4.1 Live Formel- & Rechen-Engine (Computed Fields)
-- [ ] **Echtzeit-Berechnung abhängiger Felder**:
+- [x] **Echtzeit-Berechnung abhängiger Felder**:
   - Syntax: `= [Menge] * [Einheitspreis] * (1 - [RabattProzent] / 100)`
   - Automatische Aktualisierung bei Feldänderung ohne Server-Roundtrip.
 - [ ] **Summen- & Aggregat-Felder über Subformulare**:
   - Syntax: `= SUM(Subform.Positionen.Gesamtpreis)` oder `= COUNT(Subform.Mängel.Id)`.
 
 ### 4.2 Bedingte Sichtbarkeit & Feldsperren (Dynamic UI)
-- [ ] **Regelbasierte Sichtbarkeit (`VisibleIf`)**:
+- [x] **Regelbasierte Sichtbarkeit (`VisibleIf`)**:
   - Ein-/Ausblenden von Feldern oder ganzen Tabs basierend auf Feldwerten (z. B. "Bürgschaftsdetails nur anzeigen, wenn `Sicherheitseinbehalt > 0`").
-- [ ] **Regelbasierte Bearbeitbarkeit (`EnabledIf` / `ReadOnlyIf`)**:
+- [x] **Regelbasierte Bearbeitbarkeit (`EnabledIf` / `ReadOnlyIf`)**:
   - Sperren von Rechnungsfeldern, sobald der Status auf `"Freigegeben"` oder `"Abgerechnet"` wechselt.
 
 ### 4.3 Kaskadierende Dropdowns & abhängige Lookups
@@ -160,7 +160,7 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 
 ## 📱 6. Offline-Erfassung & Baustellen-Sync (PWA / Mobile)
 
-- [ ] **Lokales IndexedDB Draft-Caching**:
+- [x] **Lokales IndexedDB / LocalStorage Draft-Caching**:
   - Automatisches Zwischenspeichern ungespeicherter Formulardaten im Browser-Cache gegen Datenverlust bei Verbindungsabbruch.
 - [ ] **Offline-Queue für Datensatz-Änderungen**:
   - Erfassung von Bautagesberichten und Mängeln ohne Internetverbindung; automatische Synchronisation beim Wiederherstellen der Verbindung.
@@ -171,7 +171,7 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 
 ## 🔒 7. Sicherheit, Rollen (RBAC) & Revisionssicheres Audit-Logging
 
-- [ ] **Feld-Ebene Berechtigungen (Field-Level Security)**:
+- [x] **Feld-Ebene Berechtigungen (Field-Level Security)**:
   - Deklaration von Lese- und Schreibrechten pro Feld (`allowedReadRoles`, `allowedWriteRoles`), z. B. Kalkulationsaufschläge nur für Rolle `Kalkulator` sichtbar.
 - [ ] **Revisionssicheres Audit-Log pro Feldänderung**:
   - Lückenlose Aufzeichnung: `Wer` hat `welches Feld` von `Wert Alt` auf `Wert Neu` zu welchem `Zeitpunkt` geändert?
@@ -182,9 +182,9 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 
 ## 💻 8. Multi-Framework Code-Generierung (React & Angular)
 
-- [ ] **React Export (`React Hook Form` + `Zod` Schema)**:
+- [x] **React Export (`React Hook Form` + `Zod` Schema)**:
   - Generierung von sauberem TypeScript-Code mit Tailwind-CSS und voller Validierungstypisierung.
-- [ ] **Angular Standalone Component Export**:
+- [x] **Angular Standalone Component Export**:
   - Export als Angular 18+ Reactive Forms Komponente mit Typed Forms (`FormGroup`, `FormControl`) und Signals.
 - [ ] **Ausfüllbarer PDF-Formular-Export (AcroForm)**:
   - Export des Formularlayouts als druckfähiges und digital ausfüllbares PDF-Dokument.
@@ -207,25 +207,27 @@ eventBus.publish('FORM_ACTION_TRIGGERED', {
 - [x] Grundlegende Formular-Renderer & Subform-Hierarchie.
 - [ ] Vollständige Ribbon-Anbindung im `FormDesignTab` (Controls, Formatierung, Tools, Aktionen).
 - [ ] Visueller Drag & Drop Re-Order & Spalten-Resizing im Designer.
-- [ ] Multi-Tab-Seiten (`tab_page`) Verwaltung im Designer-Baum.
+- [x] Multi-Tab-Seiten (`tab_page`) Verwaltung im Designer-Baum.
 
 ### 🔹 Phase 2: Bauspezifische Fach-Widgets
-- [ ] Digitale Signatur (`SignaturePadWidget`).
-- [ ] Foto-Upload mit Markern (`BlueprintPhotoMarkerWidget`).
-- [ ] DIN 5008 Adressblock-Komponente (`Din5008AddressWidget`).
-- [ ] GPS-Standort & Geocoding-Komponente (`GeoLocationWidget`).
+- [x] Digitale Signatur (`SignaturePadWidget`).
+- [x] Foto-Upload mit Markern (`BlueprintPhotoMarkerWidget`).
+- [x] DIN 5008 Adressblock-Komponente (`Din5008AddressWidget`).
+- [x] GPS-Standort & Geocoding-Komponente (`GeoLocationWidget`).
+- [x] Barcode & QR-Code Scanner (`BarcodeScannerWidget`).
+- [x] Kaufmännische Währungs- & VOB/B Steuerfelder (`CurrencyCalculationWidget`).
 
 ### 🔹 Phase 3: Rechen-Engine & Dynamik
-- [ ] Parser für berechnete Felder (`=[Menge]*[EP]`).
-- [ ] Dynamische `VisibleIf` und `ReadOnlyIf` Regelauswertung im laufenden Formular.
+- [x] Parser für berechnete Felder (`=[Menge]*[EP]`).
+- [x] Dynamische `VisibleIf` und `ReadOnlyIf` Regelauswertung im laufenden Formular.
 - [ ] Kaskadierende Dropdown-Filterung (Dependent Lookups).
 
 ### 🔹 Phase 4: MFE Event-Bus & Offline-Sync
-- [ ] Globales Event-Bus Protokoll für `FORM_LOAD_RECORD`, `FORM_RECORD_SAVED`.
-- [ ] IndexedDB Draft-Speicher für lückenlose Offline-Fähigkeit.
+- [x] Globales Event-Bus Protokoll für `FORM_LOAD_RECORD`, `FORM_RECORD_SAVED`.
+- [x] IndexedDB / LocalStorage Draft-Speicher für lückenlose Offline-Fähigkeit.
 - [ ] Optimistic Locking & Konflikt-Dialog bei gleichzeitiger Bearbeitung.
 
 ### 🔹 Phase 5: Governance & Code-Generierung
-- [ ] Field-Level RBAC & Audit-Trail Protokollierung.
-- [ ] React Hook Form + Zod Generator.
-- [ ] Angular Standalone Reactive Form Generator.
+- [x] Field-Level RBAC & Dynamic Evaluation.
+- [x] React Hook Form + Zod Generator.
+- [x] Angular Standalone Reactive Form Generator.

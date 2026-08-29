@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Plus, Zap, AlertCircle } from 'lucide-react';
-import { Form, Table, FormElement, Query, getWidthClasses } from '../../../../types/index';
+import { Form, Table, FormElement, Query, getWidthClasses, FormValidationErrorItem } from '../../../../types/index';
 import { FormWidget } from '../../renderer/FormWidget';
 import { DropdownButtonWidget } from './DropdownButtonWidget';
 import { executeMacro, getSavedMacros } from '../../../logic/MacroEngine';
@@ -25,7 +25,7 @@ interface FormElementRendererProps {
   isCreating: boolean;
   sourceTable?: Table;
   handleInputChange: (fieldName: string, value: any) => void;
-  getLookupOptions: (config: any) => any[];
+  getLookupOptions: (config: any, element?: FormElement) => any[];
   setLookupModal: React.Dispatch<React.SetStateAction<any>>;
   setSubformModal: React.Dispatch<React.SetStateAction<any>>;
   handleContextMenu: (e: React.MouseEvent, fieldName: string, val: any) => void;
@@ -33,6 +33,7 @@ interface FormElementRendererProps {
   getFieldName: (fieldId: string) => string;
   evalVisibility: (el: FormElement) => boolean;
   FormViewComponent: React.ComponentType<any>;
+  errorsByField?: Record<string, FormValidationErrorItem[]>;
 }
 
 const TabsContainerWidget: React.FC<{
@@ -98,6 +99,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
   getFieldName,
   evalVisibility,
   FormViewComponent,
+  errorsByField = {},
 }) => {
   if (!evalVisibility(el)) return null;
 
@@ -124,6 +126,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
       getFieldName={getFieldName}
       evalVisibility={evalVisibility}
       FormViewComponent={FormViewComponent}
+      errorsByField={errorsByField}
     />
   );
 
@@ -241,6 +244,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
   if (el.type === 'field') {
     const fieldName = sourceTable?.fields.find((f) => f.id === el.fieldId)?.name || '';
     const fieldValue = currentRecord[fieldName] ?? '';
+    const elementErrors = errorsByField[fieldName] || (el.fieldId ? errorsByField[el.fieldId] : undefined) || [];
     return (
       <FormWidget
         key={el.id}
@@ -255,6 +259,7 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
         }
         onContextMenu={handleContextMenu}
         onFocusField={(fname) => setFocusedFieldName(fname)}
+        fieldErrors={elementErrors}
       />
     );
   }

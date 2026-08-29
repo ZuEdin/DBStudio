@@ -1,4 +1,4 @@
-import { ZugferdConfig } from '../../types';
+import { ZugferdConfig } from '../../../types';
 
 /**
  * Generates Cross-Industry Invoice (CII) XML compliant with Factur-X / ZUGFeRD 2.2 / XRechnung (EN16931).

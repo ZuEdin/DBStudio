@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Printer } from 'lucide-react';
 
 interface HeaderProps {
   hideHeader?: boolean;
@@ -8,6 +8,7 @@ interface HeaderProps {
   currentIndex: number;
   dataLength: number;
   onClose?: () => void;
+  onOpenPrintModal?: () => void;
   headerColorClass: string;
 }
 
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentIndex,
   dataLength,
   onClose,
+  onOpenPrintModal,
   headerColorClass,
 }) => {
   if (hideHeader) return null;
@@ -32,11 +34,21 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {!isCreating && (
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded">
             {dataLength > 0 ? `${currentIndex + 1} / ${dataLength}` : '0 / 0'}
           </span>
+        )}
+        {onOpenPrintModal && !isCreating && (
+          <button
+            onClick={onOpenPrintModal}
+            className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 text-white font-medium px-2.5 py-1 rounded transition-colors shadow-2xs"
+            title="Drucken / PDF-Export"
+          >
+            <Printer size={14} />
+            <span className="hidden sm:inline">Drucken</span>
+          </button>
         )}
         {!!onClose && (
           <button

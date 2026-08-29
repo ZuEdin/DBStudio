@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FormElement, Form, Table, Relationship } from '../../../types/index';
-import { Edit3, Trash2, Settings2, Shield, Users, Zap, Plus, ChevronDown, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
+import { Edit3, Trash2, Settings2, Shield, Users, Zap, Plus, ChevronDown, ArrowUp, ArrowDown, Sparkles, Filter, Layers, Calculator, LayoutGrid } from 'lucide-react';
 import { getSavedMacros } from '../../logic/MacroEngine';
 
 interface CommaSeparatedInputProps {
@@ -142,6 +142,31 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 }) => {
   const sourceTable = allTables.find(t => t.id === form.sourceId);
 
+  // Discover subforms in the form layout
+  const availableSubforms = useMemo(() => {
+    const list: { name: string; formId: string; table?: Table; elementId: string }[] = [];
+    const walk = (el: FormElement) => {
+      if (el.type === 'subform' && el.subform) {
+        const subFormDef = allForms.find(f => f.id === el.subform?.formId);
+        const subTable = allTables.find(t => t.id === subFormDef?.sourceId);
+        list.push({
+          name: el.label || subFormDef?.name || 'Subform',
+          formId: el.subform.formId,
+          table: subTable,
+          elementId: el.id
+        });
+      }
+      if (el.children) el.children.forEach(walk);
+    };
+    if (form.layout) walk(form.layout);
+    return list;
+  }, [form.layout, allForms, allTables]);
+
+  const targetLookupTable = useMemo(() => {
+    if (!selectedElement?.lookup?.tableId) return null;
+    return allTables.find(t => t.id === selectedElement.lookup?.tableId) || null;
+  }, [selectedElement?.lookup?.tableId, allTables]);
+
   return (
     <div className="w-72 bg-white border-l border-slate-300 flex flex-col h-full overflow-y-auto">
       <div className="p-4 border-b border-slate-200 bg-slate-50">
@@ -203,6 +228,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <option value="switch">Switch (Schalter)</option>
                         <option value="select">Dropdown (Lookup)</option>
                       </optgroup>
+                      <optgroup label="Baufach & Baustelle">
+                        <option value="signature">✍️ Digitale Signatur (Abnahme)</option>
+                        <option value="photo-marker">🗺️ Bauplan & Mängel-Marker</option>
+                        <option value="din5008-address">🏢 DIN 5008 Anschriftenblock</option>
+                        <option value="geolocation">📍 GPS-Standort (Baustelle)</option>
+                        <option value="barcode-scanner">🏷️ Barcode / QR Scanner</option>
+                        <option value="currency">💶 Währung & VOB/B Steuerblock</option>
+                      </optgroup>
                       <optgroup label="Berechnungen & Ausdrücke">
                         <option value="calculated">⚡ Berechnetes Feld (Formel)</option>
                       </optgroup>
@@ -241,7 +274,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 {selectedElement.widgetType === 'calculated' && (
                     <div className="p-2.5 bg-amber-50 text-amber-900 text-xs rounded border border-amber-300/80 space-y-2.5">
                         <div className="font-bold text-amber-950 flex items-center justify-between">
-                            <span className="flex items-center gap-1">⚡ Formel-Editor (Ausdrücke)</span>
+                            <span className="flex items-center gap-1"><Calculator size={13} className="text-amber-700" /> Formel-Editor (Ausdrücke)</span>
                             <span className="text-[10px] font-mono text-amber-800 bg-amber-200/60 px-1.5 py-0.5 rounded">Access / Excel Math</span>
                         </div>
                         <div>
@@ -250,14 +283,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 value={selectedElement.calculationFormula || ''}
                                 onChange={e => onPropertyChange('calculationFormula', e.target.value)}
                                 rows={3}
-                                placeholder="z.B. [Preis] * [Menge] oder IIF([Status] = 'Aktiv', 100, 0)"
+                                placeholder="z.B. [Preis] * [Menge] oder SUM([Positionen.Gesamtpreis])"
                                 className="w-full border border-amber-300 rounded p-1.5 font-mono text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
                             />
                         </div>
 
                         {sourceTable?.fields && sourceTable.fields.length > 0 && (
                           <div>
-                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Feld einfügen:</label>
+                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Haupttabellen-Feld einfügen:</label>
                             <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1 bg-white/60 rounded border border-amber-200">
                               {sourceTable.fields.map(f => (
                                 <button
@@ -277,8 +310,75 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                           </div>
                         )}
 
+                        {/* Subform Aggregate Helpers */}
+                        {availableSubforms.length > 0 && (
+                          <div className="p-2 bg-indigo-50/80 border border-indigo-200 rounded space-y-1.5">
+                            <div className="flex items-center gap-1 font-bold text-indigo-900 text-[11px]">
+                              <Layers size={12} className="text-indigo-600" />
+                              <span>Subform Aggregat-Formeln (SUM, AVG, COUNT...):</span>
+                            </div>
+                            <div className="space-y-1">
+                              {availableSubforms.map((sub, sIdx) => {
+                                const subName = sub.name.replace(/\s+/g, '');
+                                const numericFields = sub.table?.fields.filter(f => ['INTEGER', 'INT', 'BIGINT', 'DECIMAL', 'DOUBLE', 'FLOAT', 'REAL', 'TINYINT', 'CURRENCY', 'PERCENTAGE'].includes(f.type) || f.name.toLowerCase().includes('preis') || f.name.toLowerCase().includes('betrag') || f.name.toLowerCase().includes('summe') || f.name.toLowerCase().includes('menge')) || [];
+                                return (
+                                  <div key={sIdx} className="bg-white/80 p-1.5 rounded border border-indigo-100 space-y-1">
+                                    <div className="text-[10px] font-semibold text-indigo-800 flex justify-between items-center">
+                                      <span>📂 {sub.name}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const current = selectedElement.calculationFormula || '';
+                                          const formulaSnippet = `COUNT([${subName}])`;
+                                          onPropertyChange('calculationFormula', current ? `${current} + ${formulaSnippet}` : formulaSnippet);
+                                        }}
+                                        className="text-[9px] bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded font-mono"
+                                        title={`Zeilenanzahl von ${sub.name} zählen`}
+                                      >
+                                        + COUNT({subName})
+                                      </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {numericFields.map(nf => (
+                                        <button
+                                          key={nf.id}
+                                          type="button"
+                                          onClick={() => {
+                                            const current = selectedElement.calculationFormula || '';
+                                            const formulaSnippet = `SUM([${subName}.${nf.name}])`;
+                                            onPropertyChange('calculationFormula', current ? `${current} + ${formulaSnippet}` : formulaSnippet);
+                                          }}
+                                          className="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-1 py-0.5 rounded font-mono"
+                                          title={`Summe von ${subName}.${nf.name}`}
+                                        >
+                                          + SUM({subName}.{nf.name})
+                                        </button>
+                                      ))}
+                                      {numericFields.map(nf => (
+                                        <button
+                                          key={`avg-${nf.id}`}
+                                          type="button"
+                                          onClick={() => {
+                                            const current = selectedElement.calculationFormula || '';
+                                            const formulaSnippet = `AVG([${subName}.${nf.name}])`;
+                                            onPropertyChange('calculationFormula', current ? `${current} + ${formulaSnippet}` : formulaSnippet);
+                                          }}
+                                          className="text-[9px] bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-1 py-0.5 rounded font-mono"
+                                          title={`Durchschnitt von ${subName}.${nf.name}`}
+                                        >
+                                          + AVG({subName}.{nf.name})
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         <div>
-                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Schnell-Vorlagen & Funktionen:</label>
+                            <label className="block text-[10px] font-bold text-amber-800 mb-1">Schnell-Vorlagen & Standardfunktionen:</label>
                             <div className="grid grid-cols-1 gap-1 max-h-36 overflow-y-auto pr-0.5">
                                 <button
                                     type="button"
@@ -335,12 +435,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 )}
 
                 {selectedElement.widgetType === 'select' && (
-                  <div className="pt-2 border-t border-slate-200">
+                  <div className="pt-2 border-t border-slate-200 space-y-3">
                     <button 
                       onClick={onShowLookupModal}
-                      className="w-full bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-semibold py-2 px-3 rounded flex items-center justify-center gap-2 mb-2"
+                      className="w-full bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-semibold py-2 px-3 rounded flex items-center justify-center gap-2"
                     >
-                      <Settings2 size={14} /> Konfiguration
+                      <Settings2 size={14} /> Lookup-Datenquelle konfigurieren
                     </button>
                     
                     {selectedElement.lookup && (
@@ -352,7 +452,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 onChange={e => onLookupPropertyChange('allowQuickCreate', e.target.checked)}
                                 className="rounded text-blue-600"
                                 />
-                                <span className="text-xs font-semibold text-slate-700">Quick Create (+)</span>
+                                <span className="text-xs font-semibold text-slate-700">Quick Create (+) erlauben</span>
                             </label>
                             {selectedElement.lookup.allowQuickCreate && (
                                 <select 
@@ -366,6 +466,75 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                     ))}
                                 </select>
                             )}
+
+                            {/* Cascading Dependent Lookup Filter */}
+                            <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg text-xs space-y-2">
+                              <div className="flex items-center justify-between font-bold text-blue-900">
+                                <span className="flex items-center gap-1.5">
+                                  <Filter size={13} className="text-blue-600" />
+                                  Kaskadierender Filter (Abhängige Auswahl)
+                                </span>
+                                {selectedElement.dependentLookup && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onPropertyChange('dependentLookup', undefined)}
+                                    className="text-[10px] text-red-600 hover:underline"
+                                  >
+                                    Zurücksetzen
+                                  </button>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-blue-800 leading-snug">
+                                Filtert diese Dropdown-Liste dynamisch basierend auf dem gewählten Wert eines übergeordneten Feldes im Formular.
+                              </p>
+                              
+                              <div className="space-y-1.5">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Übergeordnetes Formularfeld:</label>
+                                  <select
+                                    value={selectedElement.dependentLookup?.parentFieldId || ''}
+                                    onChange={e => {
+                                      const parentFieldId = e.target.value;
+                                      if (!parentFieldId) {
+                                        onPropertyChange('dependentLookup', undefined);
+                                      } else {
+                                        onPropertyChange('dependentLookup', {
+                                          parentFieldId,
+                                          parentFilterKey: selectedElement.dependentLookup?.parentFilterKey || ''
+                                        });
+                                      }
+                                    }}
+                                    className="w-full border border-slate-300 rounded p-1 bg-white text-xs text-slate-800"
+                                  >
+                                    <option value="">-- Kein übergeordnetes Feld (Alle anzeigen) --</option>
+                                    {sourceTable?.fields.filter(f => f.id !== selectedElement.fieldId).map(f => (
+                                      <option key={f.id} value={f.id}>{f.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                {selectedElement.dependentLookup?.parentFieldId && (
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Filterspalte in Fremdtabelle ({targetLookupTable?.name || 'Lookup'}):</label>
+                                    <select
+                                      value={selectedElement.dependentLookup?.parentFilterKey || ''}
+                                      onChange={e => {
+                                        onPropertyChange('dependentLookup', {
+                                          ...selectedElement.dependentLookup,
+                                          parentFilterKey: e.target.value
+                                        });
+                                      }}
+                                      className="w-full border border-slate-300 rounded p-1 bg-white text-xs text-slate-800"
+                                    >
+                                      <option value="">-- Spalte auswählen --</option>
+                                      {targetLookupTable?.fields.map(f => (
+                                        <option key={f.id} value={f.name}>{f.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                         </div>
                     )}
                   </div>
@@ -902,12 +1071,89 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               </div>
             )}
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Breite (Spaltenbreite)</label>
+            <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between">
+                <label className="block font-bold text-slate-700 text-xs flex items-center gap-1.5">
+                  <LayoutGrid size={13} className="text-indigo-600" />
+                  Spaltenbreite (Raster / Grid)
+                </label>
+                <span className="text-[10px] font-mono font-bold bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">
+                  {selectedElement.width || 'auto'}
+                </span>
+              </div>
+
+              {/* 12-Col Visual Interactive Bar */}
+              <div className="space-y-1">
+                <div className="text-[10px] text-slate-500 font-medium">12-Spalten Raster:</div>
+                <div className="grid grid-cols-12 gap-0.5 bg-slate-200 p-1 rounded border border-slate-300">
+                  {[
+                    { col: 1, val: '1/12' },
+                    { col: 2, val: '1/6' },
+                    { col: 3, val: '1/4' },
+                    { col: 4, val: '1/3' },
+                    { col: 5, val: '5/12' },
+                    { col: 6, val: '1/2' },
+                    { col: 7, val: '7/12' },
+                    { col: 8, val: '2/3' },
+                    { col: 9, val: '3/4' },
+                    { col: 10, val: '5/6' },
+                    { col: 11, val: '11/12' },
+                    { col: 12, val: 'full' },
+                  ].map((item) => {
+                    const widthOrder = ['1/12', '1/6', '1/4', '1/3', '5/12', '1/2', '7/12', '2/3', '3/4', '5/6', '11/12', 'full'];
+                    const currentIdx = selectedElement.width ? widthOrder.indexOf(selectedElement.width) : -1;
+                    const isActive = currentIdx !== -1 && item.col <= currentIdx + 1;
+                    return (
+                      <button
+                        key={item.col}
+                        type="button"
+                        onClick={() => onPropertyChange('width', item.val)}
+                        title={`Auf ${item.val} (${item.col}/12 Spalten) setzen`}
+                        className={`h-6 rounded-xs text-[9px] font-bold transition-all flex items-center justify-center ${
+                          isActive
+                            ? 'bg-indigo-600 text-white shadow-2xs hover:bg-indigo-700'
+                            : 'bg-white hover:bg-indigo-100 text-slate-500'
+                        }`}
+                      >
+                        {item.col}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-1">
+                <div className="text-[10px] text-slate-500 font-medium">Schnellauswahl:</div>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { label: '1/4 (25%)', val: '1/4' },
+                    { label: '1/3 (33%)', val: '1/3' },
+                    { label: '1/2 (50%)', val: '1/2' },
+                    { label: '2/3 (66%)', val: '2/3' },
+                    { label: '3/4 (75%)', val: '3/4' },
+                    { label: 'Voll (100%)', val: 'full' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.val}
+                      type="button"
+                      onClick={() => onPropertyChange('width', preset.val)}
+                      className={`px-1.5 py-1 rounded text-[10px] font-semibold transition-colors border ${
+                        selectedElement.width === preset.val
+                          ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:border-indigo-200'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <select
                 value={selectedElement.width || ''}
                 onChange={e => onPropertyChange('width', e.target.value || undefined)}
-                className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-700 font-medium text-xs"
+                className="w-full border border-slate-300 rounded p-1.5 bg-white text-slate-700 font-medium text-xs mt-1"
               >
                 <option value="">Standard (Automatisch)</option>
                 <option value="full">Volle Breite (100% / col-span-12)</option>
@@ -923,9 +1169,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <option value="1/6">Ein Sechstel (16% / col-span-2)</option>
                 <option value="1/12">Ein Zwölftel (8% / col-span-1)</option>
               </select>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Bestimmt die Breite des Elements in einem Raster (Grid) oder einer flexiblen Reihe.
-              </p>
             </div>
 
             <div>

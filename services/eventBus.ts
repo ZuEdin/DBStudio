@@ -1,4 +1,13 @@
 import { PrintReportEventPayload } from '../types/report';
+import {
+  FormBeforeSavePayload,
+  FormAfterSavePayload,
+  FormSubformRowChangePayload,
+  FormValidationFailedPayload,
+  FormFieldChangePayload,
+  FormRecordChangePayload,
+  FormPrintPayload,
+} from '../types/form';
 
 export type EventHandler<T = any> = (payload: T) => void;
 
@@ -49,6 +58,36 @@ class GlobalEventBus {
   // Helper for Report Print Events
   public publishPrintReport(payload: PrintReportEventPayload): void {
     this.publish('PRINT_REPORT', payload);
+  }
+
+  // Form Lifecycle Helper Methods
+  public publishFormBeforeSave(payload: FormBeforeSavePayload): FormBeforeSavePayload {
+    this.publish('FORM_BEFORE_SAVE', payload);
+    return payload;
+  }
+
+  public publishFormAfterSave(payload: FormAfterSavePayload): void {
+    this.publish('FORM_AFTER_SAVE', payload);
+  }
+
+  public publishFormSubformRowChange(payload: FormSubformRowChangePayload): void {
+    this.publish('FORM_SUBFORM_ROW_CHANGE', payload);
+  }
+
+  public publishFormValidationFailed(payload: FormValidationFailedPayload): void {
+    this.publish('FORM_VALIDATION_FAILED', payload);
+  }
+
+  public publishFormFieldChange(payload: FormFieldChangePayload): void {
+    this.publish('FORM_FIELD_CHANGE', payload);
+  }
+
+  public publishFormRecordChange(payload: FormRecordChangePayload): void {
+    this.publish('FORM_RECORD_CHANGE', payload);
+  }
+
+  public publishFormPrint(payload: FormPrintPayload): void {
+    this.publish('FORM_PRINT', payload);
   }
 }
 

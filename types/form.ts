@@ -34,12 +34,14 @@ export interface ActionFlow {
 export interface FormValidationRule {
   id: string;
   fieldId: string;
-  type: 'required' | 'regex' | 'min' | 'max' | 'custom_js';
+  type: 'required' | 'regex' | 'min' | 'max' | 'custom_js' | 'preset';
+  preset?: 'email' | 'phone_de' | 'iban' | 'postal_de' | 'tax_id_de' | 'url' | 'positive_number' | 'custom';
   regexPattern?: string;
   minValue?: number;
   maxValue?: number;
   customJsCode?: string;
   errorMessage: string;
+  severity?: 'error' | 'warning';
 }
 
 export interface FormEventHandler {
@@ -62,14 +64,34 @@ export interface DropdownItem {
 
 export interface FormElement {
   id: string;
-  type: 'container' | 'field' | 'label' | 'subform' | 'button' | 'dropdown_button' | 'tabs' | 'tab_page';
+  type: 'container' | 'field' | 'label' | 'subform' | 'button' | 'dropdown_button' | 'tabs' | 'tab_page' | 'accordion';
   fieldId?: string;
   label?: string;
   className?: string;
   width?: '1/12' | '1/6' | '1/4' | '1/3' | '5/12' | '1/2' | '7/12' | '2/3' | '3/4' | '5/6' | '11/12' | 'full';
   children?: FormElement[];
   dropdownItems?: DropdownItem[];
-  widgetType?: 'text' | 'textarea' | 'markdown' | 'number' | 'date' | 'time' | 'datetime-local' | 'checkbox' | 'switch' | 'select' | 'ad-search' | 'current-user' | 'calculated';
+  widgetType?:
+    | 'text'
+    | 'textarea'
+    | 'markdown'
+    | 'number'
+    | 'date'
+    | 'time'
+    | 'datetime-local'
+    | 'checkbox'
+    | 'switch'
+    | 'select'
+    | 'ad-search'
+    | 'current-user'
+    | 'calculated'
+    | 'signature'
+    | 'photo-marker'
+    | 'din5008-address'
+    | 'geolocation'
+    | 'barcode-scanner'
+    | 'currency'
+    | 'accordion';
   calculationFormula?: string;
   isCalculated?: boolean;
   hideLabel?: boolean;
@@ -78,7 +100,17 @@ export interface FormElement {
   actions?: ActionFlow[];
   eventHandlers?: FormEventHandler[];
   allowedRoles?: string[];
+  fieldRbac?: {
+    readRoles?: string[];
+    writeRoles?: string[];
+  };
   visibilityCondition?: { fieldId: string; operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains' | 'empty' | 'not_empty'; value: string };
+  visibleIf?: string; // Low-code expression, e.g. "[Sicherheitseinbehalt] > 0"
+  readOnlyIf?: string; // Low-code expression, e.g. "[Status] == 'Freigegeben'"
+  dependentLookup?: {
+    parentFieldId: string;
+    parentFilterKey: string;
+  };
   validationRules?: FormValidationRule[];
 }
 
@@ -94,16 +126,112 @@ export interface FormSettings {
   splitViewDisplayFieldId?: string;
   splitViewSubtitleFieldId?: string;
   hideNavigation?: boolean;
+  offlineSyncEnabled?: boolean;
+  optimisticLocking?: boolean;
+  auditTrailEnabled?: boolean;
+  autoSaveDraftIntervalSec?: number;
 }
 
 export interface CrossFieldValidation {
   id: string;
   triggerFieldId: string;
-  condition: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'not_empty' | 'is_empty' | 'is_true' | 'is_false';
+  condition: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'greater_equal' | 'less_equal' | 'date_after' | 'date_before' | 'not_empty' | 'is_empty' | 'is_true' | 'is_false' | 'matches_field';
   triggerValue?: string;
   targetFieldId: string;
-  action: 'require' | 'hide' | 'disable' | 'validate_after';
+  action: 'require' | 'hide' | 'disable' | 'validate_after' | 'error_if';
+  compareMode?: 'value' | 'field';
+  compareFieldId?: string;
   errorMessage?: string;
+  severity?: 'error' | 'warning';
+}
+
+export interface FormValidationErrorItem {
+  id: string;
+  fieldId: string;
+  fieldName: string;
+  message: string;
+  ruleType: string;
+  severity: 'error' | 'warning';
+  isCrossField?: boolean;
+}
+
+export interface FormPrintSettings {
+  paperFormat?: 'a4' | 'letter';
+  orientation?: 'portrait' | 'landscape';
+  showLetterhead?: boolean;
+  companyName?: string;
+  companySubtitle?: string;
+  companyLogoUrl?: string;
+  footerText?: string;
+  showTimestamp?: boolean;
+  showUserStamp?: boolean;
+  includeSubformTables?: boolean;
+  columnsPerRow?: 1 | 2 | 3;
+}
+
+export interface FormBeforeSavePayload {
+  formId: string;
+  formName: string;
+  recordId?: any;
+  formData: Record<string, any>;
+  isNew: boolean;
+  cancel?: boolean;
+  cancelReason?: string;
+  timestamp: number;
+}
+
+export interface FormAfterSavePayload {
+  formId: string;
+  formName: string;
+  recordId?: any;
+  formData: Record<string, any>;
+  isNew: boolean;
+  timestamp: number;
+}
+
+export interface FormSubformRowChangePayload {
+  parentFormId: string;
+  parentFormName?: string;
+  subformId: string;
+  subformName?: string;
+  rowData: Record<string, any>;
+  action: 'add' | 'update' | 'delete';
+  timestamp: number;
+}
+
+export interface FormValidationFailedPayload {
+  formId: string;
+  formName: string;
+  errors: FormValidationErrorItem[];
+  timestamp: number;
+}
+
+export interface FormFieldChangePayload {
+  formId: string;
+  formName: string;
+  fieldId: string;
+  fieldName: string;
+  oldValue: any;
+  newValue: any;
+  formData: Record<string, any>;
+  timestamp: number;
+}
+
+export interface FormRecordChangePayload {
+  formId: string;
+  formName: string;
+  recordIndex: number;
+  totalRecords: number;
+  currentRecord?: Record<string, any>;
+  timestamp: number;
+}
+
+export interface FormPrintPayload {
+  formId: string;
+  formName: string;
+  record: Record<string, any>;
+  printSettings?: FormPrintSettings;
+  timestamp: number;
 }
 
 export interface Form {
