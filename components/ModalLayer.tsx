@@ -38,6 +38,9 @@ import { IndustryInterfacesModal } from '../features/industry-interfaces';
 import { SqliteWasmStudioModal } from '../features/backend/sqlite/SqliteWasmStudioModal';
 import { LocalOllamaCopilotModal } from '../features/ai/components/LocalOllamaCopilotModal';
 import { PluginGeneratorModal } from '../features/generators/PluginGeneratorModal';
+import { BaaSExportModal } from '../features/backend/plugins/BaaSExportModal';
+import { CollaborativeP2PModal } from '../features/collaboration/components/CollaborativeP2PModal';
+import { MobileWrapperExportModal } from '../features/generators/MobileWrapperExportModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -461,6 +464,27 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <PluginGeneratorModal 
           isOpen={ui.showPluginGeneratorModal}
           onClose={() => ui.setShowPluginGeneratorModal(false)}
+        />
+      )}
+
+      {ui.showBaaSExportModal && (
+        <BaaSExportModal 
+          isOpen={ui.showBaaSExportModal}
+          onClose={() => ui.setShowBaaSExportModal(false)}
+        />
+      )}
+
+      {ui.showCollaborativeP2PModal && (
+        <CollaborativeP2PModal 
+          isOpen={ui.showCollaborativeP2PModal}
+          onClose={() => ui.setShowCollaborativeP2PModal(false)}
+        />
+      )}
+
+      {ui.showMobileWrapperModal && (
+        <MobileWrapperExportModal 
+          isOpen={ui.showMobileWrapperModal}
+          onClose={() => ui.setShowMobileWrapperModal(false)}
         />
       )}
 

@@ -132,6 +132,12 @@ interface UIStore {
   setShowOllamaModal: (show: boolean) => void;
   showPluginGeneratorModal: boolean;
   setShowPluginGeneratorModal: (show: boolean) => void;
+  showBaaSExportModal: boolean;
+  setShowBaaSExportModal: (show: boolean) => void;
+  showCollaborativeP2PModal: boolean;
+  setShowCollaborativeP2PModal: (show: boolean) => void;
+  showMobileWrapperModal: boolean;
+  setShowMobileWrapperModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -271,6 +277,12 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowOllamaModal: (showOllamaModal) => set({ showOllamaModal }),
   showPluginGeneratorModal: false,
   setShowPluginGeneratorModal: (showPluginGeneratorModal) => set({ showPluginGeneratorModal }),
+  showBaaSExportModal: false,
+  setShowBaaSExportModal: (showBaaSExportModal) => set({ showBaaSExportModal }),
+  showCollaborativeP2PModal: false,
+  setShowCollaborativeP2PModal: (showCollaborativeP2PModal) => set({ showCollaborativeP2PModal }),
+  showMobileWrapperModal: false,
+  setShowMobileWrapperModal: (showMobileWrapperModal) => set({ showMobileWrapperModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

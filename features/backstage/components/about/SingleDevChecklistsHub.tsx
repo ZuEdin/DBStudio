@@ -192,6 +192,16 @@ const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
     technicalRule: 'Prepared Statements & JWT Bearer Header Schutz.',
     status: true,
   },
+  {
+    id: 'backend_baas',
+    category: 'backend',
+    title: 'Entkoppelte BaaS Plug-ins (Supabase & PocketBase)',
+    description: '1-Klick DDL, RLS-Policies und Schema-JSON ohne feste Cloud-Kopplung im Kern.',
+    technicalRule: 'Modulares BaaS Plug-in System.',
+    status: true,
+    actionLabel: 'BaaS Export Hub',
+    actionTarget: 'baas_export',
+  },
 
   // 5. Offline-First
   {
@@ -215,18 +225,22 @@ const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: 'offline_outbox',
     category: 'offline',
-    title: 'Transaktionale Outbox & Sync-Queue',
-    description: 'Änderungen werden chronologisch in einer lokalen Warteschlange gesammelt.',
-    technicalRule: 'Offline-First Outbox Pattern mit Retry-Funktionalität.',
+    title: 'P2P / LAN Live-Kollaboration (CRDTs)',
+    description: 'Serverloser Multi-User Datenabgleich und Feld-Locking im lokalen Netzwerk.',
+    technicalRule: 'BroadcastChannel & Yjs WebRTC Datenkanal.',
     status: true,
+    actionLabel: 'P2P Kollaboration',
+    actionTarget: 'p2p_collab',
   },
   {
     id: 'offline_photo',
     category: 'offline',
-    title: 'Canvas Fotokompression (WebP)',
-    description: 'Baustellenfotos werden lokal vorverarbeitet (spart 85% Speicher).',
-    technicalRule: 'HTML5 Canvas 2D Kontext-Kompression.',
+    title: 'Native Mobile Companion (Capacitor / Tauri)',
+    description: 'Offline-Begleit-App für Baustellen-Tablets mit Kamera & SQLite.',
+    technicalRule: 'Capacitor 6 & Tauri 2.0 Scaffolding.',
     status: true,
+    actionLabel: 'Mobile Scaffolding',
+    actionTarget: 'mobile_wrapper',
   },
 ];
 
@@ -290,6 +304,12 @@ export const SingleDevChecklistsHub: React.FC = () => {
       ui.setShowIndustryInterfacesModal(true);
     } else if (target === 'sqlite_wasm') {
       ui.setShowSqliteWasmModal(true);
+    } else if (target === 'baas_export') {
+      ui.setShowBaaSExportModal(true);
+    } else if (target === 'p2p_collab') {
+      ui.setShowCollaborativeP2PModal(true);
+    } else if (target === 'mobile_wrapper') {
+      ui.setShowMobileWrapperModal(true);
     } else if (target === 'report_designer') {
       ui.setIsBackstageOpen(false);
       ui.setActiveTab('reports');

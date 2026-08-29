@@ -84,10 +84,10 @@ Ermöglicht mehreren Entwicklern oder Bauleitern im selben lokalen Netzwerk (LAN
 
 ## 📊 Status-Übersicht
 
-| Paket | Name | Kernfokus | Umsetzungs-Reihenfolge |
+| Paket | Name | Kernfokus | Status |
 | :--- | :--- | :--- | :--- |
 | **Paket 1** | SQLite WASM Binary I/O Engine | 100% Offline SQLite `.sqlite` Direct I/O | ✅ **Fertiggestellt & Integriert** |
 | **Paket 5** | AST Plugin Hub & Lokaler Ollama Copilot | Go, Python, Rust, C# & Lokale KI | ✅ **Fertiggestellt & Integriert** |
-| **Paket 2** | Entkoppelte BaaS Plug-in Architektur | Supabase DDL + RLS & PocketBase Export | ⏳ **Nächster Schritt (Phase 2)** |
-| **Paket 3** | Multi-User Live-Kollaboration (CRDTs) | P2P / LAN Yjs & WebRTC Sync | ⏳ **Phase 2** |
-| **Paket 4** | Native Mobile Companion Scaffolding | Capacitor & Tauri Mobile Wrapper | ⏳ **Phase 2** |
+| **Paket 2** | Entkoppelte BaaS Plug-in Architektur | Supabase DDL + RLS & PocketBase Export | ✅ **Vorbereitet & Entkoppelt (Zero-Coupling Plugin)** |
+| **Paket 3** | Multi-User Live-Kollaboration (CRDTs) | P2P / LAN Multi-Tab Sync & Field-Locking | ✅ **Vorbereitet & Entkoppelt (Serverless P2P)** |
+| **Paket 4** | Native Mobile Companion Scaffolding | Capacitor & Tauri Mobile Wrapper Scaffolding | ✅ **Vorbereitet & Entkoppelt (1-Click Generator)** |

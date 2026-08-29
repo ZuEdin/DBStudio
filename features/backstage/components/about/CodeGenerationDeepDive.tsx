@@ -11,7 +11,10 @@ import {
   Copy, 
   Check,
   Bot,
-  Plug
+  Plug,
+  Cloud,
+  Smartphone,
+  Users
 } from 'lucide-react';
 import { useUIStore } from '../../../../stores/useUIStore';
 
@@ -194,7 +197,31 @@ export const KundeForm: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow cursor-pointer"
           >
             <Plug size={13} />
-            <span>AST Plugin Hub (Go / Py / Rust / C#)</span>
+            <span>AST Plugin Hub</span>
+          </button>
+
+          <button
+            onClick={() => ui.setShowBaaSExportModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow cursor-pointer"
+          >
+            <Cloud size={13} />
+            <span>BaaS Plug-in Hub</span>
+          </button>
+
+          <button
+            onClick={() => ui.setShowMobileWrapperModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white shadow cursor-pointer"
+          >
+            <Smartphone size={13} />
+            <span>Mobile Companion</span>
+          </button>
+
+          <button
+            onClick={() => ui.setShowCollaborativeP2PModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow cursor-pointer"
+          >
+            <Users size={13} />
+            <span>P2P Live-Sync</span>
           </button>
 
           <button
