@@ -9,10 +9,14 @@ import {
   Boxes, 
   Sparkles, 
   Copy, 
-  Check 
+  Check,
+  Bot,
+  Plug
 } from 'lucide-react';
+import { useUIStore } from '../../../../stores/useUIStore';
 
 export const CodeGenerationDeepDive: React.FC = () => {
+  const ui = useUIStore();
   const [selectedStack, setSelectedStack] = useState<'dotnet' | 'node' | 'php' | 'react'>('dotnet');
   const [copied, setCopied] = useState(false);
 
@@ -184,20 +188,38 @@ export const KundeForm: React.FC = () => {
         </div>
 
         {/* Stack Selector Buttons */}
-        <div className="flex flex-wrap gap-1.5 bg-[#1b1b24] p-1 rounded-lg border border-[#333345]">
-          {(['dotnet', 'node', 'php', 'react'] as const).map((key) => (
-            <button
-              key={key}
-              onClick={() => setSelectedStack(key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                selectedStack === key
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-neutral-400 hover:text-white hover:bg-[#2b2b3b]'
-              }`}
-            >
-              {key === 'dotnet' ? '.NET 10 (C#)' : key === 'node' ? 'Node.js (TS)' : key === 'php' ? 'PHP 8.3 PDO' : 'React SDUI'}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => ui.setShowPluginGeneratorModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow cursor-pointer"
+          >
+            <Plug size={13} />
+            <span>AST Plugin Hub (Go / Py / Rust / C#)</span>
+          </button>
+
+          <button
+            onClick={() => ui.setShowOllamaModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow cursor-pointer"
+          >
+            <Bot size={13} />
+            <span>Lokaler Ollama Copilot</span>
+          </button>
+
+          <div className="flex flex-wrap gap-1.5 bg-[#1b1b24] p-1 rounded-lg border border-[#333345]">
+            {(['dotnet', 'node', 'php', 'react'] as const).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSelectedStack(key)}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  selectedStack === key
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-neutral-400 hover:text-white hover:bg-[#2b2b3b]'
+                }`}
+              >
+                {key === 'dotnet' ? '.NET 10 (C#)' : key === 'node' ? 'Node.js (TS)' : key === 'php' ? 'PHP 8.3 PDO' : 'React SDUI'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

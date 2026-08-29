@@ -1,5 +1,6 @@
 import React from 'react';
 import { Zap, XCircle, PlayCircle, Terminal } from 'lucide-react';
+import { E2eTestSuiteRunner } from './E2eTestSuiteRunner';
 
 interface LiveServerRunnerTabProps {
   runnerStatus: 'RUNNING' | 'STOPPED' | 'ERROR' | string;
@@ -122,6 +123,13 @@ export const LiveServerRunnerTab: React.FC<LiveServerRunnerTabProps> = ({
             )}
           </div>
         </div>
+
+        {/* E2E Test-Suite & Backend Sandbox Runner */}
+        <E2eTestSuiteRunner
+          deployedPort={deployedPort}
+          runnerStatus={runnerStatus}
+          onAppendLog={(log) => setRunnerLogs((prev) => [...prev, log])}
+        />
       </div>
     </div>
   );

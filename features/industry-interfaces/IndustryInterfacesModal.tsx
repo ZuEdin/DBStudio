@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { GaebParser } from './gaeb/gaebParser';
 import { GaebProjectDoc } from './gaeb/gaebTypes';
+import { GaebValidationPanel } from './gaeb/GaebValidationPanel';
 import { DatanormReader } from './datanorm/datanormReader';
 import { DatanormArticle } from './datanorm/datanormTypes';
 import { ZugferdBuilder } from './zugferd/zugferdBuilder';
@@ -36,15 +37,38 @@ export const IndustryInterfacesModal: React.FC<IndustryInterfacesModalProps> = (
     invoiceNumber: 'RE-2026-0042',
     issueDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-    sellerName: 'Bauunternehmung Müller GmbH',
-    buyerName: 'Stadtverwaltung Hochbauamt',
-    totalNet: 45000,
-    totalTax: 8550,
-    totalGross: 53550,
     currency: 'EUR',
-    iban: 'DE44500105175407324911',
-    bic: 'INGDDEFFXXX',
-    leitwegId: '04011000-12345-67',
+    seller: {
+      name: 'Bauunternehmung Müller GmbH',
+      street: 'Industriestraße 12',
+      zipCode: '80339',
+      city: 'München',
+      country: 'DE',
+      vatId: 'DE123456789',
+      iban: 'DE44500105175407324911',
+      bic: 'INGDDEFFXXX',
+    },
+    buyer: {
+      name: 'Stadtverwaltung Hochbauamt',
+      street: 'Rathausplatz 1',
+      zipCode: '80331',
+      city: 'München',
+      country: 'DE',
+      buyerReference: '04011000-12345-67',
+    },
+    lineItems: [
+      {
+        name: 'Baustelleneinrichtung & Bauleitung',
+        quantity: 1,
+        unit: 'Psch',
+        unitPrice: 45000,
+        vatRate: 19,
+        totalAmount: 45000,
+      },
+    ],
+    totalNet: 45000,
+    totalVat: 8550,
+    totalGross: 53550,
   });
   const [zugferdXml, setZugferdXml] = useState('');
 
@@ -187,6 +211,62 @@ export const IndustryInterfacesModal: React.FC<IndustryInterfacesModalProps> = (
                     >
                       GAEB Analysieren
                     </button>
+                    <button
+                      onClick={() => {
+                        const sampleXml = `<?xml version="1.0" encoding="UTF-8"?>
+<GAEB xmlns="http://www.gaeb.de/GAEB_DA_XML/200407">
+  <GAEBInfo>
+    <Version>3.2</Version>
+    <Date>2026-08-29</Date>
+    <ProgName>DB Studio Pro</ProgName>
+  </GAEBInfo>
+  <Award>
+    <DP>83</DP>
+    <Project Name="Sanierung Schulzentrum Nord" No="PRJ-2026-088">
+      <BoQ ID="BOQ_MAIN">
+        <BoQBody>
+          <BoQCtgy ID="sec_1" RNoPart="01">
+            <LblBoQCtgy>01</LblBoQCtgy>
+            <OutlnText><TextOutlTxt><span>01 Rohbau &amp; Mauerwerk</span></TextOutlTxt></OutlnText>
+            <BoQBody>
+              <Itemlist>
+                <Item ID="pos_1" RNoPart="0010">
+                  <OZ>01.01.0010</OZ>
+                  <OutlnText><TextOutlTxt><span>Baustelleneinrichtung vorhalten</span></TextOutlTxt></OutlnText>
+                  <Text>Baustelleneinrichtung nach Vorgabe Bauleiter. [Bieterangabe: Fabrikat: [...] Typ: [...]]</Text>
+                  <Qty>1</Qty>
+                  <QU>psch</QU>
+                  <UP>3500.00</UP>
+                </Item>
+                <Item ID="pos_2" RNoPart="0020">
+                  <OZ>01.01.0020</OZ>
+                  <OutlnText><TextOutlTxt><span>Stahlbetonsohle d=25cm liefern &amp; einbauen</span></TextOutlTxt></OutlnText>
+                  <Qty>240</Qty>
+                  <QU>qm</QU>
+                  <UP>85.50</UP>
+                </Item>
+                <Item ID="pos_3" RNoPart="0030">
+                  <OZ>01.01.0030</OZ>
+                  <OutlnText><TextOutlTxt><span>Kalksandsteinmauerwerk 2DF d=11.5cm</span></TextOutlTxt></OutlnText>
+                  <Qty>180</Qty>
+                  <QU>m2</QU>
+                  <UP>0.00</UP>
+                </Item>
+              </Itemlist>
+            </BoQBody>
+          </BoQCtgy>
+        </BoQBody>
+      </BoQ>
+    </Project>
+  </Award>
+</GAEB>`;
+                        setGaebText(sampleXml);
+                        setParsedGaeb(GaebParser.parse(sampleXml));
+                      }}
+                      className="px-2.5 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded font-semibold text-xs"
+                    >
+                      Beispiel-GAEB laden
+                    </button>
                   </div>
                 </div>
 
@@ -235,6 +315,18 @@ export const IndustryInterfacesModal: React.FC<IndustryInterfacesModalProps> = (
                   )}
                 </div>
               </div>
+
+              {/* GAEB Validation Panel */}
+              {parsedGaeb && (
+                <div className="pt-2">
+                  <GaebValidationPanel
+                    doc={parsedGaeb}
+                    onDocUpdated={(updated) => {
+                      setParsedGaeb(updated);
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -287,8 +379,13 @@ export const IndustryInterfacesModal: React.FC<IndustryInterfacesModalProps> = (
                   <label className="block text-slate-500 mb-1">Leitweg-ID (Behörde):</label>
                   <input
                     type="text"
-                    value={invoiceData.leitwegId || ''}
-                    onChange={(e) => setInvoiceData({ ...invoiceData, leitwegId: e.target.value })}
+                    value={invoiceData.buyer.buyerReference || ''}
+                    onChange={(e) =>
+                      setInvoiceData({
+                        ...invoiceData,
+                        buyer: { ...invoiceData.buyer, buyerReference: e.target.value },
+                      })
+                    }
                     className="w-full p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono"
                   />
                 </div>

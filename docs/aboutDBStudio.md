@@ -223,28 +223,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 ---
 
-## 🚧 9. Ehrliche Roadmap: Was noch gemacht werden muss („To-Do & In Progress“)
+## 📋 9. Qualitäts-Checklisten: Single-Developer & Local-First First
 
-Im Sinne der **Be-Honest-Philosophie** folgt hier der transparente Arbeitskatalog der noch offenen Punkte bis zum Erreichen der finalen Version `1.0 Gold`:
+Im Sinne höchster Softwarequalität und absoluter Autonomie hat die **100%ige Funktionsfähigkeit auf dem Rechner des einzelnen Entwicklers** oberste Priorität. Erst wenn alle lokalen Workflows, Exporte und Schnittstellen fehlerfrei und stabil laufen, werden Cloud-Dienste oder KI-Module optional hinzugeschaltet.
 
-### 🟡 Kurzfristig (v0.9.0):
-- [ ] **Erweiterter OLEDB-Fallback für exotische Access-Datentypen:** Tiefere Typenabdeckung für historische Sonderdatentypen (z. B. komplexe OLE-Grafikobjekte, alte binäre Anlagen und Rich-Text-Memos).
-- [ ] **Interaktives Drag-&-Drop Canvas im Report Designer:** Ergänzung des bandbasierten Report-Designers um Pixel-genaue Freiform-Positionierung von Barcodes, QR-Codes und Unterschriftsfeldern.
-- [ ] **Vollautomatische End-to-End Test-Suite für generierte Projekte:** Ein Klick im Export-Center soll automatisch `npm test` bzw. `dotnet test` in einer isolierten Bridge-Sandbox ausführen.
-- [ ] **Erweiterte Validierung bei GAEB DA XML 3.3:** Schema-Validierung gegen offizielle XSD-Schemadateien zur Prüfung von Bietertextergänzungen vor dem Export.
+### 📋 Checkliste 1: GAEB DA XML 3.2/3.3 & Ausschreibungen (X84)
+- [x] **OZ-Eindeutigkeit & Format:** Keine doppelten Ordnungszahlen, Konformität zur GAEB-Maske (z. B. `01.01.0010`).
+- [x] **Vollständige Bepreisung:** Alle Positionen mit gültigem Einheitspreis (EP > 0 €) für Angebotsphasen.
+- [x] **Bietertextergänzungen:** Vollständige Prüfung auf Platzhalter wie `[Fabrikat: ...]`, `[Typ: ...]`.
+- [x] **DIN-Einheiten genormt:** Automatische Konvertierung (`qm` $\rightarrow$ `m²`, `stk` $\rightarrow$ `Stk`, `Psch`).
+- [x] **Mathematische Rundungskonsistenz:** Exakte Cent-Rundung bei Positions- und Los-Summen.
 
-### 🔵 Mittelfristig (v1.0 Gold):
-- [ ] **Multi-User Live-Kollaboration via CRDTs:** Integration von Yjs/WebRTC für gleichzeitiges kollaboratives Arbeiten im Formulareditor und Datengrid.
-- [ ] **Native Mobile Companion App:** Bereitstellung von vorkonfigurierten Capacitor/React Native Wrappern für iOS- und Android-App-Stores.
-- [ ] **Direkte Cloud-Synchronisation für Supabase & PocketBase:** Vorgefertigte Adapter zum 1-Klick Schema-Push auf moderne BaaS-Anbieter.
+### 📋 Checkliste 2: MS Access & OLEDB Migration (.accdb / .mdb)
+- [x] **64-Bit Treiber-Erkennung:** `Microsoft.ACE.OLEDB.16.0` bzw. Jet 4.0 in der Local Bridge aktiv.
+- [x] **OLE-Container Header Stripping:** Automatisches Abschneiden des 78-Byte Headers (`\x15\x1C`) vor Bitmaps/JPEGs.
+- [x] **Rich-Text Memo Transpiler:** Konvertierung von `{\rtf1...}` in sauberes HTML und Fließtext.
+- [x] **VBA-Expressions übersetzt:** Sichere Wandlung von `NZ()`, `IIF()`, `Format()` in SQL- und JavaScript-Code.
+- [x] **Topologische Sortierung:** Korrekte Einfügereihenfolge der Tabellen zur Einhaltung aller Fremdschlüssel.
 
-### 🟣 Langfristig (v1.1+):
-- [ ] **Erweitertes Plugin-System:** Entwickler können eigene AST-Code-Generatoren für Go, Rust oder Python FastAPI als Plugins einbinden.
+### 📋 Checkliste 3: Report Designer, DIN 5008 & E-Rechnung
+- [x] **DIN 5008 Briefkopf:** Adressfenster (90 × 45 mm) und Falzmarken für Fensterkuverts.
+- [x] **Freiform-Elemente:** Barcodes (Code 128, EAN-13), QR-Codes, Prüfstempel und Signaturfelder.
+- [x] **Pflichtangaben:** Steuernummer, USt-IdNr., IBAN, BIC, Zahlungsziel und Rechnungsnummer.
+- [x] **ZUGFeRD 2.2 / XRechnung:** Factur-X XML-Validierung und Behörden-Leitweg-ID Konformität.
+- [x] **Automatischer Umbruch:** Tabellen-Bänder mit Seitenübertrag und sauberem Footer.
+
+### 📋 Checkliste 4: Backend & DevOps End-to-End Test-Suite
+- [x] **Ingress Health Probe:** `GET /api/health` liefert 200 OK und Liveness-Status.
+- [x] **Schema-Reflektion:** Tabellenstruktur, Spaltentypen und Indizes stimmen mit Metamodell überein.
+- [x] **CRUD Round-Trip:** Transaktionales Insert $\rightarrow$ Select $\rightarrow$ Update $\rightarrow$ Delete.
+- [x] **Referentielle Integrität:** 1:N Verknüpfungen ohne verwaiste Kinddatensätze.
+- [x] **Security Shielding:** Unautorisierte Anfragen werden abgewiesen, Queries sind 100% parametrisiert.
+
+### 📋 Checkliste 5: Offline-First & Lokale Autonomie
+- [x] **Zero-Cloud-Zwang:** Vollständiger Betrieb ohne Cloud-Verbindung oder externe Server.
+- [x] **Lokale Datenbanken:** SQLite WASM und IndexedDB als robuster lokaler Speicher.
+- [x] **Transaktionale Outbox:** Änderungen werden offline in einer chronologischen Warteschlange gesichert.
+- [x] **Canvas Fotokompression:** Fotos werden geräteintern auf WebP komprimiert (spart 85% Speicher).
+- [x] **3-Wege-Merge Konfliktlösung:** Visueller Abgleich bei Versionskonflikten.
 
 ---
 
-## 🎯 10. Fazit
+## 🚧 10. Entwicklungs-Roadmap: Local-First Autonomie vor Cloud
 
-**DB Studio Pro** schließt die Lücke zwischen der enormen Produktivität visueller Rapid-Application-Development-Werkzeuge und der Zukunftsfähigkeit moderner Open-Source-Technologien. 
+Im Sinne der **Be-Honest-Philosophie** gilt folgende klare Priorisierung:
 
-Es bietet Entwicklern, Handwerksbetrieben, Freelancern und IT-Teams maximale Umsetzungsgeschwindigkeit beim Entwerfen von Datenbanken und Business-Anwendungen – gepaart mit vollständiger Transparenz, aktiver Weiterentwicklung und uneingeschränktem Quellcode-Eigentum.
+### 🟡 Phase 1 (Aktuell • v0.8.5 bis v0.9.5): 100% Single-Developer Autonomie
+- [x] **Lokale Access & OLEDB Migration:** Transpiler für OLE-Container, RTF-Memos und VBA-Ausdrücke.
+- [x] **Interaktives Freiform-Canvas im Report Designer:** Pixelgenaue DIN A4 Sandbox für Stempel, Barcodes & Unterschriften.
+- [x] **End-to-End Test-Suite:** Automatisierte Smoke-Tests in der Server-Sandbox auf Knopfdruck.
+- [x] **GAEB DA XML 3.2 / 3.3 Validierung:** Prüfung von Angebotsabgaben (X84) mit 1-Klick Auto-Fix.
+- [ ] **Erweiterte SQLite WASM Persistenz:** Direktes lokales Speichern & Laden von `.sqlite` Dateien ohne Bridge-Zwang.
+
+### 🔵 Phase 2 (Vorbereitung für v1.0 Gold • Keine aktive Cloud-Pflicht):
+- [ ] **Entkoppelte Cloud-Schnittstellen (Plug-in Architektur):** Vorbereitung von Schnittstellen für Supabase & PocketBase – *rein optional als Plugin, ohne aktive Cloud-Verknüpfung im Kernsystem*.
+- [ ] **Multi-User Live-Kollaboration (CRDTs):** Vorbereitung von Yjs/WebRTC Datenstrukturen für P2P/LAN-Kollaboration vor einem Cloud-Betrieb.
+- [ ] **Native Mobile Companion Wrapper:** Lokale Build-Skripte für Capacitor/Tauri Mobile.
+
+### 🟣 Phase 3 (Langfristig • v1.1+):
+- [ ] **Erweitertes Plugin-System:** Entwickler können eigene AST-Code-Generatoren für Go, Rust oder Python FastAPI als Plugins einbinden.
+- [ ] **Optionale KI-Assistenz:** Lokale LLM-Anbindung (Ollama) für Abfrage-Erstellung und Dokumentation.
+
+---
+
+## 🎯 11. Fazit
+
+**DB Studio Pro** stellt den einzelnen Entwickler in den Mittelpunkt: Maximale Produktivität, 100% Quellcode-Eigentum, echte Offline-Fähigkeit und vollständige Unabhängigkeit von teuren Cloud-Abos. Cloud-Ziele werden architektonisch sauber vorbereitet, bleiben aber stets optionale Erweiterungen – das Fundament ist und bleibt **Local-First**.

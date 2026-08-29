@@ -13,9 +13,11 @@ import { RealisticMaturityBreakdown } from './about/RealisticMaturityBreakdown';
 import { DevOpsAndBridgeShowcase } from './about/DevOpsAndBridgeShowcase';
 import { IndustryUseCasesSection } from './about/IndustryUseCasesSection';
 import { CodeGenerationDeepDive } from './about/CodeGenerationDeepDive';
+import { SingleDevChecklistsHub } from './about/SingleDevChecklistsHub';
 import { 
   Sparkles, 
   CheckCircle2, 
+  CheckSquare,
   Database, 
   Code, 
   Shield, 
@@ -40,7 +42,7 @@ interface UeberDbStudioTabProps {
   onOpenNewModal?: () => void;
 }
 
-type SectionView = 'overview' | 'usecases' | 'codegen' | 'devops' | 'maturity' | 'guide' | 'matrix' | 'architecture' | 'comparison' | 'showroom';
+type SectionView = 'overview' | 'checklists' | 'usecases' | 'codegen' | 'devops' | 'maturity' | 'guide' | 'matrix' | 'architecture' | 'comparison' | 'showroom';
 
 export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewModal }) => {
   const store = useProjectStore();
@@ -116,14 +118,24 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
               <Compass size={14} /> 1. Überblick
             </button>
             <button
-              onClick={() => setActiveSection('usecases')}
+              onClick={() => setActiveSection('checklists')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeSection === 'usecases'
+                activeSection === 'checklists'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Briefcase size={14} className="text-emerald-400" /> 2. Praxis-Szenarien
+              <CheckSquare size={14} className="text-emerald-400" /> 2. Qualitäts-Checklisten
+            </button>
+            <button
+              onClick={() => setActiveSection('usecases')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeSection === 'usecases'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
+              }`}
+            >
+              <Briefcase size={14} className="text-indigo-400" /> 3. Praxis-Szenarien
             </button>
             <button
               onClick={() => setActiveSection('codegen')}
@@ -133,7 +145,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Code2 size={14} className="text-indigo-400" /> 3. Code-Generatoren
+              <Code2 size={14} className="text-indigo-400" /> 4. Code-Generatoren
             </button>
             <button
               onClick={() => setActiveSection('devops')}
@@ -143,7 +155,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Server size={14} className="text-indigo-400" /> 4. Local Bridge &amp; DevOps
+              <Server size={14} className="text-indigo-400" /> 5. Local Bridge &amp; DevOps
             </button>
             <button
               onClick={() => setActiveSection('maturity')}
@@ -153,7 +165,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BarChart3 size={14} className="text-amber-400" /> 5. Reifegrad (~82%)
+              <BarChart3 size={14} className="text-amber-400" /> 6. Reifegrad (~82%)
             </button>
             <button
               onClick={() => setActiveSection('guide')}
@@ -163,7 +175,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BookOpen size={14} className="text-indigo-400" /> 6. Entwickler-Guide
+              <BookOpen size={14} className="text-indigo-400" /> 7. Entwickler-Guide
             </button>
             <button
               onClick={() => setActiveSection('matrix')}
@@ -173,7 +185,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <CheckCircle2 size={14} /> 7. Roadmap &amp; To-Do
+              <CheckCircle2 size={14} /> 8. Roadmap &amp; To-Do
             </button>
             <button
               onClick={() => setActiveSection('comparison')}
@@ -183,7 +195,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Scale size={14} /> 8. Vergleich
+              <Scale size={14} /> 9. Vergleich
             </button>
             <button
               onClick={() => setActiveSection('showroom')}
@@ -193,7 +205,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <Sparkles size={14} /> 9. Showroom
+              <Sparkles size={14} /> 10. Showroom
             </button>
           </div>
         </div>
@@ -203,6 +215,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
       <div className="max-w-6xl mx-auto w-full px-6 lg:px-10 py-8 space-y-10">
         {activeSection === 'overview' && (
           <div className="space-y-10">
+            <SingleDevChecklistsHub />
             <IndustryUseCasesSection />
             <CodeGenerationDeepDive />
             <DevOpsAndBridgeShowcase />
@@ -214,6 +227,12 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             <HonestArchitectureOverview />
             <TechStackShowcase />
             <HonestComparisonSection />
+          </div>
+        )}
+
+        {activeSection === 'checklists' && (
+          <div className="space-y-8">
+            <SingleDevChecklistsHub />
           </div>
         )}
 

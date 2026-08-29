@@ -35,6 +35,9 @@ import { AuditTrailModal } from '../features/audit-trail/AuditTrailModal';
 import { WordPressGeneratorModal } from '../features/wordpress/WordPressGeneratorModal';
 import { OfflineSyncDashboardModal } from '../features/offline-sync';
 import { IndustryInterfacesModal } from '../features/industry-interfaces';
+import { SqliteWasmStudioModal } from '../features/backend/sqlite/SqliteWasmStudioModal';
+import { LocalOllamaCopilotModal } from '../features/ai/components/LocalOllamaCopilotModal';
+import { PluginGeneratorModal } from '../features/generators/PluginGeneratorModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -437,6 +440,27 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             addTable(newTable as any);
             ui.addToast(`Tabelle "${tableName}" mit ${rows.length} Positionen erfolgreich importiert.`, 'success');
           }}
+        />
+      )}
+
+      {ui.showSqliteWasmModal && (
+        <SqliteWasmStudioModal 
+          isOpen={ui.showSqliteWasmModal}
+          onClose={() => ui.setShowSqliteWasmModal(false)}
+        />
+      )}
+
+      {ui.showOllamaModal && (
+        <LocalOllamaCopilotModal 
+          isOpen={ui.showOllamaModal}
+          onClose={() => ui.setShowOllamaModal(false)}
+        />
+      )}
+
+      {ui.showPluginGeneratorModal && (
+        <PluginGeneratorModal 
+          isOpen={ui.showPluginGeneratorModal}
+          onClose={() => ui.setShowPluginGeneratorModal(false)}
         />
       )}
 

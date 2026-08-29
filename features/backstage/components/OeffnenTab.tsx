@@ -8,9 +8,11 @@ import {
   Server, 
   FolderOpen,
   Cloud,
-  Lock
+  Lock,
+  Database
 } from 'lucide-react';
 import { useConfigStore } from '../../../stores/useConfigStore';
+import { useUIStore } from '../../../stores/useUIStore';
 
 interface OeffnenTabProps {
   projects: Project[];
@@ -40,6 +42,7 @@ export const OeffnenTab: React.FC<OeffnenTabProps> = ({
   const [subSection, setSubSection] = useState<'recent' | 'indexeddb' | 'cloud' | 'browse' | 'server'>('recent');
   const [isDragging, setIsDragging] = useState(false);
   const { config, updateConfig } = useConfigStore();
+  const ui = useUIStore();
 
   const displayedProjects = React.useMemo(() => {
     if (subSection === 'indexeddb') {
@@ -252,6 +255,29 @@ export const OeffnenTab: React.FC<OeffnenTabProps> = ({
                   className="hidden"
                 />
               </label>
+            </div>
+
+            {/* SQLite WASM Studio Direct Box */}
+            <div className="mt-4 p-4 rounded-xl bg-amber-950/30 border border-amber-500/40 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                  <Database size={20} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">
+                    SQLite WASM Studio (Direkte .sqlite/.db Dateien)
+                  </h4>
+                  <p className="text-[11px] text-amber-200/80">
+                    Öffnen, analysieren und speichern Sie echte binäre SQLite-Dateien 100% lokal im Browser.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => ui.setShowSqliteWasmModal(true)}
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg cursor-pointer transition-all shadow shrink-0"
+              >
+                Studio öffnen
+              </button>
             </div>
           </div>
         ) : (

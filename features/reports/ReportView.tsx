@@ -32,6 +32,7 @@ import { Din5008Letterhead, Din5008ThreeColumnFooter } from './components/Din500
 import { CommercialVobSummary } from './components/CommercialVobSummary';
 import { SwissQrBill } from './components/SwissQrBill';
 import { ReportEmailModal } from './components/ReportEmailModal';
+import { FreeformCanvasRenderer } from './components/FreeformCanvasRenderer';
 import { downloadZugferdXml } from './utils/zugferdGenerator';
 import { eventBus } from '../../services/eventBus';
 
@@ -646,6 +647,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
             )
           )}
 
+          {/* Freeform Elements in Report Header */}
+          <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="reportHeader" />
+
           {/* Embedded Chart if enabled */}
           {report.chartConfig && report.chartConfig.enabled && (
             <ReportChartRenderer config={report.chartConfig} data={data} sourceFields={sourceFields} />
@@ -842,6 +846,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Freeform Elements in Report Footer */}
+            <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="reportFooter" />
 
             {/* Signature Box in Report Footer */}
             {(bandSections?.reportFooter?.signatureBox ?? true) && (

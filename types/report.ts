@@ -147,17 +147,19 @@ export interface StationeryBackgroundConfig {
 
 export interface FreeformCanvasElement {
   id: string;
-  type: 'label' | 'box' | 'line' | 'image' | 'formula' | 'signature';
+  type: 'label' | 'box' | 'line' | 'image' | 'formula' | 'signature' | 'barcode' | 'qrcode' | 'stamp' | 'badge';
   section: 'reportHeader' | 'pageHeader' | 'detail' | 'pageFooter' | 'reportFooter';
   x: number; // mm
   y: number; // mm
   width: number; // mm
   height: number; // mm
-  content: string; // text, formula 'SUM(price)', image URL or data
+  content: string; // text, formula 'SUM(price)', image URL or data, barcode payload
   style?: TextStyle;
   borderWidth?: number;
   borderColor?: string;
   backgroundColor?: string;
+  rotation?: number; // e.g. 0, 90, 270 degrees
+  barcodeFormat?: 'CODE128' | 'EAN13' | 'QR' | 'DATAMATRIX';
 }
 
 export interface PrintReportEventPayload {
@@ -248,6 +250,7 @@ export interface Report {
   settings?: ReportSettings;
   subReport?: SubReportConfig;
   chartConfig?: ReportChartConfig;
+  freeformElements?: FreeformCanvasElement[];
   dashboardWidgets?: DashboardWidget[];
   allowedRoles?: string[];
 }

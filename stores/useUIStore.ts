@@ -126,6 +126,12 @@ interface UIStore {
   setShowConstructionOfflineModal: (show: boolean) => void;
   showIndustryInterfacesModal: boolean;
   setShowIndustryInterfacesModal: (show: boolean) => void;
+  showSqliteWasmModal: boolean;
+  setShowSqliteWasmModal: (show: boolean) => void;
+  showOllamaModal: boolean;
+  setShowOllamaModal: (show: boolean) => void;
+  showPluginGeneratorModal: boolean;
+  setShowPluginGeneratorModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -259,6 +265,12 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowConstructionOfflineModal: (showConstructionOfflineModal) => set({ showConstructionOfflineModal }),
   showIndustryInterfacesModal: false,
   setShowIndustryInterfacesModal: (showIndustryInterfacesModal) => set({ showIndustryInterfacesModal }),
+  showSqliteWasmModal: false,
+  setShowSqliteWasmModal: (showSqliteWasmModal) => set({ showSqliteWasmModal }),
+  showOllamaModal: false,
+  setShowOllamaModal: (showOllamaModal) => set({ showOllamaModal }),
+  showPluginGeneratorModal: false,
+  setShowPluginGeneratorModal: (showPluginGeneratorModal) => set({ showPluginGeneratorModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),
