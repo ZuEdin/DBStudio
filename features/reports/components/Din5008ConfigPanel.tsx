@@ -459,18 +459,18 @@ export const Din5008ConfigPanel: React.FC<Din5008ConfigPanelProps> = ({
                 <input
                   type="text"
                   placeholder="Firma / Name"
-                  value={swiss.creditor.name}
+                  value={swiss.creditor?.name || ''}
                   onChange={(e) =>
-                    onChangeSwissQr?.({ ...swiss, creditor: { ...swiss.creditor, name: e.target.value } })
+                    onChangeSwissQr?.({ ...swiss, creditor: { ...(swiss.creditor || {}), name: e.target.value } as any })
                   }
                   className="w-full px-2 py-1 border border-slate-300 rounded text-xs"
                 />
                 <input
                   type="text"
                   placeholder="Straße & Hausnr."
-                  value={swiss.creditor.street}
+                  value={swiss.creditor?.street || ''}
                   onChange={(e) =>
-                    onChangeSwissQr?.({ ...swiss, creditor: { ...swiss.creditor, street: e.target.value } })
+                    onChangeSwissQr?.({ ...swiss, creditor: { ...(swiss.creditor || {}), street: e.target.value } as any })
                   }
                   className="w-full px-2 py-1 border border-slate-300 rounded text-xs"
                 />
@@ -479,16 +479,16 @@ export const Din5008ConfigPanel: React.FC<Din5008ConfigPanelProps> = ({
                 <input
                   type="text"
                   placeholder="PLZ & Ort"
-                  value={`${swiss.creditor.postalCode} ${swiss.creditor.city}`}
+                  value={`${swiss.creditor?.postalCode || ''} ${swiss.creditor?.city || ''}`.trim()}
                   onChange={(e) => {
-                    const parts = e.target.value.split(' ');
+                    const parts = (e.target.value || '').split(' ');
                     onChangeSwissQr?.({
                       ...swiss,
                       creditor: {
-                        ...swiss.creditor,
+                        ...(swiss.creditor || {}),
                         postalCode: parts[0] || '',
                         city: parts.slice(1).join(' ') || '',
-                      },
+                      } as any,
                     });
                   }}
                   className="w-full px-2 py-1 border border-slate-300 rounded text-xs"
@@ -496,9 +496,9 @@ export const Din5008ConfigPanel: React.FC<Din5008ConfigPanelProps> = ({
                 <input
                   type="text"
                   placeholder="Land (z.B. CH)"
-                  value={swiss.creditor.country}
+                  value={swiss.creditor?.country || ''}
                   onChange={(e) =>
-                    onChangeSwissQr?.({ ...swiss, creditor: { ...swiss.creditor, country: e.target.value } })
+                    onChangeSwissQr?.({ ...swiss, creditor: { ...(swiss.creditor || {}), country: e.target.value } as any })
                   }
                   className="w-full px-2 py-1 border border-slate-300 rounded text-xs"
                 />

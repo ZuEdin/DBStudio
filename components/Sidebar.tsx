@@ -186,12 +186,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
 
   const buildRecursiveTree = <T extends { id: string; name: string }>(items: T[]): TreeNode<T>[] => {
     if (!Array.isArray(items)) return [];
-    const sorted = [...items].sort((a, b) => (a?.name || '').localeCompare(b?.name || ''));
+    const validItems = items.filter(it => it && typeof it.name === 'string');
+    const sorted = [...validItems].sort((a, b) => (a?.name || '').localeCompare(b?.name || ''));
     
     const nodes = sorted.map(item => ({
         id: item.id,
         item,
-        displayName: item.name,
+        displayName: item.name || '',
         children: [],
         isVirtual: false,
         parentId: null as string | null
@@ -199,7 +200,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
 
     const prefixCounts = new Map<string, number>();
     nodes.forEach(node => {
-        const parts = node.item.name.split('_');
+        const itemName = node.item?.name || '';
+        const parts = itemName.split('_');
         let current = '';
         for(let i=0; i<parts.length-1; i++){
             current += (i===0 ? '' : '_') + parts[i];
@@ -207,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
         }
     });
 
-    const exactNames = new Set(nodes.map(n => n.item.name));
+    const exactNames = new Set(nodes.map(n => n.item?.name || ''));
     const validPrefixes = new Set<string>();
     for (const [prefix, count] of prefixCounts.entries()) {
         if (count > 1 || exactNames.has(prefix) || exactNames.has(prefix + 's')) {
@@ -218,7 +220,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
     const sortedPrefixes = Array.from(validPrefixes).sort((a,b) => b.length - a.length);
 
     const virtualFolders = new Map<string, TreeNode<T>>();
-    const exactNodes = new Map(nodes.map(n => [n.item.name, n]));
+    const exactNodes = new Map(nodes.map(n => [n.item?.name || '', n]));
 
     sortedPrefixes.forEach(prefix => {
         if (!exactNodes.has(prefix) && !exactNodes.has(prefix + 's')) {
@@ -241,8 +243,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
 
     nodes.forEach(childNode => {
         let bestPrefix = null;
+        const childName = childNode.item?.name || '';
         for (const prefix of sortedPrefixes) {
-            if (childNode.item.name.startsWith(prefix + '_')) {
+            if (childName.startsWith(prefix + '_')) {
                 bestPrefix = prefix;
                 break;
             }
@@ -253,8 +256,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
             if (parent) {
                 parent.children.push(childNode);
                 const prefixStr = bestPrefix + '_';
-                if (childNode.item.name.startsWith(prefixStr)) {
-                    childNode.displayName = childNode.item.name.slice(prefixStr.length);
+                if (childName.startsWith(prefixStr)) {
+                    childNode.displayName = childName.slice(prefixStr.length);
                 }
                 childNode.parentId = parent.id;
             }
@@ -264,8 +267,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
     const allVirtuals = Array.from(virtualFolders.values()) as (TreeNode<T> & { isVirtual?: boolean, parentId?: string | null })[];
     allVirtuals.forEach(virtNode => {
         let bestPrefix = null;
+        const virtName = virtNode.item?.name || '';
         for (const prefix of sortedPrefixes) {
-            if (virtNode.item.name !== prefix && virtNode.item.name.startsWith(prefix + '_')) {
+            if (virtName !== prefix && virtName.startsWith(prefix + '_')) {
                 bestPrefix = prefix;
                 break;
             }
@@ -275,8 +279,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
             if (parent) {
                 parent.children.push(virtNode);
                 const prefixStr = bestPrefix + '_';
-                if (virtNode.item.name.startsWith(prefixStr)) {
-                    virtNode.displayName = virtNode.item.name.slice(prefixStr.length);
+                if (virtName.startsWith(prefixStr)) {
+                    virtNode.displayName = virtName.slice(prefixStr.length);
                 }
                 virtNode.parentId = parent.id;
             }

@@ -254,7 +254,7 @@ export const ExcelImportStep2: React.FC<ExcelImportStep2Props> = ({
             </tr>
           </thead>
           <tbody>
-            {rawRows.slice(0, 5).map((row, rIdx) => (
+            {(rawRows || []).slice(0, 5).map((row, rIdx) => (
               <tr key={rIdx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 {mappings.map((map, cIdx) => (
                   <td key={cIdx} className={`p-3 text-sm text-slate-600 border-r border-slate-100 truncate max-w-[240px] ${!map.selected ? 'opacity-30 bg-slate-50' : ''}`}>

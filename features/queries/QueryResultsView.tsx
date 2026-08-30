@@ -35,14 +35,14 @@ export const QueryResultsView: React.FC<QueryResultsViewProps> = ({ query, resul
   const dataKeys = query.columns.filter(c => c.show).map(c => c.alias || c.fieldName);
 
   const getRowVal = (row: any, key: string) => {
-    if (!row) return '';
+    if (!row || !key || typeof key !== 'string') return '';
     if (row[key] !== undefined && row[key] !== null) return row[key];
-    const camel = key.charAt(0).toLowerCase() + key.slice(1);
+    const camel = key.charAt(0).toLowerCase() + (key.length > 1 ? key.slice(1) : '');
     if (row[camel] !== undefined && row[camel] !== null) return row[camel];
-    const pascal = key.charAt(0).toUpperCase() + key.slice(1);
+    const pascal = key.charAt(0).toUpperCase() + (key.length > 1 ? key.slice(1) : '');
     if (row[pascal] !== undefined && row[pascal] !== null) return row[pascal];
     const lower = key.toLowerCase();
-    const foundKey = Object.keys(row).find(k => k.toLowerCase() === lower || k.toLowerCase().endsWith('.' + lower));
+    const foundKey = Object.keys(row || {}).find(k => k.toLowerCase() === lower || k.toLowerCase().endsWith('.' + lower));
     return foundKey ? row[foundKey] : '';
   };
 

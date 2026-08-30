@@ -1,7 +1,7 @@
 import { Table } from '../../types/index';
 import { AuditEntry, FieldChangeDiff, AuditActionType } from './auditTypes';
 
-export const generateSampleAuditHistory = (tables: Table[]): AuditEntry[] => {
+export const generateSampleAuditHistory = (tables: Table[] = []): AuditEntry[] => {
   const users = [
     { id: 'u1', name: 'Max Mustermann', role: 'Admin' },
     { id: 'u2', name: 'Sarah Müller', role: 'Manager' },
@@ -12,11 +12,14 @@ export const generateSampleAuditHistory = (tables: Table[]): AuditEntry[] => {
   const entries: AuditEntry[] = [];
   const now = Date.now();
 
-  tables.forEach((table, tIdx) => {
+  (tables || []).forEach((table, tIdx) => {
+    if (!table) return;
     const records = table.data || [];
-    const pk = table.fields.find(f => f.isPrimaryKey)?.name || table.fields[0]?.name || 'id';
+    const fields = table.fields || [];
+    const pk = fields.find(f => f.isPrimaryKey)?.name || fields[0]?.name || 'id';
 
-    records.slice(0, 3).forEach((rec, rIdx) => {
+    (records || []).slice(0, 3).forEach((rec, rIdx) => {
+      if (!rec) return;
       const recId = String(rec[pk] || rIdx + 1);
       const user = users[(tIdx + rIdx) % users.length];
 

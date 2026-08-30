@@ -181,10 +181,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ table, onUpdateRow }) 
                                     className="bg-white p-3 rounded border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md hover:border-blue-300 transition-all group"
                                 >
                                     <div className="font-bold text-sm text-slate-800 mb-1">
-                                        {row[titleField]}
+                                        {row ? row[titleField] : ''}
                                     </div>
                                     <div className="text-xs text-slate-500 truncate">
-                                        {Object.keys(row).filter(k => k !== groupBy && k !== titleField && k !== 'Id').slice(0, 2).map(k => `${k}: ${row[k]}`).join(' | ')}
+                                        {Object.keys(row || {}).filter(k => k !== groupBy && k !== titleField && k !== 'Id').slice(0, 2).map(k => `${k}: ${row[k]}`).join(' | ')}
                                     </div>
                                 </div>
                             ))}
