@@ -25,6 +25,7 @@ export interface SqliteTableMetadata {
     pk: number;
   }[];
   sampleRows?: Record<string, any>[];
+  allRows?: Record<string, any>[];
 }
 
 export interface SqliteInspectionResult {
@@ -34,6 +35,7 @@ export interface SqliteInspectionResult {
   tables: SqliteTableMetadata[];
   views: string[];
   indexes: string[];
+  relationships: Relationship[];
   transpiledTables: Table[];
 }
 
@@ -43,18 +45,25 @@ export class SqliteWasmEngine {
   private static currentFileName: string = 'dbstudio_local.sqlite';
 
   /**
-   * Initializes the sql.js WASM module
+   * Initializes the sql.js WASM module with robust multi-CDN fallback
    */
   public static async getSqlJs() {
     if (!this.sqlJsInstance) {
       const initializer = (typeof window !== 'undefined' && (window as any).initSqlJs) 
         ? (window as any).initSqlJs 
-        : initSqlJs;
+        : (typeof initSqlJs === 'function' ? initSqlJs : (initSqlJs as any)?.default);
 
       if (typeof initializer === 'function') {
-        this.sqlJsInstance = await initializer({
-          locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
-        });
+        try {
+          this.sqlJsInstance = await initializer({
+            locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
+          });
+        } catch (cdnErr) {
+          console.warn("Primary cdnjs locateFile failed, trying sql.js.org fallback:", cdnErr);
+          this.sqlJsInstance = await initializer({
+            locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+          });
+        }
       } else {
         throw new Error("sql.js Initializer not available");
       }
@@ -87,7 +96,7 @@ export class SqliteWasmEngine {
   }
 
   /**
-   * Inspects all sqlite_master tables, columns (PRAGMA table_info), and row counts
+   * Inspects all sqlite_master tables, columns (PRAGMA table_info), foreign keys, and rows
    */
   public static inspectDatabase(fileName: string, fileSizeBytes: number = 0): SqliteInspectionResult {
     if (!this.activeDb) {
@@ -97,6 +106,7 @@ export class SqliteWasmEngine {
     const tables: SqliteTableMetadata[] = [];
     const views: string[] = [];
     const indexes: string[] = [];
+    const detectedRelations: { fromTable: string; fromCol: string; toTable: string; toCol: string }[] = [];
 
     // Query sqlite_master
     const masterRes = this.activeDb.exec("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'");
@@ -127,19 +137,42 @@ export class SqliteWasmEngine {
             console.warn(`Could not read pragma table_info for ${name}:`, err);
           }
 
-          // Fetch row count
+          // Fetch Foreign Keys via PRAGMA foreign_key_list
+          try {
+            const fkRes = this.activeDb.exec(`PRAGMA foreign_key_list("${name}")`);
+            if (fkRes.length > 0 && fkRes[0].values) {
+              for (const fkRow of fkRes[0].values) {
+                // fkRow: id, seq, table, from, to, on_update, on_delete, match
+                const targetTable = String(fkRow[2] || '');
+                const fromCol = String(fkRow[3] || '');
+                const toCol = String(fkRow[4] || '');
+                if (targetTable && fromCol && toCol) {
+                  detectedRelations.push({
+                    fromTable: name,
+                    fromCol,
+                    toTable: targetTable,
+                    toCol
+                  });
+                }
+              }
+            }
+          } catch (fkErr) {
+            console.warn(`Could not read pragma foreign_key_list for ${name}:`, fkErr);
+          }
+
+          // Fetch row count & all data records
           let rowCount = 0;
-          let sampleRows: Record<string, any>[] = [];
+          let allRows: Record<string, any>[] = [];
           try {
             const countRes = this.activeDb.exec(`SELECT COUNT(*) FROM "${name}"`);
             if (countRes.length > 0 && countRes[0].values && countRes[0].values[0]) {
               rowCount = Number(countRes[0].values[0][0]) || 0;
             }
 
-            const sampleRes = this.activeDb.exec(`SELECT * FROM "${name}" LIMIT 5`);
-            if (sampleRes.length > 0 && sampleRes[0].values) {
-              const cols = sampleRes[0].columns;
-              sampleRows = sampleRes[0].values.map((vRow: any[]) => {
+            const dataRes = this.activeDb.exec(`SELECT * FROM "${name}"`);
+            if (dataRes.length > 0 && dataRes[0].values) {
+              const cols = dataRes[0].columns;
+              allRows = dataRes[0].values.map((vRow: any[]) => {
                 const obj: Record<string, any> = {};
                 cols.forEach((col: string, idx: number) => {
                   obj[col] = vRow[idx];
@@ -157,7 +190,8 @@ export class SqliteWasmEngine {
             sql,
             rowCount,
             columns,
-            sampleRows,
+            sampleRows: allRows.slice(0, 10),
+            allRows,
           });
         } else if (type === 'view') {
           views.push(name);
@@ -168,7 +202,7 @@ export class SqliteWasmEngine {
     }
 
     // Transpile SQLite tables to DB Studio Table[]
-    const transpiledTables = this.transpileToDbStudioTables(tables);
+    const { transpiledTables, relationships } = this.transpileToDbStudioTablesAndRelations(tables, detectedRelations);
 
     return {
       fileName,
@@ -177,44 +211,89 @@ export class SqliteWasmEngine {
       tables,
       views,
       indexes,
+      relationships,
       transpiledTables,
     };
   }
 
   /**
-   * Transpiles SQLite Table metadata into DB Studio Pro Table entities
+   * Transpiles SQLite Table metadata into DB Studio Pro Table entities & Relationships
    */
-  public static transpileToDbStudioTables(sqliteTables: SqliteTableMetadata[]): Table[] {
-    return sqliteTables.map((st, idx) => {
+  public static transpileToDbStudioTablesAndRelations(
+    sqliteTables: SqliteTableMetadata[],
+    detectedRelations: { fromTable: string; fromCol: string; toTable: string; toCol: string }[] = []
+  ): { transpiledTables: Table[]; relationships: Relationship[] } {
+    const tableIdMap = new Map<string, string>();
+    const fieldIdMap = new Map<string, Map<string, string>>();
+
+    const transpiledTables: Table[] = sqliteTables.map((st, idx) => {
+      const tableId = `tbl_sqlite_${st.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${idx}`;
+      tableIdMap.set(st.name, tableId);
+      const colMap = new Map<string, string>();
+      fieldIdMap.set(st.name, colMap);
+
       const fields: Field[] = st.columns.map((c, colIdx) => {
         const upperType = (c.type || 'TEXT').toUpperCase();
         let normalizedType: any = 'VARCHAR';
 
-        if (upperType.includes('INT')) normalizedType = 'INT';
+        if (upperType.includes('INT')) normalizedType = 'INTEGER';
         else if (upperType.includes('CHAR') || upperType.includes('TEXT') || upperType.includes('CLOB')) normalizedType = 'VARCHAR';
         else if (upperType.includes('REAL') || upperType.includes('FLOA') || upperType.includes('DOUB') || upperType.includes('DEC')) normalizedType = 'DECIMAL';
         else if (upperType.includes('BLOB')) normalizedType = 'BINARY';
-        else if (upperType.includes('DATE') || upperType.includes('TIME')) normalizedType = 'DATE';
+        else if (upperType.includes('DATE') || upperType.includes('TIME')) normalizedType = 'DATETIME';
         else if (upperType.includes('BOOL')) normalizedType = 'BOOLEAN';
 
+        const fieldId = `fld_${st.name}_${c.name}_${colIdx}`;
+        colMap.set(c.name, fieldId);
+
         return {
-          id: `fld_${st.name}_${c.name}_${colIdx}`,
+          id: fieldId,
           name: c.name,
           type: normalizedType,
           isPrimaryKey: c.pk > 0,
-          isNullable: c.notnull === 0,
+          allowNull: c.notnull === 0,
+          isAutoIncrement: c.pk > 0 && normalizedType === 'INTEGER',
           defaultValue: c.dflt_value !== null ? String(c.dflt_value) : undefined,
           length: normalizedType === 'VARCHAR' ? 255 : undefined,
         };
       });
 
       return {
-        id: `tbl_sqlite_${st.name}_${idx}`,
+        id: tableId,
         name: st.name,
         fields,
-        data: st.sampleRows || [],
+        data: st.allRows || st.sampleRows || [],
       };
     });
+
+    const relationships: Relationship[] = [];
+    for (const rel of detectedRelations) {
+      const fromTblId = tableIdMap.get(rel.fromTable);
+      const toTblId = tableIdMap.get(rel.toTable);
+      const fromFldId = fieldIdMap.get(rel.fromTable)?.get(rel.fromCol);
+      const toFldId = fieldIdMap.get(rel.toTable)?.get(rel.toCol);
+
+      if (fromTblId && toTblId && fromFldId && toFldId) {
+        relationships.push({
+          id: `rel_sqlite_${rel.fromTable}_${rel.toTable}_${Date.now().toString(36)}`,
+          sourceTableId: fromTblId,
+          sourceFieldId: fromFldId,
+          targetTableId: toTblId,
+          targetFieldId: toFldId,
+          type: '1:N',
+          fromTableId: fromTblId,
+          fromFieldId: fromFldId,
+          toTableId: toTblId,
+          toFieldId: toFldId,
+        } as any);
+      }
+    }
+
+    return { transpiledTables, relationships };
+  }
+
+  public static transpileToDbStudioTables(sqliteTables: SqliteTableMetadata[]): Table[] {
+    return this.transpileToDbStudioTablesAndRelations(sqliteTables).transpiledTables;
   }
 
   /**
@@ -306,3 +385,4 @@ export class SqliteWasmEngine {
     }
   }
 }
+

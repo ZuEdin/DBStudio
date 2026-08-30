@@ -23,11 +23,13 @@ import { useUIStore } from '../../../stores/useUIStore';
 
 interface SqliteWasmStudioModalProps {
   isOpen: boolean;
+  initialFile?: File | null;
   onClose: () => void;
 }
 
 export const SqliteWasmStudioModal: React.FC<SqliteWasmStudioModalProps> = ({
   isOpen,
+  initialFile,
   onClose,
 }) => {
   const store = useProjectStore();
@@ -41,20 +43,6 @@ export const SqliteWasmStudioModal: React.FC<SqliteWasmStudioModalProps> = ({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
 
-  useEffect(() => {
-    if (isOpen && !inspection) {
-      // Create or inspect sample SQLite database if none loaded
-      SqliteWasmEngine.createEmptyDatabase('projekte_lokal.sqlite').then((res) => {
-        setInspection(res);
-        if (res.tables.length > 0) {
-          setSelectedTable(res.tables[0].name);
-        }
-      }).catch(console.error);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
   const handleFileUpload = async (file: File) => {
     setIsProcessing(true);
     setStatusMessage(`Lade binäre SQLite-Datei "${file.name}" in WASM...`);
@@ -66,12 +54,33 @@ export const SqliteWasmStudioModal: React.FC<SqliteWasmStudioModalProps> = ({
         setSelectedTable(res.tables[0].name);
       }
       setStatusMessage(`Erfolgreich geladen: ${res.tableCount} Tabellen erkannt.`);
+      ui.addToast(`SQLite-Datei "${file.name}" erfolgreich geladen! ${res.tableCount} Tabellen gefunden.`, 'success');
     } catch (err: any) {
-      setStatusMessage(`Fehler beim Laden: ${err.message}`);
+      console.error("SQLite file upload error:", err);
+      setStatusMessage(`Fehler beim Laden: ${err.message || String(err)}`);
+      ui.addToast(`Fehler beim Lesen der SQLite Datei: ${err.message || String(err)}`, 'error');
     } finally {
       setIsProcessing(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialFile) {
+        handleFileUpload(initialFile);
+      } else if (!inspection) {
+        // Create or inspect sample SQLite database if none loaded
+        SqliteWasmEngine.createEmptyDatabase('projekte_lokal.sqlite').then((res) => {
+          setInspection(res);
+          if (res.tables.length > 0) {
+            setSelectedTable(res.tables[0].name);
+          }
+        }).catch(console.error);
+      }
+    }
+  }, [isOpen, initialFile]);
+
+  if (!isOpen) return null;
 
   const handleRunQuery = () => {
     if (!queryInput.trim()) return;
@@ -82,12 +91,50 @@ export const SqliteWasmStudioModal: React.FC<SqliteWasmStudioModalProps> = ({
   const handleTranspileToProject = () => {
     if (!inspection || inspection.transpiledTables.length === 0) return;
     
-    // Add transpiled tables to active project store
-    inspection.transpiledTables.forEach((tbl) => {
-      store.addTable(tbl);
-    });
+    // If no project is currently open, initialize a new project
+    if (!store.projectId) {
+      const projName = inspection.fileName ? inspection.fileName.replace(/\.[^/.]+$/, "") : 'SQLite_Datenbank';
+      store.loadProject({
+        id: crypto.randomUUID(),
+        name: projName,
+        lastModified: Date.now(),
+        data: {
+          tables: inspection.transpiledTables,
+          relationships: inspection.relationships || [],
+          queries: [],
+          forms: [],
+          reports: [],
+          charts: [],
+          workflows: [],
+          records: inspection.transpiledTables.reduce((acc, t) => {
+            acc[t.id] = t.data || [];
+            return acc;
+          }, {} as Record<string, any[]>),
+          layout: [],
+          tableGroups: [],
+          backendConfig: {
+            dbType: 'SQLITE' as any,
+            language: 'dotnet',
+            projectName: projName,
+            port: 5000,
+            dbConnection: '',
+            useSwagger: true,
+            frontendFramework: 'react',
+          }
+        }
+      });
+    } else {
+      // Add transpiled tables to active project store
+      inspection.transpiledTables.forEach((tbl) => {
+        store.addTable(tbl);
+      });
+      if (inspection.relationships && inspection.relationships.length > 0) {
+        store.setRelationships([...store.relationships, ...inspection.relationships]);
+      }
+    }
 
-    ui.addToast(`${inspection.transpiledTables.length} SQLite-Tabellen wurden in das Projekt übernommen!`, 'success');
+    ui.setCurrentView({ type: 'table_data', tableId: inspection.transpiledTables[0].id });
+    ui.addToast(`${inspection.transpiledTables.length} SQLite-Tabellen mit allen Datensätzen erfolgreich importiert!`, 'success');
     onClose();
   };
 
@@ -104,7 +151,7 @@ export const SqliteWasmStudioModal: React.FC<SqliteWasmStudioModalProps> = ({
   const currentTableMeta = inspection?.tables.find((t) => t.name === selectedTable);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 select-none">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 select-none">
       <div className="bg-slate-900 border border-slate-700 w-full max-w-5xl h-[88vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-200">
         
         {/* Modal Header */}

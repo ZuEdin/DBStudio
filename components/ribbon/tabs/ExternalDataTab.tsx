@@ -35,8 +35,9 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
 
       <RibbonGroup label="Lokaler Import">
         <RibbonButton icon={<FileSpreadsheet className="text-green-600" />} label="Excel Import" onClick={() => onAction('import_excel')} />
-        <RibbonButton icon={<Database className="text-red-700" />} label="XML Import" onClick={() => onAction('import_access')} />
+        <RibbonButton icon={<Database className="text-red-700" />} label="MS Access (MDB/ACCDB)" onClick={() => onAction('open_access_mdb')} />
         <RibbonButton icon={<FileCode className="text-purple-600" />} label="Schema/SQL/JSON" onClick={() => onAction('import_schema')} />
+        <RibbonButton icon={<ArrowLeftRight className="text-purple-600" />} label="AST Code Sync" onClick={() => onAction('open_ast_sync')} />
       </RibbonGroup>
 
       <RibbonGroup label="Lokaler Export">

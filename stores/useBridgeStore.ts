@@ -233,7 +233,7 @@ export const useBridgeStore = create<BridgeStoreState>()(
         const cleanedMessage = stripAnsiCodes(entry.message || '');
         set((state) => {
           // Avoid duplicate logs if identical to last log
-          const existingLogs = state.activeProject.logs;
+          const existingLogs = state.activeProject?.logs || [];
           const lastLog = existingLogs.length > 0 ? existingLogs[existingLogs.length - 1] : null;
           if (lastLog && lastLog.message === cleanedMessage && lastLog.service === entry.service && Math.abs(new Date(lastLog.timestamp).getTime() - new Date(entry.timestamp).getTime()) < 1000) {
             return state;

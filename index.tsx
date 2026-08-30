@@ -1,8 +1,18 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Buffer } from 'buffer';
 import App from './App';
 import './i18n'; // Init i18n
+
+// Polyfill for Buffer in browser environment
+if (typeof window !== 'undefined') {
+  (window as any).Buffer = Buffer;
+  (window as any).global = window;
+}
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).Buffer = Buffer;
+}
 
 // Polyfill for crypto.randomUUID in non-secure HTTP contexts
 if (typeof globalThis !== 'undefined') {

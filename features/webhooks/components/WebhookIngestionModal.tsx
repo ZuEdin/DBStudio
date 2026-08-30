@@ -58,7 +58,7 @@ export const WebhookIngestionModal: React.FC<WebhookIngestionModalProps> = ({
       const parsed = JSON.parse(rawJson);
       const result = simulateWebhookIngestion(selectedEndpoint, parsed, tables);
       setLatestResult(result);
-      setLogs(prev => [result, ...prev.slice(0, 19)]);
+      setLogs(prev => [result, ...(prev || []).slice(0, 19)]);
       if (result.status === 'SUCCESS') {
         onShowToast?.(`Webhook erfolgreich validiert & verarbeitet! (ID: ${result.insertedId})`, 'success');
       } else {
@@ -320,7 +320,7 @@ app.post('/api/v1/webhooks/ingest', express.raw({ type: 'application/json' }), (
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-mono text-slate-500">{ep.secretToken.slice(0, 12)}...</span>
+                        <span className="text-[11px] font-mono text-slate-500">{(ep.secretToken || '').slice(0, 12)}...</span>
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500" />
                       </div>
                     </div>

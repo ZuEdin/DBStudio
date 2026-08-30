@@ -425,6 +425,21 @@ export const AccessBackstageView: React.FC<AccessBackstageViewProps> = ({
 
   // Import file
   const handleImportFile = async (file: File) => {
+    const lower = file.name.toLowerCase();
+    if (lower.endsWith('.accdb') || lower.endsWith('.mdb')) {
+      ui.setPendingAccessFile(file);
+      ui.setShowAccessMdbModal(true);
+      return;
+    }
+    if (lower.endsWith('.sqlite') || lower.endsWith('.db') || lower.endsWith('.sqlite3')) {
+      ui.setPendingSqliteFile(file);
+      ui.setShowSqliteWasmModal(true);
+      return;
+    }
+    if (lower.endsWith('.sql')) {
+      ui.setShowSchemaWizard(true);
+      return;
+    }
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -491,7 +506,7 @@ export const AccessBackstageView: React.FC<AccessBackstageViewProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[500] flex bg-[#2b2b2b] text-neutral-100 select-none overflow-hidden animate-in fade-in duration-100">
+    <div className="fixed inset-0 z-[100] flex bg-[#2b2b2b] text-neutral-100 select-none overflow-hidden animate-in fade-in duration-100">
       {/* Left Backstage Navigation Sidebar */}
       <BackstageNavSidebar
         activeTab={activeSubTab}

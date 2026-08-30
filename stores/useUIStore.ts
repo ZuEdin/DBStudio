@@ -153,6 +153,14 @@ interface UIStore {
   setShowWebhookHubModal: (show: boolean) => void;
   showCicdPipelineModal: boolean;
   setShowCicdPipelineModal: (show: boolean) => void;
+  showAccessMdbModal: boolean;
+  setShowAccessMdbModal: (show: boolean) => void;
+  pendingAccessFile: File | null;
+  setPendingAccessFile: (file: File | null) => void;
+  showAstCodeSyncModal: boolean;
+  setShowAstCodeSyncModal: (show: boolean) => void;
+  pendingSqliteFile: File | null;
+  setPendingSqliteFile: (file: File | null) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -313,6 +321,14 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowWebhookHubModal: (showWebhookHubModal) => set({ showWebhookHubModal }),
   showCicdPipelineModal: false,
   setShowCicdPipelineModal: (showCicdPipelineModal) => set({ showCicdPipelineModal }),
+  showAccessMdbModal: false,
+  setShowAccessMdbModal: (showAccessMdbModal) => set({ showAccessMdbModal }),
+  pendingAccessFile: null,
+  setPendingAccessFile: (pendingAccessFile) => set({ pendingAccessFile }),
+  showAstCodeSyncModal: false,
+  setShowAstCodeSyncModal: (showAstCodeSyncModal) => set({ showAstCodeSyncModal }),
+  pendingSqliteFile: null,
+  setPendingSqliteFile: (pendingSqliteFile) => set({ pendingSqliteFile }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

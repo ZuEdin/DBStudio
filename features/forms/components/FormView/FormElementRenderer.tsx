@@ -571,9 +571,9 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
                           } else if ((f as any).isFK || (f as any).isForeignKey || (f as any).targetTableId) {
                             const targetT = allTables.find((t) => t.id === (f as any).targetTableId);
                             if (targetT) {
-                              const targetRow = (targetT.data || []).find((r) => String(r.id || Object.values(r)[0]) === String(rawVal));
+                              const targetRow = (targetT.data || []).find((r) => String(r.id || Object.values(r || {})[0]) === String(rawVal));
                               if (targetRow) {
-                                cellDisplay = Object.values(targetRow).slice(1, 3).join(' ') || String(rawVal);
+                                cellDisplay = Object.values(targetRow || {}).slice(1, 3).join(' ') || String(rawVal);
                               }
                             }
                           }

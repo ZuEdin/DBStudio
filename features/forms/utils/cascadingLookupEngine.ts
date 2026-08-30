@@ -125,19 +125,19 @@ export function resolveLookupOptions(
         .join('');
       const valField = fields.find((f) => f.id === config.valueFieldId || f.name === config.valueFieldId) || fields.find((f) => f.isPrimaryKey);
       return {
-        value: valField ? row[valField.name] : (row.id || Object.values(row)[0]),
-        label: label.trim() || String(row.id || Object.values(row)[0]),
+        value: valField ? row[valField.name] : (row?.id || Object.values(row || {})[0]),
+        label: label.trim() || String(row?.id || Object.values(row || {})[0] || ''),
         meta: row,
       };
     });
   }
 
-  return rows.map((row) => {
-    const val = row.id ?? Object.values(row)[0];
-    const lbl = Object.values(row).slice(0, 2).filter(Boolean).join(' - ');
+  return (rows || []).map((row) => {
+    const val = row?.id ?? Object.values(row || {})[0];
+    const lbl = Object.values(row || {}).slice(0, 2).filter(Boolean).join(' - ');
     return {
       value: val,
-      label: lbl || String(val),
+      label: lbl || String(val ?? ''),
       meta: row,
     };
   });

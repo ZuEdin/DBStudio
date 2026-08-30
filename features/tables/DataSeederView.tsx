@@ -19,12 +19,12 @@ export const DataSeederView: React.FC<DataSeederViewProps> = ({ tables, backendC
     // Initialize rows with activeTable.data or a dummy row
     useEffect(() => {
         if (activeTable) {
-            if (activeTable.data && activeTable.data.length > 0) {
+            if (activeTable.data && Array.isArray(activeTable.data) && activeTable.data.length > 0) {
                 setRows(activeTable.data.slice(0, 5));
             } else {
                 // Generate a blank row with default fields
                 const defaultRow: Record<string, any> = {};
-                activeTable.fields.forEach(f => {
+                (activeTable.fields || []).forEach(f => {
                     defaultRow[f.name] = f.isPrimaryKey ? 1 : '';
                 });
                 setRows([defaultRow]);

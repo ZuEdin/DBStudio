@@ -307,11 +307,11 @@ export const useSyncMatrixStore = create<SyncMatrixState>((set, get) => ({
       isSyncing: false,
       syncProgress: 100,
       lastReport: report,
-      executionHistory: [report, ...s.executionHistory.slice(0, 19)],
-      rules: s.rules.map(r => ({
+      executionHistory: [report, ...(s.executionHistory || []).slice(0, 19)],
+      rules: (s.rules || []).map(r => ({
         ...r,
         lastSyncTimestamp: Date.now(),
-        syncStatus: s.conflicts.some(c => c.ruleId === r.id && c.status === 'pending') ? 'conflict' : 'in_sync'
+        syncStatus: (s.conflicts || []).some(c => c.ruleId === r.id && c.status === 'pending') ? 'conflict' : 'in_sync'
       }))
     }));
 

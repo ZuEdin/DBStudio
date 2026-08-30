@@ -47,6 +47,8 @@ import { ExcelExportModal } from '../features/excel-engine';
 import { AutomationExportModal } from '../features/automation/components/AutomationExportModal';
 import { WebhookIngestionModal } from '../features/webhooks/components/WebhookIngestionModal';
 import { CicdPipelineModal } from '../features/deployment/components/CicdPipelineModal';
+import { AccessMdbMigrationModal } from '../features/access-migration/components/AccessMdbMigrationModal';
+import { AstCodeSyncModal } from '../features/ast-sync/components/AstCodeSyncModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -455,7 +457,11 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {ui.showSqliteWasmModal && (
         <SqliteWasmStudioModal 
           isOpen={ui.showSqliteWasmModal}
-          onClose={() => ui.setShowSqliteWasmModal(false)}
+          initialFile={ui.pendingSqliteFile}
+          onClose={() => {
+            ui.setShowSqliteWasmModal(false);
+            ui.setPendingSqliteFile(null);
+          }}
         />
       )}
 
@@ -546,6 +552,34 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <CicdPipelineModal
           projectName={store.projectName || 'DBStudioApp'}
           onClose={() => ui.setShowCicdPipelineModal(false)}
+          onShowToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showAccessMdbModal && (
+        <AccessMdbMigrationModal
+          initialFile={ui.pendingAccessFile}
+          onSaveTables={(newTables, newRelations) => {
+            newTables.forEach(t => addTable(t));
+            if (newRelations && newRelations.length > 0) {
+              store.setRelationships([...store.relationships, ...newRelations]);
+            }
+          }}
+          onClose={() => {
+            ui.setShowAccessMdbModal(false);
+            ui.setPendingAccessFile(null);
+          }}
+          onShowToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showAstCodeSyncModal && (
+        <AstCodeSyncModal
+          currentTables={tables}
+          onApplyChanges={(updated) => {
+            store.setTables(updated);
+          }}
+          onClose={() => ui.setShowAstCodeSyncModal(false)}
           onShowToast={(msg, type) => addToast(msg, type || 'info')}
         />
       )}

@@ -1536,7 +1536,13 @@ export const useAppController = () => {
         case 'sharepoint_import': ui.setShowSharePointWizard(true); break;
         
         case 'import_excel': ui.setShowExcelWizard(true); break;
-        case 'import_access': ui.setShowAccessWizard(true); break;
+        case 'import_access': 
+        case 'import_access_mdb':
+        case 'open_access_mdb':
+        case 'access_wasm_migration': ui.setShowAccessMdbModal(true); break;
+        case 'open_ast_sync':
+        case 'open_roundtrip_sync':
+        case 'code_reverse_sync': ui.setShowAstCodeSyncModal(true); break;
         case 'import_schema': ui.setShowSchemaWizard(true); break;
         case 'generate_dummy': ui.setShowDummyDataWizard(true); break;
         case 'export_excel': {

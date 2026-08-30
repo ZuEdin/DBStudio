@@ -210,11 +210,11 @@ export const CollaborativeP2PModal: React.FC<CollaborativeP2PModalProps> = ({
                 <Lock size={14} className="text-amber-400" />
               </div>
               <div className="space-y-2 text-xs">
-                {store.tables.slice(0, 3).map((tbl) => (
+                {(store.tables || []).slice(0, 3).map((tbl) => (
                   <div key={tbl.id} className="p-2.5 bg-slate-900 rounded-lg border border-slate-800 space-y-1.5">
                     <div className="font-bold text-white text-[11px]">{tbl.name}</div>
                     <div className="flex flex-wrap gap-1.5">
-                      {tbl.fields.slice(0, 3).map((f) => {
+                      {(tbl.fields || []).slice(0, 3).map((f) => {
                         const isLocked = locks.some((l) => l.tableId === tbl.id && l.fieldId === f.id);
                         return (
                           <button

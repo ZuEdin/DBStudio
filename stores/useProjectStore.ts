@@ -386,10 +386,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // ENTERPRISE FIX 1: Patch-based State Management
     executeAction: (recipe: (state: ProjectStore) => void) => {
         const [nextState, patches, inversePatches] = produceWithPatches(get(), recipe);
+        const currentPast = get().history?.past || [];
         set({
             ...nextState,
             history: {
-                past: [...get().history.past, inversePatches].slice(-50),
+                past: [...currentPast, inversePatches].slice(-50),
                 future: []
             }
         });
@@ -397,7 +398,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     undo: () => {
         const { history, ...state } = get();
-        if (history.past.length === 0) return;
+        if (!history || !history.past || history.past.length === 0) return;
 
         const inversePatches = history.past[history.past.length - 1];
         const newPast = history.past.slice(0, -1);
@@ -413,7 +414,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             ...nextState,
             history: {
                 past: newPast,
-                future: [...history.future, redoPatches]
+                future: [...(history.future || []), redoPatches]
             }
         });
         debouncedSync((nextState as any).tables);
@@ -421,7 +422,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     redo: () => {
         const { history, ...state } = get();
-        if (history.future.length === 0) return;
+        if (!history || !history.future || history.future.length === 0) return;
 
         const patches = history.future[history.future.length - 1];
         const newFuture = history.future.slice(0, -1);
@@ -435,7 +436,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({
             ...nextState,
             history: {
-                past: [...history.past, undoPatches],
+                past: [...(history.past || []), undoPatches],
                 future: newFuture
             }
         });

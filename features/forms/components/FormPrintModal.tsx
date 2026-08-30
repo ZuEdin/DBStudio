@@ -93,7 +93,7 @@ export const FormPrintModal: React.FC<FormPrintModalProps> = ({
           const masterFieldName = masterFieldObj?.name || el.subform!.masterLinkFieldId;
           const masterVal = currentRecord[masterFieldName] ?? currentRecord.id;
 
-          const childFieldObj = subTable.fields.find(
+          const childFieldObj = (subTable.fields || []).find(
             (f) => f.id === el.subform!.childLinkFieldId || f.name === el.subform!.childLinkFieldId
           );
           const childFieldName = childFieldObj?.name || el.subform!.childLinkFieldId;
@@ -102,7 +102,7 @@ export const FormPrintModal: React.FC<FormPrintModalProps> = ({
             (r) => String(r[childFieldName] ?? '') === String(masterVal ?? '')
           );
 
-          const cols = subTable.fields.filter((f) => !f.isPrimaryKey && f.name !== childFieldName).slice(0, 6);
+          const cols = (subTable.fields || []).filter((f) => !f.isPrimaryKey && f.name !== childFieldName).slice(0, 6);
           const rows = linkedRows.map((r) => cols.map((c) => String(r[c.name] ?? '')));
 
           if (rows.length > 0) {

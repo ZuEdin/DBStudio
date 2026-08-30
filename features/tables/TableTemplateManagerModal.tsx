@@ -449,7 +449,7 @@ export const TableTemplateManagerModal: React.FC<TableTemplateManagerModalProps>
                     </div>
 
                     {/* Sample Data Preview */}
-                    {selectedTemplate.sampleData && selectedTemplate.sampleData.length > 0 && (
+                    {selectedTemplate.sampleData && Array.isArray(selectedTemplate.sampleData) && selectedTemplate.sampleData.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                           <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
@@ -465,7 +465,7 @@ export const TableTemplateManagerModal: React.FC<TableTemplateManagerModalProps>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                              {selectedTemplate.sampleData.slice(0, 5).map((row, rIdx) => (
+                              {(selectedTemplate.sampleData || []).slice(0, 5).map((row, rIdx) => (
                                 <tr key={rIdx} className="hover:bg-slate-800/30">
                                   {Object.keys(selectedTemplate.sampleData![0] || {}).map(key => (
                                     <td key={key} className="px-3 py-1.5 text-slate-300 text-[11px]">

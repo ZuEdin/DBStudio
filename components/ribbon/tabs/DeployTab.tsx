@@ -219,6 +219,15 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         onClick: () => onAction('open_migrations'),
                         badge: 'DDL',
                         badgeColor: 'blue'
+                    },
+                    {
+                        id: 'ast_code_sync',
+                        label: 'Round-Trip AST Code Sync',
+                        description: '2-Wege Reverse Sync von manuell getuntem Code zurück ins Metamodell',
+                        icon: <GitCommit size={14} className="text-purple-600" />,
+                        onClick: () => onAction('open_ast_sync'),
+                        badge: '2-Wege',
+                        badgeColor: 'purple'
                     }
                 ]}
             />

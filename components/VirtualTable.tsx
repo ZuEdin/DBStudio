@@ -18,7 +18,7 @@ interface VirtualTableProps {
 }
 
 export const VirtualTable: React.FC<VirtualTableProps> = ({ 
-  data, headers, headerTooltips, rowHeight = 35, renderRow, className = '',
+  data = [], headers = [], headerTooltips, rowHeight = 35, renderRow, className = '',
   enableRowReorder = false, sortColumn, sortDirection, onSort, activeColumn, onSelectColumn
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,14 +55,16 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
     }
   }, []);
 
-  const totalHeight = data.length * rowHeight;
+  const safeData = Array.isArray(data) ? data : [];
+  const safeHeaders = Array.isArray(headers) ? headers : [];
+  const totalHeight = safeData.length * rowHeight;
   const startIndex = Math.floor(scrollTop / rowHeight);
   // Render a buffer of 10 rows
   const visibleCount = Math.ceil(containerHeight / rowHeight) + 10; 
-  const endIndex = Math.min(data.length, startIndex + visibleCount);
+  const endIndex = Math.min(safeData.length, startIndex + visibleCount);
   const startBuffer = Math.max(0, startIndex - 5);
 
-  const visibleRows = data.slice(startBuffer, endIndex).map((row, i) => ({
+  const visibleRows = safeData.slice(startBuffer, endIndex).map((row, i) => ({
       data: row,
       index: startBuffer + i,
       offset: (startBuffer + i) * rowHeight

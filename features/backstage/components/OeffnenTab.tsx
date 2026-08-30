@@ -9,7 +9,9 @@ import {
   FolderOpen,
   Cloud,
   Lock,
-  Database
+  Database,
+  ArrowLeftRight,
+  FileCode
 } from 'lucide-react';
 import { useConfigStore } from '../../../stores/useConfigStore';
 import { useUIStore } from '../../../stores/useUIStore';
@@ -61,13 +63,37 @@ export const OeffnenTab: React.FC<OeffnenTabProps> = ({
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onImportFile(e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith('.accdb') || lower.endsWith('.mdb')) {
+        ui.setPendingAccessFile(file);
+        ui.setShowAccessMdbModal(true);
+        return;
+      }
+      if (lower.endsWith('.sqlite') || lower.endsWith('.db') || lower.endsWith('.sqlite3')) {
+        ui.setPendingSqliteFile(file);
+        ui.setShowSqliteWasmModal(true);
+        return;
+      }
+      onImportFile(file);
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      onImportFile(e.target.files[0]);
+      const file = e.target.files[0];
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith('.accdb') || lower.endsWith('.mdb')) {
+        ui.setPendingAccessFile(file);
+        ui.setShowAccessMdbModal(true);
+        return;
+      }
+      if (lower.endsWith('.sqlite') || lower.endsWith('.db') || lower.endsWith('.sqlite3')) {
+        ui.setPendingSqliteFile(file);
+        ui.setShowSqliteWasmModal(true);
+        return;
+      }
+      onImportFile(file);
     }
   };
 
@@ -213,13 +239,15 @@ export const OeffnenTab: React.FC<OeffnenTabProps> = ({
             </div>
           </div>
         ) : subSection === 'browse' ? (
-          <div className="max-w-xl">
-            <h1 className="text-xl font-light text-white mb-1">
-              Projektdatei importieren & öffnen
-            </h1>
-            <p className="text-xs text-neutral-400 mb-6">
-              Laden Sie eine bestehende .dbsp, JSON oder SQL Schemadatei direkt in Ihre lokale IndexedDB
-            </p>
+          <div className="max-w-xl space-y-4">
+            <div>
+              <h1 className="text-xl font-light text-white mb-1">
+                Projektdatei importieren & öffnen
+              </h1>
+              <p className="text-xs text-neutral-400">
+                Laden Sie bestehende MS Access (.accdb / .mdb), SQLite (.sqlite / .db), .dbsp, JSON oder SQL Schemadateien direkt in DB Studio Pro.
+              </p>
+            </div>
 
             {/* Drop Zone */}
             <div
@@ -229,20 +257,20 @@ export const OeffnenTab: React.FC<OeffnenTabProps> = ({
               }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleFileDrop}
-              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+              className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
                 isDragging
                   ? 'border-indigo-500 bg-indigo-950/30'
                   : 'border-[#555555] bg-[#333333] hover:border-neutral-400'
               }`}
             >
-              <div className="w-12 h-12 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-center mx-auto mb-3 text-indigo-400">
+              <div className="w-12 h-12 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-center mx-auto mb-2.5 text-indigo-400">
                 <FolderOpen size={24} />
               </div>
               <h3 className="text-sm font-semibold text-white mb-1">
                 Datei hierher ziehen oder durchsuchen
               </h3>
-              <p className="text-xs text-neutral-400 mb-4">
-                Unterstützte Formate: .dbsp (DB Studio Project), .json, .sql
+              <p className="text-xs text-neutral-400 mb-3.5">
+                Unterstützte Formate: .accdb, .mdb (MS Access), .sqlite, .db, .dbsp, .json, .sql
               </p>
 
               <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-md cursor-pointer transition-colors shadow-xs">
@@ -250,34 +278,98 @@ export const OeffnenTab: React.FC<OeffnenTabProps> = ({
                 <span>Datei auswählen</span>
                 <input
                   type="file"
-                  accept=".dbsp,.json,.sql,.accdb"
+                  accept=".accdb,.mdb,.sqlite,.db,.sqlite3,.dbsp,.json,.sql"
                   onChange={handleFileInput}
                   className="hidden"
                 />
               </label>
             </div>
 
-            {/* SQLite WASM Studio Direct Box */}
-            <div className="mt-4 p-4 rounded-xl bg-amber-950/30 border border-amber-500/40 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
-                  <Database size={20} />
+            {/* Direct Migration & WASM Studio Cards */}
+            <div className="space-y-3 pt-1">
+              {/* MS Access WASM Migration Direct Box */}
+              <div className="p-4 rounded-xl bg-red-950/30 border border-red-500/40 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-red-500/20 text-red-400 shrink-0">
+                    <Database size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-white">
+                        MS Access Migration (.accdb / .mdb)
+                      </h4>
+                      <span className="text-[9px] font-mono bg-red-900/60 text-red-300 px-1.5 py-0.5 rounded border border-red-700 font-bold">
+                        WASM Jet &amp; ACE Engine
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-red-200/80 mt-0.5">
+                      Direktes Binary-Parsing (Access 97 bis 365) mit RTF-Memos, AutoWert, OLE-Stripping &amp; Beziehungen ohne Windows ODBC-Treiber.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">
-                    SQLite WASM Studio (Direkte .sqlite/.db Dateien)
-                  </h4>
-                  <p className="text-[11px] text-amber-200/80">
-                    Öffnen, analysieren und speichern Sie echte binäre SQLite-Dateien 100% lokal im Browser.
-                  </p>
-                </div>
+                <button
+                  onClick={() => ui.setShowAccessMdbModal(true)}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg cursor-pointer transition-all shadow shrink-0"
+                >
+                  Access Studio öffnen
+                </button>
               </div>
-              <button
-                onClick={() => ui.setShowSqliteWasmModal(true)}
-                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg cursor-pointer transition-all shadow shrink-0"
-              >
-                Studio öffnen
-              </button>
+
+              {/* SQLite WASM Studio Direct Box */}
+              <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/40 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-amber-500/20 text-amber-400 shrink-0">
+                    <Database size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-white">
+                        SQLite WASM Studio (.sqlite / .db)
+                      </h4>
+                      <span className="text-[9px] font-mono bg-amber-900/60 text-amber-300 px-1.5 py-0.5 rounded border border-amber-700 font-bold">
+                        Local-First
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-200/80 mt-0.5">
+                      Öffnen, analysieren und speichern Sie echte binäre SQLite-Dateien 100% lokal im Browser.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => ui.setShowSqliteWasmModal(true)}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg cursor-pointer transition-all shadow shrink-0"
+                >
+                  Studio öffnen
+                </button>
+              </div>
+
+              {/* AST Code Sync Direct Box */}
+              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/40 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-purple-500/20 text-purple-400 shrink-0">
+                    <ArrowLeftRight size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-white">
+                        Round-Trip AST Code Sync
+                      </h4>
+                      <span className="text-[9px] font-mono bg-purple-900/60 text-purple-300 px-1.5 py-0.5 rounded border border-purple-700 font-bold">
+                        2-Wege Reverse Sync
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-purple-200/80 mt-0.5">
+                      Synchronisieren Sie manuell getunte DTOs &amp; Schemas (TypeScript, Prisma, SQL DDL) zurück ins Metamodell.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => ui.setShowAstCodeSyncModal(true)}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-lg cursor-pointer transition-all shadow shrink-0"
+                >
+                  AST Sync öffnen
+                </button>
+              </div>
             </div>
           </div>
         ) : (
