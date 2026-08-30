@@ -1,6 +1,6 @@
 
 import { Table, BackendConfig, VirtualFile, DbType, Relationship, Query, SelectQuery } from '../../../types/index';
-import { toPascalCase, quoteIdentifier, sortTablesByDependencies } from '../common';
+import { toPascalCase, quoteIdentifier, sortTablesByDependencies, resolveType, isTablePrimaryKey, getEffectivePrimaryKey, normalizeDbType } from '../common';
 import { generateSqlSelect } from '../../sqlHelper';
 
 const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSql: boolean): any => {
@@ -41,22 +41,59 @@ const mapPermissionObjectId = (row: any, tables: Table[], queries: Query[], isSq
 
 export const generateDbInitializer = (tables: Table[], relationships: Relationship[], config: BackendConfig, root: string, queries: Query[] = []): VirtualFile => {
     let seedLogic = '';
-    const dbType = config.dbType;
+    const dbType = normalizeDbType(config.dbType);
     const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
 
-    // Create database views for custom queries if they don't exist
+    // 1. Sort tables so dependent tables are seeded after their referenced tables (parent tables)
+    const sortedTables = sortTablesByDependencies(tables, relationships || []);
+
+    // 2. Ensure all model tables exist in database BEFORE seeding or creating views
+    seedLogic += `                // Ensure all model tables exist\n`;
+    sortedTables.forEach(table => {
+        const rawTableName = toPascalCase(table.name);
+        const tableName = quoteIdentifier(rawTableName, dbType);
+        const fieldsDdl = table.fields.map(f => {
+            let type = resolveType(f, 'sql', dbType);
+            const isPk = isTablePrimaryKey(table, f, relationships);
+            if (dbType === DbType.SQLite) {
+                if (isPk && f.type === 'INTEGER' && f.isAutoIncrement) return `  ${quoteIdentifier(f.name, dbType)} INTEGER PRIMARY KEY AUTOINCREMENT`;
+            } else if (dbType === DbType.MySQL) {
+                if (isPk && f.type === 'INTEGER' && f.isAutoIncrement) type += ' AUTO_INCREMENT';
+            } else {
+                // SQL Server / PostgreSQL
+                if (isPk && f.type === 'INTEGER' && f.isAutoIncrement) type += ' IDENTITY(1,1)';
+            }
+            
+            let line = `  ${quoteIdentifier(f.name, dbType)} ${type}`;
+            if (dbType !== DbType.SQLite && isPk) line += ' PRIMARY KEY';
+            if (!f.allowNull && !isPk) line += ' NOT NULL';
+            return line;
+        }).join(', ');
+
+        let createTableSql = '';
+        if (dbType === DbType.SQL) {
+            createTableSql = `IF OBJECT_ID(N'${rawTableName}', N'U') IS NULL CREATE TABLE ${tableName} (${fieldsDdl});`;
+        } else {
+            createTableSql = `CREATE TABLE IF NOT EXISTS ${tableName} (${fieldsDdl});`;
+        }
+        const escapedTableSql = createTableSql.replace(/"/g, '""');
+        seedLogic += `                try { context.Database.ExecuteSqlRaw(@"${escapedTableSql}"); } catch { }\n`;
+    });
+    seedLogic += `\n`;
+
+    // 3. Create database views for custom select queries AFTER tables exist
     const selectQueries = queries.filter(q => q.type === 'SELECT');
     if (selectQueries.length > 0) {
         seedLogic += `                // Create database views for custom select queries\n`;
         selectQueries.forEach(q => {
             const selectQ = q as SelectQuery;
-            const selectSql = generateSqlSelect(selectQ.nodes, selectQ.columns, tables, relationships, config.dbType, false);
+            const selectSql = generateSqlSelect(selectQ.nodes, selectQ.columns, tables, relationships, dbType, false);
             if (selectSql) {
                 const viewName = toPascalCase(q.name);
                 let createViewSql = '';
-                if (config.dbType === DbType.SQLite) {
+                if (dbType === DbType.SQLite) {
                     createViewSql = `CREATE VIEW IF NOT EXISTS [${viewName}] AS ${selectSql};`;
-                } else if (config.dbType === DbType.MySQL) {
+                } else if (dbType === DbType.MySQL) {
                     createViewSql = `CREATE OR REPLACE VIEW \`${viewName}\` AS ${selectSql};`;
                 } else {
                     // SQL Server
@@ -69,19 +106,16 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
         seedLogic += `\n`;
     }
 
-    // Sort tables so dependent tables are seeded after their referenced tables (parent tables)
-    const sortedTables = sortTablesByDependencies(tables, relationships || []);
-
     const BATCH_SIZE = 250; // Batch size for fast multi-row inserts compatible with SQLite, MySQL, and SQL Server
 
     sortedTables.forEach(table => {
         if (!table.data || table.data.length === 0) return;
 
         const tableName = quoteIdentifier(toPascalCase(table.name), dbType);
-        const hasIdentity = table.fields.some(f => 
-            f.isAutoIncrement || 
-            (f.isPrimaryKey && ['INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT'].includes(f.type))
-        );
+        const hasIdentity = table.fields.some(f => {
+            const isPk = isTablePrimaryKey(table, f, relationships);
+            return f.isAutoIncrement || (isPk && ['INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT'].includes(f.type));
+        });
         const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
         const modelName = toPascalCase(table.name);
 

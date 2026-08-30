@@ -1,5 +1,6 @@
 
 import { Table, Relationship, Query, BackendConfig, VirtualFile, DbType, SelectQuery } from '../../types/index';
+import { normalizeDbType } from './common';
 import { generateCsproj } from './dotnet/csproj';
 import { generateProgram } from './dotnet/program';
 import { generateDbContext, generateModels } from './dotnet/models';
@@ -16,11 +17,15 @@ export const generateDotNet = (tables: Table[], relationships: Relationship[], q
   const serverName = (isBlazor || isMaui || isMauiNative) ? `${config.projectName}.Server` : config.projectName;
   const root = `Backend/${serverName}`;
   const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
+  const normalizedDb = normalizeDbType(config.dbType);
   
   // 1. Base appsettings.json
-  const connectionString = config.dbConnection || (config.dbType === DbType.SQLite 
+  const defaultSqlConn = "Server=.;Database=" + (config.projectName || "MyDb") + ";Trusted_Connection=True;TrustServerCertificate=True;";
+  const connectionString = config.dbConnection || (normalizedDb === DbType.SQLite 
         ? "Data Source=app.db" 
-        : "Server=.;Database=MyDb;Trusted_Connection=True;TrustServerCertificate=True;");
+        : (normalizedDb === DbType.MySQL
+            ? "Server=localhost;Database=" + (config.projectName || "MyDb") + ";User=root;Password=;"
+            : defaultSqlConn));
   
   const baseAppSettings = {
     "Logging": { "LogLevel": { "Default": "Information", "Microsoft.AspNetCore": "Warning" } },

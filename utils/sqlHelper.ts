@@ -1,12 +1,13 @@
 
 import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
-import { quoteIdentifier, toPascalCase } from './generators/common';
+import { quoteIdentifier, toPascalCase, normalizeDbType } from './generators/common';
 import { resolveFormValue } from '../features/queries/utils/queryExecution';
 import { transpileExpression } from '../features/queries/utils/expressionTranspiler';
 
-export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType, useRawNames: boolean = false, context?: Record<string, any>): string => {
+export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType | string, useRawNames: boolean = false, context?: Record<string, any>): string => {
     if (nodes.length === 0) return '';
     
+    const normalizedDb = normalizeDbType(dbType);
     const formatIdentifier = (name: string) => useRawNames ? name : toPascalCase(name);
 
     // 1. Assign unique aliases to each TableNode
@@ -21,7 +22,7 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     // 2. Map Columns to their Aliases
     const selectClause = columns.filter(c => c.show || (c.criteria && c.criteria.some(cr => cr && cr.trim() !== ''))).map(c => {
         const alias = c.alias ? formatIdentifier(c.alias) : formatIdentifier(c.fieldName);
-        const quotedAlias = quoteIdentifier(alias, dbType);
+        const quotedAlias = quoteIdentifier(alias, normalizedDb);
         
         let fieldExpr = '';
         if (c.isCalculated) {
@@ -32,20 +33,38 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
                 [DbType.SQL]: 'MSSQL',
                 [DbType.NoSQL]: 'POSTGRES'
             };
-            const transpiled = transpileExpression(c.expression || '', dialectMap[dbType] || 'SQLITE');
+            const transpiled = transpileExpression(c.expression || '', dialectMap[normalizedDb] || 'SQLITE');
             fieldExpr = `(${transpiled})`;
         } else {
             // Try to find the correct node alias
             let nodeAlias = '';
+            let targetTable: Table | undefined;
             if (c.nodeId && nodeAliases.has(c.nodeId)) {
                 nodeAlias = nodeAliases.get(c.nodeId)!;
+                const node = nodes.find(n => n.id === c.nodeId);
+                targetTable = tables.find(t => t.id === node?.tableId);
             } else {
                 // Fallback: find first node matching tableId
                 const node = nodes.find(n => n.tableId === c.tableId);
-                if (node) nodeAlias = nodeAliases.get(node.id)!;
-                else nodeAlias = formatIdentifier(c.tableName);
+                if (node) {
+                    nodeAlias = nodeAliases.get(node.id)!;
+                    targetTable = tables.find(t => t.id === node.tableId);
+                } else {
+                    nodeAlias = formatIdentifier(c.tableName);
+                    targetTable = tables.find(t => t.id === c.tableId || t.name.toLowerCase() === (c.tableName || '').toLowerCase());
+                }
             }
-            fieldExpr = `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
+
+            // Resolve actual field name on the table
+            let resolvedColName = c.fieldName;
+            if (targetTable) {
+                const matchedField = targetTable.fields.find(f => f.id === c.fieldId || f.name.toLowerCase() === (c.fieldName || '').toLowerCase());
+                if (matchedField) {
+                    resolvedColName = matchedField.name;
+                }
+            }
+
+            fieldExpr = `${quoteIdentifier(nodeAlias, normalizedDb)}.${quoteIdentifier(resolvedColName, normalizedDb)}`;
         }
 
         if (c.aggregate && !['GROUP_BY', 'EXPRESSION', 'FIRST', 'LAST'].includes(c.aggregate)) {

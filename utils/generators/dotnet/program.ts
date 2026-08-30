@@ -1,14 +1,16 @@
 
 import { BackendConfig, DbType, VirtualFile, Table, Relationship, Query, SelectQuery } from '../../../types/index';
 import { generateSqlSelect } from '../../sqlHelper';
-import { toPascalCase } from '../common';
+import { toPascalCase, normalizeDbType } from '../common';
 
 export const generateProgram = (config: BackendConfig, tables: Table[], relationships: Relationship[], queries: Query[], root: string): VirtualFile => {
   const safeNamespace = config.projectName.replace(/[^a-zA-Z0-9_]/g, '_');
   const isBlazor = config.frontendFramework === 'blazor' || config.frontendFramework === 'mudblazor';
+  const normalizedDb = normalizeDbType(config.dbType);
   let dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));`;
-  if (config.dbType === DbType.SQLite) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));`;
-  if (config.dbType === DbType.MySQL) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"), ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));`;
+  if (normalizedDb === DbType.SQLite) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));`;
+  if (normalizedDb === DbType.MySQL) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"), ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));`;
+  if (normalizedDb === DbType.PostgreSQL) dbConfigCode = `builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));`;
 
   const swaggerSetup = config.useSwagger ? `builder.Services.AddEndpointsApiExplorer(); builder.Services.AddSwaggerGen();` : '';
   const swaggerUse = config.useSwagger ? `app.UseSwagger(); app.UseSwaggerUI();` : '';

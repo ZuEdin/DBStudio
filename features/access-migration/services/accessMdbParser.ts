@@ -218,9 +218,26 @@ export class AccessMdbParser {
             return rowObj;
           });
 
-          // Check if first column can act as primary key if none was set
+          // Check if column can act as primary key if none was set
           if (!primaryKey && columns.length > 0) {
-            const idCol = columns.find(c => c.name.toLowerCase().endsWith('id') || c.name.toLowerCase() === 'id');
+            const lowerTbl = tableName.toLowerCase();
+            const idCol = columns.find(c => {
+              const lower = c.name.toLowerCase();
+              return lower === 'id' || 
+                     lower === `${lowerTbl}id` || 
+                     lower === `${lowerTbl}_id` ||
+                     lower === `${lowerTbl}nr` ||
+                     lower === `${lowerTbl}_nr` ||
+                     lower.endsWith('id') || 
+                     lower.endsWith('_id') || 
+                     lower.endsWith('nr') || 
+                     lower.endsWith('_nr') || 
+                     lower.endsWith('nummer') || 
+                     lower.endsWith('code') || 
+                     lower.endsWith('key') ||
+                     lower === lowerTbl;
+            }) || columns[0];
+
             if (idCol) {
               idCol.isPrimaryKey = true;
               primaryKey = idCol.name;
@@ -473,6 +490,23 @@ export class AccessMdbParser {
             sourceFieldId: fromField.id,
             targetFieldId: toField.id
           } as any);
+
+          // The source field in a 1:N relationship is almost always the PK of the parent table
+          fromField.isPrimaryKey = true;
+        }
+      }
+    }
+
+    // Ensure every table has at least one explicit primary key
+    for (const tbl of tables) {
+      if (!tbl.fields.some(f => f.isPrimaryKey)) {
+        const lowerTbl = tbl.name.toLowerCase();
+        const cand = tbl.fields.find(f => {
+          const lower = f.name.toLowerCase();
+          return lower === 'id' || lower === `${lowerTbl}id` || lower.endsWith('id') || lower.endsWith('nr') || lower === lowerTbl;
+        }) || tbl.fields[0];
+        if (cand) {
+          cand.isPrimaryKey = true;
         }
       }
     }

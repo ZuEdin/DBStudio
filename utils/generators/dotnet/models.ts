@@ -1,7 +1,7 @@
 
 import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery, ValidationRule, DbType } from '../../../types/index';
 import { DATA_TYPES } from '../../../config/dataTypes';
-import { resolveType, toPascalCase, isNullable } from '../common';
+import { resolveType, toPascalCase, isNullable, getEffectivePrimaryKey, isTablePrimaryKey, normalizeDbType } from '../common';
 import { detectJunctionTables, generateEfCoreManyToManyFluent } from '../manyToManyGenerator';
 
 export const getRelationshipNames = (relationships: Relationship[], tables: Table[], currentRel: Relationship) => {
@@ -46,7 +46,16 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
     .map(q => `        public DbSet<${toPascalCase(q.name)}> ${toPascalCase(q.name)}s { get; set; }`)
     .join('\n');
   
-  const tableMappings = tables.map(t => `            modelBuilder.Entity<${toPascalCase(t.name)}>().ToTable("${toPascalCase(t.name)}");`).join('\n');
+  const tableMappings = tables.map(t => {
+      const safeModelName = toPascalCase(t.name);
+      const pk = getEffectivePrimaryKey(t, relationships);
+      let pkProp = pk ? toPascalCase(pk.name) : null;
+      if (pkProp && pkProp === safeModelName) {
+          pkProp = `${pkProp}Value`;
+      }
+      const keyClause = pkProp ? `\n                .HasKey(e => e.${pkProp})` : '\n                .HasNoKey()';
+      return `            modelBuilder.Entity<${safeModelName}>()\n                .ToTable("${safeModelName}")${keyClause};`;
+  }).join('\n');
   const queryMappings = queries
     .filter(q => q.type === 'SELECT')
     .map(q => `            modelBuilder.Entity<${toPascalCase(q.name)}>().ToView("${toPascalCase(q.name)}").HasNoKey();`).join('\n');
@@ -59,7 +68,7 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
 
       if (!parentTable || !childTable || !childField) return '';
       
-      const parentPk = parentTable.fields.find(f => f.isPrimaryKey) || parentTable.fields[0];
+      const parentPk = getEffectivePrimaryKey(parentTable, relationships);
       if (!parentPk) return '';
       
       if (childField.type !== parentPk.type) {
@@ -123,9 +132,11 @@ export const generateDbContext = (tables: Table[], relationships: Relationship[]
 
       // DATABASE PER TENANT STRATEGY: OnConfiguring Override
       if (config.multiTenancy.strategy === 'database') {
+          const normalizedDb = normalizeDbType(config.dbType);
           let dbProviderCall = '';
-          if (config.dbType === DbType.MySQL) dbProviderCall = `optionsBuilder.UseMySql(newConn, ServerVersion.AutoDetect(newConn));`;
-          else if (config.dbType === DbType.SQLite) dbProviderCall = `optionsBuilder.UseSqlite(newConn);`;
+          if (normalizedDb === DbType.MySQL) dbProviderCall = `optionsBuilder.UseMySql(newConn, ServerVersion.AutoDetect(newConn));`;
+          else if (normalizedDb === DbType.SQLite) dbProviderCall = `optionsBuilder.UseSqlite(newConn);`;
+          else if (normalizedDb === DbType.PostgreSQL) dbProviderCall = `optionsBuilder.UseNpgsql(newConn);`;
           else dbProviderCall = `optionsBuilder.UseSqlServer(newConn);`;
 
           onConfiguring = `
@@ -253,10 +264,11 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       const typeConfig = DATA_TYPES[f.type];
       const attributes = [];
       
-      const nullable = isNullable(f);
+      const isPk = isTablePrimaryKey(table, f, relationships);
+      const nullable = isNullable(f) && !isPk;
 
       let columnAttrContent = `"${f.name}"`;
-      if (f.isPrimaryKey) attributes.push('[Key]');
+      if (isPk) attributes.push('[Key]');
 
       if (typeConfig && typeConfig.mappings.csharp.attributes) {
           const typeAttrs = typeConfig.mappings.csharp.attributes({ length: f.length, precision: f.precision, scale: f.scale });
@@ -337,7 +349,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
     const childProps = childRels.map(r => {
         const childTable = tables.find(t => t.id === r.toTableId);
         const childField = childTable?.fields.find(f => f.id === r.toFieldId);
-        const parentPk = table.fields.find(f => f.isPrimaryKey) || table.fields[0];
+        const parentPk = getEffectivePrimaryKey(table, relationships);
         if (!childTable || !childField || !parentPk) return '';
         
         if (childField.type !== parentPk.type) {
@@ -353,7 +365,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
     const parentProps = parentRels.map(r => {
         const parentTable = tables.find(t => t.id === r.fromTableId);
         const fkField = table.fields.find(f => f.id === r.toFieldId);
-        const parentPk = parentTable?.fields.find(f => f.isPrimaryKey) || parentTable?.fields[0];
+        const parentPk = parentTable ? getEffectivePrimaryKey(parentTable, relationships) : null;
 
         if (!parentTable || !fkField || !parentPk) return '';
 

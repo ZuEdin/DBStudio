@@ -1,6 +1,6 @@
 
 import { Table, Relationship, BackendConfig, VirtualFile, Query, SelectQuery } from '../../../types/index';
-import { resolveType, toPascalCase, toCamelCase } from '../common';
+import { resolveType, toPascalCase, toCamelCase, getEffectivePrimaryKey } from '../common';
 import { detectJunctionTables, generateDotNetManyToManyEndpoints } from '../manyToManyGenerator';
 
 export const generateControllers = (tables: Table[], relationships: Relationship[], queries: Query[], config: BackendConfig, root: string): VirtualFile[] => {
@@ -117,7 +117,7 @@ namespace ${safeNamespace}.Controllers
   tables.forEach(table => {
       const safeName = toPascalCase(table.name);
       const getPropName = (f: any) => { let p = toPascalCase(f.name); return p === safeName ? p + 'Value' : p; };
-      const pkField = table.fields.find(f => f.isPrimaryKey) || table.fields[0];
+      const pkField = getEffectivePrimaryKey(table, relationships);
       
       // SEARCH LOGIC
       // Create a predicate to search in all string columns

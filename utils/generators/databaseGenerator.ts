@@ -1,6 +1,6 @@
 
 import { Table, Relationship, BackendConfig, VirtualFile, DbType, Query, SelectQuery } from '../../types/index';
-import { resolveType, quoteIdentifier, toPascalCase, sortTablesByDependencies } from './common';
+import { resolveType, quoteIdentifier, toPascalCase, sortTablesByDependencies, isTablePrimaryKey, getEffectivePrimaryKey, normalizeDbType } from './common';
 import { generateSqlSelect } from '../sqlHelper';
 import { generatePrismaSchema, generateDrizzleSchema, generateTypeOrmEntities } from './ormGenerator';
 
@@ -73,7 +73,9 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
         }
     }
 
-    if (config.dbType === DbType.NoSQL) {
+    const normalizedDb = normalizeDbType(config.dbType);
+
+    if (normalizedDb === DbType.NoSQL) {
         const schema = processingTables.reduce((acc, t) => {
             acc[t.name] = {
                 description: `Collection for ${t.name}`,
@@ -107,25 +109,26 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
         }
 
     } else {
-        let sql = `-- Database Script for ${config.dbType}\n-- Project: ${config.projectName}\n\n`;
+        let sql = `-- Database Script for ${normalizedDb}\n-- Project: ${config.projectName}\n\n`;
         
         // 1. Tables
         processingTables.forEach(table => {
             const fields = table.fields.map(f => {
-                let type = resolveType(f, 'sql', config.dbType);
-                if (config.dbType === DbType.SQLite) {
+                let type = resolveType(f, 'sql', normalizedDb);
+                const isPk = isTablePrimaryKey(table, f, relationships);
+                if (normalizedDb === DbType.SQLite) {
                     // SQLite specific auto increment syntax
-                    if (f.isPrimaryKey && f.type === 'INTEGER' && f.isAutoIncrement) return `  ${quoteIdentifier(f.name, config.dbType)} INTEGER PRIMARY KEY AUTOINCREMENT`;
-                } else if (config.dbType === DbType.MySQL) {
-                    if (f.isPrimaryKey && f.type === 'INTEGER' && f.isAutoIncrement) type += ' AUTO_INCREMENT';
+                    if (isPk && f.type === 'INTEGER' && f.isAutoIncrement) return `  ${quoteIdentifier(f.name, normalizedDb)} INTEGER PRIMARY KEY AUTOINCREMENT`;
+                } else if (normalizedDb === DbType.MySQL) {
+                    if (isPk && f.type === 'INTEGER' && f.isAutoIncrement) type += ' AUTO_INCREMENT';
                 } else {
                     // SQL Server
-                    if (f.isPrimaryKey && f.type === 'INTEGER' && f.isAutoIncrement) type += ' IDENTITY(1,1)';
+                    if (isPk && f.type === 'INTEGER' && f.isAutoIncrement) type += ' IDENTITY(1,1)';
                 }
                 
-                let line = `  ${quoteIdentifier(f.name, config.dbType)} ${type}`;
-                if (config.dbType !== DbType.SQLite && f.isPrimaryKey) line += ' PRIMARY KEY';
-                if (!f.allowNull && !f.isPrimaryKey) line += ' NOT NULL';
+                let line = `  ${quoteIdentifier(f.name, normalizedDb)} ${type}`;
+                if (normalizedDb !== DbType.SQLite && isPk) line += ' PRIMARY KEY';
+                if (!f.allowNull && !isPk) line += ' NOT NULL';
                 
                 // Add DEFAULT Constraint
                 if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
@@ -134,7 +137,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                     
                     if (['INTEGER', 'BOOLEAN', 'DECIMAL', 'DOUBLE', 'TINYINT'].includes(f.type) || isKeyword) {
                         if (isKeyword) {
-                            defVal = config.dbType === DbType.SQL ? 'GETDATE()' : 'CURRENT_TIMESTAMP';
+                            defVal = normalizedDb === DbType.SQL ? 'GETDATE()' : 'CURRENT_TIMESTAMP';
                         }
                     } else {
                         // String literal
@@ -145,32 +148,32 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
 
                 return line;
             }).join(',\n');
-            if (config.dbType === DbType.SQL) {
-                sql += `IF OBJECT_ID(N'${quoteIdentifier(toPascalCase(table.name), config.dbType)}', N'U') IS NULL\nBEGIN\nCREATE TABLE ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (\n${fields}\n);\nEND\n\n`;
+            if (normalizedDb === DbType.SQL) {
+                sql += `IF OBJECT_ID(N'${quoteIdentifier(toPascalCase(table.name), normalizedDb)}', N'U') IS NULL\nBEGIN\nCREATE TABLE ${quoteIdentifier(toPascalCase(table.name), normalizedDb)} (\n${fields}\n);\nEND\n\n`;
             } else {
-                sql += `CREATE TABLE IF NOT EXISTS ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (\n${fields}\n);\n\n`;
+                sql += `CREATE TABLE IF NOT EXISTS ${quoteIdentifier(toPascalCase(table.name), normalizedDb)} (\n${fields}\n);\n\n`;
             }
         });
 
         // 2. Data Seeding (Insert Statements)
         sql += `-- Seed Data\n`;
-        if (config.dbType === DbType.SQLite) {
+        if (normalizedDb === DbType.SQLite) {
             sql += `PRAGMA foreign_keys = OFF;\n\n`;
         }
 
         const sortedProcessingTables = sortTablesByDependencies(processingTables, relationships);
-        const insertVerb = config.dbType === DbType.SQLite ? 'INSERT OR REPLACE INTO' : (config.dbType === DbType.MySQL ? 'INSERT IGNORE INTO' : 'INSERT INTO');
+        const insertVerb = normalizedDb === DbType.SQLite ? 'INSERT OR REPLACE INTO' : (normalizedDb === DbType.MySQL ? 'INSERT IGNORE INTO' : 'INSERT INTO');
 
         sortedProcessingTables.forEach(table => {
             if (table.data && table.data.length > 0) {
                 // Identity Insert ON for SQL Server if needed (auto increment or integer PK)
-                const hasIdentity = table.fields.some(f => 
-                    f.isAutoIncrement || 
-                    (f.isPrimaryKey && ['INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT'].includes(f.type))
-                );
+                const hasIdentity = table.fields.some(f => {
+                    const isPk = isTablePrimaryKey(table, f, relationships);
+                    return f.isAutoIncrement || (isPk && ['INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT'].includes(f.type));
+                });
 
-                if (config.dbType === DbType.SQL && hasIdentity) {
-                    sql += `SET IDENTITY_INSERT ${quoteIdentifier(toPascalCase(table.name), config.dbType)} ON;\n`;
+                if (normalizedDb === DbType.SQL && hasIdentity) {
+                    sql += `SET IDENTITY_INSERT ${quoteIdentifier(toPascalCase(table.name), normalizedDb)} ON;\n`;
                 }
 
                 const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
@@ -178,7 +181,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                 table.data.forEach(row => {
                     if (!row || typeof row !== 'object') return;
                     const mappedRow = isPermissionsTable ? mapPermissionObjectId(row, tables, queries || [], true) : row;
-                    const columns = table.fields.map(f => quoteIdentifier(f.name, config.dbType)).join(', ');
+                    const columns = table.fields.map(f => quoteIdentifier(f.name, normalizedDb)).join(', ');
                     const values = table.fields.map(f => {
                         let val = mappedRow[f.name];
                         if (val === undefined) {
@@ -193,7 +196,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                             return val;
                         }
                         if (f.type === 'BOOLEAN') {
-                            if (config.dbType === DbType.SQL || config.dbType === DbType.MySQL) {
+                            if (normalizedDb === DbType.SQL || normalizedDb === DbType.MySQL) {
                                 return (val === true || val === 'true') ? 1 : 0;
                             }
                             return (val === true || val === 'true') ? 'TRUE' : 'FALSE';
@@ -201,32 +204,32 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                         // Strings/Dates/Passwords
                         let strVal = String(val).replace(/'/g, "''");
                         if (f.name.toLowerCase().includes('password')) {
-                             if (config.dbType === DbType.MySQL) {
+                             if (normalizedDb === DbType.MySQL) {
                                  return `SHA2('${strVal}', 256)`;
-                             } else if (config.dbType === DbType.SQL) {
+                             } else if (normalizedDb === DbType.SQL) {
                                  return `CONVERT(VARCHAR(64), HashBytes('SHA2_256', '${strVal}'), 2)`; 
                              }
                         }
                         return `'${strVal}'`;
                     }).join(', ');
 
-                    sql += `${insertVerb} ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (${columns}) VALUES (${values});\n`;
+                    sql += `${insertVerb} ${quoteIdentifier(toPascalCase(table.name), normalizedDb)} (${columns}) VALUES (${values});\n`;
                 });
 
-                if (config.dbType === DbType.SQL && hasIdentity) {
-                    sql += `SET IDENTITY_INSERT ${quoteIdentifier(toPascalCase(table.name), config.dbType)} OFF;\n`;
+                if (normalizedDb === DbType.SQL && hasIdentity) {
+                    sql += `SET IDENTITY_INSERT ${quoteIdentifier(toPascalCase(table.name), normalizedDb)} OFF;\n`;
                 }
                 sql += '\n';
             }
         });
 
-        if (config.dbType === DbType.SQLite) {
+        if (normalizedDb === DbType.SQLite) {
             sql += `PRAGMA foreign_keys = ON;\n\n`;
         }
 
         // 3. Foreign Keys
         sql += `-- Relationships\n`;
-        if (config.dbType !== DbType.SQLite) {
+        if (normalizedDb !== DbType.SQLite) {
             relationships.forEach(rel => {
                 const parent = processingTables.find(t => t.id === rel.fromTableId);
                 const child = processingTables.find(t => t.id === rel.toTableId);
@@ -235,7 +238,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                 
                 if (parent && child && childField && parentField) {
                     const constraintName = `FK_${child.name.replace(/\s/g, '_')}_${parent.name.replace(/\s/g, '_')}_${Math.floor(Math.random()*1000)}`;
-                    let constraintSql = `ALTER TABLE ${quoteIdentifier(toPascalCase(child.name), config.dbType)} ADD CONSTRAINT ${constraintName} FOREIGN KEY (${quoteIdentifier(childField.name, config.dbType)}) REFERENCES ${quoteIdentifier(toPascalCase(parent.name), config.dbType)}(${quoteIdentifier(parentField.name, config.dbType)})`;
+                    let constraintSql = `ALTER TABLE ${quoteIdentifier(toPascalCase(child.name), normalizedDb)} ADD CONSTRAINT ${constraintName} FOREIGN KEY (${quoteIdentifier(childField.name, normalizedDb)}) REFERENCES ${quoteIdentifier(toPascalCase(parent.name), normalizedDb)}(${quoteIdentifier(parentField.name, normalizedDb)})`;
                     
                     if (rel.onDelete && rel.onDelete !== 'NO ACTION') {
                         constraintSql += ` ON DELETE ${rel.onDelete}`;
@@ -257,7 +260,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
             const childField = child?.fields.find(f => f.id === rel.toFieldId);
             if (child && childField) {
                 const indexName = `IX_${child.name.replace(/\s/g, '_')}_${childField.name.replace(/\s/g, '_')}`;
-                sql += `CREATE INDEX ${quoteIdentifier(indexName, config.dbType)} ON ${quoteIdentifier(toPascalCase(child.name), config.dbType)} (${quoteIdentifier(childField.name, config.dbType)});\n`;
+                sql += `CREATE INDEX ${quoteIdentifier(indexName, normalizedDb)} ON ${quoteIdentifier(toPascalCase(child.name), normalizedDb)} (${quoteIdentifier(childField.name, normalizedDb)});\n`;
             }
         });
 
@@ -270,7 +273,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                 
                 if ((field.isIndexed || isSpecial) && !alreadyIndexed && !field.isPrimaryKey) {
                     const indexName = `IX_${table.name.replace(/\s/g, '_')}_${field.name.replace(/\s/g, '_')}`;
-                    sql += `CREATE INDEX ${quoteIdentifier(indexName, config.dbType)} ON ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (${quoteIdentifier(field.name, config.dbType)});\n`;
+                    sql += `CREATE INDEX ${quoteIdentifier(indexName, normalizedDb)} ON ${quoteIdentifier(toPascalCase(table.name), normalizedDb)} (${quoteIdentifier(field.name, normalizedDb)});\n`;
                 }
             });
             
@@ -285,11 +288,11 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
         sql += `\n-- Views\n`;
         queries.forEach(q => {
             if (q.type === 'SELECT') {
-                const selectSql = generateSqlSelect((q as SelectQuery).nodes, (q as SelectQuery).columns, processingTables, relationships, config.dbType, true);
+                const selectSql = generateSqlSelect((q as SelectQuery).nodes, (q as SelectQuery).columns, processingTables, relationships, normalizedDb, true);
                 if (selectSql) {
                     // Simple wrapper to avoid SQL errors if view logic is complex, 
                     // but for standard SQL generation we output it.
-                    sql += `CREATE VIEW ${quoteIdentifier(toPascalCase(q.name), config.dbType)} AS\n${selectSql};\n\n`;
+                    sql += `CREATE VIEW ${quoteIdentifier(toPascalCase(q.name), normalizedDb)} AS\n${selectSql};\n\n`;
                 }
             }
         });

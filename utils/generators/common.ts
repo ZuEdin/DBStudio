@@ -10,7 +10,108 @@ export const toSubformSuffix = (id: string) => {
 
 export const isNullable = (field: Field | undefined | null) => field ? (field.allowNull !== false && !field.isPrimaryKey) : true;
 
-export const resolveType = (field: Field | undefined | null, language: 'csharp' | 'sequelize' | 'typescript' | 'sql', dbType?: DbType) => {
+/**
+ * Returns the definitive Primary Key field for a table.
+ * If no field is explicitly flagged with isPrimaryKey: true, it intelligently infers
+ * the PK from auto-increment, ID names, relationships, unique flags, or falls back safely to the first field.
+ */
+export const getEffectivePrimaryKey = (table: Table, relationships?: Relationship[]): Field => {
+    if (!table || !table.fields || table.fields.length === 0) {
+        return { id: 'id', name: 'Id', type: 'INTEGER', isPrimaryKey: true };
+    }
+
+    // 1. Explicitly marked primary key
+    const explicitPk = table.fields.find(f => f.isPrimaryKey);
+    if (explicitPk) return explicitPk;
+
+    // 2. Auto-increment field
+    const autoInc = table.fields.find(f => f.isAutoIncrement);
+    if (autoInc) return autoInc;
+
+    // 3. Exact matches for 'id' / 'Id' / 'ID' / '<TableName>Id' / '<TableName>_Id' / '<TableName>Nr'
+    const lowerTableName = (table.name || '').toLowerCase();
+    const idField = table.fields.find(f => {
+        const lower = (f.name || '').toLowerCase();
+        return lower === 'id' || 
+               lower === `${lowerTableName}id` || 
+               lower === `${lowerTableName}_id` ||
+               lower === `${lowerTableName}nr` ||
+               lower === `${lowerTableName}_nr` ||
+               lower === `${lowerTableName}nummer` ||
+               lower === `${lowerTableName}_nummer`;
+    });
+    if (idField) return idField;
+
+    // 4. Source field in a relationship where this table is the parent/referenced table
+    if (relationships && relationships.length > 0) {
+        const rel = relationships.find(r => r.fromTableId === table.id || (r as any).sourceTableId === table.id);
+        if (rel) {
+            const fromFieldId = rel.fromFieldId || (rel as any).sourceFieldId;
+            const fromField = table.fields.find(f => f.id === fromFieldId || f.name.toLowerCase() === (fromFieldId || '').toLowerCase());
+            if (fromField) return fromField;
+        }
+    }
+
+    // 5. Field ending with id / nr / nummer / code / key
+    const suffixField = table.fields.find(f => {
+        const lower = (f.name || '').toLowerCase();
+        return lower.endsWith('id') || 
+               lower.endsWith('_id') || 
+               lower.endsWith('nr') || 
+               lower.endsWith('_nr') || 
+               lower.endsWith('nummer') || 
+               lower.endsWith('_nummer') || 
+               lower.endsWith('code') || 
+               lower.endsWith('_code') || 
+               lower.endsWith('key') ||
+               lower.endsWith('_key');
+    });
+    if (suffixField) return suffixField;
+
+    // 6. Field with exact same name as table (e.g. table "Kategorie", field "Kategorie")
+    const sameNameField = table.fields.find(f => (f.name || '').toLowerCase() === lowerTableName);
+    if (sameNameField) return sameNameField;
+
+    // 7. Unique or Indexed field
+    const uniqueField = table.fields.find(f => f.isUnique || f.isIndexed);
+    if (uniqueField) return uniqueField;
+
+    // 8. Fallback to first field
+    return table.fields[0];
+};
+
+/**
+ * Checks if a specific field serves as the Primary Key of a table.
+ */
+export const isTablePrimaryKey = (table: Table, field: Field, relationships?: Relationship[]): boolean => {
+    if (!field) return false;
+    if (field.isPrimaryKey) return true;
+    if (table.fields.some(f => f.isPrimaryKey)) return false; // Another field is explicitly marked as PK
+    const effectivePk = getEffectivePrimaryKey(table, relationships);
+    return effectivePk?.id === field.id || effectivePk?.name === field.name;
+};
+
+/**
+ * Normalizes any database type string (case-insensitive, aliases) to the strict DbType enum.
+ */
+export const normalizeDbType = (dbType: any): DbType => {
+    if (!dbType) return DbType.SQL;
+    const str = String(dbType).trim().toUpperCase();
+    if (str === 'SQLITE' || str === 'SQLITE3') return DbType.SQLite;
+    if (str === 'MYSQL' || str === 'MARIADB') return DbType.MySQL;
+    if (str === 'POSTGRESQL' || str === 'POSTGRES' || str === 'PGSQL') return DbType.PostgreSQL;
+    if (str === 'NOSQL' || str === 'MONGO' || str === 'MONGODB') return DbType.NoSQL;
+    // SQL Server / MSSQL
+    return DbType.SQL;
+};
+
+export const isSqlServer = (dbType: any): boolean => normalizeDbType(dbType) === DbType.SQL;
+export const isSqlite = (dbType: any): boolean => normalizeDbType(dbType) === DbType.SQLite;
+export const isMySql = (dbType: any): boolean => normalizeDbType(dbType) === DbType.MySQL;
+export const isPostgreSql = (dbType: any): boolean => normalizeDbType(dbType) === DbType.PostgreSQL;
+
+export const resolveType = (field: Field | undefined | null, language: 'csharp' | 'sequelize' | 'typescript' | 'sql', dbType?: DbType | string) => {
+    const normalizedDb = normalizeDbType(dbType);
     if (!field || !field.type) {
         if (language === 'csharp') return 'int';
         if (language === 'typescript') return 'number';
@@ -32,7 +133,7 @@ export const resolveType = (field: Field | undefined | null, language: 'csharp' 
     const typeGen = (mapping as any).type;
     
     if (typeof typeGen === 'function') {
-        return typeGen({ length: field.length, precision: field.precision, scale: field.scale, enumValues: field.enumValues, field, dbType });
+        return typeGen({ length: field.length, precision: field.precision, scale: field.scale, enumValues: field.enumValues, field, dbType: normalizedDb });
     }
     return typeGen || 'string';
 };
@@ -100,14 +201,17 @@ export const toSnakeCase = (str: any) => {
         .replace(/^_/, '');
 };
 
-export const quoteIdentifier = (name: string, dbType: DbType): string => {
+export const quoteIdentifier = (name: string, dbType?: DbType | string): string => {
     if (!name) return '';
-    switch (dbType) {
+    const normalizedDb = normalizeDbType(dbType);
+    switch (normalizedDb) {
         case DbType.SQL:
             return `[${name}]`;
         case DbType.MySQL:
             return `\`${name}\``;
         case DbType.SQLite:
+            return `"${name}"`;
+        case DbType.PostgreSQL:
             return `"${name}"`;
         default:
             return name;

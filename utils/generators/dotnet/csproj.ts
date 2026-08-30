@@ -1,5 +1,6 @@
 
 import { BackendConfig, DbType, VirtualFile } from '../../../types/index';
+import { normalizeDbType } from '../common';
 
 export const generateCsproj = (config: BackendConfig, root: string): VirtualFile => {
   let version = config.backendVersion || '9.0';
@@ -21,12 +22,15 @@ export const generateCsproj = (config: BackendConfig, root: string): VirtualFile
   const isMauiNative = config.frontendFramework === 'maui-native';
   const projectName = (isBlazor || isMaui || isMauiNative) ? `${config.projectName}.Server` : config.projectName;
 
+  const normalizedDb = normalizeDbType(config.dbType);
   let dbPackage = '';
-  if (config.dbType === DbType.MySQL) {
+  if (normalizedDb === DbType.MySQL) {
       const pomeloVersion = (version === '10.0' || version === '9.0') ? '8.0.0' : '7.0.0';
       dbPackage = `<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="${pomeloVersion}" />`;
-  } else if (config.dbType === DbType.SQLite) {
+  } else if (normalizedDb === DbType.SQLite) {
       dbPackage = `<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="${packageVersion}" />`;
+  } else if (normalizedDb === DbType.PostgreSQL) {
+      dbPackage = `<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="${packageVersion}" />`;
   } else {
       dbPackage = `<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="${packageVersion}" />`;
   }
