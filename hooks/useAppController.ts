@@ -1539,7 +1539,12 @@ export const useAppController = () => {
         case 'import_access': ui.setShowAccessWizard(true); break;
         case 'import_schema': ui.setShowSchemaWizard(true); break;
         case 'generate_dummy': ui.setShowDummyDataWizard(true); break;
-        case 'export_excel':
+        case 'export_excel': {
+             const activeTable = activeObject && 'fields' in activeObject ? (activeObject as Table).id : null;
+             ui.setExcelExportTableId(activeTable);
+             ui.setShowExcelExportModal(true);
+             break;
+        }
         case 'export_access':
         case 'export_sql':
         case 'load_backup':
@@ -1606,7 +1611,13 @@ export const useAppController = () => {
         case 'open_audit_trail':
         case 'open_audit': ui.setShowAuditTrailModal(true); break;
         case 'open_deployment_modal': ui.setShowDeploymentModal(true); break;
+        case 'open_docker_deployer':
+        case 'open_docker_compose':
+        case 'docker_compose_deployer': ui.setShowDockerDeployerModal(true); break;
         case 'open_offline_sync': ui.setShowOfflineSyncModal(true); break;
+        case 'open_sync_matrix':
+        case 'open_hybrid_replication':
+        case 'multi_db_sync': ui.setShowSyncMatrixModal(true); break;
         case 'open_construction_offline': ui.setShowConstructionOfflineModal(true); break;
         case 'open_gaeb_interfaces':
         case 'open_gaeb':

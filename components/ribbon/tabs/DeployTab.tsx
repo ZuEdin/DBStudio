@@ -350,9 +350,18 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                 icon={<UploadCloud className="text-indigo-600" />} 
                 label="Cloud & DevOps" 
                 menuHeader="Cloud Deployment & DevOps"
-                onMainClick={() => onAction('open_deployment_modal')} 
+                onMainClick={() => onAction('open_docker_deployer')} 
                 size="large"
                 items={[
+                    {
+                        id: 'docker_compose_deployer',
+                        label: '1-Klick Docker & Cloud Deployer',
+                        description: 'Schlüsselfertige Multi-Container Setups (PostgreSQL, Redis, Nginx & APIs)',
+                        icon: <Layers size={14} className="text-cyan-600" />,
+                        onClick: () => onAction('open_docker_deployer'),
+                        badge: '1-Klick',
+                        badgeColor: 'teal'
+                    },
                     {
                         id: 'cloud_deploy',
                         label: 'Cloud Deployment',
@@ -370,6 +379,15 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         onClick: () => onAction('dbstudio_backend'),
                         badge: 'Server',
                         badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'multi_db_sync',
+                        label: 'Multi-DB Sync & Hybrid-Replikation',
+                        description: 'Heterogene Replikation zwischen SQLite (Lokal) und PostgreSQL (Cloud)',
+                        icon: <RefreshCw size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_sync_matrix'),
+                        badge: 'Hybrid',
+                        badgeColor: 'indigo'
                     },
                     {
                         id: 'offline_sync',

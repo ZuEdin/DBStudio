@@ -138,6 +138,14 @@ interface UIStore {
   setShowCollaborativeP2PModal: (show: boolean) => void;
   showMobileWrapperModal: boolean;
   setShowMobileWrapperModal: (show: boolean) => void;
+  showSyncMatrixModal: boolean;
+  setShowSyncMatrixModal: (show: boolean) => void;
+  showDockerDeployerModal: boolean;
+  setShowDockerDeployerModal: (show: boolean) => void;
+  showExcelExportModal: boolean;
+  setShowExcelExportModal: (show: boolean) => void;
+  excelExportTableId: string | null;
+  setExcelExportTableId: (id: string | null) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -283,6 +291,14 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowCollaborativeP2PModal: (showCollaborativeP2PModal) => set({ showCollaborativeP2PModal }),
   showMobileWrapperModal: false,
   setShowMobileWrapperModal: (showMobileWrapperModal) => set({ showMobileWrapperModal }),
+  showSyncMatrixModal: false,
+  setShowSyncMatrixModal: (showSyncMatrixModal) => set({ showSyncMatrixModal }),
+  showDockerDeployerModal: false,
+  setShowDockerDeployerModal: (showDockerDeployerModal) => set({ showDockerDeployerModal }),
+  showExcelExportModal: false,
+  setShowExcelExportModal: (showExcelExportModal) => set({ showExcelExportModal }),
+  excelExportTableId: null,
+  setExcelExportTableId: (excelExportTableId) => set({ excelExportTableId }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

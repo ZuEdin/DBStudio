@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Layers, WifiOff } from 'lucide-react';
+import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Layers, WifiOff, ArrowLeftRight } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -12,16 +12,24 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
   const { t } = useTranslation();
   return (
     <div className="flex gap-4 h-full">
-      <RibbonGroup label="Baubranche & Schnittstellen">
+      <RibbonGroup label="Multi-DB Sync & Replikation">
         <RibbonButton 
-          icon={<Layers className="text-emerald-600" />} 
-          label="GAEB / DATANORM / ZUGFeRD" 
-          onClick={() => onAction('open_gaeb_interfaces')} 
+          icon={<ArrowLeftRight className="text-indigo-600" />} 
+          label="Sync Matrix & Replikation" 
+          onClick={() => onAction('open_sync_matrix')} 
         />
         <RibbonButton 
           icon={<WifiOff className="text-amber-600" />} 
           label="Baustelle Offline-Sync" 
           onClick={() => onAction('open_construction_offline')} 
+        />
+      </RibbonGroup>
+
+      <RibbonGroup label="Baubranche & Schnittstellen">
+        <RibbonButton 
+          icon={<Layers className="text-emerald-600" />} 
+          label="GAEB / DATANORM / ZUGFeRD" 
+          onClick={() => onAction('open_gaeb_interfaces')} 
         />
       </RibbonGroup>
 
@@ -50,4 +58,5 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
     </div>
   );
 };
+
 

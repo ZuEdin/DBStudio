@@ -41,6 +41,9 @@ import { PluginGeneratorModal } from '../features/generators/PluginGeneratorModa
 import { BaaSExportModal } from '../features/backend/plugins/BaaSExportModal';
 import { CollaborativeP2PModal } from '../features/collaboration/components/CollaborativeP2PModal';
 import { MobileWrapperExportModal } from '../features/generators/MobileWrapperExportModal';
+import { SyncMatrixModal } from '../features/sync-matrix';
+import { DockerCloudDeployerModal } from '../features/deployment';
+import { ExcelExportModal } from '../features/excel-engine';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -485,6 +488,37 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <MobileWrapperExportModal 
           isOpen={ui.showMobileWrapperModal}
           onClose={() => ui.setShowMobileWrapperModal(false)}
+        />
+      )}
+
+      {ui.showSyncMatrixModal && (
+        <SyncMatrixModal 
+          isOpen={ui.showSyncMatrixModal}
+          onClose={() => ui.setShowSyncMatrixModal(false)}
+        />
+      )}
+
+      {ui.showDockerDeployerModal && (
+        <DockerCloudDeployerModal
+          projectName={store.projectName || 'DBStudioApp'}
+          tables={store.tables}
+          relationships={store.relationships || []}
+          onClose={() => ui.setShowDockerDeployerModal(false)}
+          onAddToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showExcelExportModal && (
+        <ExcelExportModal
+          tables={store.tables}
+          queries={store.queries}
+          relationships={store.relationships || []}
+          initialSelectedTableId={ui.excelExportTableId || undefined}
+          onClose={() => {
+            ui.setShowExcelExportModal(false);
+            ui.setExcelExportTableId(null);
+          }}
+          onAddToast={(msg, type) => addToast(msg, type || 'info')}
         />
       )}
 

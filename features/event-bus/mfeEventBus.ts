@@ -2,7 +2,7 @@ import { MfeBaseEvent, MfeDomain } from './mfeEventTypes';
 
 type EventCallback<T = any> = (event: MfeBaseEvent<T>) => void;
 
-class EnterpriseEventBus {
+export class EnterpriseEventBus {
   private listeners: Map<string, Set<EventCallback>> = new Map();
   private eventHistory: MfeBaseEvent[] = [];
   private deadLetterQueue: MfeBaseEvent[] = [];

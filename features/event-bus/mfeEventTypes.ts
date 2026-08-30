@@ -129,3 +129,37 @@ export interface CrossMfeDragPositionPayload {
   unitPrice: number;
   totalPrice: number;
 }
+
+// Multi-DB Sync Matrix & Hybrid Replication Events
+export interface ReplicationSyncStartedPayload {
+  syncBatchId: string;
+  rulesCount: number;
+  mode: 'full' | 'delta';
+  timestamp: number;
+}
+
+export interface ReplicationConflictDetectedPayload {
+  conflictId: string;
+  tableName: string;
+  recordId: string | number;
+  conflictingFields: string[];
+  localTimestamp: number;
+  remoteTimestamp: number;
+}
+
+export interface ReplicationConflictResolvedPayload {
+  conflictId: string;
+  tableName: string;
+  recordId: string | number;
+  strategy: string;
+  winner: 'local' | 'remote' | 'merged';
+}
+
+export interface ReplicationSyncCompletedPayload {
+  syncBatchId: string;
+  status: 'success' | 'partial' | 'failed';
+  totalSynced: number;
+  conflictsCount: number;
+  durationMs: number;
+}
+
