@@ -19,21 +19,11 @@ import {
   Sparkles, 
   CheckCircle2, 
   CheckSquare,
-  Database, 
-  Code, 
-  Shield, 
-  Layers, 
-  Zap, 
-  Clock, 
-  Laptop, 
   Compass, 
   Server,
   Scale,
-  Cpu,
   HelpCircle,
-  FileCode,
   BookOpen,
-  Rocket,
   BarChart3,
   Briefcase,
   Code2
@@ -73,12 +63,12 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
       <div className="bg-gradient-to-r from-indigo-950 via-[#272738] to-[#1c1c1c] border-b border-[#383838] px-6 lg:px-10 py-7">
         <div className="max-w-6xl mx-auto space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-sm">
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-xs">
               <Sparkles size={13} className="text-amber-400" /> Vor-1.0 Entwicklungsphase (v0.8.5 Beta)
             </span>
             <span className="text-xs text-neutral-500">|</span>
             <span className="text-xs text-indigo-300 font-bold flex items-center gap-1">
-              <CheckCircle2 size={14} className="text-indigo-400" /> Reifegrad: ~82% (Ehrlicher Status • Local Bridge v0.9.2)
+              <CheckCircle2 size={14} className="text-indigo-400" /> Reifegrad: ~85% (Be-Honest Methode • Local Bridge v0.9.2)
             </span>
           </div>
 
@@ -88,7 +78,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
                 Über DB Studio Pro <span className="text-xs font-bold px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">v0.8.5 Beta • Be Honest</span>
               </h1>
               <p className="text-xs md:text-sm text-neutral-300 max-w-3xl leading-relaxed mt-1">
-                Die Low-Code Suite für <strong>Datenbank-Modellierung, DevOps, GAEB-Schnittstellen und Code-Export</strong>: Sehr viele Kernfunktionen laufen stabil – kontinuierlich optimiert und getestet.
+                Die Low-Code Suite für <strong>In-Browser Access-Migration, DACH-Kalkulation, C# .NET 10 EF Core Multi-DB, E-Invoicing (ZUGFeRD / Swiss QR) und GAEB</strong>.
               </p>
             </div>
 
@@ -100,7 +90,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
               <div>
                 <div className="text-[10px] uppercase font-bold text-neutral-400">Reifegrad (Ehrlich bewertet)</div>
                 <div className="text-sm font-black text-amber-300 flex items-center gap-1">
-                  ~82% Funktional <span className="text-xs font-normal text-neutral-300">(Aktiver Beta-Test)</span>
+                  ~85% Funktional <span className="text-xs font-normal text-neutral-300">(Aktiver Beta-Test)</span>
                 </div>
               </div>
             </div>
@@ -110,9 +100,9 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
           <div className="flex flex-wrap gap-2 pt-2 border-t border-[#3a3a4c]">
             <button
               onClick={() => setActiveSection('overview')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'overview'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -120,19 +110,19 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('faq')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'faq'
-                  ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-400'
+                  ? 'bg-indigo-600 text-white shadow-xs ring-1 ring-indigo-400'
                   : 'bg-[#2b2b2b] text-amber-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <HelpCircle size={14} className="text-amber-400" /> 2. FAQ (50 Fragen)
+              <HelpCircle size={14} className="text-amber-400" /> 2. FAQ Hub
             </button>
             <button
               onClick={() => setActiveSection('checklists')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'checklists'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -140,9 +130,9 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('usecases')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'usecases'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -150,9 +140,9 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('codegen')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'codegen'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -160,9 +150,9 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('devops')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'devops'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -170,19 +160,19 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('maturity')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'maturity'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
-              <BarChart3 size={14} className="text-amber-400" /> 7. Reifegrad (~82%)
+              <BarChart3 size={14} className="text-amber-400" /> 7. Reifegrad (~85%)
             </button>
             <button
               onClick={() => setActiveSection('guide')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'guide'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -190,9 +180,9 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('matrix')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'matrix'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -200,9 +190,9 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('comparison')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'comparison'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >
@@ -210,9 +200,9 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
             </button>
             <button
               onClick={() => setActiveSection('showroom')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeSection === 'showroom'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-[#2b2b2b] text-neutral-300 hover:bg-[#383838] hover:text-white'
               }`}
             >

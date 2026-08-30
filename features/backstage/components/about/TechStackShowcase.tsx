@@ -7,72 +7,79 @@ import {
   Zap, 
   ShieldCheck, 
   Globe, 
-  Terminal,
   FileCode2,
-  Box
+  Percent,
+  Printer,
+  Sparkles
 } from 'lucide-react';
 
 export const TechStackShowcase: React.FC = () => {
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Zap className="text-amber-400" size={20} /> Unterstützte Technologien &amp; Ziel-Ökosysteme
+      <div className="bg-[#24242e] border border-amber-500/30 rounded-2xl p-6 space-y-2 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-xs">
+            <Zap size={12} className="text-amber-400" /> Multi-Target Ökosystem
+          </span>
+          <span className="text-xs text-neutral-400 font-medium">Standards &amp; Frameworks</span>
+        </div>
+        <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+          Unterstützte Technologien &amp; Export-Ökosysteme
         </h2>
-        <p className="text-xs text-neutral-400">
-          DB Studio wurde von Grund auf so konzipiert, dass Datenmodelle und Benutzeroberflächen in moderne, offene Industriestandards übersetzt werden – völlig unabhängig von proprietären Laufzeitumgebungen.
+        <p className="text-xs md:text-sm text-neutral-300 leading-relaxed max-w-4xl">
+          DB Studio Pro übersetzt visuelle Metamodelle direkt in sauberen, standardisierten Quellcode für moderne Enterprise-Technologien – ohne Vendor Lock-in und ohne proprietäre Zwangs-Laufzeiten.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* 1. SQL & Relationale Datenbanken */}
-        <div className="bg-[#242424] border border-[#3a3a3a] rounded-2xl p-5 md:p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-colors shadow-sm">
+        {/* 1. In-Browser Access MDB/ACCDB Engine */}
+        <div className="bg-[#222222] border border-emerald-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-emerald-500/50 transition-colors shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="p-2.5 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+              <span className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 <Database size={20} />
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400 bg-orange-950/60 px-2.5 py-1 rounded-md border border-orange-800/40">
-                SQL &amp; Schema
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-md border border-emerald-800/40">
+                100% In-Browser
               </span>
             </div>
-            <h3 className="text-sm font-bold text-white">SQL, SQLite &amp; MySQL / Postgres</h3>
+            <h3 className="text-sm font-bold text-white">Access MDB/ACCDB Migration</h3>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Vollwertige relationale Datenmodellierung mit <strong>AutoWert-Primärschlüsseln</strong>, Fremdschlüsseln (1:1, 1:n), Kaskaden, Indizes und Datentyp-Prüfung.
+              Binäre Extraktion von Tabellen, AutoWert-Primärschlüsseln, <code>MSysQueries</code>, Formularen und Berichten direkt im Browser via <strong>MDBReader &amp; Buffer Polyfill</strong>.
             </p>
             <ul className="text-xs text-neutral-400 space-y-1.5 pt-2 border-t border-[#333333]">
-              <li>• <strong>SQLite:</strong> Ideal für lokale Desktop-, Embedded- &amp; Offline-Apps als eigenständige Datei.</li>
-              <li>• <strong>MySQL / MariaDB:</strong> Der Klassiker für skalierbare Multi-User Webhostings.</li>
-              <li>• <strong>SQL DDL Export:</strong> Erzeugt saubere `CREATE TABLE`- und `ALTER TABLE`-Skripte.</li>
+              <li>• <strong>Auto-PK Inferenz:</strong> Zuverlässige Erkennung von Primär- und Fremdschlüsseln.</li>
+              <li>• <strong>OLE-Strip:</strong> Wandelt Microsoft-spezifische OLE-Blobs in Standard-Bilder um.</li>
+              <li>• <strong>Zero Cloud:</strong> 100% Datenschutz ohne Server-Upload.</li>
             </ul>
           </div>
         </div>
 
-        {/* 2. Desktop Runtimes: Tauri & Electron */}
-        <div className="bg-[#242424] border border-[#3a3a3a] rounded-2xl p-5 md:p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-colors shadow-sm">
+        {/* 2. DACH & Steuersatz Engine */}
+        <div className="bg-[#222222] border border-red-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-red-500/50 transition-colors shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                <Laptop size={20} />
+              <span className="p-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20">
+                <Percent size={20} />
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-2.5 py-1 rounded-md border border-cyan-800/40">
-                Desktop Runtimes
+              <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-950/60 px-2.5 py-1 rounded-md border border-red-800/40">
+                DACH &amp; Baunormen
               </span>
             </div>
-            <h3 className="text-sm font-bold text-white">Tauri (Rust) &amp; Electron</h3>
+            <h3 className="text-sm font-bold text-white">DACH-Steuern &amp; Kalkulation</h3>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Verpacken Sie jede in DB Studio gestaltete Applikation als native Windows-, macOS- oder Linux-Desktop-Software.
+              Kaufmännische Steuer- und Abzugsberechnung für Österreich, Deutschland und die Schweiz inklusive Baunormen.
             </p>
             <ul className="text-xs text-neutral-400 space-y-1.5 pt-2 border-t border-[#333333]">
-              <li>• <strong>Tauri:</strong> Winzige Dateigrößen (&lt; 10 MB), minimaler RAM-Verbrauch und Rust-Sicherheit.</li>
-              <li>• <strong>Electron:</strong> Umfassender OS-Zugriff, Druckerdialoge und Windows-Integration.</li>
-              <li>• <strong>Offline First:</strong> Lokale Datenverarbeitung ohne zwingende Cloud-Verbindung.</li>
+              <li>• <strong>AT / DE / CH Sätze:</strong> 20%, 19%, 8.1% und Bauleistungen (§19 / §13b UStG).</li>
+              <li>• <strong>ÖNORM B 2110 &amp; VOB/B:</strong> 3% Haftrücklass und 5% Deckungsrücklass.</li>
+              <li>• <strong>DB-Steuertabelle:</strong> 1-Klick Anlegen der strukturierten Steuersatz-Tabelle.</li>
             </ul>
           </div>
         </div>
 
-        {/* 3. .NET 10 / C# */}
-        <div className="bg-[#242424] border border-[#3a3a3a] rounded-2xl p-5 md:p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-colors shadow-sm">
+        {/* 3. .NET 9/10 EF Core Multi-DB */}
+        <div className="bg-[#222222] border border-purple-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-purple-500/50 transition-colors shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
@@ -82,66 +89,66 @@ export const TechStackShowcase: React.FC = () => {
                 .NET 10 / C#
               </span>
             </div>
-            <h3 className="text-sm font-bold text-white">C# (.NET 10) Enterprise Backend</h3>
+            <h3 className="text-sm font-bold text-white">C# EF Core Multi-DB Backend</h3>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Generiert saubere ASP.NET Core Web APIs mit C#-Modellen, Dependency Injection, Controller-Routen und DTOs.
+              Generiert schlüsselfertige ASP.NET Core Web APIs mit Entity Framework Core für <strong>MSSQL, SQLite, MySQL und PostgreSQL</strong>.
             </p>
             <ul className="text-xs text-neutral-400 space-y-1.5 pt-2 border-t border-[#333333]">
-              <li>• <strong>Typensicherheit:</strong> C# Records &amp; Models für jedes DB-Studio-Schema.</li>
-              <li>• <strong>EF Core &amp; Dapper Ready:</strong> Strukturierte Repositories für maximale Performance.</li>
-              <li>• <strong>Enterprise Standard:</strong> Direkte Integration in bestehende Windows-Server &amp; Azure.</li>
+              <li>• <strong>Fluent API &amp; Seed:</strong> DDL-Generierung &amp; <code>SET IDENTITY_INSERT</code>.</li>
+              <li>• <strong>Junction Tables:</strong> n:m Relationen mit <code>.UsingEntity&lt;T&gt;()</code>.</li>
+              <li>• <strong>Typensicher:</strong> C# Records, Models, Controller &amp; Swagger DTOs.</li>
             </ul>
           </div>
         </div>
 
-        {/* 4. Node.js & Express */}
-        <div className="bg-[#242424] border border-[#3a3a3a] rounded-2xl p-5 md:p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-colors shadow-sm">
+        {/* 4. E-Invoicing & Berichte */}
+        <div className="bg-[#222222] border border-amber-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-amber-500/50 transition-colors shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <Printer size={20} />
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 px-2.5 py-1 rounded-md border border-amber-800/40">
+                E-Invoicing &amp; Print
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-white">ZUGFeRD 2.0 &amp; Swiss QR-Bill</h3>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              Standardisierte B2B/B2G E-Rechnungen und Drucklayouts nach europäischen und Schweizer Zahlungsstandards.
+            </p>
+            <ul className="text-xs text-neutral-400 space-y-1.5 pt-2 border-t border-[#333333]">
+              <li>• <strong>ZUGFeRD / Factur-X:</strong> Strukturierte XML-Rechnung (EN 16931).</li>
+              <li>• <strong>Swiss QR-Bill:</strong> Schweizer Zahlteil mit QR-IBAN und Referenz.</li>
+              <li>• <strong>DIN 5008:</strong> Briefkopf, Faltmarken &amp; Fensterkuvert-Adressfeld.</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* 5. Node.js & TypeScript / Drizzle */}
+        <div className="bg-[#222222] border border-cyan-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-cyan-500/50 transition-colors shadow-sm">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                 <Server size={20} />
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-md border border-emerald-800/40">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-2.5 py-1 rounded-md border border-cyan-800/40">
                 Node.js &amp; TS
               </span>
             </div>
-            <h3 className="text-sm font-bold text-white">Node.js, Express &amp; TypeScript</h3>
+            <h3 className="text-sm font-bold text-white">Express &amp; TypeScript REST API</h3>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Schlanke, asynchrone REST-APIs mit automatischer Request-Validierung, JWT-Rollenprüfung und JSON-Endpoints.
+              Moderne Express-API mit Drizzle ORM Schema, JSON REST Endpoints, JWT Auth und OpenAPI 3.0 Spezifikation.
             </p>
             <ul className="text-xs text-neutral-400 space-y-1.5 pt-2 border-t border-[#333333]">
-              <li>• <strong>TypeScript Native:</strong> Strikte Typen für Tabellen, Abfragen und Formularwerte.</li>
-              <li>• <strong>Microservices &amp; Docker:</strong> Sofort containerisierbar für Cloud Run oder Kubernetes.</li>
-              <li>• <strong>Modulares Routing:</strong> Saubere Trennung von Controllern, Routen und Services.</li>
+              <li>• <strong>Mock Server:</strong> In-Browser REST Mocking mit einstellbarer Latenz.</li>
+              <li>• <strong>Docker Ready:</strong> Sofortige Bereitstellung via Dockerfile / Compose.</li>
+              <li>• <strong>Strikte Typen:</strong> Automatische TypeScript Interfaces für alle Tabellen.</li>
             </ul>
           </div>
         </div>
 
-        {/* 5. PHP 8.x & PDO */}
-        <div className="bg-[#242424] border border-[#3a3a3a] rounded-2xl p-5 md:p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-colors shadow-sm">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                <Globe size={20} />
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-950/60 px-2.5 py-1 rounded-md border border-blue-800/40">
-                PHP 8 &amp; PDO
-              </span>
-            </div>
-            <h3 className="text-sm font-bold text-white">Modernes PHP (8.x) &amp; Webhosting</h3>
-            <p className="text-xs text-neutral-300 leading-relaxed">
-              Läuft auf praktisch jedem Standard-Webspace (Apache, Nginx, cPanel) ohne aufwändige Node- oder .NET-Server.
-            </p>
-            <ul className="text-xs text-neutral-400 space-y-1.5 pt-2 border-t border-[#333333]">
-              <li>• <strong>PDO Prepared Statements:</strong> 100% Schutz vor SQL-Injection Angriffsvektoren.</li>
-              <li>• <strong>Zero Config Hosting:</strong> Einfach per FTP hochladen und sofort loslegen.</li>
-              <li>• <strong>JSON REST API:</strong> Nahtlose Kommunikation mit Frontend &amp; mobilen Clients.</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* 6. Frontend: React, Angular & SDUI */}
-        <div className="bg-[#242424] border border-[#3a3a3a] rounded-2xl p-5 md:p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-colors shadow-sm">
+        {/* 6. Frontend: React & Angular SDUI */}
+        <div className="bg-[#222222] border border-rose-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-rose-500/50 transition-colors shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
@@ -151,14 +158,14 @@ export const TechStackShowcase: React.FC = () => {
                 React &amp; Angular
               </span>
             </div>
-            <h3 className="text-sm font-bold text-white">React, Angular &amp; SDUI Engine</h3>
+            <h3 className="text-sm font-bold text-white">React Tailwind &amp; Angular Signals</h3>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Generiert saubere Single-Page-Apps mit Tailwind CSS, interaktiven Komponenten und dynamischem JSON-Rendering.
+              Generiert vollständige CRUD-Frontends mit Datengitter, N-Ebenen Subforms, Normalisierungs-Matching und Suche.
             </p>
             <ul className="text-xs text-neutral-400 space-y-1.5 pt-2 border-t border-[#333333]">
-              <li>• <strong>Kein Vendor Lock-in:</strong> Echter, lesbarer Quellcode ohne proprietäre Laufzeitbibliotheken.</li>
-              <li>• <strong>Dark- &amp; Light-Mode:</strong> Vollständiges Theming für alle Widgets und Dashboards.</li>
-              <li>• <strong>Responsive Layouts:</strong> Automatische Optimierung für Desktop, Tablet und Mobilgeräte.</li>
+              <li>• <strong>Smart Matching:</strong> Zuverlässige Auflösung von `clean(alias)` Spalten.</li>
+              <li>• <strong>Server-Driven UI (SDUI):</strong> Dynamisches JSON-Rendering für Formulare.</li>
+              <li>• <strong>Theming:</strong> Responsive Layouts mit vollständigem Dark- &amp; Light-Mode.</li>
             </ul>
           </div>
         </div>
