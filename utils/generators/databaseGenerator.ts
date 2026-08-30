@@ -163,8 +163,13 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
 
         sortedProcessingTables.forEach(table => {
             if (table.data && table.data.length > 0) {
-                // Identity Insert ON for SQL Server if needed
-                if (config.dbType === DbType.SQL && table.fields.some(f => f.isAutoIncrement)) {
+                // Identity Insert ON for SQL Server if needed (auto increment or integer PK)
+                const hasIdentity = table.fields.some(f => 
+                    f.isAutoIncrement || 
+                    (f.isPrimaryKey && ['INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT'].includes(f.type))
+                );
+
+                if (config.dbType === DbType.SQL && hasIdentity) {
                     sql += `SET IDENTITY_INSERT ${quoteIdentifier(toPascalCase(table.name), config.dbType)} ON;\n`;
                 }
 
@@ -208,7 +213,7 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
                     sql += `${insertVerb} ${quoteIdentifier(toPascalCase(table.name), config.dbType)} (${columns}) VALUES (${values});\n`;
                 });
 
-                if (config.dbType === DbType.SQL && table.fields.some(f => f.isAutoIncrement)) {
+                if (config.dbType === DbType.SQL && hasIdentity) {
                     sql += `SET IDENTITY_INSERT ${quoteIdentifier(toPascalCase(table.name), config.dbType)} OFF;\n`;
                 }
                 sql += '\n';

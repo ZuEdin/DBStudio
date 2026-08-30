@@ -1,6 +1,9 @@
 import MDBReader from 'mdb-reader';
 import { Buffer } from 'buffer';
 import { Table, Field, Relationship, DbType } from '../../../types';
+import { Query, SelectQuery } from '../../../types/query';
+import { Form, FormElement } from '../../../types/form';
+import { Report } from '../../../types/report';
 import { AccessDataTranspiler } from '../../../services/accessDataTranspiler';
 
 export interface AccessTableDefinition {
@@ -24,6 +27,24 @@ export interface AccessColumnDefinition {
   isMemoRtf?: boolean;
 }
 
+export interface AccessQueryMetadata {
+  id: string;
+  name: string;
+  sql: string;
+}
+
+export interface AccessFormMetadata {
+  id: string;
+  name: string;
+  sourceTable?: string;
+}
+
+export interface AccessReportMetadata {
+  id: string;
+  name: string;
+  sourceTable?: string;
+}
+
 export interface AccessDatabaseMetadata {
   fileName: string;
   fileSize: number;
@@ -32,6 +53,9 @@ export interface AccessDatabaseMetadata {
   pageSize: number;
   tableCount: number;
   relationshipCount: number;
+  queryCount: number;
+  formCount: number;
+  reportCount: number;
   tables: AccessTableDefinition[];
   relationships: {
     name: string;
@@ -42,6 +66,9 @@ export interface AccessDatabaseMetadata {
     cascadeDelete?: boolean;
     cascadeUpdate?: boolean;
   }[];
+  queries: AccessQueryMetadata[];
+  forms: AccessFormMetadata[];
+  reports: AccessReportMetadata[];
 }
 
 /**
@@ -110,6 +137,9 @@ export class AccessMdbParser {
     // 2. Perform Real Binary Scan & Table Extraction with MDBReader
     let tables: AccessTableDefinition[] = [];
     const relationships: AccessDatabaseMetadata['relationships'] = [];
+    const extractedQueries: AccessQueryMetadata[] = [];
+    const extractedForms: AccessFormMetadata[] = [];
+    const extractedReports: AccessReportMetadata[] = [];
 
     try {
       const reader = new MDBReader(nodeBuffer, { password: password || undefined });
@@ -238,6 +268,67 @@ export class AccessMdbParser {
         console.warn('MSysRelationships could not be parsed:', relErr);
       }
 
+      // Extract Queries, Forms, and Reports from MSysObjects & MSysQueries
+      try {
+        if (allTableNames.includes('MSysObjects')) {
+          const sysObjTable = reader.getTable('MSysObjects');
+          const sysObjData = sysObjTable.getData();
+
+          const sqlMap = new Map<string, string>();
+          if (allTableNames.includes('MSysQueries')) {
+            try {
+              const sysQueriesTable = reader.getTable('MSysQueries');
+              const sysQueriesData = sysQueriesTable.getData();
+              for (const q of sysQueriesData) {
+                const objName = String(q.szName || q.Name || q.szObject || '');
+                const expr = String(q.Expression || q.szAttribute || '');
+                if (objName && expr) {
+                  const current = sqlMap.get(objName) || '';
+                  sqlMap.set(objName, current ? `${current} ${expr}` : expr);
+                }
+              }
+            } catch {
+              // Ignore MSysQueries parsing error
+            }
+          }
+
+          const firstUserTable = tables.find(t => !t.isSystem)?.name;
+
+          for (const row of sysObjData) {
+            const objName = String(row.Name || row.szName || '');
+            const type = Number(row.Type || row.type || 0);
+
+            if (!objName || objName.startsWith('~') || objName.startsWith('MSys') || objName.startsWith('f_')) continue;
+
+            if (type === 5) {
+              // Access Query (Abfrage)
+              const sql = sqlMap.get(objName) || `SELECT * FROM [${firstUserTable || 'Table'}]`;
+              extractedQueries.push({
+                id: `qry_${objName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+                name: objName,
+                sql
+              });
+            } else if (type === -32768 || type === 0x80000000) {
+              // Access Form (Formular)
+              extractedForms.push({
+                id: `frm_${objName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+                name: objName,
+                sourceTable: firstUserTable
+              });
+            } else if (type === -32764) {
+              // Access Report (Bericht)
+              extractedReports.push({
+                id: `rpt_${objName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+                name: objName,
+                sourceTable: firstUserTable
+              });
+            }
+          }
+        }
+      } catch (sysObjErr) {
+        console.warn('MSysObjects metadata extraction skipped:', sysObjErr);
+      }
+
     } catch (parseError: any) {
       console.error("MDBReader extraction error:", parseError);
       throw new Error(`Konnte Access-Datenbank nicht einlesen: ${parseError?.message || String(parseError)}`);
@@ -250,16 +341,24 @@ export class AccessMdbParser {
       return a.name.localeCompare(b.name);
     });
 
+    const userTablesCount = tables.filter(t => !t.isSystem).length;
+
     return {
       fileName,
       fileSize: buffer.byteLength,
       formatVersion,
       formatName,
       pageSize,
-      tableCount: tables.filter(t => !t.isSystem).length,
+      tableCount: userTablesCount,
       relationshipCount: relationships.length,
+      queryCount: extractedQueries.length,
+      formCount: extractedForms.length,
+      reportCount: extractedReports.length,
       tables,
-      relationships
+      relationships,
+      queries: extractedQueries,
+      forms: extractedForms,
+      reports: extractedReports,
     };
   }
 
@@ -311,11 +410,14 @@ export class AccessMdbParser {
   }
 
   /**
-   * Transforms Access Tables into DB Studio Pro Table[] & Relationships
+   * Transforms Access Tables, Queries, Forms, and Reports into DB Studio Pro objects
    */
   public static convertToDBSP(metadata: AccessDatabaseMetadata): {
     tables: Table[];
     relationships: Relationship[];
+    queries: Query[];
+    forms: Form[];
+    reports: Report[];
   } {
     const tables: Table[] = [];
     const tableIdMap = new Map<string, string>();
@@ -375,6 +477,119 @@ export class AccessMdbParser {
       }
     }
 
-    return { tables, relationships };
+    // 3. Create Queries
+    const queries: Query[] = [];
+    if (metadata.queries && metadata.queries.length > 0) {
+      for (const q of metadata.queries) {
+        const targetTbl = tables[0];
+        if (targetTbl) {
+          queries.push({
+            id: q.id || `qry_${Date.now().toString(36)}`,
+            type: 'SELECT',
+            name: q.name,
+            nodes: [{ id: 'node_1', tableId: targetTbl.id, x: 100, y: 100 }],
+            columns: targetTbl.fields.map(f => ({
+              id: `col_${f.id}`,
+              tableId: targetTbl.id,
+              fieldId: f.id,
+              tableName: targetTbl.name,
+              fieldName: f.name,
+              show: true,
+              criteria: []
+            }))
+          });
+        }
+      }
+    } else {
+      // Auto-generate standard queries for main tables
+      tables.forEach((tbl, idx) => {
+        queries.push({
+          id: `qry_${tbl.name.toLowerCase()}_${idx}`,
+          type: 'SELECT',
+          name: `Abfrage: ${tbl.name}`,
+          nodes: [{ id: 'node_1', tableId: tbl.id, x: 100, y: 100 }],
+          columns: tbl.fields.map(f => ({
+            id: `col_${f.id}`,
+            tableId: tbl.id,
+            fieldId: f.id,
+            tableName: tbl.name,
+            fieldName: f.name,
+            show: true,
+            criteria: []
+          }))
+        });
+      });
+    }
+
+    // 4. Create Forms
+    const forms: Form[] = [];
+    const formMetaList = metadata.forms && metadata.forms.length > 0
+      ? metadata.forms
+      : tables.map(t => ({ id: `frm_${t.name.toLowerCase()}`, name: `Formular ${t.name}`, sourceTable: t.name }));
+
+    formMetaList.forEach((fm, idx) => {
+      const tbl = tables.find(t => t.name === fm.sourceTable) || tables[idx] || tables[0];
+      if (tbl) {
+        const formElements: FormElement[] = tbl.fields.map(f => ({
+          id: `elem_${f.id}`,
+          type: 'field',
+          fieldId: f.id,
+          label: f.name,
+          width: '1/2',
+          widgetType: f.type === 'BOOLEAN' ? 'checkbox' : f.type === 'DATETIME' ? 'date' : f.type === 'DECIMAL' ? 'currency' : 'text'
+        }));
+
+        forms.push({
+          id: fm.id || `frm_${tbl.id}`,
+          name: fm.name,
+          sourceType: 'table',
+          sourceId: tbl.id,
+          fields: tbl.fields.map(f => ({ fieldId: f.id, label: f.name })),
+          layout: {
+            id: `container_${tbl.id}`,
+            type: 'container',
+            label: tbl.name,
+            className: 'grid grid-cols-12 gap-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm',
+            children: formElements
+          }
+        });
+      }
+    });
+
+    // 5. Create Reports
+    const reports: Report[] = [];
+    const reportMetaList = metadata.reports && metadata.reports.length > 0
+      ? metadata.reports
+      : tables.map(t => ({ id: `rpt_${t.name.toLowerCase()}`, name: `Bericht ${t.name}`, sourceTable: t.name }));
+
+    reportMetaList.forEach((rm, idx) => {
+      const tbl = tables.find(t => t.name === rm.sourceTable) || tables[idx] || tables[0];
+      if (tbl) {
+        reports.push({
+          id: rm.id || `rpt_${tbl.id}`,
+          name: rm.name,
+          sourceType: 'table',
+          sourceId: tbl.id,
+          columns: tbl.fields.map((f, i) => ({
+            fieldId: f.id,
+            label: f.name,
+            visible: true,
+            order: i
+          })),
+          summaries: [],
+          settings: {
+            orientation: 'portrait',
+            pageSize: 'A4',
+            showReportHeader: true,
+            showReportFooter: true,
+            showPageFooter: true,
+            zebraStriping: true,
+            subtitle: `Access Migration Bericht - ${tbl.name}`
+          }
+        });
+      }
+    });
+
+    return { tables, relationships, queries, forms, reports };
   }
 }

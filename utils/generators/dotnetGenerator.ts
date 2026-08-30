@@ -261,8 +261,9 @@ namespace ${safeNamespace}.Middleware
   files.push(...generateControllers(tables, cleanRelationships, queries, config, root));
   files.push(...generateDotNetSync(tables, config, root));
 
-  // Docs
+  // Docs & Static Assets
   files.push({ name: 'README.md', path: `${root}/README.md`, content: `# ${config.projectName}\n\nGenerated .NET API`, language: 'markdown' });
+  files.push({ name: '.gitkeep', path: `${root}/wwwroot/.gitkeep`, content: '', language: 'text' });
 
   return files;
 };

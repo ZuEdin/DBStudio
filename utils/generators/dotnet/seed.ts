@@ -78,7 +78,10 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
         if (!table.data || table.data.length === 0) return;
 
         const tableName = quoteIdentifier(toPascalCase(table.name), dbType);
-        const hasIdentity = table.fields.some(f => f.isPrimaryKey && f.type === 'INTEGER' && f.isAutoIncrement);
+        const hasIdentity = table.fields.some(f => 
+            f.isAutoIncrement || 
+            (f.isPrimaryKey && ['INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT'].includes(f.type))
+        );
         const isPermissionsTable = table.name.toLowerCase() === 'sys_permissions';
         const modelName = toPascalCase(table.name);
 
@@ -124,22 +127,21 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
         }
 
         let tableBatchStatements = '';
-        if (dbType === DbType.SQL && hasIdentity) {
-            tableBatchStatements += `                    context.Database.ExecuteSqlRaw(@"SET IDENTITY_INSERT ${tableName} ON;");\n`;
-        }
-
         const insertVerb = dbType === DbType.SQLite ? 'INSERT OR REPLACE INTO' : (dbType === DbType.MySQL ? 'INSERT IGNORE INTO' : 'INSERT INTO');
 
         batches.forEach(batch => {
             if (batch.length === 0) return;
-            const batchSql = `${insertVerb} ${tableName} (${columns}) VALUES \n${batch.join(',\n')};`;
+            let batchSql = '';
+            if (dbType === DbType.SQL && hasIdentity) {
+                batchSql += `SET IDENTITY_INSERT ${tableName} ON;\n`;
+            }
+            batchSql += `${insertVerb} ${tableName} (${columns}) VALUES \n${batch.join(',\n')};\n`;
+            if (dbType === DbType.SQL && hasIdentity) {
+                batchSql += `SET IDENTITY_INSERT ${tableName} OFF;\n`;
+            }
             const escapedSql = batchSql.replace(/"/g, '""');
             tableBatchStatements += `                    context.Database.ExecuteSqlRaw(@"${escapedSql}");\n`;
         });
-
-        if (dbType === DbType.SQL && hasIdentity) {
-            tableBatchStatements += `                    context.Database.ExecuteSqlRaw(@"SET IDENTITY_INSERT ${tableName} OFF;");\n`;
-        }
 
         seedLogic += `
                 try

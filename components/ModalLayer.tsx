@@ -559,10 +559,19 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {ui.showAccessMdbModal && (
         <AccessMdbMigrationModal
           initialFile={ui.pendingAccessFile}
-          onSaveTables={(newTables, newRelations) => {
+          onSaveTables={(newTables, newRelations, newQueries, newForms, newReports) => {
             newTables.forEach(t => addTable(t));
             if (newRelations && newRelations.length > 0) {
               store.setRelationships([...store.relationships, ...newRelations]);
+            }
+            if (newQueries && newQueries.length > 0) {
+              store.setQueries([...store.queries, ...newQueries]);
+            }
+            if (newForms && newForms.length > 0) {
+              store.setForms([...store.forms, ...newForms]);
+            }
+            if (newReports && newReports.length > 0) {
+              store.setReports([...store.reports, ...newReports]);
             }
           }}
           onClose={() => {

@@ -29,7 +29,7 @@ import {
 
 interface AccessMdbMigrationModalProps {
   initialFile?: File | null;
-  onSaveTables: (tables: Table[], relationships?: Relationship[]) => void;
+  onSaveTables: (tables: Table[], relationships?: Relationship[], queries?: any[], forms?: any[], reports?: any[]) => void;
   onClose: () => void;
   onShowToast?: (msg: string, type: 'success' | 'info' | 'warning' | 'error') => void;
 }
@@ -112,7 +112,7 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
       tables: meta.tables.filter(t => selectedTableNames.includes(t.name))
     };
 
-    const { tables, relationships } = AccessMdbParser.convertToDBSP(filteredMeta);
+    const { tables, relationships, queries, forms, reports } = AccessMdbParser.convertToDBSP(filteredMeta);
     
     // If no project is currently loaded, initialize one
     if (!store.projectId) {
@@ -124,9 +124,9 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
         data: {
           tables,
           relationships,
-          queries: [],
-          forms: [],
-          reports: [],
+          queries: queries || [],
+          forms: forms || [],
+          reports: reports || [],
           charts: [],
           workflows: [],
           records: tables.reduce((acc, t) => {
@@ -147,13 +147,13 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
         }
       });
     } else {
-      onSaveTables(tables, relationships);
+      onSaveTables(tables, relationships, queries, forms, reports);
     }
 
     if (tables.length > 0) {
       ui.setCurrentView({ type: 'table_data', tableId: tables[0].id });
     }
-    onShowToast?.(`${tables.length} Tabellen und ${relationships.length} Beziehungen erfolgreich migriert!`, 'success');
+    onShowToast?.(`${tables.length} Tabellen, ${queries?.length || 0} Abfragen, ${forms?.length || 0} Formulare & ${reports?.length || 0} Berichte erfolgreich migriert!`, 'success');
     onClose();
   };
 

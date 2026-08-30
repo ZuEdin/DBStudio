@@ -385,5 +385,34 @@ export const BUILTIN_TABLE_TEMPLATES: TableTemplate[] = [
     sampleData: [
       { Id: 1, Gutschriftnummer: 'GUT-2026-1001', RechnungsId: 2, KundenId: 2, Datum: '2026-01-20', Status: 'Verrechnet', BruttoBetrag: 150.00, Grund: 'Rückvergütung wegen Skontovereinbarung' }
     ]
+  },
+  {
+    id: 'tpl_steuersaetze',
+    name: 'Steuersaetze',
+    category: 'fakturierung',
+    categoryLabel: 'Fakturierung & Finanzen',
+    icon: 'Percent',
+    description: 'Steuersätze für Österreich (AT 20%, 10%, 13%), Deutschland (DE 19%, 7%) und Schweiz (CH 8.1%, 2.6%).',
+    fields: [
+      { id: 'f_id', name: 'Id', type: 'INTEGER', isPrimaryKey: true, isAutoIncrement: true },
+      { id: 'f_code', name: 'Code', type: 'VARCHAR', length: 20, isUnique: true, isIndexed: true },
+      { id: 'f_bezeichnung', name: 'Bezeichnung', type: 'VARCHAR', length: 100 },
+      { id: 'f_prozent', name: 'Steuersatz', type: 'DECIMAL', precision: 5, scale: 2 },
+      { id: 'f_land', name: 'Land', type: 'ENUM', enumValues: ['Österreich', 'Deutschland', 'Schweiz', 'International'], defaultValue: 'Österreich' },
+      { id: 'f_standard', name: 'Standard', type: 'BOOLEAN', defaultValue: 'false' },
+      { id: 'f_gueltig_ab', name: 'GueltigAb', type: 'DATE', allowNull: true },
+      { id: 'f_aktiv', name: 'Aktiv', type: 'BOOLEAN', defaultValue: 'true' }
+    ],
+    sampleData: [
+      { Id: 1, Code: 'AT-20', Bezeichnung: 'Österreich 20% (Regelsteuersatz)', Steuersatz: 20.00, Land: 'Österreich', Standard: true, Aktiv: true },
+      { Id: 2, Code: 'AT-10', Bezeichnung: 'Österreich 10% (Ermäßigter Satz)', Steuersatz: 10.00, Land: 'Österreich', Standard: false, Aktiv: true },
+      { Id: 3, Code: 'AT-13', Bezeichnung: 'Österreich 13% (Ermäßigter Satz)', Steuersatz: 13.00, Land: 'Österreich', Standard: false, Aktiv: true },
+      { Id: 4, Code: 'AT-0', Bezeichnung: 'Österreich 0% (§19 UStG Bauleistungen / Befreit)', Steuersatz: 0.00, Land: 'Österreich', Standard: false, Aktiv: true },
+      { Id: 5, Code: 'DE-19', Bezeichnung: 'Deutschland 19% (Regelsteuersatz)', Steuersatz: 19.00, Land: 'Deutschland', Standard: false, Aktiv: true },
+      { Id: 6, Code: 'DE-7', Bezeichnung: 'Deutschland 7% (Ermäßigt)', Steuersatz: 7.00, Land: 'Deutschland', Standard: false, Aktiv: true },
+      { Id: 7, Code: 'DE-0', Bezeichnung: 'Deutschland 0% (§13b UStG Bauleistungen)', Steuersatz: 0.00, Land: 'Deutschland', Standard: false, Aktiv: true },
+      { Id: 8, Code: 'CH-8.1', Bezeichnung: 'Schweiz 8.1% (Normalsatz)', Steuersatz: 8.10, Land: 'Schweiz', Standard: false, Aktiv: true },
+      { Id: 9, Code: 'CH-2.6', Bezeichnung: 'Schweiz 2.6% (Reduzierter Satz)', Steuersatz: 2.60, Land: 'Schweiz', Standard: false, Aktiv: true }
+    ]
   }
 ];
