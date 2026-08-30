@@ -147,6 +147,13 @@ interface UIStore {
   excelExportTableId: string | null;
   setExcelExportTableId: (id: string | null) => void;
   
+  showAutomationModal: boolean;
+  setShowAutomationModal: (show: boolean) => void;
+  showWebhookHubModal: boolean;
+  setShowWebhookHubModal: (show: boolean) => void;
+  showCicdPipelineModal: boolean;
+  setShowCicdPipelineModal: (show: boolean) => void;
+  
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
 }
@@ -299,6 +306,13 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowExcelExportModal: (showExcelExportModal) => set({ showExcelExportModal }),
   excelExportTableId: null,
   setExcelExportTableId: (excelExportTableId) => set({ excelExportTableId }),
+
+  showAutomationModal: false,
+  setShowAutomationModal: (showAutomationModal) => set({ showAutomationModal }),
+  showWebhookHubModal: false,
+  setShowWebhookHubModal: (showWebhookHubModal) => set({ showWebhookHubModal }),
+  showCicdPipelineModal: false,
+  setShowCicdPipelineModal: (showCicdPipelineModal) => set({ showCicdPipelineModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

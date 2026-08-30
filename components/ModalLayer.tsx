@@ -44,6 +44,9 @@ import { MobileWrapperExportModal } from '../features/generators/MobileWrapperEx
 import { SyncMatrixModal } from '../features/sync-matrix';
 import { DockerCloudDeployerModal } from '../features/deployment';
 import { ExcelExportModal } from '../features/excel-engine';
+import { AutomationExportModal } from '../features/automation/components/AutomationExportModal';
+import { WebhookIngestionModal } from '../features/webhooks/components/WebhookIngestionModal';
+import { CicdPipelineModal } from '../features/deployment/components/CicdPipelineModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -519,6 +522,31 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             ui.setExcelExportTableId(null);
           }}
           onAddToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showAutomationModal && (
+        <AutomationExportModal
+          workflow={ui.activeObject && 'nodes' in ui.activeObject ? ui.activeObject : null}
+          tables={store.tables}
+          onClose={() => ui.setShowAutomationModal(false)}
+          onShowToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showWebhookHubModal && (
+        <WebhookIngestionModal
+          tables={store.tables}
+          onClose={() => ui.setShowWebhookHubModal(false)}
+          onShowToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showCicdPipelineModal && (
+        <CicdPipelineModal
+          projectName={store.projectName || 'DBStudioApp'}
+          onClose={() => ui.setShowCicdPipelineModal(false)}
+          onShowToast={(msg, type) => addToast(msg, type || 'info')}
         />
       )}
 

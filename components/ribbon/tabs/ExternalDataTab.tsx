@@ -45,10 +45,15 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
         <RibbonButton icon={<FileCode className="text-indigo-600" />} label="SQL Dump / Schema" onClick={() => onAction('export_sql')} />
       </RibbonGroup>
 
-      <RibbonGroup label="Cloud & APIs">
+      <RibbonGroup label="Cloud &amp; APIs">
         <RibbonButton icon={<Globe className="text-blue-600" />} label="API Import" onClick={() => onAction('api_import')} />
         <RibbonButton icon={<Share2 className="text-teal-600" />} label="SharePoint" onClick={() => onAction('sharepoint_import')} />
         <RibbonButton icon={<RefreshCw className="text-cyan-600" />} label="Live DB Sync" onClick={() => onAction('live_sync')} />
+      </RibbonGroup>
+
+      <RibbonGroup label="No-Code &amp; Webhooks">
+        <RibbonButton icon={<Globe className="text-cyan-500" />} label="Webhook Hub" onClick={() => onAction('open_webhook_hub')} />
+        <RibbonButton icon={<Layers className="text-orange-500" />} label="n8n / Zapier" onClick={() => onAction('open_automation_modal')} />
       </RibbonGroup>
 
       <RibbonGroup label="Speichern & Sichern" isLast>

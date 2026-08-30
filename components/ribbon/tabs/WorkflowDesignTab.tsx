@@ -87,6 +87,19 @@ export const WorkflowDesignTab: React.FC<WorkflowDesignTabProps> = ({ onAction }
         />
       </RibbonGroup>
 
+      <RibbonGroup label="No-Code &amp; Integration">
+        <RibbonButton 
+          icon={<Zap className="text-orange-500" />} 
+          label="n8n &amp; Zapier Export" 
+          onClick={() => onAction('open_automation_modal')} 
+        />
+        <RibbonButton 
+          icon={<Globe className="text-cyan-500" />} 
+          label="Webhook Ingestion Hub" 
+          onClick={() => onAction('open_webhook_hub')} 
+        />
+      </RibbonGroup>
+
       <RibbonGroup label="Status" isLast>
         <RibbonButton 
           icon={<CheckCircle2 className="text-emerald-600" />} 

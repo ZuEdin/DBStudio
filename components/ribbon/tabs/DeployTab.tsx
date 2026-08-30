@@ -363,6 +363,33 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         badgeColor: 'teal'
                     },
                     {
+                        id: 'cicd_pipeline_generator',
+                        label: 'CI/CD Pipeline Generator (GitHub & GitLab)',
+                        description: 'Automatisierte Multi-Arch Docker Builds, Tests & Cloud Run Deployment',
+                        icon: <GitCommit size={14} className="text-blue-600" />,
+                        onClick: () => onAction('open_cicd_pipeline'),
+                        badge: 'CI/CD',
+                        badgeColor: 'blue'
+                    },
+                    {
+                        id: 'automation_n8n_zapier',
+                        label: 'n8n & Zapier Workflow Export',
+                        description: 'No-Code Automation Flows & Event-Bridges exportieren',
+                        icon: <CloudLightning size={14} className="text-orange-600" />,
+                        onClick: () => onAction('open_automation_modal'),
+                        badge: 'NoCode',
+                        badgeColor: 'amber'
+                    },
+                    {
+                        id: 'webhook_ingestion_hub',
+                        label: 'Webhook & Event Ingestion Hub',
+                        description: 'Inbound Webhook-Listener & Schema-Validator für Drittanbieter',
+                        icon: <Radio size={14} className="text-cyan-600" />,
+                        onClick: () => onAction('open_webhook_hub'),
+                        badge: 'Ingest',
+                        badgeColor: 'teal'
+                    },
+                    {
                         id: 'cloud_deploy',
                         label: 'Cloud Deployment',
                         description: 'Vercel, AWS, Azure, GCP & Docker Container deployen',

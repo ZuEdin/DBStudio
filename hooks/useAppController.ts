@@ -1614,6 +1614,20 @@ export const useAppController = () => {
         case 'open_docker_deployer':
         case 'open_docker_compose':
         case 'docker_compose_deployer': ui.setShowDockerDeployerModal(true); break;
+        case 'open_cicd_pipeline':
+        case 'open_github_actions':
+        case 'open_gitlab_ci':
+        case 'open_cicd': ui.setShowCicdPipelineModal(true); break;
+        case 'open_automation_modal':
+        case 'open_n8n_export':
+        case 'open_zapier_export':
+        case 'export_n8n':
+        case 'export_zapier':
+        case 'open_nocode_automation': ui.setShowAutomationModal(true); break;
+        case 'open_webhook_hub':
+        case 'open_inbound_webhooks':
+        case 'open_webhook_simulator':
+        case 'webhook_ingestion': ui.setShowWebhookHubModal(true); break;
         case 'open_offline_sync': ui.setShowOfflineSyncModal(true); break;
         case 'open_sync_matrix':
         case 'open_hybrid_replication':
