@@ -140,16 +140,25 @@ export class ${compName} implements OnInit {
   }
 
   getCellValue(item: any, alias: string, fieldName: string): string {
-    if (!item) return '';
-    if (item[alias] !== undefined && item[alias] !== null) return String(item[alias]);
-    const camelAlias = alias ? alias.charAt(0).toLowerCase() + alias.slice(1) : '';
-    if (camelAlias && item[camelAlias] !== undefined && item[camelAlias] !== null) return String(item[camelAlias]);
+    if (!item || typeof item !== 'object') return '';
+    if (alias && item[alias] !== undefined && item[alias] !== null) return String(item[alias]);
     if (fieldName && item[fieldName] !== undefined && item[fieldName] !== null) return String(item[fieldName]);
-    const camelField = fieldName ? fieldName.charAt(0).toLowerCase() + fieldName.slice(1) : '';
-    if (camelField && item[camelField] !== undefined && item[camelField] !== null) return String(item[camelField]);
-    const target = (alias || fieldName).toLowerCase();
-    const foundKey = Object.keys(item).find(k => k.toLowerCase() === target);
-    return foundKey ? String(item[foundKey]) : '';
+
+    const clean = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const targetAlias = clean(alias);
+    const targetField = clean(fieldName);
+
+    const keys = Object.keys(item);
+    const directMatch = keys.find(k => k === alias || k === fieldName || k.toLowerCase() === (alias || '').toLowerCase() || k.toLowerCase() === (fieldName || '').toLowerCase());
+    if (directMatch && item[directMatch] !== undefined && item[directMatch] !== null) return String(item[directMatch]);
+
+    const normMatch = keys.find(k => {
+      const ck = clean(k);
+      return (targetAlias && ck === targetAlias) || (targetField && ck === targetField);
+    });
+    if (normMatch && item[normMatch] !== undefined && item[normMatch] !== null) return String(item[normMatch]);
+
+    return '';
   }
 
   prevPage() {
