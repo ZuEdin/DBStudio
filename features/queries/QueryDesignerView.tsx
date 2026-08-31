@@ -15,6 +15,12 @@ import { ParameterPromptModal } from './components/ParameterPromptModal';
 import { QueryExportModal } from './components/QueryExportModal';
 import { CrosstabWizardModal } from './components/CrosstabWizardModal';
 import { ActionQueryRunner } from './components/ActionQueryRunner';
+import { WindowFunctionModal } from './components/WindowFunctionModal';
+import { CteQueryBuilderModal } from './components/CteQueryBuilderModal';
+import { SetOperationsModal } from './components/SetOperationsModal';
+import { VisualExplainCostTreeModal } from './components/VisualExplainCostTreeModal';
+import { generateMultiDialectSql, SupportedSqlDialect } from './utils/multiDialectSqlGenerator';
+import { executeQueryInWasmSandbox } from './services/queryWasmSandboxService';
 
 interface QueryDesignerViewProps {
   query: Query;
@@ -43,6 +49,11 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showCrosstabModal, setShowCrosstabModal] = useState(false);
+  const [showWindowModal, setShowWindowModal] = useState(false);
+  const [showCteModal, setShowCteModal] = useState(false);
+  const [showSetModal, setShowSetModal] = useState(false);
+  const [showExplainModal, setShowExplainModal] = useState(false);
+  const [selectedDialect, setSelectedDialect] = useState<SupportedSqlDialect>('SQLITE');
 
   if (query.type !== 'SELECT') {
     const actionQuery = query as any;
@@ -115,6 +126,18 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
         case 'query_open_criteria_helper':
           addCalculatedColumn();
           ui.addToast("Neues Berechnungs- und Kriterienfeld eingefügt.", "success");
+          break;
+        case 'query_open_window_functions':
+          setShowWindowModal(true);
+          break;
+        case 'query_open_cte_builder':
+          setShowCteModal(true);
+          break;
+        case 'query_open_set_operations':
+          setShowSetModal(true);
+          break;
+        case 'query_open_explain_plan':
+          setShowExplainModal(true);
           break;
         default:
           break;
@@ -392,6 +415,51 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
           onApplySql={(sql) => {
             setOverrideSql(sql);
           }}
+        />
+      )}
+
+      {showWindowModal && (
+        <WindowFunctionModal
+          isOpen={showWindowModal}
+          onClose={() => setShowWindowModal(false)}
+          tables={tables}
+          onApplySql={(sql) => {
+            addCalculatedColumn();
+            ui.addToast("Window Function Spalte eingefügt.", "success");
+          }}
+        />
+      )}
+
+      {showCteModal && (
+        <CteQueryBuilderModal
+          isOpen={showCteModal}
+          onClose={() => setShowCteModal(false)}
+          tables={tables}
+          onApplyCteSql={(sql) => {
+            setOverrideSql(sql);
+          }}
+        />
+      )}
+
+      {showSetModal && (
+        <SetOperationsModal
+          isOpen={showSetModal}
+          onClose={() => setShowSetModal(false)}
+          queries={queries}
+          tables={tables}
+          onApplySql={(sql) => {
+            setOverrideSql(sql);
+          }}
+        />
+      )}
+
+      {showExplainModal && (
+        <VisualExplainCostTreeModal
+          isOpen={showExplainModal}
+          onClose={() => setShowExplainModal(false)}
+          selectQuery={selectQuery}
+          tables={tables}
+          relationships={relationships}
         />
       )}
 

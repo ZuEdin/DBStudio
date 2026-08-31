@@ -455,72 +455,72 @@ Diese Roadmap definiert den Ausbau des **Formular-Studios & Subforms** von ~88% 
 ```
 
 ### 🗂️ A. Visuelles Layout, Tabs & Multi-Step Wizards
-- [ ] **1. Tabs-, Akkordeon- & Sektions-Container:**
+- [x] **1. Tabs-, Akkordeon- & Sektions-Container:**
   - Visuelles Schachteln von Formularfeldern in horizontalen Reitern (*Tabs*), aufklappbaren Bereichen (*Accordions*) oder klappbaren Feldgruppen.
   - Dynamisches Ein-/Ausblenden von ganzen Tabs basierend auf Rechten oder Vorbedingungen.
-- [ ] **2. Multi-Step Wizard / Stepper:**
+- [x] **2. Multi-Step Wizard / Stepper:**
   - Mehrstufige geführte Formulare mit Fortschrittsleiste, schrittweiser Validierung und bedingtem Überspringen von Schritten (Linearer oder Non-Linearer Modus).
-- [ ] **3. 12-Spalten Flex-Grid mit visuellen Resize-Griffen:**
+- [x] **3. 12-Spalten Flex-Grid mit visuellen Resize-Griffen:**
   - Feingranulares Spanning auf 12-Spalten-Basis (z. B. Feld A: 8 Spalten, Feld B: 4 Spalten) per Drag & Drop und interaktiven Ziehpunkten.
   - Responsive Breakpoint-Vorschau (Desktop, Tablet, Mobile) mit anpassbarer Spaltenverteilung pro Endgerät.
-- [ ] **4. Dedizierte Header- & Sticky Action-Bars:**
+- [x] **4. Dedizierte Header- & Sticky Action-Bars:**
   - Feste Kopfzeilen (Titel, Status-Pill, Datensatz-Navigation `|<< < > >>|`) und fixierte Fußzeilen (Speichern, Verwerfen, Löschen, benutzerdefinierte Workflow-Trigger).
 
 ### 📊 B. High-End Subforms & Master-Detail Engine
-- [ ] **1. Verschachtelte Subforms (Multi-Level Master-Detail):**
+- [x] **1. Verschachtelte Subforms (Multi-Level Master-Detail):**
   - Unterstützung für tiefe n-stufige Unterformulare (z. B. *Kunde -> Auftrag -> Auftragsposition -> Chargen/Seriennummern*).
-- [ ] **2. Flexible Subform-Darstellungsmodi:**
+- [x] **2. Flexible Subform-Darstellungsmodi:**
   - **Inline-Datenblatt (Editable Grid)** mit Excel-artiger Tastatur-Navigation (Tab, Enter, Pfeiltasten, Copy-Paste von Zeilen).
   - **Karten- / Kachel-Ansicht (Card List)** für visuelle Daten und Touch-Geräte mit Direkt-Aktionen.
   - **Popout-Modal-Editor** für komplexe Unterdatensätze mit eigenem dediziertem Sub-Formular.
-- [ ] **3. Echtzeit Rollup- & Aggregations-Pipeline:**
+- [x] **3. Echtzeit Rollup- & Aggregations-Pipeline:**
   - Automatische Live-Berechnung von Unterformulardaten in das Hauptformular (z. B. `SUM(positions.net_price)`, `COUNT(items)`, `AVG(score)`).
   - Verknüpfung von berechneten Werten zurück in abhängige Unterformular-Zeilen (z. B. Skonto-Rabatt anteilig verteilen).
 
 ### ⚡ C. Bedingte Logik & Dynamisches Verhalten (Condition Engine)
-- [ ] **1. Visueller No-Code Regel-Builder (Conditional Logic):**
+- [x] **1. Visueller No-Code Regel-Builder (Conditional Logic):**
   - Intuitive Regeln (z. B. *„Wenn Status == 'Storniert', zeige Feld 'Stornogrund' als Pflichtfeld, sperre Unterformular 'Positionen' und markiere Hintergrund rot“*).
   - Verknüpfungen mit `UND` / `ODER`-Gruppen und Schachtelung.
-- [ ] **2. Dynamische Feldzustände:**
+- [x] **2. Dynamische Feldzustände:**
   - Reaktive Steuerung von `visible`, `disabled`, `required` und `readOnly` basierend auf Feldwerten, Berechnungen oder Benutzerrollen.
-- [ ] **3. Cascading Dropdowns (Verknüpfte Auswahllisten):**
+- [x] **3. Cascading Dropdowns (Verknüpfte Auswahllisten):**
   - Auswahl in Dropdown A filtert Optionen in Dropdown B in Echtzeit (z. B. *Land -> Bundesland -> Stadt* oder *Kategorie -> Unterkategorie*).
   - Asynchroner Abruf abhängiger Optionslisten über parametrisierte SQL-Queries.
 
 ### 🧮 D. Formel-Editor & Validierungs-Engine
-- [ ] **1. Erweiterter Berechnungs-Editor mit Syntax-Highlighting & Autocomplete:**
+- [x] **1. Erweiterter Berechnungs-Editor mit Syntax-Highlighting & Autocomplete:**
   - Mathematische, Datums- und Textfunktionen (z. B. `DATEDIF()`, `IF()`, `CONCAT()`, `ROUND()`, `LOOKUP()`, `REGEXMATCH()`).
   - Graphischer Formel-Inspektor: Visueller Abhängigkeitsbaum zur Vermeidung von Zirkelbezügen.
-- [ ] **2. Regex- & Asynchrone Validierung:**
+- [x] **2. Regex- & Asynchrone Validierung:**
   - Vordefinierte & eigene Regex-Muster (IBAN, USt-IdNr, PLZ, E-Mail, Telefon) sowie serverseitige Eindeutigkeitsprüfungen (z. B. *„Prüfe beim Verlassen des Feldes, ob Kundennummer bereits existiert“*).
-- [ ] **3. Feldgenaues Fehler- & Barrierefreiheits-Feedback:**
+- [x] **3. Feldgenaues Fehler- & Barrierefreiheits-Feedback:**
   - Inline-Fehlermeldungen, ARIA-Attribute und automatischer Fokus-Sprung zum ersten fehlerhaften Feld beim Absenden.
 
 ### 🎛️ E. Erweiterte Steuerelemente & Rich Inputs
-- [ ] **1. Multimedia- & Unterschriften-Felder:**
+- [x] **1. Multimedia- & Unterschriften-Felder:**
   - Datei-/Bildupload mit Vorschau, Drag&Drop, Bildzuschnitt (Cropper) und nativer Unterschriften-Erfassung (*Signature Pad* mit Strichstärkenwahl).
-- [ ] **2. Rich Text & Markdown Editor:**
+- [x] **2. Rich Text & Markdown Editor:**
   - Formatierter Text mit WYSIWYG-Toolbar für Fließtexte, Tabellen und Notizen.
-- [ ] **3. Barcode / QR-Code Scanner & Generator:**
+- [x] **3. Barcode / QR-Code Scanner & Generator:**
   - Kamera-basierte Direkt-Erfassung für Artikelnummern und Seriennummern; dynamische QR-Code Vorschau direkt im Formular.
-- [ ] **4. Lookup & Autocomplete-Picker:**
+- [x] **4. Lookup & Autocomplete-Picker:**
   - Schnelle inkrementelle Suche über Fremdschlüssel-Tabellen mit konfigurierbarer Anzeige von Zusatzfeldern und Schnellerfassung neuer Datensätze (*Add-New-in-Modal*).
-- [ ] **5. DateTime Range Picker, Color Picker & Rating Stars:**
+- [x] **5. DateTime Range Picker, Color Picker & Rating Stars:**
   - Kalender-Bereichsauswahl mit Feiertagsanzeige, Farbcode-Wähler und Bewertungssternen.
 
 ### 🛡️ F. Workflow, Lifecycle-Hooks & RBAC
-- [ ] **1. Form-Lifecycle-Hooks (Triggers):**
+- [x] **1. Form-Lifecycle-Hooks (Triggers):**
   - Visuelle Event-Handler für `onLoad`, `beforeSave`, `afterSave`, `onChange`, `onDelete` (z. B. Webhook auslösen, Mail versenden, Status-Update, Log-Eintrag).
-- [ ] **2. Feld-Level RBAC & Datenmaskierung:**
+- [x] **2. Feld-Level RBAC & Datenmaskierung:**
   - Sichtbarkeit und Schreibberechtigung auf Feldebene nach Benutzerrollen (z. B. Feld *„Gehalt“* nur für Rolle *„HR“* sichtbar, für andere maskiert als `••••`).
-- [ ] **3. Dirty-State Tracking & Unsaved-Changes Guard:**
+- [x] **3. Dirty-State Tracking & Unsaved-Changes Guard:**
   - Visuelle Markierung ungespeicherter Änderungen (*Dirty-State Badge*) und Browser-Warnung beim Verlassen.
   - Automatisches Zwischenspeichern (*Auto-Draft in IndexedDB*) zum Schutz vor Abstürzen oder Verbindungsabbrüchen.
 
 ### 📦 G. Multi-Framework Export & Print-Layout
-- [ ] **1. Clean Code-Generierung (React / Vue):**
+- [x] **1. Clean Code-Generierung (React / Vue):**
   - 1-Klick-Export von sauberem Code in **React Hook Form + Zod + Tailwind** sowie **Vue 3 + VeeValidate**.
-- [ ] **2. DIN-A4 Druck- & PDF-Styling:**
+- [x] **2. DIN-A4 Druck- & PDF-Styling:**
   - Optimiertes `@media print` CSS für standardkonformen Formular- und Belegdruck direkt aus dem Browser.
 
 ---
@@ -543,42 +543,42 @@ Diese Roadmap definiert den Ausbau des **Visuellen QBE SQL Abfrage-Designers** v
 ```
 
 ### 🧠 A. Erweiterte Abfrage-Typen & SQL-Mächtigkeit
-- [ ] **1. Window Functions & Analytische Funktionen:**
+- [x] **1. Window Functions & Analytische Funktionen:**
   - Visuelle Konfiguration von `OVER (PARTITION BY ... ORDER BY ... ROWS BETWEEN ...)` für `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`, `LEAD()`, `LAG()`, `SUM() OVER ()`, `NTILE()`, `FIRST_VALUE()`.
-- [ ] **2. CTEs (Common Table Expressions) & Rekursive Abfragen:**
+- [x] **2. CTEs (Common Table Expressions) & Rekursive Abfragen:**
   - Visuelles Modellieren von Unterabfragen als `WITH`-Blöcke und hierarchischen Strukturen (z. B. Organigramme, Stücklisten / Baumberechnungen mit `UNION ALL` Rekursion).
-- [ ] **3. Mengen-Operatoren (UNION, UNION ALL, INTERSECT, EXCEPT):**
+- [x] **3. Mengen-Operatoren (UNION, UNION ALL, INTERSECT, EXCEPT):**
   - Visuelle Zusammenführung mehrerer Teilabfragen mit automatischer Spalten-Kompatibilitätsprüfung und Typen-Mapping.
-- [ ] **4. Verschachtelte Unterabfragen (Sub-Queries in SELECT, FROM, WHERE):**
+- [x] **4. Verschachtelte Unterabfragen (Sub-Queries in SELECT, FROM, WHERE):**
   - Intuitive Einbettung von Sub-Selects (`EXISTS`, `NOT EXISTS`, `IN (...)`, `ANY/ALL`, korrelierte Skalar-Subqueries).
-- [ ] **5. GROUP BY CUBE, ROLLUP & GROUPING SETS:**
+- [x] **5. GROUP BY CUBE, ROLLUP & GROUPING SETS:**
   - Visuelle Definition mehrdimensionaler Aggregationen für Data-Warehouse- und BI-Abfragen.
 
 ### 🔄 B. Multi-Dialect SQL Transpiler & Aktionsabfragen
-- [ ] **1. Universeller Multi-Dialekt SQL Generator:**
+- [x] **1. Universeller Multi-Dialekt SQL Generator:**
   - Umschaltung der SQL-Ausgabe in Echtzeit für **PostgreSQL, MySQL / MariaDB, SQLite, SQL Server (T-SQL), Oracle (PL/SQL)** und **Nextcloud OCP QueryBuilder**.
-- [ ] **2. Vollständiger Access SQL Kompatibilitäts-Transpiler:**
+- [x] **2. Vollständiger Access SQL Kompatibilitäts-Transpiler:**
   - Automatische Übersetzung von Access-Funktionen (`NZ()`, `IIF()`, `Format()`, `DateAdd()`, `DateDiff()`, `StrComp()`, `Switch()`, `Choose()`) in standardkonformes ANSI SQL und die jeweiligen Zieldialekte.
-- [ ] **3. Dynamische Parameter-Abfragen (Filter-Prompts):**
+- [x] **3. Dynamische Parameter-Abfragen (Filter-Prompts):**
   - Unterstützung für Abfrageparameter (z. B. `[Bitte Startdatum eingeben]` oder `:customerId`), die vor der Ausführung in einem interaktiven Eingabedialog mit Datentypvalidierung abgefragt werden.
-- [ ] **4. Visuelle Aktionsabfragen (Action Queries):**
+- [x] **4. Visuelle Aktionsabfragen (Action Queries):**
   - Visueller Designer für **UPDATE** (Aktualisierungsabfragen), **DELETE** (Löschabfragen), **INSERT INTO ... SELECT** (Anfügeabfragen) und **CREATE TABLE AS SELECT** (Tabellenerstellungsabfragen) mit Sicherheits-Vorschau und Transaktions-Rollback.
 
 ### ⚡ C. Visuelle Ausführungspläne & Query Optimizer
-- [ ] **1. Visual EXPLAIN & Cost-Tree Analyzer:**
+- [x] **1. Visual EXPLAIN & Cost-Tree Analyzer:**
   - Grafische Darstellung des Ausführungsplans (Sequential Scans, Index Scans, Bitmap Scans, Nested Loops, Hash Joins, Merge Joins) mit farblicher Hervorhebung von Performance-Bottlenecks.
-- [ ] **2. Automatischer Index-Empfehler (Missing Index Hints):**
+- [x] **2. Automatischer Index-Empfehler (Missing Index Hints):**
   - Vorschlag passender Indizes auf Basis von `WHERE`-, `JOIN`- und `ORDER BY`-Spalten zur Reduzierung der Abfragezeit (inkl. geschätztem Performance-Gewinn).
-- [ ] **3. In-Browser WASM Execution Sandbox:**
+- [x] **3. In-Browser WASM Execution Sandbox:**
   - Sofortige Ausführung komplexer Queries gegen SQLite WASM oder PGlite mit Echtzeit-Messung der Ausführungsdauer und Speicherverbrauch.
 
 ### 📊 D. Pivot / Kreuztabellen & High-Performance Datenblatt
-- [ ] **1. Visueller Kreuztabellen-Generator (Pivot / Matrix Query):**
+- [x] **1. Visueller Kreuztabellen-Generator (Pivot / Matrix Query):**
   - Visuelle Zuordnung von Zeilenüberschriften, Spaltenüberschriften und aggregierten Wertfeldern (z. B. Umsätze pro Monat je Produktkategorie) mit automatischem SQL `CASE WHEN` oder `PIVOT`-Transpiling.
-- [ ] **2. High-Performance Virtual Scroll Datenblatt:**
+- [x] **2. High-Performance Virtual Scroll Datenblatt:**
   - Flüssige Darstellung von 100.000+ Zeilen mit Schnellsuche, Mehrfachspaltensortierung, Filter-Chips, Spalten-Ausblendung und Spalten-Umordnung per Drag&Drop.
   - Inline-Bearbeitung von Ergebniszellen (sofern die Query auf einer aktualisierbaren Tabelle basiert).
-- [ ] **3. Multi-Format Datenexport:**
+- [x] **3. Multi-Format Datenexport:**
   - 1-Klick-Export der Abfrageergebnisse nach **Excel (.xlsx)** mit Formatierung, **CSV**, **JSON**, **XML**, **HTML** und **Apache Parquet**.
 
 ---
@@ -661,44 +661,44 @@ Diese Roadmap definiert den Ausbau der **Berichts- & Druck-Engine** von ~82% auf
 ```
 
 ### 📐 A. Hochentwickeltes Bänder-Modell (Advanced Band Model)
-- [ ] **1. Verschachtelte n-stufige Gruppen-Bänder (Multi-Level Grouping):**
+- [x] **1. Verschachtelte n-stufige Gruppen-Bänder (Multi-Level Grouping):**
   - Beliebig tiefe Gruppierung (z. B. *Land -> Region -> Kunde -> Beleg -> Positionen*) mit separatem Gruppenkopf (*Group Header*) und Gruppenfuß (*Group Footer*).
-- [ ] **2. Intelligente Seitenumbruch-Steuerung (Keep-Together & Orphan Control):**
+- [x] **2. Intelligente Seitenumbruch-Steuerung (Keep-Together & Orphan Control):**
   - Konfigurierbares Verhalten für *„Gruppe zusammenhalten“* (*Keep Together*), Vermeidung von Hurenkindern/Schusterjungen (*Orphan/Widow Control*) und bedingte Seitenumbrüche (*Force Page Break Before/After Group*).
-- [ ] **3. Wiederholende Kopfzeilen (Repeat on Every Page):**
+- [x] **3. Wiederholende Kopfzeilen (Repeat on Every Page):**
   - Automatisches Wiederholen von Tabellen-Spaltenüberschriften und Gruppenköpfen auf Folgeseiten bei mehrseitigen Belegen.
-- [ ] **4. Millimeter- & Pixel-genaues Layout:**
+- [x] **4. Millimeter- & Pixel-genaues Layout:**
   - Präzises Lineal (mm/inch), magnetisches Ausrichtungsraster und automatische Ausrichtungs-Tools (Abstände angleichen, zentrieren, an Kante ausrichten).
   - Vordefinierte Papierformate (DIN A4, A5, US Letter, US Legal, Endlos-Format) in Hoch- und Querformat.
 
 ### 🧮 B. Aggregationen, Zwischensummen & Laufende Summen
-- [ ] **1. Gruppen-Zwischensummen & Gesamtsummen:**
+- [x] **1. Gruppen-Zwischensummen & Gesamtsummen:**
   - Automatische Berechnung von `SUM`, `COUNT`, `AVG`, `MIN`, `MAX` auf Gruppen-, Seiten- und Berichtsebene.
-- [ ] **2. Seitenübertrag & Übertragssummen (Carried Forward Totals):**
+- [x] **2. Seitenübertrag & Übertragssummen (Carried Forward Totals):**
   - Kaufmännisch korrekte Berechnung von *„Übertrag auf nächste Seite“* (Seitenfuß) und *„Übertrag von vorheriger Seite“* (Seitenkopf) für lange Rechnungen und Inventarlisten.
-- [ ] **3. Laufende Summen & Prozentanteile:**
+- [x] **3. Laufende Summen & Prozentanteile:**
   - Kumulierende Summen (*Running Sum*) über Datensätze hinweg sowie prozentualer Anteil an der Gruppensumme oder Gesamtsumme.
-- [ ] **4. Bedingte Formatierung (Conditional Formatting):**
+- [x] **4. Bedingte Formatierung (Conditional Formatting):**
   - Farbliches Hervorheben, Ausblenden von Nullwerten oder Fettdruck basierend auf Schwellenwerten (z. B. *„Negative Beträge rot und in Klammern formatieren“*).
 
 ### 🏷️ C. Reiche Berichtselemente & Unterberichte (Sub-Reports)
-- [ ] **1. Industrie-Barcodes & 2D-Codes:**
+- [x] **1. Industrie-Barcodes & 2D-Codes:**
   - Native Vektor-Generierung von **QR-Code, Swiss QR-Bill, EPC-QR-Code (GiroCode), EAN-13, Code-128, DataMatrix** und **PDF417**.
-- [ ] **2. Verschachtelte Unterberichte (Sub-Reports):**
+- [x] **2. Verschachtelte Unterberichte (Sub-Reports):**
   - Einbetten eigenständiger Berichte in Detail- oder Gruppenbänder (z. B. Adressstamm mit untergeordnetem Zahlungsverlaufs-Bericht).
-- [ ] **3. Dynamische Diagramme & Grafiken:**
+- [x] **3. Dynamische Diagramme & Grafiken:**
   - Einbettung von Balken-, Linien- und Kreisdiagrammen direkt in den Berichtskopf oder Gruppenfuß zur visuellen Auswertung.
-- [ ] **4. Endlosetiketten & Thermo-Bondruck:**
+- [x] **4. Endlosetiketten & Thermo-Bondruck:**
   - Vordefinierte Vorlagen für Etikettendruck (Avery Zweckform, Dymo, Zebra) und POS-Bondrucker (58mm/80mm Endlospapier).
 
 ### 📑 D. E-Rechnungen (ZUGFeRD / XRechnung), PDF/A & E-Mail-Workflow
-- [ ] **1. ZUGFeRD 2.2 / Factur-X & XRechnung (Elektronische Rechnungen):**
+- [x] **1. ZUGFeRD 2.2 / Factur-X & XRechnung (Elektronische Rechnungen):**
   - Automatische Einbettung der geforderten elektronischen XML-Rechnungsdaten (CII / UBL) in das PDF gemäß europäischer Norm EN 16931.
-- [ ] **2. PDF/A-3 Revisionssicherer Export:**
+- [x] **2. PDF/A-3 Revisionssicherer Export:**
   - Langzeit-archivierbarer PDF/A-Standard mit eingebetteten Schriftarten und Farbprofilen.
-- [ ] **3. Direkter E-Mail-Versand (SMTP & Mail-Vorlagen):**
+- [x] **3. Direkter E-Mail-Versand (SMTP & Mail-Vorlagen):**
   - 1-Klick-Versand des generierten Rechnungs-PDFs an den hinterlegten Kundenkontakt mit dynamischen Textplatzhaltern (`{{kunde.name}}`, `{{rechnung.nummer}}`).
-- [ ] **4. Batch-Druck & Sammel-PDF-Generierung:**
+- [x] **4. Batch-Druck & Sammel-PDF-Generierung:**
   - Seriendruck aller ausgewählten Monatsrechnungen in eine einzige konsolidierte Druckdatei mit automatischer Kapitel-Nummerierung (*Seite X von Y*).
 
 ---

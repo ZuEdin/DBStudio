@@ -878,6 +878,11 @@ export const useAppController = () => {
           return;
       }
       
+      if (action.startsWith('report_open_')) {
+          eventBus.publish('REPORT_DESIGN_ACTION', { action, payload });
+          return;
+      }
+
       if (action === 'report_update_style' && activeObject) { 
           const report = activeObject as Report;
           const { section, style } = payload;

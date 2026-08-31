@@ -32,7 +32,8 @@ import {
   Calendar,
   ListOrdered,
   Subtitles,
-  SplitSquareVertical
+  SplitSquareVertical,
+  Sliders,
 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -174,7 +175,35 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
         />
       </RibbonGroup>
 
-      {/* 4. Schaltflächen & Aktionen */}
+      {/* 4. Logik & Enterprise-Tools */}
+      <RibbonGroup label="Logik & Enterprise">
+        <RibbonButton
+          icon={<Sliders className="text-blue-600" />}
+          label="Regel-Builder"
+          onClick={() => onAction('form_rules_builder')}
+          title="No-Code Regelbuilder für bedingte Sichtbarkeit & Pflichtfelder"
+        />
+        <RibbonButton
+          icon={<Calculator className="text-amber-600" />}
+          label="Formel-Editor"
+          onClick={() => onAction('form_formula_editor')}
+          title="Berechnungs-Editor für mathematische, Datums- und Subform-Formeln"
+        />
+        <RibbonButton
+          icon={<ShieldCheck className="text-emerald-600" />}
+          label="Feld-RBAC"
+          onClick={() => onAction('form_field_rbac')}
+          title="Feldbezogene Berechtigungen & Datenmaskierung"
+        />
+        <RibbonButton
+          icon={<Zap className="text-purple-600" />}
+          label="Lifecycle Hooks"
+          onClick={() => onAction('form_lifecycle_hooks')}
+          title="Formular-Events: onLoad, beforeSave, afterSave"
+        />
+      </RibbonGroup>
+
+      {/* 5. Schaltflächen & Aktionen */}
       <RibbonGroup label="Aktionen & Makros">
         <RibbonButton
           icon={<Zap className="text-amber-500 fill-amber-400" />}

@@ -7,6 +7,10 @@ import { LookupConfigModal } from './components/LookupConfigModal';
 import { PropertiesPanel } from './designer/PropertiesPanel';
 import { FormCodeExportModal } from './components/FormCodeExportModal';
 import { FormPrintModal } from './components/FormPrintModal';
+import { ConditionRulesBuilderModal } from './components/ConditionRulesBuilderModal';
+import { FormulaEditorModal } from './components/FormulaEditorModal';
+import { FieldRbacModal } from './components/FieldRbacModal';
+import { FormLifecycleHooksConfigModal } from './components/FormLifecycleHooksConfigModal';
 
 interface FormDesignerViewProps {
   form: Form;
@@ -24,6 +28,10 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   const [showLookupModal, setShowLookupModal] = useState(false);
   const [showCodeExport, setShowCodeExport] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [showFormulaModal, setShowFormulaModal] = useState(false);
+  const [showRbacModal, setShowRbacModal] = useState(false);
+  const [showLifecycleModal, setShowLifecycleModal] = useState(false);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   const [dragOverTargetId, setDragOverTargetId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | 'inside' | null>(null);
@@ -193,6 +201,22 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
   // --- Action Trigger Handling (From Ribbon) ---
   React.useEffect(() => {
     if (!actionTrigger) return;
+    if (actionTrigger.action === 'form_rules_builder') {
+        setShowRulesModal(true);
+        return;
+    }
+    if (actionTrigger.action === 'form_formula_editor') {
+        setShowFormulaModal(true);
+        return;
+    }
+    if (actionTrigger.action === 'form_field_rbac') {
+        setShowRbacModal(true);
+        return;
+    }
+    if (actionTrigger.action === 'form_lifecycle_hooks') {
+        setShowLifecycleModal(true);
+        return;
+    }
     if (actionTrigger.action === 'export_form') {
         setShowCodeExport(true);
         return;
@@ -1777,6 +1801,49 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
             allForms={allForms}
             onClose={() => setShowPrintModal(false)} 
          />
+      )}
+
+      {showRulesModal && (
+        <ConditionRulesBuilderModal
+          isOpen={showRulesModal}
+          onClose={() => setShowRulesModal(false)}
+          form={form}
+          sourceTable={mainFormTable}
+          onSaveForm={onFormChange}
+        />
+      )}
+
+      {showFormulaModal && (
+        <FormulaEditorModal
+          isOpen={showFormulaModal}
+          onClose={() => setShowFormulaModal(false)}
+          sourceTable={mainFormTable}
+          onSaveFormula={(formula) => {
+            if (selectedElementId) {
+              handlePropertyChange('calculationFormula', formula);
+              handlePropertyChange('isCalculated', true);
+            }
+          }}
+        />
+      )}
+
+      {showRbacModal && (
+        <FieldRbacModal
+          isOpen={showRbacModal}
+          onClose={() => setShowRbacModal(false)}
+          form={form}
+          sourceTable={mainFormTable}
+          onSaveForm={onFormChange}
+        />
+      )}
+
+      {showLifecycleModal && (
+        <FormLifecycleHooksConfigModal
+          isOpen={showLifecycleModal}
+          onClose={() => setShowLifecycleModal(false)}
+          form={form}
+          onSaveForm={onFormChange}
+        />
       )}
     </div>
   );

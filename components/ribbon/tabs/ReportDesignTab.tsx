@@ -303,8 +303,32 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
       </RibbonGroup>
 
       {/* MFE Event Bus Print / Mail Trigger */}
-      <RibbonGroup label="MFE Ausgabe">
+      <RibbonGroup label="MFE Ausgabe & Engine">
         <div className="flex gap-1 items-center h-full">
+            <button
+              onClick={() => onAction('report_open_band_model')}
+              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 hover:text-blue-700 dark:hover:text-blue-400 cursor-pointer"
+              title="Bänder-Modell & Seitenumbruch-Manager"
+            >
+              <LayoutTemplate size={14} className="text-blue-600" />
+              <span className="text-[9px] font-semibold">Bänder</span>
+            </button>
+            <button
+              onClick={() => onAction('report_open_label_thermal')}
+              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 hover:text-amber-700 dark:hover:text-amber-400 cursor-pointer"
+              title="Endlosetiketten & POS Thermo-Bondruck"
+            >
+              <QrCode size={14} className="text-amber-500" />
+              <span className="text-[9px] font-semibold">Etikett/Bon</span>
+            </button>
+            <button
+              onClick={() => onAction('report_open_pdf_workflow')}
+              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer"
+              title="PDF/A-3, ZUGFeRD 2.2 & E-Mail Versand Workflow"
+            >
+              <FileCode size={14} className="text-emerald-600" />
+              <span className="text-[9px] font-semibold">PDF/A Mail</span>
+            </button>
             <button
               onClick={() => eventBus.publish('PRINT_REPORT', { reportId: report.id, outputFormat: 'print_dialog' })}
               className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 hover:text-blue-700 dark:hover:text-blue-400 cursor-pointer"
@@ -312,14 +336,6 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
             >
               <Printer size={14} />
               <span className="text-[9px] font-semibold">Drucken</span>
-            </button>
-            <button
-              onClick={() => eventBus.publish('PRINT_REPORT', { reportId: report.id, outputFormat: 'email_direct' })}
-              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 hover:text-sky-700 dark:hover:text-sky-400 cursor-pointer"
-              title="Bericht per E-Mail versenden (EventBus)"
-            >
-              <Mail size={14} />
-              <span className="text-[9px] font-semibold">E-Mail</span>
             </button>
         </div>
       </RibbonGroup>

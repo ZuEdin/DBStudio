@@ -227,7 +227,35 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
         </div>
       </RibbonGroup>
 
-      {/* 4. Konvertierung & Export */}
+      {/* 4. Analytik & SQL-Mächtigkeit */}
+      <RibbonGroup label="Analytik & Performance">
+        <RibbonButton
+          icon={<Sliders className="text-blue-600 dark:text-blue-400" />}
+          label="Window Functions"
+          onClick={() => onAction('query_open_window_functions')}
+          title="OVER (PARTITION BY ... ORDER BY ...) ROW_NUMBER, RANK, LEAD, LAG"
+        />
+        <RibbonButton
+          icon={<Layers className="text-purple-600 dark:text-purple-400" />}
+          label="CTE & Rekursion"
+          onClick={() => onAction('query_open_cte_builder')}
+          title="WITH-Blöcke & Rekursive UNION ALL Hierarchie-Abfragen"
+        />
+        <RibbonButton
+          icon={<ArrowRightLeft className="text-teal-600 dark:text-teal-400" />}
+          label="UNION / Mengen"
+          onClick={() => onAction('query_open_set_operations')}
+          title="Mengen-Operatoren: UNION, UNION ALL, INTERSECT, EXCEPT"
+        />
+        <RibbonButton
+          icon={<Filter className="text-amber-500" />}
+          label="EXPLAIN Plan"
+          onClick={() => onAction('query_open_explain_plan')}
+          title="Visueller Cost-Tree Ausführungsplan & Missing Index Empfehler"
+        />
+      </RibbonGroup>
+
+      {/* 5. Konvertierung & Export */}
       <RibbonGroup label="Konvertierung & Export" isLast>
         <RibbonButton
           icon={<FileCode className="text-purple-600 dark:text-purple-400" />}

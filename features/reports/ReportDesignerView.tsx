@@ -37,6 +37,10 @@ import { Din5008ConfigPanel } from './components/Din5008ConfigPanel';
 import { BandedSectionManager } from './components/BandedSectionManager';
 import { AdvancedReportFeaturesPanel } from './components/AdvancedReportFeaturesPanel';
 import { FreeformCanvasManager } from './components/FreeformCanvasManager';
+import { BandModelEditorModal } from './components/BandModelEditorModal';
+import { LabelThermalPrintModal } from './components/LabelThermalPrintModal';
+import { PdfExportWorkflowModal } from './components/PdfExportWorkflowModal';
+import { eventBus } from '../../services/eventBus';
 
 interface ReportDesignerViewProps {
   report: Report;
@@ -61,6 +65,20 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({
   const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
   const [activeFormattingColIndex, setActiveFormattingColIndex] = useState<number | null>(null);
   const [previewData, setPreviewData] = useState<any[]>([]);
+
+  // Advanced Reporting Engine Modal States
+  const [showBandModelModal, setShowBandModelModal] = useState(false);
+  const [showLabelThermalModal, setShowLabelThermalModal] = useState(false);
+  const [showPdfWorkflowModal, setShowPdfWorkflowModal] = useState(false);
+
+  useEffect(() => {
+    const unsub = eventBus.subscribe('REPORT_DESIGN_ACTION', (payload: any) => {
+      if (payload?.action === 'report_open_band_model') setShowBandModelModal(true);
+      if (payload?.action === 'report_open_label_thermal') setShowLabelThermalModal(true);
+      if (payload?.action === 'report_open_pdf_workflow') setShowPdfWorkflowModal(true);
+    });
+    return () => { unsub(); };
+  }, []);
 
   // Initialize Data & Fields based on Source
   useEffect(() => {
@@ -825,6 +843,32 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({
           column={columns[activeFormattingColIndex]}
           onUpdateColumn={(updates) => updateSingleColumn(activeFormattingColIndex, updates)}
           onClose={() => setActiveFormattingColIndex(null)}
+        />
+      )}
+
+      {/* Advanced Reporting Engine Modals */}
+      {showBandModelModal && (
+        <BandModelEditorModal
+          isOpen={showBandModelModal}
+          onClose={() => setShowBandModelModal(false)}
+          onSaveBands={(bands) => {
+            updateSettings('bands', bands);
+          }}
+        />
+      )}
+
+      {showLabelThermalModal && (
+        <LabelThermalPrintModal
+          isOpen={showLabelThermalModal}
+          onClose={() => setShowLabelThermalModal(false)}
+        />
+      )}
+
+      {showPdfWorkflowModal && (
+        <PdfExportWorkflowModal
+          isOpen={showPdfWorkflowModal}
+          onClose={() => setShowPdfWorkflowModal(false)}
+          reportTitle={report.name || 'Ausgangsrechnung_2026_001'}
         />
       )}
     </div>
