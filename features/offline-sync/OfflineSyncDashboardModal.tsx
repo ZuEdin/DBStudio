@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, RefreshCw, AlertTriangle, CheckCircle2, Clock, 
-  Trash2, X, Download, HardHat, FileText, Camera, Smartphone, Database 
+  Trash2, X, Download, HardHat, FileText, Camera, Smartphone, Database,
+  GitMerge, Archive, Zap, Radio
 } from 'lucide-react';
 import { OfflineSyncService } from './offlineSyncService';
 import { IndexedDbStorage } from './indexedDbStorage';
-import { OutboxMutation, SyncConflict, LocalDailyReport, LocalDefect, LocalTimeTracking } from './outboxTypes';
+import { BackgroundSyncService } from './backgroundSyncService';
+import { OutboxMutation, SyncConflict, LocalDailyReport, LocalDefect, LocalTimeTracking, OfflineSyncStats } from './outboxTypes';
 import { ConflictResolutionModal } from './ConflictResolutionModal';
+import { CrdtSimulatorPanel } from './CrdtSimulatorPanel';
+import { CompressionWorkbenchPanel } from './CompressionWorkbenchPanel';
 
 interface OfflineSyncDashboardModalProps {
   isOpen: boolean;
@@ -17,8 +21,16 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
   isOpen,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'outbox' | 'conflicts' | 'construction' | 'pwa'>('outbox');
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [activeTab, setActiveTab] = useState<'outbox' | 'crdt' | 'compression' | 'conflicts' | 'construction' | 'pwa'>('outbox');
+  const [stats, setStats] = useState<OfflineSyncStats>({
+    pendingCount: 0,
+    conflictCount: 0,
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    backgroundSyncSupported: BackgroundSyncService.isSupported(),
+    backgroundSyncRegistered: false,
+    totalBytesSavedByCompression: 0,
+    autoResolvedCrdtCount: 0,
+  });
   const [isSyncing, setIsSyncing] = useState(false);
   const [mutations, setMutations] = useState<OutboxMutation[]>([]);
   const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
@@ -36,12 +48,14 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
       const reps = await IndexedDbStorage.getDailyReports();
       const defs = await IndexedDbStorage.getDefects();
       const tms = await IndexedDbStorage.getTimeTrackings();
+      const currentStats = await OfflineSyncService.getStats();
 
       setMutations(muts);
       setConflicts(cnfs);
       setReports(reps);
       setDefects(defs);
       setTimes(tms);
+      setStats(currentStats);
     } catch {
       // ignore
     }
@@ -50,9 +64,9 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
   useEffect(() => {
     if (!isOpen) return;
     loadData();
-    const unsub = OfflineSyncService.subscribe((stats) => {
-      setIsOnline(stats.isOnline);
-      setIsSyncing(!!stats.isSyncing);
+    const unsub = OfflineSyncService.subscribe((newStats) => {
+      setStats(newStats);
+      setIsSyncing(!!newStats.isSyncing);
       loadData();
     });
     return () => unsub();
@@ -72,9 +86,18 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
     await loadData();
   };
 
+  const handleTriggerBackgroundSync = async () => {
+    const success = await BackgroundSyncService.requestBackgroundSync();
+    if (success) {
+      alert('Background Sync Request erfolgreich beim Service Worker registriert.');
+    } else {
+      await handleManualSync();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xl max-w-4xl w-full flex flex-col h-[85vh] overflow-hidden text-slate-800 dark:text-slate-100">
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xl max-w-5xl w-full flex flex-col h-[88vh] overflow-hidden text-slate-800 dark:text-slate-100">
         {/* Header */}
         <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -84,7 +107,7 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
             <div>
               <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <span>Baustellen Offline- &amp; Synchronisations-Zentrale</span>
-                {isOnline ? (
+                {stats.isOnline ? (
                   <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full flex items-center gap-1">
                     <Wifi className="w-3 h-3" /> Online
                   </span>
@@ -95,7 +118,7 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
                 )}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                IndexedDB Outbox-Pipeline, 3-Way-Merge Konfliktlösung und Baustellen-PWA
+                Background Sync API, Brotli/GZIP Payload-Kompression, CRDT Feldebene-Merge &amp; Outbox
               </p>
             </div>
           </div>
@@ -103,7 +126,7 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
           <div className="flex items-center gap-2">
             <button
               onClick={handleManualSync}
-              disabled={isSyncing || !isOnline}
+              disabled={isSyncing || !stats.isOnline}
               className="px-3 py-1.5 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white flex items-center gap-1.5 transition shadow"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -118,8 +141,44 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
           </div>
         </div>
 
+        {/* Status Quick Bar */}
+        <div className="px-4 py-2 bg-slate-100/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between text-[11px] gap-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Service Worker Background Sync:</span>
+              <span className={`px-1.5 py-0.5 rounded font-mono font-bold ${
+                stats.backgroundSyncRegistered
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
+                  : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+              }`}>
+                {stats.backgroundSyncRegistered ? 'Aktiviert (Service Worker)' : 'Bereit'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Auto-CRDT Merges:</span>
+              <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                {stats.autoResolvedCrdtCount} gelöst
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Eingespartes Volumen:</span>
+              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                {(stats.totalBytesSavedByCompression / 1024).toFixed(1)} KB
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTriggerBackgroundSync}
+            className="px-2 py-1 rounded bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1"
+          >
+            <Radio className="w-3 h-3 text-indigo-500" />
+            <span>Background Sync anfordern</span>
+          </button>
+        </div>
+
         {/* Tab Navigation */}
-        <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 px-4 pt-2 gap-2 text-xs font-semibold">
+        <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 px-4 pt-2 gap-2 text-xs font-semibold overflow-x-auto">
           <button
             onClick={() => setActiveTab('outbox')}
             className={`pb-2 px-3 border-b-2 transition flex items-center gap-1.5 ${
@@ -129,7 +188,29 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
             }`}
           >
             <Database className="w-3.5 h-3.5" />
-            <span>Outbox Mutations-Warteschlange ({mutations.length})</span>
+            <span>Outbox Warteschlange ({mutations.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('crdt')}
+            className={`pb-2 px-3 border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'crdt'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <GitMerge className="w-3.5 h-3.5" />
+            <span>CRDT Feldebene-Merge</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('compression')}
+            className={`pb-2 px-3 border-b-2 transition flex items-center gap-1.5 ${
+              activeTab === 'compression'
+                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            <span>Payload-Kompression</span>
           </button>
           <button
             onClick={() => setActiveTab('conflicts')}
@@ -140,13 +221,13 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Konflikte ({conflicts.length})</span>
+            <span>3-Way Konflikte ({conflicts.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('construction')}
             className={`pb-2 px-3 border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'construction'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -162,7 +243,7 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
             }`}
           >
             <Smartphone className="w-3.5 h-3.5" />
-            <span>PWA &amp; Tablet-Status</span>
+            <span>PWA &amp; Background Sync</span>
           </button>
         </div>
 
@@ -199,6 +280,11 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
                           </span>
                           <span>{m.tableName}</span>
                           <span className="text-slate-400">ID: {m.recordId}</span>
+                          {m.isCompressed && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 font-bold">
+                              GZIP ({(m.compressedSizeBytes || 0)} B)
+                            </span>
+                          )}
                         </div>
                         <div className="text-slate-500 dark:text-slate-400 text-[11px] font-mono truncate max-w-md">
                           Payload: {JSON.stringify(m.payload)}
@@ -225,11 +311,15 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
             </div>
           )}
 
+          {activeTab === 'crdt' && <CrdtSimulatorPanel />}
+
+          {activeTab === 'compression' && <CompressionWorkbenchPanel />}
+
           {activeTab === 'conflicts' && (
             <div className="space-y-3">
               {conflicts.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs border border-dashed rounded-lg border-slate-300 dark:border-slate-700">
-                  Keine Versionskonflikte vorhanden.
+                  Keine ungelösten 3-Way Versionskonflikte vorhanden.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -309,19 +399,23 @@ export const OfflineSyncDashboardModal: React.FC<OfflineSyncDashboardModalProps>
               <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 space-y-3">
                 <div className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
                   <Smartphone className="w-4 h-4 text-indigo-500" />
-                  <span>Progressive Web App (PWA) &amp; Baustellen-Tablet Modus</span>
+                  <span>Progressive Web App (PWA) &amp; Background Sync Engine</span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-300">
-                  DB Studio Pro ist als vollwertige Offline-PWA konzipiert. Auf Apple iPad (Safari ➔ Zum Home-Bildschirm) oder Android/Windows Tablets kann die App nativ installiert werden und startet im Vollbildmodus ohne Browser-Adressleiste.
+                  DB Studio Pro nutzt Service Worker mit W3C Background Sync API zur asynchronen Hintergrundübertragung von Outbox-Paketen, selbst wenn das Browser-Tab geschlossen wird oder das Gerät erst Stunden später wieder Mobilfunkempfang erhält.
                 </p>
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
                   <div className="p-3 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-                    <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1">Service Worker Cache</div>
-                    <div className="text-slate-500">CacheFirst Strategie für Core-Assets, Fonts und Icons</div>
+                    <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1">Background Sync API</div>
+                    <div className="text-slate-500">Automatisches Leeren der IndexedDB-Outbox via Service Worker Sync Event</div>
                   </div>
                   <div className="p-3 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-                    <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1">Client-Side Compression</div>
-                    <div className="text-slate-500">Automatische Reduktion von Baustellenfotos auf 1080p WebP</div>
+                    <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1">Streams Compression</div>
+                    <div className="text-slate-500">Native GZIP &amp; Brotli Kompression für Dokumente &amp; Baustellenfotos</div>
+                  </div>
+                  <div className="p-3 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                    <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1">CRDT Feldebene</div>
+                    <div className="text-slate-500">LWW-Element-Set Merging ohne blockierende Benutzerdialoge</div>
                   </div>
                 </div>
               </div>

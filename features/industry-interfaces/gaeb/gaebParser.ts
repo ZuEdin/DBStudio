@@ -1,4 +1,5 @@
 import { GaebProjectDoc, GaebSection, GaebPosition, GaebPhase } from './gaebTypes';
+import { GaebCalculationEngine } from './gaebCalculationEngine';
 
 export class GaebParser {
   /**
@@ -6,10 +7,13 @@ export class GaebParser {
    */
   public static parse(rawContent: string): GaebProjectDoc {
     const trimmed = rawContent.trim();
+    let doc: GaebProjectDoc;
     if (trimmed.startsWith('<?xml') || trimmed.startsWith('<GAEB')) {
-      return this.parseXml(trimmed);
+      doc = this.parseXml(trimmed);
+    } else {
+      doc = this.parseGaeb90Text(trimmed);
     }
-    return this.parseGaeb90Text(trimmed);
+    return GaebCalculationEngine.recalculateProjectDoc(doc);
   }
 
   /**

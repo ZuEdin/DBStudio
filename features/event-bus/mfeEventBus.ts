@@ -1,13 +1,17 @@
-import { MfeBaseEvent, MfeDomain } from './mfeEventTypes';
+import { MfeBaseEvent, MfeDomain, MFE_DRAG_MIME_TYPES } from './mfeEventTypes';
 
-type EventCallback<T = any> = (event: MfeBaseEvent<T>) => void;
+export type EventCallback<T = any> = (event: MfeBaseEvent<T>) => void;
 
 export class EnterpriseEventBus {
   private listeners: Map<string, Set<EventCallback>> = new Map();
+  private domainListeners: Map<MfeDomain, Set<EventCallback>> = new Map();
   private eventHistory: MfeBaseEvent[] = [];
   private deadLetterQueue: MfeBaseEvent[] = [];
-  private maxHistoryLength: number = 100;
+  private maxHistoryLength: number = 200;
 
+  /**
+   * Publish an event to the Event-Bus
+   */
   public publish<T>(
     eventType: string,
     sourceDomain: MfeDomain,
@@ -32,7 +36,7 @@ export class EnterpriseEventBus {
 
     let recipientCount = 0;
 
-    // Notify listeners
+    // 1. Notify exact eventType listeners
     const callbacks = this.listeners.get(eventType);
     if (callbacks && callbacks.size > 0) {
       recipientCount += callbacks.size;
@@ -45,7 +49,22 @@ export class EnterpriseEventBus {
       });
     }
 
-    // Also notify wildcard listeners
+    // 2. Notify domain-specific listeners
+    if (targetDomain !== '*') {
+      const targetCallbacks = this.domainListeners.get(targetDomain);
+      if (targetCallbacks && targetCallbacks.size > 0) {
+        recipientCount += targetCallbacks.size;
+        targetCallbacks.forEach((cb) => {
+          try {
+            cb(event);
+          } catch (err) {
+            console.error(`[EventBus] Error in domain listener (${targetDomain}):`, err);
+          }
+        });
+      }
+    }
+
+    // 3. Notify wildcard listeners
     const wildcardCallbacks = this.listeners.get('*');
     if (wildcardCallbacks && wildcardCallbacks.size > 0) {
       recipientCount += wildcardCallbacks.size;
@@ -69,6 +88,9 @@ export class EnterpriseEventBus {
     return event;
   }
 
+  /**
+   * Subscribe to a specific event type
+   */
   public subscribe<T = any>(eventType: string, callback: EventCallback<T>): () => void {
     if (!this.listeners.has(eventType)) {
       this.listeners.set(eventType, new Set());
@@ -77,6 +99,23 @@ export class EnterpriseEventBus {
 
     return () => {
       this.unsubscribe(eventType, callback as EventCallback);
+    };
+  }
+
+  /**
+   * Subscribe to all events targeted at or originating from a specific MFE Domain
+   */
+  public subscribeDomain<T = any>(domain: MfeDomain, callback: EventCallback<T>): () => void {
+    if (!this.domainListeners.has(domain)) {
+      this.domainListeners.set(domain, new Set());
+    }
+    this.domainListeners.get(domain)!.add(callback as EventCallback);
+
+    return () => {
+      const callbacks = this.domainListeners.get(domain);
+      if (callbacks) {
+        callbacks.delete(callback as EventCallback);
+      }
     };
   }
 
@@ -109,7 +148,7 @@ export class EnterpriseEventBus {
   }
 
   /**
-   * Request-response pattern with automatic timeout.
+   * Request-response RPC pattern with correlationId and timeout.
    */
   public request<TReq = any, TRes = any>(
     requestEventType: string,
@@ -138,6 +177,33 @@ export class EnterpriseEventBus {
       const reqEvent = this.publish(requestEventType, sourceDomain, payload);
       reqEvent.correlationId = correlationId;
     });
+  }
+
+  /**
+   * Helper for standard HTML5 Drag & Drop payload packaging
+   */
+  public static setDragData(e: React.DragEvent | DragEvent, type: keyof typeof MFE_DRAG_MIME_TYPES, payload: any): void {
+    const mime = MFE_DRAG_MIME_TYPES[type];
+    if (e.dataTransfer) {
+      e.dataTransfer.setData(mime, JSON.stringify(payload));
+      e.dataTransfer.setData('text/plain', JSON.stringify(payload));
+      e.dataTransfer.effectAllowed = 'copyMove';
+    }
+  }
+
+  /**
+   * Helper for extracting dropped Drag & Drop payload safely
+   */
+  public static getDragData<T = any>(e: React.DragEvent | DragEvent, type: keyof typeof MFE_DRAG_MIME_TYPES): T | null {
+    const mime = MFE_DRAG_MIME_TYPES[type];
+    if (!e.dataTransfer) return null;
+    const raw = e.dataTransfer.getData(mime) || e.dataTransfer.getData('text/plain');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
   }
 
   public getHistory(): ReadonlyArray<MfeBaseEvent> {

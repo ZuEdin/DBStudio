@@ -591,6 +591,24 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                 size="large"
                 items={[
                     {
+                        id: 'efcore_export',
+                        label: 'C# .NET 10 EF Core Generator',
+                        description: 'Generiert Domain Entities, Fluent-API DbContext & ASP.NET Core Controller',
+                        icon: <CircuitBoard size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_efcore_generator'),
+                        badge: '.NET 10',
+                        badgeColor: 'indigo'
+                    },
+                    {
+                        id: 'desktop_package',
+                        label: '1-Klick Desktop Wrapper (Tauri/Electron)',
+                        description: 'Generiert Native Installer (.msi, .dmg) mit Offline-Dateisystem GAEB-Zugriff',
+                        icon: <Laptop size={14} className="text-teal-600" />,
+                        onClick: () => onAction('open_desktop_packaging'),
+                        badge: 'Desktop',
+                        badgeColor: 'teal'
+                    },
+                    {
                         id: 'export_code',
                         label: 'Codegenerierung starten',
                         description: 'Backend- & Frontend-Dateien gemäß Ziel-Stack kompilieren',

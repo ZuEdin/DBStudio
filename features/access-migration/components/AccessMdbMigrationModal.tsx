@@ -25,7 +25,9 @@ import {
   RefreshCw,
   Eye,
   Info,
-  Code2
+  Code2,
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { VbaConverterModal } from './VbaConverterModal';
 
@@ -52,10 +54,23 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
   const [selectedTableNames, setSelectedTableNames] = useState<string[]>([]);
   const [showSystemTables, setShowSystemTables] = useState<boolean>(false);
   const [showVbaModal, setShowVbaModal] = useState<boolean>(false);
+  const [lockConflict, setLockConflict] = useState<{ fileName: string; isLockFile: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
+    // 1. File-Locking Protection (.ldb / .laccdb detection)
+    const lowerName = file.name.toLowerCase();
+    if (lowerName.endsWith('.ldb') || lowerName.endsWith('.laccdb')) {
+      setLockConflict({
+        fileName: file.name,
+        isLockFile: true
+      });
+      onShowToast?.(`Achtung: "${file.name}" ist eine MS Access Sperrdatei (.ldb/.laccdb)! Bitte wählen Sie die Hauptdatenbankdatei (.mdb/.accdb).`, 'warning');
+      return;
+    }
+
     setLoading(true);
+    setLockConflict(null);
     try {
       const buffer = await file.arrayBuffer();
       const result = await AccessMdbParser.parseAccessBuffer(buffer, file.name);
@@ -68,7 +83,14 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
       onShowToast?.(`Access-Datei "${file.name}" (${result.formatName}) erfolgreich geladen! ${result.tables.length} Tabellen erkannt.`, 'success');
     } catch (err: any) {
       console.error("Access upload error:", err);
-      onShowToast?.(`Fehler beim Lesen der Access Datei: ${err.message || String(err)}`, 'error');
+      const msg = err.message || String(err);
+      if (msg.toLowerCase().includes('lock') || msg.toLowerCase().includes('sharing') || msg.toLowerCase().includes('exclusive')) {
+        setLockConflict({
+          fileName: file.name,
+          isLockFile: false
+        });
+      }
+      onShowToast?.(`Fehler beim Lesen der Access Datei: ${msg}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -240,6 +262,46 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
           {/* STEP 1: FILE UPLOAD */}
           {step === 1 && (
             <div className="space-y-6">
+              {lockConflict && (
+                <div className="p-4 bg-amber-950/70 border border-amber-500/50 rounded-xl flex items-start gap-3.5 text-amber-200 animate-in fade-in duration-200">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                    <Lock size={18} />
+                  </div>
+                  <div className="flex-1 text-xs">
+                    <div className="font-bold text-amber-300 flex items-center gap-2">
+                      <span>MDB / ACCDB File-Locking Sperrkonflikt erkannt</span>
+                      <span className="bg-amber-500/20 px-2 py-0.5 rounded text-[10px] font-mono">
+                        {lockConflict.isLockFile ? '.LDB / .LACCDB Lock' : 'Exclusive Lock'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-amber-200/90 leading-relaxed">
+                      {lockConflict.isLockFile ? (
+                        <>Die ausgewählte Datei <strong className="font-mono text-white">"{lockConflict.fileName}"</strong> ist eine temporäre Microsoft Access Lock-Sperrdatei. Bitte wählen Sie die zugehörige Hauptdatenbank (.mdb oder .accdb) aus.</>
+                      ) : (
+                        <>Die Datei <strong className="font-mono text-white">"{lockConflict.fileName}"</strong> ist möglicherweise parallel in Microsoft Access exklusiv geöffnet oder gesperrt. Bitte schließen Sie MS Access oder wählen Sie eine freigegebene Kopie.</>
+                      )}
+                    </p>
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setLockConflict(null);
+                          fileInputRef.current?.click();
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        Andere Access-Datei wählen
+                      </button>
+                      <button
+                        onClick={() => setLockConflict(null)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
+                      >
+                        Hinweis ausblenden
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className="border-2 border-dashed border-slate-700 hover:border-red-500/60 bg-slate-950/60 hover:bg-slate-950 rounded-2xl p-10 text-center cursor-pointer transition-all space-y-3"

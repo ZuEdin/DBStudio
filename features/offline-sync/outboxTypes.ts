@@ -12,6 +12,12 @@ export interface OutboxMutation {
   status: SyncStatus;
   errorMessage?: string;
   baseVersion?: number;
+  fieldTimestamps?: Record<string, number>;
+  isCompressed?: boolean;
+  compressionAlgorithm?: 'gzip' | 'deflate' | 'raw';
+  originalSizeBytes?: number;
+  compressedSizeBytes?: number;
+  clientDeviceId?: string;
 }
 
 export interface OfflineSyncStats {
@@ -20,6 +26,10 @@ export interface OfflineSyncStats {
   isOnline: boolean;
   lastSyncedAt?: number;
   isSyncing?: boolean;
+  backgroundSyncSupported: boolean;
+  backgroundSyncRegistered: boolean;
+  totalBytesSavedByCompression: number;
+  autoResolvedCrdtCount: number;
 }
 
 export interface SyncConflict {
@@ -33,6 +43,29 @@ export interface SyncConflict {
   conflictFields: string[];
   detectedAt: number;
   resolved: boolean;
+}
+
+export interface CrdtFieldMergeResult {
+  mergedPayload: Record<string, any>;
+  autoResolved: boolean;
+  resolvedFields: {
+    fieldName: string;
+    chosenSource: 'client' | 'server' | 'base';
+    clientTimestamp?: number;
+    serverTimestamp?: number;
+    value: any;
+  }[];
+  conflictingFields: string[];
+  auditNotes: string[];
+}
+
+export interface CompressedPayload {
+  dataBase64: string;
+  algorithm: 'gzip' | 'deflate' | 'raw';
+  originalSizeBytes: number;
+  compressedSizeBytes: number;
+  compressionRatio: number; // percentage, e.g. 68.5%
+  durationMs: number;
 }
 
 export interface LocalDailyReport {

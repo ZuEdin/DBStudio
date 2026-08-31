@@ -30,10 +30,15 @@ export const BridgeRunnerModal: React.FC<BridgeRunnerModalProps> = ({ isOpen, on
   const { 
     config, 
     isOnline, 
+    isChecking,
+    latencyMs,
+    reconnectAttempts,
     activeProject, 
     clearLogs, 
     sendProcessAction, 
-    checkHealth 
+    checkHealth,
+    startHeartbeat,
+    stopHeartbeat 
   } = useBridgeStore();
 
   const currentProjectName = useProjectStore(s => s.projectName) || useProjectStore(s => s.projectId) || 'MyProject';
@@ -50,6 +55,16 @@ export const BridgeRunnerModal: React.FC<BridgeRunnerModalProps> = ({ isOpen, on
   };
 
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      startHeartbeat();
+      terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    return () => {
+      // Don't kill background heartbeat completely, but ensure clean state
+    };
+  }, [isOpen, startHeartbeat]);
 
   useEffect(() => {
     if (isOpen) {
@@ -300,11 +315,23 @@ export const BridgeRunnerModal: React.FC<BridgeRunnerModalProps> = ({ isOpen, on
 
         {/* Footer */}
         <div className="p-3 bg-slate-800/90 border-t border-slate-700/80 flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1">
-              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-              Bridge: <strong className="text-slate-200">{isOnline ? 'Verbunden' : 'Wartet auf Verbindung'}</strong>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : isChecking ? 'bg-blue-400 animate-spin' : 'bg-amber-400'}`}></span>
+              Bridge: <strong className="text-slate-200">{isOnline ? 'Verbunden (Local Daemon)' : isChecking ? 'Prüfe Verbindung...' : 'Wartet auf Verbindung'}</strong>
             </span>
+
+            {isOnline && latencyMs !== null && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px]">
+                <Activity size={11} /> {latencyMs} ms Latenz (5s Ping/Pong)
+              </span>
+            )}
+
+            {!isOnline && reconnectAttempts > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 font-mono text-[11px]">
+                Auto-Reconnect Versuch #{reconnectAttempts} (Backoff)
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

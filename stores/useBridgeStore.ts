@@ -23,6 +23,8 @@ interface BridgeStoreState {
   isOnline: boolean;
   isChecking: boolean;
   lastChecked: number | null;
+  latencyMs: number | null;
+  reconnectAttempts: number;
   bridgeInfo: BridgeStatusResponse | null;
   activeProject: ActiveProjectState;
   isRunnerModalOpen: boolean;
@@ -31,6 +33,8 @@ interface BridgeStoreState {
   updateConfig: (patch: Partial<BridgeConfig>) => void;
   setRunnerModalOpen: (open: boolean) => void;
   checkHealth: () => Promise<boolean>;
+  startHeartbeat: () => void;
+  stopHeartbeat: () => void;
   deployProject: (payload: BridgeDeployPayload) => Promise<BridgeDeployResult>;
   sendProcessAction: (projectId: string, action: 'start' | 'stop' | 'restart' | 'build_only') => Promise<boolean>;
   clearLogs: () => void;
@@ -52,6 +56,8 @@ const defaultBridgeConfig: BridgeConfig = {
 
 let activeWebSocket: WebSocket | null = null;
 let activeLogPoller: any = null;
+let activeHeartbeatTimer: any = null;
+let reconnectTimer: any = null;
 
 export function stripAnsiCodes(str: string): string {
   if (!str) return '';
@@ -197,6 +203,8 @@ export const useBridgeStore = create<BridgeStoreState>()(
       isOnline: false,
       isChecking: false,
       lastChecked: null,
+      latencyMs: null,
+      reconnectAttempts: 0,
       bridgeInfo: null,
       activeProject: {
         status: 'idle',
@@ -257,9 +265,36 @@ export const useBridgeStore = create<BridgeStoreState>()(
         }));
       },
 
+      startHeartbeat: () => {
+        if (activeHeartbeatTimer) {
+          clearInterval(activeHeartbeatTimer);
+          activeHeartbeatTimer = null;
+        }
+
+        // Run immediate check
+        get().checkHealth();
+
+        // 5-second health check ping/pong loop
+        activeHeartbeatTimer = setInterval(() => {
+          get().checkHealth();
+        }, 5000);
+      },
+
+      stopHeartbeat: () => {
+        if (activeHeartbeatTimer) {
+          clearInterval(activeHeartbeatTimer);
+          activeHeartbeatTimer = null;
+        }
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+      },
+
       checkHealth: async () => {
-        const { config, updateConfig } = get();
+        const { config, updateConfig, reconnectAttempts } = get();
         set({ isChecking: true });
+        const startTime = performance.now();
 
         // Candidates to test if token mismatch occurs
         const candidateTokens = Array.from(new Set([
@@ -274,7 +309,7 @@ export const useBridgeStore = create<BridgeStoreState>()(
 
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const timeoutId = setTimeout(() => controller.abort(), 3500);
 
             const response = await fetch(url, {
               method: 'GET',
@@ -291,15 +326,19 @@ export const useBridgeStore = create<BridgeStoreState>()(
             if (response.ok) {
               const data: BridgeStatusResponse = await response.json();
               const isActuallyOnline = data.status === 'online' || data.bridgeConnected === true;
-              
+              const measuredLatency = Math.round(performance.now() - startTime);
+
               if (candidateToken !== config.token) {
                 updateConfig({ token: candidateToken });
               }
 
+              // Reset exponential backoff attempts on successful connection
               set({
                 isOnline: isActuallyOnline,
                 isChecking: false,
                 lastChecked: Date.now(),
+                latencyMs: measuredLatency,
+                reconnectAttempts: 0,
                 bridgeInfo: data
               });
               return isActuallyOnline;
@@ -307,12 +346,26 @@ export const useBridgeStore = create<BridgeStoreState>()(
           } catch (_) {}
         }
 
+        // If offline, increment reconnect attempt and schedule exponential backoff reconnect if needed
+        const nextAttempt = reconnectAttempts + 1;
         set({
           isOnline: false,
           isChecking: false,
           lastChecked: Date.now(),
+          latencyMs: null,
+          reconnectAttempts: nextAttempt,
           bridgeInfo: null
         });
+
+        // Exponential backoff auto-reconnect (1s, 2s, 4s, 8s, max 15s)
+        if (config.autoConnect && !activeHeartbeatTimer) {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          const backoffDelay = Math.min(1000 * Math.pow(1.5, Math.min(nextAttempt, 6)), 15000);
+          reconnectTimer = setTimeout(() => {
+            get().checkHealth();
+          }, backoffDelay);
+        }
+
         return false;
       },
 

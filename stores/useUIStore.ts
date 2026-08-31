@@ -165,6 +165,10 @@ interface UIStore {
   setShowAstCodeSyncModal: (show: boolean) => void;
   pendingSqliteFile: File | null;
   setPendingSqliteFile: (file: File | null) => void;
+  showEfCoreModal: boolean;
+  setShowEfCoreModal: (show: boolean) => void;
+  showDesktopPackagingModal: boolean;
+  setShowDesktopPackagingModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -337,6 +341,10 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowAstCodeSyncModal: (showAstCodeSyncModal) => set({ showAstCodeSyncModal }),
   pendingSqliteFile: null,
   setPendingSqliteFile: (pendingSqliteFile) => set({ pendingSqliteFile }),
+  showEfCoreModal: false,
+  setShowEfCoreModal: (showEfCoreModal) => set({ showEfCoreModal }),
+  showDesktopPackagingModal: false,
+  setShowDesktopPackagingModal: (showDesktopPackagingModal) => set({ showDesktopPackagingModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

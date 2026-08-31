@@ -51,6 +51,8 @@ import { WebhookIngestionModal } from '../features/webhooks/components/WebhookIn
 import { CicdPipelineModal } from '../features/deployment/components/CicdPipelineModal';
 import { AccessMdbMigrationModal } from '../features/access-migration/components/AccessMdbMigrationModal';
 import { AstCodeSyncModal } from '../features/ast-sync/components/AstCodeSyncModal';
+import { EfCoreExportModal } from '../features/generators/EfCoreExportModal';
+import { DesktopPackageModal } from '../features/generators/DesktopPackageModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -606,6 +608,22 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
             store.setTables(updated);
           }}
           onClose={() => ui.setShowAstCodeSyncModal(false)}
+          onShowToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showEfCoreModal && (
+        <EfCoreExportModal
+          isOpen={ui.showEfCoreModal}
+          onClose={() => ui.setShowEfCoreModal(false)}
+          onShowToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showDesktopPackagingModal && (
+        <DesktopPackageModal
+          isOpen={ui.showDesktopPackagingModal}
+          onClose={() => ui.setShowDesktopPackagingModal(false)}
           onShowToast={(msg, type) => addToast(msg, type || 'info')}
         />
       )}

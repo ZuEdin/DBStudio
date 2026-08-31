@@ -26,14 +26,26 @@ const API_BASE = 'http://127.0.0.1:5050';
 class BridgeService {
   private ws: WebSocket | null = null;
   private wsListeners: Set<(log: any) => void> = new Set();
+  private reconnectAttempt: number = 0;
+  private heartbeatInterval: any = null;
+  private lastLatencyMs: number | null = null;
 
   constructor() {
     this.initWebSocket();
+    this.startHeartbeatLoop();
   }
 
   private initWebSocket() {
     try {
+      if (this.ws) {
+        try { this.ws.close(); } catch {}
+        this.ws = null;
+      }
+
       this.ws = new WebSocket(`ws://127.0.0.1:5050/logs`);
+      this.ws.onopen = () => {
+        this.reconnectAttempt = 0;
+      };
       this.ws.onmessage = (event) => {
         try {
           const log = JSON.parse(event.data);
@@ -43,11 +55,44 @@ class BridgeService {
         }
       };
       this.ws.onclose = () => {
-        setTimeout(() => this.initWebSocket(), 4000);
+        this.scheduleReconnect();
+      };
+      this.ws.onerror = () => {
+        this.scheduleReconnect();
       };
     } catch {
-      // WS Offline
+      this.scheduleReconnect();
     }
+  }
+
+  private scheduleReconnect() {
+    this.reconnectAttempt++;
+    // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
+    const delay = Math.min(1000 * Math.pow(1.5, Math.min(this.reconnectAttempt, 6)), 15000);
+    setTimeout(() => this.initWebSocket(), delay);
+  }
+
+  private startHeartbeatLoop() {
+    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    this.heartbeatInterval = setInterval(async () => {
+      try {
+        const start = performance.now();
+        const res = await fetch(`${API_BASE}/api/status`, {
+          headers: { 'bypass-tunnel-reminder': 'true' }
+        });
+        if (res.ok) {
+          this.lastLatencyMs = Math.round(performance.now() - start);
+        } else {
+          this.lastLatencyMs = null;
+        }
+      } catch {
+        this.lastLatencyMs = null;
+      }
+    }, 5000);
+  }
+
+  getLatency(): number | null {
+    return this.lastLatencyMs;
   }
 
   subscribeLogs(listener: (log: any) => void) {

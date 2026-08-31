@@ -1,13 +1,23 @@
 import { OutboxMutation, SyncConflict, LocalDailyReport, LocalDefect, LocalTimeTracking } from './outboxTypes';
 
 const DB_NAME = 'EnterpriseStudioOfflineDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORE_OUTBOX = 'outbox_mutations';
 const STORE_CONFLICTS = 'sync_conflicts';
 const STORE_DAILY_REPORTS = 'local_daily_reports';
 const STORE_DEFECTS = 'local_defects';
 const STORE_TIME_TRACKING = 'local_time_trackings';
+const STORE_CRDT_AUDIT = 'crdt_audit_log';
+
+export interface CrdtAuditRecord {
+  id: string;
+  tableName: string;
+  recordId: string;
+  resolvedFields: string[];
+  notes: string[];
+  timestamp: number;
+}
 
 export class IndexedDbStorage {
   private static async getDb(): Promise<IDBDatabase> {
@@ -51,6 +61,12 @@ export class IndexedDbStorage {
         if (!db.objectStoreNames.contains(STORE_TIME_TRACKING)) {
           const store = db.createObjectStore(STORE_TIME_TRACKING, { keyPath: 'id' });
           store.createIndex('projectId', 'projectId', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains(STORE_CRDT_AUDIT)) {
+          const store = db.createObjectStore(STORE_CRDT_AUDIT, { keyPath: 'id' });
+          store.createIndex('tableName', 'tableName', { unique: false });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
         }
       };
     });
@@ -122,6 +138,15 @@ export class IndexedDbStorage {
     return this.deleteItem(STORE_CONFLICTS, conflictId);
   }
 
+  // CRDT Audit Log
+  public static async logCrdtResolution(record: CrdtAuditRecord): Promise<void> {
+    return this.putItem(STORE_CRDT_AUDIT, record);
+  }
+
+  public static async getCrdtAuditLogs(): Promise<CrdtAuditRecord[]> {
+    return this.getAllItems<CrdtAuditRecord>(STORE_CRDT_AUDIT);
+  }
+
   // Local Daily Reports
   public static async saveDailyReport(report: LocalDailyReport): Promise<void> {
     return this.putItem(STORE_DAILY_REPORTS, report);
@@ -155,4 +180,3 @@ export class IndexedDbStorage {
     return entries.filter((e) => e.projectId === projectId);
   }
 }
-

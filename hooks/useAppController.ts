@@ -1669,6 +1669,10 @@ export const useAppController = () => {
         case 'open_nextcloud_generator':
         case 'nextcloud_generator':
         case 'open_nextcloud': ui.setShowNextcloudModal(true); break;
+        case 'open_efcore_generator':
+        case 'efcore_generator': ui.setShowEfCoreModal(true); break;
+        case 'open_desktop_packaging':
+        case 'desktop_packaging': ui.setShowDesktopPackagingModal(true); break;
 
         case 'open_bridge_runner': {
             useBridgeStore.getState().setRunnerModalOpen(true);
