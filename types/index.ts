@@ -15,4 +15,5 @@ export * from './macro';
 export * from './tableTemplates';
 export * from './bridge';
 export * from './wordpress';
+export * from './nextcloud';
 export * from './pageFilter';

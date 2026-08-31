@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History, Laptop, Terminal, Layers, Package } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History, Laptop, Terminal, Layers, Package, Cloud } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -493,6 +493,47 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                         onClick: () => onAction('open_bridge_options'),
                         badge: bridgeLabelText,
                         badgeColor: 'blue'
+                    }
+                ]}
+            />
+        </RibbonGroup>
+
+        {/* Nextcloud App Generator Group */}
+        <RibbonGroup label="Nextcloud">
+            <RibbonDropdownButton 
+                icon={<Cloud className="text-sky-600" />} 
+                label="Nextcloud App" 
+                sublabel="OCP REST & Vue"
+                menuHeader="Nextcloud App & OCP REST Generator"
+                onMainClick={() => onAction('open_nextcloud_generator')} 
+                size="large"
+                items={[
+                    {
+                        id: 'nc_studio',
+                        label: 'Nextcloud App Studio',
+                        description: 'Visueller Generator für OCP REST API, Migrations & @nextcloud/vue',
+                        icon: <Cloud size={14} className="text-sky-600" />,
+                        onClick: () => onAction('open_nextcloud_generator'),
+                        badge: 'Studio',
+                        badgeColor: 'blue'
+                    },
+                    {
+                        id: 'nc_zip',
+                        label: 'Nextcloud App ZIP exportieren',
+                        description: 'Installationsbereites .zip Archiv für Nextcloud apps/ Ordner erstellen',
+                        icon: <Download size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_nextcloud_generator'),
+                        badge: 'ZIP',
+                        badgeColor: 'indigo'
+                    },
+                    {
+                        id: 'nc_apidoc',
+                        label: 'REST API & DI Spezifikation',
+                        description: 'NEXTCLOUD_API.md Dokumentation für Controller, Routen & DBAL',
+                        icon: <FileCode size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('open_nextcloud_generator'),
+                        badge: 'Doku',
+                        badgeColor: 'emerald'
                     }
                 ]}
             />

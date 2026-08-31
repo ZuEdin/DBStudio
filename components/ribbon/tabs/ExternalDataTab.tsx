@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Layers, WifiOff, ArrowLeftRight } from 'lucide-react';
+import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Layers, WifiOff, ArrowLeftRight, Cloud } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +47,7 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
       </RibbonGroup>
 
       <RibbonGroup label="Cloud &amp; APIs">
+        <RibbonButton icon={<Cloud className="text-sky-600" />} label="Nextcloud App" onClick={() => onAction('open_nextcloud_generator')} />
         <RibbonButton icon={<Globe className="text-blue-600" />} label="API Import" onClick={() => onAction('api_import')} />
         <RibbonButton icon={<Share2 className="text-teal-600" />} label="SharePoint" onClick={() => onAction('sharepoint_import')} />
         <RibbonButton icon={<RefreshCw className="text-cyan-600" />} label="Live DB Sync" onClick={() => onAction('live_sync')} />

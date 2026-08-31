@@ -1660,6 +1660,9 @@ export const useAppController = () => {
         case 'open_wordpress_generator':
         case 'wordpress_generator':
         case 'open_wordpress': ui.setShowWordPressModal(true); break;
+        case 'open_nextcloud_generator':
+        case 'nextcloud_generator':
+        case 'open_nextcloud': ui.setShowNextcloudModal(true); break;
 
         case 'open_bridge_runner': {
             useBridgeStore.getState().setRunnerModalOpen(true);

@@ -1,7 +1,8 @@
 import { DbType } from './database';
 import { WordPressPluginConfig } from './wordpress';
+import { NextcloudAppConfig } from './nextcloud';
 
-export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron' | 'python' | 'tauri' | 'wordpress';
+export type BackendLanguage = 'dotnet' | 'nodejs' | 'php' | 'laravel' | 'electron' | 'python' | 'tauri' | 'wordpress' | 'nextcloud';
 export type FrontendFramework = 'react' | 'angular' | 'angular-modern' | 'blazor' | 'mudblazor' | 'vue' | 'electron' | 'maui' | 'maui-native' | 'none' | 'tauri';
 export type StylingFramework = 'tailwind' | 'bootstrap' | 'none';
 
@@ -220,4 +221,5 @@ export interface BackendConfig {
   productTours?: ProductTour[];
   offlineSync?: OfflineSyncConfig;
   wordpressPlugin?: WordPressPluginConfig;
+  nextcloudApp?: NextcloudAppConfig;
 }

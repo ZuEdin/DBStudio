@@ -33,6 +33,7 @@ import { OpenApiMockServerModal } from '../features/openapi/OpenApiMockServerMod
 import { SecurityRlsModal } from '../features/security/SecurityRlsModal';
 import { AuditTrailModal } from '../features/audit-trail/AuditTrailModal';
 import { WordPressGeneratorModal } from '../features/wordpress/WordPressGeneratorModal';
+import { NextcloudGeneratorModal } from '../features/nextcloud/NextcloudGeneratorModal';
 import { OfflineSyncDashboardModal } from '../features/offline-sync';
 import { IndustryInterfacesModal } from '../features/industry-interfaces';
 import { SqliteWasmStudioModal } from '../features/backend/sqlite/SqliteWasmStudioModal';
@@ -417,6 +418,12 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {ui.showWordPressModal && (
         <WordPressGeneratorModal 
           onClose={() => ui.setShowWordPressModal(false)}
+        />
+      )}
+
+      {ui.showNextcloudModal && (
+        <NextcloudGeneratorModal 
+          onClose={() => ui.setShowNextcloudModal(false)}
         />
       )}
 
