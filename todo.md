@@ -75,17 +75,17 @@
 
 ---
 
-### 5. 🏗️ GAEB DA XML & DATANORM (85% ➔ 100%)
-- [ ] **Strukturierter GAEB XML 3.3 Re-Export:**
+### 5. 🏗️ GAEB DA XML & DATANORM (100%)
+- [x] **Strukturierter GAEB XML 3.3 Re-Export:**
   - Erzeugung valider GAEB XML-Dateien für Phase **X83** (Angebotsaufforderung) und **X84** (Angebotsabgabe).
   - Schema-Validierung gegen offizielle GAEB DA XML 3.3 XSD-Schemata.
-- [ ] **DATANORM 5.0 Rabattstaffel-Matrix:**
+- [x] **DATANORM 5.0 Rabattstaffel-Matrix:**
   - Automatische Verrechnung von 10-stufigen Warengruppen-Rabatten und Teuerungszuschlägen in der Positionskalkulation.
 
 ---
 
-### 6. 💼 ZUGFeRD 2.2 & E-Rechnungen (85% ➔ 100%)
-- [ ] **Erweiterte EN 16931 Validierungsregeln:**
+### 6. 💼 ZUGFeRD 2.2 & E-Rechnungen (100%)
+- [x] **Erweiterte EN 16931 Validierungsregeln:**
   - Ergänzung branchenspezifischer Schematron-Regeln für Bauleistungen (z. B. §13b UStG Steuerschuldnerschaft des Leistungsempfängers).
   - Automatische Überprüfung der Leitweg-ID für B2G-Portale (ZRE / OZG-RE).
 
