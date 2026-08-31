@@ -34,6 +34,8 @@ import { SwissQrBill } from './components/SwissQrBill';
 import { ReportEmailModal } from './components/ReportEmailModal';
 import { FreeformCanvasRenderer } from './components/FreeformCanvasRenderer';
 import { ZugferdValidationModal } from './components/ZugferdValidationModal';
+import { CrossPlatformPrintDialogModal } from './components/CrossPlatformPrintDialogModal';
+import { ReportExpressionEngine } from './utils/reportExpressionEngine';
 import { validateZugferdInvoice } from './utils/zugferdValidator';
 import { downloadZugferdXml } from './utils/zugferdGenerator';
 import { SvgPdfEmbedder } from './utils/svgPdfEmbedder';
@@ -500,6 +502,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showZugferdModal, setShowZugferdModal] = useState(false);
+  const [showPrintProfileModal, setShowPrintProfileModal] = useState(false);
 
   const zugferdValidation = useMemo(() => {
     return validateZugferdInvoice(
@@ -590,6 +593,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <span>ZUGFeRD {zugferdValidation.score}%</span>
               </button>
             )}
+            <button
+              id="report-print-profile-btn"
+              onClick={() => setShowPrintProfileModal(true)}
+              className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-black font-bold px-3 py-1.5 rounded text-xs transition-all shadow-sm cursor-pointer"
+              title="Plattformunabhängiger Druck-Manager (AirPrint, CUPS, Windows Spooler, PDF/A-3b)"
+            >
+              <Printer size={14} /> OS Druck-Manager
+            </button>
             <button
               id="report-print-btn"
               onClick={handlePrint}
@@ -978,8 +989,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
             report.settings?.showPageFooter !== false &&
             (bandSections?.pageFooter?.visible ?? true) && (
               <footer className="mt-12 pt-3 border-t border-slate-200 flex justify-between items-center text-[11px] text-slate-400 font-mono">
-                <div>DB Studio Pro • Banded Report Engine</div>
-                <div>Seite 1 von 1</div>
+                <div>DB Studio Pro • Banded Report Engine ({ReportExpressionEngine.evaluate('=Datum()', {})})</div>
+                <div>{ReportExpressionEngine.evaluate('="Seite " & [Seite] & " von " & [Seiten]', { pageNumber: 1, totalPages: 1 })}</div>
               </footer>
             )
           )}
@@ -988,6 +999,21 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
       {detailView && targetTable && (
         <RecordDetailModal table={targetTable} recordId={detailView.recordId} onClose={() => setDetailView(null)} />
+      )}
+
+      {showPrintProfileModal && (
+        <CrossPlatformPrintDialogModal
+          isOpen={showPrintProfileModal}
+          onClose={() => setShowPrintProfileModal(false)}
+          report={report}
+          pageCount={1}
+          onExecutePrint={() => {
+            handlePrint();
+          }}
+          onExportPdfA={(compliance) => {
+            handleExportPDF();
+          }}
+        />
       )}
 
       {showEmailModal && (

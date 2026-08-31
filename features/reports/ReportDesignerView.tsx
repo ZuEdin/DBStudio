@@ -40,6 +40,9 @@ import { FreeformCanvasManager } from './components/FreeformCanvasManager';
 import { BandModelEditorModal } from './components/BandModelEditorModal';
 import { LabelThermalPrintModal } from './components/LabelThermalPrintModal';
 import { PdfExportWorkflowModal } from './components/PdfExportWorkflowModal';
+import { CrossPlatformPrintDialogModal } from './components/CrossPlatformPrintDialogModal';
+import { WysiwygBandedReportDesigner } from './designer/WysiwygBandedReportDesigner';
+import { ExpressionBuilderModal } from './designer/ExpressionBuilderModal';
 import { eventBus } from '../../services/eventBus';
 
 interface ReportDesignerViewProps {
@@ -60,6 +63,7 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({
   onReportChange,
 }) => {
   const [activeTab, setActiveTab] = useState<'columns' | 'grouping' | 'summaries' | 'banded' | 'canvas' | 'din5008' | 'advanced' | 'settings'>('columns');
+  const [viewMode, setViewMode] = useState<'wysiwyg' | 'preview' | 'split'>('wysiwyg');
   const [columns, setColumns] = useState<ReportColumn[]>([]);
   const [sourceFields, setSourceFields] = useState<Field[]>([]);
   const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
@@ -70,6 +74,8 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({
   const [showBandModelModal, setShowBandModelModal] = useState(false);
   const [showLabelThermalModal, setShowLabelThermalModal] = useState(false);
   const [showPdfWorkflowModal, setShowPdfWorkflowModal] = useState(false);
+  const [showPrintProfileModal, setShowPrintProfileModal] = useState(false);
+  const [showExpressionBuilderModal, setShowExpressionBuilderModal] = useState(false);
 
   useEffect(() => {
     const unsub = eventBus.subscribe('REPORT_DESIGN_ACTION', (payload: any) => {
@@ -816,24 +822,108 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({
         </div>
       </div>
 
-      {/* CENTER: Live Preview */}
+      {/* CENTER: WYSIWYG Canvas or Live Preview */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="bg-slate-800 p-2 text-xs text-center text-slate-300 border-b border-slate-700 shrink-0 font-mono flex items-center justify-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>LIVE BERICHTSVORSCHAU (BANDED REPORT ENGINE)</span>
-        </div>
-        <div className="flex-1 overflow-auto relative bg-slate-300 p-4">
-          <div className="max-w-5xl mx-auto">
-            <ReportView
-              report={previewReport}
-              data={previewData}
-              sourceFields={sourceFields}
-              allTables={tables}
-              relationships={relationships}
-              allReports={allReports}
-              allQueries={queries}
-            />
+        <div className="bg-slate-900 p-2 text-xs text-slate-300 border-b border-slate-800 shrink-0 flex items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-amber-400 uppercase tracking-wide">Ansichtsmodus:</span>
+            <div className="flex rounded-md bg-slate-800 p-0.5 border border-slate-700">
+              <button
+                onClick={() => setViewMode('wysiwyg')}
+                className={`px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'wysiwyg'
+                    ? 'bg-amber-500 text-black shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                📐 WYSIWYG Entwurfsansicht
+              </button>
+              <button
+                onClick={() => setViewMode('preview')}
+                className={`px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'preview'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                📄 Seitenansicht (Preview)
+              </button>
+              <button
+                onClick={() => setViewMode('split')}
+                className={`px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'split'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                🎛️ Geteilt (Split)
+              </button>
+            </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowExpressionBuilderModal(true)}
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-amber-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+            >
+              <Calculator size={13} /> Formel-Generator
+            </button>
+            <button
+              onClick={() => setShowPrintProfileModal(true)}
+              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-black font-bold rounded text-[11px] flex items-center gap-1 cursor-pointer"
+            >
+              <FileText size={13} /> OS Druck-Manager
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto relative bg-slate-900/90">
+          {viewMode === 'wysiwyg' && (
+            <WysiwygBandedReportDesigner
+              report={previewReport}
+              sourceFields={sourceFields}
+              sampleData={previewData}
+              onReportChange={onReportChange}
+            />
+          )}
+
+          {viewMode === 'preview' && (
+            <div className="p-4 max-w-5xl mx-auto h-full">
+              <ReportView
+                report={previewReport}
+                data={previewData}
+                sourceFields={sourceFields}
+                allTables={tables}
+                relationships={relationships}
+                allReports={allReports}
+                allQueries={queries}
+              />
+            </div>
+          )}
+
+          {viewMode === 'split' && (
+            <div className="grid grid-cols-2 h-full gap-2 p-2">
+              <div className="h-full border-r border-slate-800 overflow-y-auto">
+                <WysiwygBandedReportDesigner
+                  report={previewReport}
+                  sourceFields={sourceFields}
+                  sampleData={previewData}
+                  onReportChange={onReportChange}
+                />
+              </div>
+              <div className="h-full overflow-y-auto bg-slate-200 p-2 rounded">
+                <ReportView
+                  report={previewReport}
+                  data={previewData}
+                  sourceFields={sourceFields}
+                  allTables={tables}
+                  relationships={relationships}
+                  allReports={allReports}
+                  allQueries={queries}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -869,6 +959,36 @@ export const ReportDesignerView: React.FC<ReportDesignerViewProps> = ({
           isOpen={showPdfWorkflowModal}
           onClose={() => setShowPdfWorkflowModal(false)}
           reportTitle={report.name || 'Ausgangsrechnung_2026_001'}
+        />
+      )}
+
+      {showPrintProfileModal && (
+        <CrossPlatformPrintDialogModal
+          isOpen={showPrintProfileModal}
+          onClose={() => setShowPrintProfileModal(false)}
+          report={previewReport}
+          pageCount={1}
+          onExecutePrint={() => {
+            if (typeof window !== 'undefined') {
+              window.print();
+            }
+          }}
+          onExportPdfA={(compliance) => {
+            setShowPdfWorkflowModal(true);
+          }}
+        />
+      )}
+
+      {showExpressionBuilderModal && (
+        <ExpressionBuilderModal
+          isOpen={showExpressionBuilderModal}
+          onClose={() => setShowExpressionBuilderModal(false)}
+          initialExpression="=Summe([Betrag])"
+          sourceFields={sourceFields}
+          sampleData={previewData}
+          onApplyExpression={(expr) => {
+            console.log('Expression applied:', expr);
+          }}
         />
       )}
     </div>
