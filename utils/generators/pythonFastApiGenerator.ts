@@ -62,10 +62,11 @@ async def get_db():
 
   // Models & Schemas for each Table
   tables.forEach((t) => {
-    const fields = t.columns
+    const fields = (t.fields || [])
       .map((c) => {
-        const pyType = c.type === 'number' ? 'int' : c.type === 'boolean' ? 'bool' : 'str';
-        return `    ${c.name}: ${c.nullable ? `Optional[${pyType}] = None` : pyType}`;
+        const isNum = c.type === 'INTEGER' || c.type === 'INT' || c.type === 'BIGINT' || c.type === 'DOUBLE' || c.type === 'FLOAT' || c.type === 'DECIMAL';
+        const pyType = isNum ? 'int' : c.type === 'BOOLEAN' ? 'bool' : 'str';
+        return `    ${c.name}: ${c.isNullable || c.allowNull ? `Optional[${pyType}] = None` : pyType}`;
       })
       .join('\n');
 
@@ -86,10 +87,11 @@ class ${t.name}Response(${t.name}Base):
 `;
 
     // SQLAlchemy Model
-    const sqlCols = t.columns
+    const sqlCols = (t.fields || [])
       .map((c) => {
-        const colType = c.type === 'number' ? 'Integer' : c.type === 'boolean' ? 'Boolean' : 'String';
-        return `    ${c.name} = Column(${colType}${c.isPrimaryKey ? ', primary_key=True' : ''}${c.nullable ? ', nullable=True' : ', nullable=False'})`;
+        const isNum = c.type === 'INTEGER' || c.type === 'INT' || c.type === 'BIGINT' || c.type === 'DOUBLE' || c.type === 'FLOAT' || c.type === 'DECIMAL';
+        const colType = isNum ? 'Integer' : c.type === 'BOOLEAN' ? 'Boolean' : 'String';
+        return `    ${c.name} = Column(${colType}${c.isPrimaryKey ? ', primary_key=True' : ''}${c.isNullable || c.allowNull ? ', nullable=True' : ', nullable=False'})`;
       })
       .join('\n');
 

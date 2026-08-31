@@ -48,10 +48,11 @@ export const generateNodeBackendProject = (
   // Schema definition for Drizzle ORM
   const drizzleTables = tables
     .map((t) => {
-      const cols = t.columns
+      const cols = (t.fields || [])
         .map((c) => {
-          const tName = c.type === 'number' ? 'integer' : c.type === 'boolean' ? 'boolean' : 'text';
-          return `  ${c.name}: ${tName}('${c.name}')${c.isPrimaryKey ? '.primaryKey()' : ''}${c.nullable ? '' : '.notNull()'}`;
+          const isNum = c.type === 'INTEGER' || c.type === 'INT' || c.type === 'BIGINT' || c.type === 'DOUBLE' || c.type === 'FLOAT' || c.type === 'DECIMAL';
+          const tName = isNum ? 'integer' : c.type === 'BOOLEAN' ? 'boolean' : 'text';
+          return `  ${c.name}: ${tName}('${c.name}')${c.isPrimaryKey ? '.primaryKey()' : ''}${c.isNullable || c.allowNull ? '' : '.notNull()'}`;
         })
         .join(',\n');
 
@@ -85,7 +86,11 @@ app.get('/api/${t.name.toLowerCase()}s', async (req, res) => {
 
 app.post('/api/${t.name.toLowerCase()}s', async (req, res) => {
   const bodySchema = z.object({
-    ${t.columns.map((c) => `${c.name}: z.${c.type === 'number' ? 'number()' : c.type === 'boolean' ? 'boolean()' : 'string()'}${c.nullable ? '.optional()' : ''}`).join(',\n    ')}
+    ${(t.fields || []).map((c) => {
+      const isNum = c.type === 'INTEGER' || c.type === 'INT' || c.type === 'BIGINT' || c.type === 'DOUBLE' || c.type === 'FLOAT' || c.type === 'DECIMAL';
+      const zType = isNum ? 'number()' : c.type === 'BOOLEAN' ? 'boolean()' : 'string()';
+      return `${c.name}: z.${zType}${c.isNullable || c.allowNull ? '.optional()' : ''}`;
+    }).join(',\n    ')}
   });
 
   const parsed = bodySchema.safeParse(req.body);

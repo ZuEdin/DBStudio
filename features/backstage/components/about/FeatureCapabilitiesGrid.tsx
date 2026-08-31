@@ -114,17 +114,17 @@ export const FeatureCapabilitiesGrid: React.FC<FeatureCapabilitiesGridProps> = (
         <div className="bg-[#242424] border border-[#383838] rounded-2xl p-5 md:p-6 space-y-4 flex flex-col justify-between shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center gap-2.5 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-              <Printer size={17} /> 4. Berichte &amp; Rechnungen
+              <Printer size={17} /> 4. Bänder-Berichte &amp; E-Invoicing
             </div>
-            <h3 className="text-sm font-bold text-white">Druckreife PDF- &amp; Dokumenten-Engine</h3>
+            <h3 className="text-sm font-bold text-white">Druckreife PDF- &amp; E-Rechnungs-Engine</h3>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Erstellen Sie Angebote, Rechnungen, Lieferscheine oder tabellarische Bestandsberichte mit Kopf-, Detail- und Fußzeilen sowie automatischen Zwischensummen.
+              Erstellen Sie Angebote, Rechnungen, Lieferscheine oder Bestandsberichte mit Band-Architektur (Berichtskopf, Seitenkopf, Gruppen, Detailzeilen, Berichtsfuss) sowie ZUGFeRD &amp; Swiss QR.
             </p>
             <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#333333] space-y-1.5 text-xs text-neutral-400">
               <div className="text-neutral-200 font-medium">Highlights:</div>
-              <div>• Vorlagen für Rechnungen, Inventarlisten &amp; Adressetiketten</div>
-              <div>• 1-Klick Druckansicht &amp; A4-Seitenumbruch</div>
-              <div>• Automatische Währungs- &amp; Datumsformatierung</div>
+              <div>• ZUGFeRD 2.0 / Factur-X XML-Einbettung &amp; Swiss QR-Code</div>
+              <div>• DIN 5008 Faltmarken &amp; ESC/POS Thermo-Bondruck (58/80mm)</div>
+              <div>• 1-Klick Druckansicht, PDF-Export &amp; E-Mail-Versand</div>
             </div>
           </div>
           {onNavigateAction && (
@@ -163,17 +163,17 @@ export const FeatureCapabilitiesGrid: React.FC<FeatureCapabilitiesGridProps> = (
         <div className="bg-[#242424] border border-[#383838] rounded-2xl p-5 md:p-6 space-y-4 flex flex-col justify-between shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center gap-2.5 text-amber-400 font-bold text-xs uppercase tracking-wider">
-              <Code2 size={17} /> 6. Code-Generierung
+              <Code2 size={17} /> 6. Full-Stack Code-Generierung
             </div>
             <h3 className="text-sm font-bold text-white">100% Echter, kompilierbarer Quellcode</h3>
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Generieren Sie auf Knopfdruck vollständige, deploybare Anwendungen. Kein proprietärer Viewer nötig – der Code gehört zu 100% Ihnen.
+              Generieren Sie auf Knopfdruck vollständige, deploybare Anwendungen für .NET 10, Node.js Fastify, Python FastAPI oder Laravel 11 Filament.
             </p>
             <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#333333] space-y-1.5 text-xs text-neutral-400">
               <div className="text-neutral-200 font-medium">Highlights:</div>
-              <div>• C# ASP.NET Core (.NET 10) &amp; Node.js Express APIs</div>
-              <div>• React &amp; Angular SPA Frontends mit Tailwind CSS</div>
-              <div>• PHP 8.x PDO Backend für universelles Webhosting</div>
+              <div>• .NET 10 EF Core Multi-DB &amp; FastEndpoints</div>
+              <div>• Python FastAPI + SQLAlchemy / Node.js Fastify + Drizzle</div>
+              <div>• React 19, Angular 19, Vue 3.5, Svelte 5 &amp; PHP Filament</div>
             </div>
           </div>
           <div className="w-full py-2.5 px-3 rounded-lg bg-[#1c1c1c] text-xs font-semibold text-amber-300 border border-amber-900/40 text-center">

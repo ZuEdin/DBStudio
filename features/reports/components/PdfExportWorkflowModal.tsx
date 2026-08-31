@@ -39,10 +39,14 @@ export const PdfExportWorkflowModal: React.FC<PdfExportWorkflowModalProps> = ({
     if (embedZugferd) {
       downloadZugferdXml(
         {
+          enabled: true,
           profile: zugferdProfile,
           invoiceNumber: 'INV-2026-881',
           sellerName: 'Musterbau GmbH',
+          sellerVatId: 'DE123456789',
           buyerName: 'Kunde AG',
+          currency: 'EUR',
+          pdfCompliance: 'PDF/A-3b',
         },
         1250.0,
         237.5,

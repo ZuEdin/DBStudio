@@ -56,6 +56,7 @@ export interface Field {
   type: FieldType;
   comment?: string;
   isPrimaryKey?: boolean;
+  isForeignKey?: boolean;
   isAutoIncrement?: boolean;
   isUnique?: boolean;
   isIndexed?: boolean;

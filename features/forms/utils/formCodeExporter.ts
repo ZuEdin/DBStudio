@@ -1,4 +1,4 @@
-import { Form, FormElement, Table } from '../../types/index';
+import { Form, FormElement, Table } from '../../../types/index';
 
 export const generateReactFormCode = (form: Form, sourceTable?: Table): string => {
   const fields = form.fields || [];

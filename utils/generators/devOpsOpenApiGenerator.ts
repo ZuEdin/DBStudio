@@ -25,8 +25,8 @@ export const generateDevOpsArtifacts = (
             'application/json': {
               schema: {
                 type: 'object',
-                properties: t.columns.reduce((acc, c) => {
-                  acc[c.name] = { type: c.type === 'number' ? 'integer' : 'string' };
+                properties: (t.fields || []).reduce((acc, c) => {
+                  acc[c.name] = { type: c.type === 'INTEGER' || c.type === 'INT' || c.type === 'DECIMAL' || c.type === 'FLOAT' || c.type === 'DOUBLE' ? 'number' : 'string' };
                   return acc;
                 }, {} as Record<string, any>),
               },

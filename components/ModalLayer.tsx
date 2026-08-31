@@ -74,7 +74,7 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
   const { isRunnerModalOpen, setRunnerModalOpen } = useBridgeStore();
   
   const { 
-    tables, queries, reports, forms, backendConfig, setBackendConfig,
+    tables, queries, reports, forms, relationships, backendConfig, setBackendConfig,
     addTable, updateTable, setQueries, setReports, setForms, snapshot, lastSnapshot
   } = store;
   

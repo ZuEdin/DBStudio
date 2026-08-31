@@ -12,6 +12,7 @@ import { generateBackendCode } from '../utils/backendGenerators';
 import { generateDeploymentScripts } from '../utils/generators/deploymentGenerator';
 import { getSavedMacros } from '../features/logic/MacroEngine';
 import { useBridgeStore } from '../stores/useBridgeStore';
+import { eventBus } from '../services/eventBus';
 import * as XLSX from 'xlsx';
 
 // Import Sub-Hooks

@@ -42,7 +42,7 @@ export const generatePhpLaravelProject = (
 
   // Models with PHP 8 Attributes
   tables.forEach((t) => {
-    const fillable = t.columns.map((c) => `'${c.name}'`).join(', ');
+    const fillable = (t.fields || []).map((c) => `'${c.name}'`).join(', ');
 
     files[`app/Models/${t.name}.php`] = `<?php
 
@@ -79,7 +79,7 @@ class ${t.name}Controller extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            ${t.columns.map((c) => `'${c.name}' => '${c.nullable ? 'nullable' : 'required'}'`).join(',\n            ')}
+            ${(t.fields || []).map((c) => `'${c.name}' => '${c.isNullable || c.allowNull ? 'nullable' : 'required'}'`).join(',\n            ')}
         ]);
 
         $record = ${t.name}::create($validated);
@@ -106,7 +106,7 @@ class ${t.name}Resource extends Resource
     public static function form(Forms\\Form $form): Forms\\Form
     {
         return $form->schema([
-            ${t.columns.map((c) => `Forms\\Components\\TextInput::make('${c.name}')->required(!${c.nullable})`).join(',\n            ')}
+            ${(t.fields || []).map((c) => `Forms\\Components\\TextInput::make('${c.name}')->required(${c.isNullable || c.allowNull ? 'false' : 'true'})`).join(',\n            ')}
         ]);
     }
 }`;

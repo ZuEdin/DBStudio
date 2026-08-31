@@ -21,7 +21,7 @@ export const RealCapabilitiesMatrix: React.FC = () => {
     <div className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <CheckCircle2 className="text-indigo-400" size={20} /> Leistungs-Matrix: In-Browser Web-Suite (v0.8.5 Beta) vs. Local Bridge (v0.9.2 Beta)
+          <CheckCircle2 className="text-emerald-400" size={20} /> Leistungs-Matrix: In-Browser Web-Suite (v1.0.0 Enterprise) vs. Local Bridge (v1.0.0)
         </h2>
         <p className="text-xs text-neutral-400">
           Ehrliche Übersicht aller Module und deren ideale architektonische Zuordnung (Be-Honest Methode):
@@ -35,8 +35,8 @@ export const RealCapabilitiesMatrix: React.FC = () => {
             <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm">
               <Layers size={18} className="text-indigo-400" /> DB Studio Pro (Visuelle In-Browser Suite)
             </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
-              v0.8.5 (Beta-Betrieb)
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+              v1.0.0 (Produktiv-Release)
             </span>
           </div>
 
@@ -70,19 +70,19 @@ export const RealCapabilitiesMatrix: React.FC = () => {
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Code2 size={15} className="text-cyan-400" /> .NET 10 EF Core Multi-DB Code-Generator
+                <Code2 size={15} className="text-cyan-400" /> Multi-Stack Code-Generatoren
               </div>
               <p className="text-[11px] text-neutral-400">
-                Generiert sauberen C# Code für SQL Server, SQLite, MySQL und PostgreSQL mit automatischer DDL-Erstellung und <code>SET IDENTITY_INSERT</code>.
+                .NET 10 EF Core &amp; FastEndpoints, Node/Fastify/Drizzle, Python FastAPI + SQLAlchemy, Laravel 11 Filament sowie Frontend-Exporte (React 19, Angular 19, Vue 3.5, Svelte 5).
               </p>
             </div>
 
             <div className="space-y-1 bg-[#1d1d1d] p-3 rounded-xl border border-[#333333]">
               <div className="font-bold text-white flex items-center gap-2">
-                <Printer size={15} className="text-amber-400" /> ZUGFeRD 2.0 &amp; Swiss QR-Bill E-Invoicing
+                <Printer size={15} className="text-amber-400" /> Banded Report Engine, ZUGFeRD &amp; Swiss QR
               </div>
               <p className="text-[11px] text-neutral-400">
-                Erzeugt EN 16931-konforme XML-Rechnungsdateien, Schweizer Zahlteile und DIN 5008 Faltmarken-Layouts direkt im Browser.
+                Bänder-Modell (Kopf/Details/Gruppen/Fuß), EN 16931 / ZUGFeRD XML-Einbettung in PDF/A-3b, Schweizer Zahlteile mit QR-IBAN und ESC/POS Thermo-Bondruck.
               </p>
             </div>
           </div>
@@ -92,10 +92,10 @@ export const RealCapabilitiesMatrix: React.FC = () => {
         <div className="bg-[#242424] border border-amber-900/50 rounded-2xl p-5 space-y-4 shadow-sm">
           <div className="flex items-center justify-between pb-3 border-b border-amber-950">
             <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-              <Server size={18} className="text-amber-400" /> DB Studio Local Bridge (v0.9.2 Beta Daemon)
+              <Server size={18} className="text-amber-400" /> DB Studio Local Bridge (v1.0.0 Native Daemon)
             </div>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">
-              v0.9.2 (Pre-1.0)
+              v1.0.0 (Produktionsbereit)
             </span>
           </div>
 

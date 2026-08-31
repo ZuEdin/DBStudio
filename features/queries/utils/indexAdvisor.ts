@@ -70,7 +70,7 @@ export const analyzeQueryIndexes = (
 
     // 3. Analyze ORDER BY columns
     const sortedCols = selectQuery.columns.filter(
-      (c) => (c.tableId === table.id || c.tableName === table.name) && c.sort && c.sort !== ''
+      (c) => (c.tableId === table.id || c.tableName === table.name) && Boolean(c.sort)
     );
 
     if (sortedCols.length > 0) {

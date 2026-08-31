@@ -450,12 +450,24 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   const [showEmailModal, setShowEmailModal] = useState(false);
 
+  const handlePrint = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.focus();
+        window.print();
+      }
+    } catch (err) {
+      console.warn('Browser print dialog could not be invoked directly (e.g. iframe restriction). Generating PDF fallback...', err);
+      handleExportPDF();
+    }
+  };
+
   // Subscribe to Global MFE EventBus for PRINT_REPORT
   useEffect(() => {
     const unsub = eventBus.subscribe('PRINT_REPORT', (payload: any) => {
-      if (!payload || payload.reportId === report.id) {
+      if (!payload || !payload.reportId || payload.reportId === report.id) {
         if (payload?.outputFormat === 'print_dialog') {
-          window.print();
+          handlePrint();
         } else if (payload?.outputFormat === 'pdf_download') {
           handleExportPDF();
         } else if (payload?.outputFormat === 'email_direct') {
@@ -482,7 +494,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
       {/* Sticky Toolbar */}
       {!widgetMode && (
-        <div className="bg-white border-b border-slate-300 p-2 flex justify-between items-center flex-shrink-0 sticky top-0 z-20 shadow-sm">
+        <div className="bg-white border-b border-slate-300 p-2 flex justify-between items-center flex-shrink-0 sticky top-0 z-20 shadow-sm no-print">
           <div className="flex items-center gap-2 pl-2 text-xs font-bold text-slate-700">
             <Printer size={16} className="text-blue-600" />
             <span>Berichtsvorschau (Banded Report Engine)</span>
@@ -493,7 +505,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowEmailModal(true)}
-              className="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm"
+              className="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm cursor-pointer"
               title="Bericht direkt per E-Mail versenden"
             >
               <Mail size={14} /> E-Mail
@@ -501,27 +513,29 @@ export const ReportView: React.FC<ReportViewProps> = ({
             {zugferdConfig?.enabled && (
               <button
                 onClick={() => downloadZugferdXml(zugferdConfig, baseNetTotal, baseNetTotal * 0.19, baseNetTotal * 1.19)}
-                className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm"
+                className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm cursor-pointer"
                 title="ZUGFeRD / Factur-X XML herunterladen"
               >
                 <FileCode size={14} /> Factur-X XML
               </button>
             )}
             <button
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm"
+              id="report-print-btn"
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white px-3 py-1.5 rounded font-semibold text-xs transition-all shadow-sm cursor-pointer"
+              title="Bericht drucken"
             >
               <Printer size={14} /> Drucken
             </button>
             <button
               onClick={handleExportExcel}
-              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm"
+              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm cursor-pointer"
             >
               <FileSpreadsheet size={14} /> Excel
             </button>
             <button
               onClick={handleExportPDF}
-              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm"
+              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm cursor-pointer"
             >
               <FileText size={14} /> PDF
             </button>
@@ -531,10 +545,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
       <div className={`${widgetMode ? 'p-2 relative' : 'p-8 flex-1 bg-slate-200'} overflow-auto`}>
         <div
+          id="report-paper-container"
           className={
             widgetMode
-              ? 'w-full bg-white h-full'
-              : `mx-auto bg-white shadow-2xl p-[15mm] border border-slate-300 transition-all duration-300 ${sizeClasses}`
+              ? 'w-full bg-white h-full report-paper'
+              : `report-paper mx-auto bg-white shadow-2xl p-[15mm] border border-slate-300 transition-all duration-300 ${sizeClasses}`
           }
         >
           {/* 1. DIN 5008 LETTERHEAD (If enabled) */}

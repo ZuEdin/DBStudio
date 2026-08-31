@@ -124,7 +124,7 @@ export interface SwissQrCodeConfig {
 
 export interface ZugferdConfig {
   enabled: boolean;
-  profile: 'MINIMUM' | 'BASIC_WL' | 'BASIC' | 'EN16931' | 'EXTENDED' | 'XRECHNUNG';
+  profile: 'MINIMUM' | 'BASIC_WL' | 'BASIC' | 'EN16931' | 'COMFORT' | 'EXTENDED' | 'XRECHNUNG';
   invoiceNumber: string;
   issueDate?: string;
   dueDate?: string;

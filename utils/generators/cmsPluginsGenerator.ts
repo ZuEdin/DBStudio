@@ -30,7 +30,7 @@ function ${slug}_install_db() {
     $table_${t.name.toLowerCase()} = $wpdb->prefix . '${t.name.toLowerCase()}s';
     $sql_${t.name.toLowerCase()} = "CREATE TABLE $table_${t.name.toLowerCase()} (
         id bigint(20) NOT NULL AUTO_INCREMENT,
-        ${t.columns.map((c) => `${c.name} varchar(255) DEFAULT '' NOT NULL`).join(',\n        ')},
+        ${(t.fields || []).map((c) => `${c.name} varchar(255) DEFAULT '' NOT NULL`).join(',\n        ')},
         PRIMARY KEY  (id)
     ) $charset_collate;";
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');

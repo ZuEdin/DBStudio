@@ -66,10 +66,11 @@ export const generateDotNet10Solution = (
 
   // 2. Domain Models
   tables.forEach((t) => {
-    const props = t.columns
+    const props = (t.fields || [])
       .map((c) => {
-        const typeStr = c.type === 'number' ? 'int' : c.type === 'boolean' ? 'bool' : c.type === 'date' ? 'DateTime' : 'string';
-        return `    public ${typeStr}${c.nullable ? '?' : ''} ${c.name} { get; set; }`;
+        const isNum = c.type === 'INTEGER' || c.type === 'INT' || c.type === 'BIGINT' || c.type === 'DOUBLE' || c.type === 'FLOAT' || c.type === 'DECIMAL';
+        const typeStr = isNum ? 'int' : c.type === 'BOOLEAN' ? 'bool' : c.type === 'DATE' || c.type === 'DATETIME' || c.type === 'TIMESTAMP' ? 'DateTime' : 'string';
+        return `    public ${typeStr}${c.isNullable || c.allowNull ? '?' : ''} ${c.name} { get; set; }`;
       })
       .join('\n');
 
