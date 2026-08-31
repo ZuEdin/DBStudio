@@ -65,14 +65,14 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
                 ui.setCurrentView({ type: 'query_designer', queryId: store.queries[0].id });
               }
             }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium cursor-pointer ${
               isQueryDesigner
-                ? 'bg-blue-100 text-blue-900 font-semibold'
-                : 'text-slate-700 hover:bg-sky-100 hover:text-sky-900'
+                ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-300 font-semibold'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Visueller Abfrage-Designer mit QBE-Grid"
           >
-            <Eye size={13} className="text-blue-600 shrink-0" />
+            <Eye size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
             <span className="truncate">Entwurfsansicht</span>
           </button>
           <button
@@ -83,22 +83,22 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
                 ui.setCurrentView({ type: 'query_results', queryId: store.queries[0].id });
               }
             }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium cursor-pointer ${
               isQueryResults
-                ? 'bg-emerald-100 text-emerald-900 font-semibold'
-                : 'text-slate-700 hover:bg-sky-100 hover:text-sky-900'
+                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 font-semibold'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Ergebnistabelle mit Live-Daten anzeigen"
           >
-            <TableIcon size={13} className="text-emerald-600 shrink-0" />
+            <TableIcon size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Datenblattansicht</span>
           </button>
           <button
             onClick={() => onAction('query_open_sql_view')}
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Generierten SQL-Code anzeigen / bearbeiten"
           >
-            <Code size={13} className="text-indigo-600 shrink-0" />
+            <Code size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="truncate">SQL-Ansicht</span>
           </button>
         </div>
@@ -107,7 +107,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
       {/* 2. Abfragetyp (Access Query Types) */}
       <RibbonGroup label="Abfragetyp">
         <RibbonButton
-          icon={<TableIcon className="text-blue-600" />}
+          icon={<TableIcon className="text-blue-600 dark:text-blue-400" />}
           label="Auswahl (SELECT)"
           active={isSelectQuery}
           onClick={() => onAction('query_set_type_select')}
@@ -115,29 +115,29 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           title="Standard-Auswahlabfrage zur Datenanzeige"
         />
 
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px] border-r border-slate-200/50 pr-2">
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px] border-r border-slate-200/50 dark:border-slate-700/60 pr-2">
           <button
             onClick={() => onAction('query_open_crosstab_wizard')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Kreuztabellen-Assistent für Matrix- und Pivot-Auswertungen"
           >
-            <FileSpreadsheet size={13} className="text-purple-600 shrink-0" />
+            <FileSpreadsheet size={13} className="text-purple-600 dark:text-purple-400 shrink-0" />
             <span className="truncate">Kreuztabelle (Pivot)</span>
           </button>
           <button
             onClick={() => ui.setActiveWizard('append')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Anfügeabfrage (INSERT INTO) mit Assistent"
           >
-            <Plus size={13} className="text-emerald-600 shrink-0" />
+            <Plus size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Anfügen (INSERT)</span>
           </button>
           <button
             onClick={() => ui.setActiveWizard('update')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Aktualisierungsabfrage (UPDATE) mit Assistent"
           >
-            <RefreshCw size={13} className="text-amber-600 shrink-0" />
+            <RefreshCw size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
             <span className="truncate">Aktualisieren (UPDATE)</span>
           </button>
         </div>
@@ -145,7 +145,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[125px]">
           <button
             onClick={() => ui.setActiveWizard('delete')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-800 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-800 dark:hover:text-rose-300 transition-colors text-left font-medium cursor-pointer"
             title="Löschabfrage (DELETE FROM) mit Assistent"
           >
             <Trash2 size={13} className="text-rose-500 shrink-0" />
@@ -153,7 +153,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           </button>
           <button
             onClick={() => ui.setActiveWizard('duplicate')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Duplikatsuche-Assistent"
           >
             <Layers size={13} className="text-blue-500 shrink-0" />
@@ -161,10 +161,10 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           </button>
           <button
             onClick={() => ui.setActiveWizard('inconsistency')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Inkonsistenzsuche (verwaiste Datensätze ohne Foreign Key)"
           >
-            <HelpCircle size={13} className="text-indigo-600 shrink-0" />
+            <HelpCircle size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="truncate">Inkonsistenzsuche</span>
           </button>
         </div>
@@ -173,33 +173,33 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
       {/* 3. Abfrage-Setup */}
       <RibbonGroup label="Abfrage-Setup">
         <RibbonButton
-          icon={<Sigma className="text-indigo-600" />}
+          icon={<Sigma className="text-indigo-600 dark:text-indigo-400" />}
           label="Summen (Σ)"
           onClick={() => onAction('query_toggle_totals')}
           size="large"
           title="Blendet die Summen-Zeile (GROUP BY / Aggregationen) im QBE-Grid ein/aus"
         />
 
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px] border-r border-slate-200/50 pr-2">
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px] border-r border-slate-200/50 dark:border-slate-700/60 pr-2">
           <button
             onClick={() => onAction('query_add_table_node')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Weitere Tabelle zur visuellen Abfrage hinzufügen"
           >
-            <Plus size={13} className="text-emerald-600 shrink-0" />
+            <Plus size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Tabelle einfügen</span>
           </button>
           <button
             onClick={() => onAction('query_open_join_props')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="JOIN-Eigenschaften konfigurieren (INNER JOIN, LEFT JOIN, RIGHT JOIN)"
           >
-            <ArrowRightLeft size={13} className="text-blue-600 shrink-0" />
+            <ArrowRightLeft size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
             <span className="truncate">JOIN-Typen...</span>
           </button>
           <button
             onClick={() => onAction('query_open_parameters_modal')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Parameter definieren (z.B. [Bitte Kundennummer eingeben])"
           >
             <Sliders size={13} className="text-amber-500 shrink-0" />
@@ -210,15 +210,15 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[120px]">
           <button
             onClick={() => onAction('query_toggle_distinct')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Keine Duplikate (SELECT DISTINCT)"
           >
-            <CheckSquare size={13} className="text-teal-600 shrink-0" />
+            <CheckSquare size={13} className="text-teal-600 dark:text-teal-400 shrink-0" />
             <span className="truncate">Eindeutig (DISTINCT)</span>
           </button>
           <button
             onClick={() => onAction('query_open_criteria_helper')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Formel- und Kriterien-Assistent für WHERE-Bedingungen"
           >
             <Sparkles size={13} className="text-purple-500 shrink-0" />
@@ -230,7 +230,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
       {/* 4. Konvertierung & Export */}
       <RibbonGroup label="Konvertierung & Export" isLast>
         <RibbonButton
-          icon={<FileCode className="text-purple-600" />}
+          icon={<FileCode className="text-purple-600 dark:text-purple-400" />}
           label="Access SQL Converter"
           onClick={() => onAction('query_open_access_converter')}
           size="large"
@@ -240,18 +240,18 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[125px]">
           <button
             onClick={() => onAction('query_export_as_view')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Erstellt ein CREATE VIEW Skript aus dieser Abfrage"
           >
-            <Database size={13} className="text-indigo-600 shrink-0" />
+            <Database size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="truncate">Als SQL-View</span>
           </button>
           <button
             onClick={() => onAction('query_open_export_modal')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Query-Export als JSON, SQL oder C# LINQ"
           >
-            <FileSpreadsheet size={13} className="text-emerald-600 shrink-0" />
+            <FileSpreadsheet size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Exportieren...</span>
           </button>
         </div>

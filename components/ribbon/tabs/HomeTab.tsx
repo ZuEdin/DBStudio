@@ -30,27 +30,27 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
         />
         
         {/* Column 1: Sorting */}
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px] border-r border-slate-200/50 pr-2">
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px] border-r border-slate-200/50 dark:border-slate-700/60 pr-2">
           <button 
             onClick={() => onAction('form_sort_asc')}
-            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
           >
-            <ArrowUpAZ size={13} className="text-blue-600 shrink-0" />
+            <ArrowUpAZ size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
             <span className="truncate">Aufsteigend</span>
           </button>
           <button 
             onClick={() => onAction('form_sort_desc')}
-            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
           >
-            <ArrowDownZA size={13} className="text-blue-600 shrink-0" />
+            <ArrowDownZA size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
             <span className="truncate">Absteigend</span>
           </button>
           <button 
             onClick={() => onAction('form_clear_sort')}
-            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 transition-colors text-left font-medium cursor-pointer"
           >
             <RotateCcw size={13} className="text-slate-400 shrink-0" />
-            <span className="truncate text-slate-500">Sortierung entfernen</span>
+            <span className="truncate">Sortierung entfernen</span>
           </button>
         </div>
 
@@ -59,7 +59,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
           <button 
             onClick={() => onAction('form_filter_selection')}
             title="Filtert nach dem aktuell markierten Zellwert (Access 'Filter nach Auswahl')"
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
           >
             <Zap size={13} className="text-amber-500 shrink-0" />
             <span className="truncate">Auswahl</span>
@@ -67,7 +67,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
           <button 
             onClick={() => onAction('form_filter_advanced')}
             title="Öffnet das erweiterte Filter-Modalfenster mit Mehrfach-Kriterien"
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
           >
             <SlidersHorizontal size={13} className="text-blue-500 shrink-0" />
             <span className="truncate">Erweitert</span>
@@ -75,7 +75,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
           <button 
             onClick={() => onAction('form_toggle_filter')}
             title="Blendet die Schnell-Suchzeile direkt über den Tabellenspalten ein/aus"
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
           >
             <CheckSquare size={13} className="text-emerald-600 shrink-0" />
             <span className="truncate">Filter Zeile</span>
@@ -88,7 +88,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
         <RibbonButton 
           icon={
             <div className="relative">
-              <RefreshCw className="text-emerald-600 w-5 h-5" />
+              <RefreshCw className="text-emerald-600 dark:text-emerald-400 w-5 h-5" />
             </div>
           } 
           label="Alle aktualisieren" 
@@ -97,43 +97,43 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
         />
 
         {/* Column 1: Record Operations */}
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[110px] border-r border-slate-200/50 pr-2">
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[110px] border-r border-slate-200/50 dark:border-slate-700/60 pr-2">
           <button 
             onClick={() => onAction('form_new_record')}
-            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
           >
-            <Plus size={13} className="text-emerald-600 shrink-0" />
+            <Plus size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Neu</span>
           </button>
           <button 
             onClick={() => onAction('form_save_record')}
-            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-2 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
           >
-            <Save size={13} className="text-indigo-600 shrink-0" />
+            <Save size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="truncate">Speichern</span>
           </button>
           <div className="relative" onMouseLeave={() => setShowDeleteMenu(false)}>
             <button 
               onClick={() => setShowDeleteMenu(p => !p)}
-              className="flex items-center gap-1 w-full px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+              className="flex items-center gap-1 w-full px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             >
-              <Trash2 size={13} className="text-rose-600 shrink-0" />
+              <Trash2 size={13} className="text-rose-600 dark:text-rose-400 shrink-0" />
               <span className="truncate">Löschen</span>
               <ChevronDown size={10} className="text-slate-400 shrink-0 ml-auto" />
             </button>
             {showDeleteMenu && (
-              <div className="absolute top-full left-0 bg-white shadow-xl border border-slate-200 rounded z-50 text-xs w-56 py-1 animate-in fade-in-25">
+              <div className="absolute top-full left-0 bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 rounded-lg z-50 text-xs w-56 py-1 animate-in fade-in-25">
                 <button 
                   onClick={() => { onAction('form_delete_record'); setShowDeleteMenu(false); }} 
-                  className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 text-left font-medium text-slate-800"
+                  className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-left font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
-                  <Trash2 size={13} className="text-rose-600"/> Datensatz löschen
+                  <Trash2 size={13} className="text-rose-600 dark:text-rose-400"/> Datensatz löschen
                 </button>
                 <button 
                   onClick={() => { onAction('form_delete_cascade'); setShowDeleteMenu(false); }} 
-                  className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-amber-50 text-left font-semibold text-amber-900 border-t border-slate-100"
+                  className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-left font-semibold text-amber-900 dark:text-amber-300 border-t border-slate-100 dark:border-slate-800 cursor-pointer"
                 >
-                  <ShieldCheck size={13} className="text-amber-600"/> Erweitertes Löschen (Cascade & Ref. Integrität)
+                  <ShieldCheck size={13} className="text-amber-600 dark:text-amber-400"/> Erweitertes Löschen (Cascade & Ref. Integrität)
                 </button>
               </div>
             )}

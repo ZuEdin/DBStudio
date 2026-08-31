@@ -79,13 +79,13 @@ export const RibbonDropdownButton: React.FC<RibbonDropdownButtonProps> = ({
             type="button"
             onClick={disabled ? undefined : onMainClick}
             disabled={disabled}
-            className="flex flex-col items-center justify-center pt-1.5 px-2 pb-0.5 w-full text-slate-700 dark:text-slate-200 hover:text-slate-900 transition-colors"
+            className="flex flex-col items-center justify-center pt-1.5 px-2 pb-0.5 w-full text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white transition-colors cursor-pointer"
           >
-            <div className={`${size === 'large' ? 'scale-125 mb-1.5' : 'mb-1'}`}>
+            <div className={`${size === 'large' ? 'scale-125 mb-1.5' : 'mb-1'} shrink-0`}>
               {icon}
             </div>
             <span className="text-xs font-semibold leading-tight text-center">{label}</span>
-            {sublabel && <span className="text-[9px] text-slate-400 text-center leading-tight mt-0.5">{sublabel}</span>}
+            {sublabel && <span className="text-[9px] text-slate-500 dark:text-slate-400 text-center leading-tight mt-0.5">{sublabel}</span>}
           </button>
           
           <button
@@ -95,10 +95,10 @@ export const RibbonDropdownButton: React.FC<RibbonDropdownButtonProps> = ({
               if (!disabled) setIsOpen(prev => !prev);
             }}
             disabled={disabled}
-            className="w-full flex items-center justify-center py-0.5 hover:bg-slate-300/60 dark:hover:bg-slate-700 rounded-b text-slate-500 transition-colors"
+            className="w-full flex items-center justify-center py-0.5 hover:bg-slate-300/60 dark:hover:bg-slate-700 rounded-b text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
             title={`${label} Optionen anzeigen`}
           >
-            <ChevronDown size={12} className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600' : ''}`} />
+            <ChevronDown size={12} className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
           </button>
         </div>
       ) : (
@@ -117,14 +117,14 @@ export const RibbonDropdownButton: React.FC<RibbonDropdownButtonProps> = ({
             disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
           } ${className}`}
         >
-          <div className={`${size === 'large' ? 'scale-125 mt-1 mb-1' : 'mt-0.5 mb-0.5'}`}>
+          <div className={`${size === 'large' ? 'scale-125 mt-1 mb-1' : 'mt-0.5 mb-0.5'} shrink-0`}>
             {icon}
           </div>
           <div className="flex items-center justify-center gap-1 w-full text-center">
             <span className="text-xs font-semibold leading-tight text-slate-800 dark:text-slate-200 truncate max-w-[84px]">{label}</span>
-            <ChevronDown size={11} className={`text-slate-500 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600' : ''}`} />
+            <ChevronDown size={11} className={`text-slate-500 dark:text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
           </div>
-          {sublabel && <span className="text-[9px] text-slate-400 text-center leading-tight">{sublabel}</span>}
+          {sublabel && <span className="text-[9px] text-slate-500 dark:text-slate-400 text-center leading-tight">{sublabel}</span>}
         </button>
       )}
 

@@ -56,10 +56,10 @@ export const PagePresetsSplitButton: React.FC<PagePresetsSplitButtonProps> = ({
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
-      case 'master_detail': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      case 'dashboard': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'crm': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      default: return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'master_detail': return 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+      case 'dashboard': return 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+      case 'crm': return 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+      default: return 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800';
     }
   };
 

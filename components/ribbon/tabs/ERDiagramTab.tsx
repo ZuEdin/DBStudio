@@ -42,18 +42,18 @@ export const ERDiagramTab: React.FC<ERDiagramTabProps> = ({ onAction }) => {
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[120px]">
           <button
             onClick={() => onAction('auto_layout')}
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Automatische, saubere Gitter-Ausrichtung aller Tabellen"
           >
-            <LayoutGrid size={13} className="text-indigo-600 shrink-0" />
+            <LayoutGrid size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="truncate">Auto-Layout</span>
           </button>
           <button
             onClick={() => onAction('create_table')}
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Neue Tabelle im Datenmodell anlegen"
           >
-            <Plus size={13} className="text-emerald-600 shrink-0" />
+            <Plus size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Tabelle einfügen</span>
           </button>
         </div>
@@ -71,18 +71,18 @@ export const ERDiagramTab: React.FC<ERDiagramTabProps> = ({ onAction }) => {
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px]">
           <button
             onClick={() => onAction('validate_foreign_keys')}
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Prüft referenzielle Integrität und verwaiste Fremdschlüssel"
           >
-            <ShieldCheck size={13} className="text-emerald-600 shrink-0" />
+            <ShieldCheck size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Integritätsprüfung</span>
           </button>
           <button
             onClick={() => onAction('export_fk_ddl')}
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="SQL ALTER TABLE ADD CONSTRAINT FOREIGN KEY Skript kopieren"
           >
-            <Code size={13} className="text-purple-600 shrink-0" />
+            <Code size={13} className="text-purple-600 dark:text-purple-400 shrink-0" />
             <span className="truncate">FK SQL DDL Skript</span>
           </button>
         </div>

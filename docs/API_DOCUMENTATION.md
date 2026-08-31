@@ -134,3 +134,36 @@ Im Menü **Datei -> Optionen** oder über das UI-Setting `config.storage` kann n
 * **`server` (Remote REST API)**: Zentralisierte Multi-User Kollaboration.
 
 umgeschaltet werden. Bei einem Fehlschlagen der Server-Verbindung greift die Applikation transparent auf die lokale IndexedDB zurück.
+
+---
+
+## 6. Enterprise Security & Governance APIs
+
+### 6.1 Rollenbasierte Rechteprüfung (RBAC)
+* **`GET /api/security/roles`** - Liefert definierte Rollen (`admin`, `manager`, `editor`, `user`, `guest`).
+* **`POST /api/security/roles`** - Erstellt/Aktualisiert Berechtigungsmatrizen auf Tabellen- und Spaltenebene.
+* **`POST /api/security/verify-access`** - Prüft CRUD-Rechte eines Benutzers für Tabellen/Felder.
+
+### 6.2 Row Level Security (RLS) & Mandantentrennung
+* **`POST /api/security/rls-policies`** - Erzeugt mandantenbasierte Filterkriterien (`tenant_id = @current_tenant`).
+* **`GET /api/security/rls-ddl/:dialect`** - Exportiert DDL für PostgreSQL (`CREATE POLICY`), SQL Server (`SECURITY PREDICATE`) oder EF Core Global Query Filter.
+
+### 6.3 Audit Trail & Revisionssicherheit
+* **`GET /api/security/audit-log`** - Liefert lückenlose Änderungshistorie (`timestamp`, `user_id`, `table_name`, `record_id`, `action`, `diff`).
+* **`POST /api/security/audit-rollback`** - Führt revisionssicheren Rollback eines Datensatzes auf einen früheren Stand durch.
+
+---
+
+## 7. DACH Branchen-Schnittstellen APIs
+
+### 7.1 GAEB DA XML & GAEB 90
+* **`POST /api/gaeb/import`** - Liest `.X83`, `.X84`, `.D83` oder `.X81` Dateien ein und konvertiert sie in relationale Tabellen (Leistungsverzeichnis, Lose, Positionen, Einheitspreise).
+* **`POST /api/gaeb/export`** - Erzeugt standardkonforme GAEB XML 3.2 / 3.3 oder GAEB 90 Dateien für Angebotsabgaben (X84).
+
+### 7.2 DATANORM 4.0 / 5.0
+* **`POST /api/datanorm/import`** - Parst Großhandelskataloge (Artikel, Preise, Matchcodes, Warengruppen) und speichert diese direkt in der IndexedDB.
+
+### 7.3 E-Invoicing (ZUGFeRD 2.2 / XRechnung & Swiss QR Bill)
+* **`POST /api/invoicing/zugferd/generate`** - Erzeugt rechtskonforme Factur-X / ZUGFeRD 2.2 Hybrid-Rechnungen (PDF/A-3 mit XML) inklusive Leitweg-ID.
+* **`POST /api/invoicing/swiss-qr/generate`** - Erzeugt den offiziellen Schweizer QR-Zahlteil nach ISO 20022 mit QR-IBAN und Referenznummer.
+

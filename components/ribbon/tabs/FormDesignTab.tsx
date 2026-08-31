@@ -74,22 +74,22 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
             onClick={() => {
               if (formId) ui.setCurrentView({ type: 'form_view', formId });
             }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium cursor-pointer ${
               isFormView
-                ? 'bg-emerald-100 text-emerald-900 font-semibold'
-                : 'text-slate-700 hover:bg-sky-100 hover:text-sky-900'
+                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 font-semibold'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Formular-Ansicht (Live Dateneingabe)"
           >
-            <Eye size={13} className="text-emerald-600 shrink-0" />
+            <Eye size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Formularansicht</span>
           </button>
           <button
             onClick={() => onAction('form_export_code')}
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Quellcode (React / HTML / C# Razor) generieren"
           >
-            <Code size={13} className="text-purple-600 shrink-0" />
+            <Code size={13} className="text-purple-600 dark:text-purple-400 shrink-0" />
             <span className="truncate">Code generieren</span>
           </button>
         </div>
@@ -98,53 +98,53 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
       {/* 2. Steuerelemente (Toolbox) */}
       <RibbonGroup label="Steuerelemente">
         <RibbonButton
-          icon={<FormInput className="text-blue-600" />}
+          icon={<FormInput className="text-blue-600 dark:text-blue-400" />}
           label="Textfeld"
           onClick={() => onAction('form_add_text_input')}
           size="large"
           title="Fügt ein Eingabefeld für Text oder Zahlen hinzu"
         />
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[115px] border-r border-slate-200/50 pr-2">
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[115px] border-r border-slate-200/50 dark:border-slate-700/60 pr-2">
           <button
             onClick={() => onAction('form_add_dropdown_input')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Kombinationsfeld / Lookup Dropdown"
           >
-            <ListOrdered size={13} className="text-indigo-600 shrink-0" />
+            <ListOrdered size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="truncate">Dropdown / Lookup</span>
           </button>
           <button
             onClick={() => onAction('form_add_checkbox_input')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Kontrollkästchen / Checkbox"
           >
-            <CheckSquare size={13} className="text-teal-600 shrink-0" />
+            <CheckSquare size={13} className="text-teal-600 dark:text-teal-400 shrink-0" />
             <span className="truncate">Kontrollkästchen</span>
           </button>
           <button
             onClick={() => onAction('form_add_date_input')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Datumsauswahl / Kalenderfeld"
           >
-            <Calendar size={13} className="text-purple-600 shrink-0" />
+            <Calendar size={13} className="text-purple-600 dark:text-purple-400 shrink-0" />
             <span className="truncate">Datumsauswahl</span>
           </button>
         </div>
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[115px]">
           <button
             onClick={() => onAction('form_add_subform')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Unterformular für 1:n Master-Detail Beziehungen (z.B. Rechnungspositionen)"
           >
-            <SplitSquareVertical size={13} className="text-blue-600 shrink-0" />
+            <SplitSquareVertical size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
             <span className="truncate">Unterformular</span>
           </button>
           <button
             onClick={() => onAction('form_add_label')}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 hover:bg-sky-100 hover:text-sky-900 transition-colors text-left font-medium"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Bezeichnungsfeld / Statischer Text"
           >
-            <Type size={13} className="text-slate-600 shrink-0" />
+            <Type size={13} className="text-slate-600 dark:text-slate-400 shrink-0" />
             <span className="truncate">Bezeichnungsfeld</span>
           </button>
         </div>

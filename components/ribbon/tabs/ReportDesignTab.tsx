@@ -50,7 +50,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
 
   if (!report || !report.sourceId) {
       return (
-          <div className="flex gap-4 h-full items-center text-slate-400 text-xs">
+          <div className="flex gap-4 h-full items-center text-slate-400 dark:text-slate-500 text-xs">
               Kein aktiver Bericht ausgewählt.
           </div>
       );
@@ -79,12 +79,12 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
   return (
     <div className="flex gap-4 h-full items-center overflow-visible pb-1 max-w-full">
       {/* Target Selection */}
-      <div className="flex flex-col px-2 border-r border-slate-300 pr-4 h-full justify-center w-40 shrink-0">
-          <label className="block text-[10px] text-slate-500 font-bold mb-1 uppercase">{t('ribbon.groups.target')}</label>
+      <div className="flex flex-col px-2 border-r border-slate-300 dark:border-slate-700 pr-4 h-full justify-center w-40 shrink-0">
+          <label className="block text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-1 uppercase">{t('ribbon.groups.target')}</label>
           <select 
             value={targetSection} 
             onChange={e => setTargetSection(e.target.value as any)}
-            className="w-full border border-blue-300 rounded px-1.5 py-0.5 text-xs bg-blue-50 font-semibold text-blue-900 focus:ring-1 focus:ring-blue-500"
+            className="w-full border border-blue-300 dark:border-blue-700 rounded px-1.5 py-0.5 text-xs bg-blue-50 dark:bg-blue-950/70 font-semibold text-blue-900 dark:text-blue-200 focus:ring-1 focus:ring-blue-500"
           >
               <option value="header">Header</option>
               <option value="groupHeader">Group Header</option>
@@ -98,21 +98,21 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
       <RibbonGroup label={t('ribbon.groups.font')}>
          <div className="flex flex-col gap-1 justify-center h-full">
              <div className="flex gap-1">
-                 <select className="border rounded text-[10px] w-20 p-0.5" onChange={e => updateStyle({ fontFamily: e.target.value })}>
+                 <select className="border border-slate-300 dark:border-slate-700 rounded text-[10px] w-20 p-0.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" onChange={e => updateStyle({ fontFamily: e.target.value })}>
                      <option value="Arial">Arial</option>
                      <option value="Times New Roman">Times New Roman</option>
                      <option value="Courier New">Courier New</option>
                      <option value="Helvetica">Helvetica</option>
                  </select>
-                 <select className="border rounded text-[10px] w-10 p-0.5" onChange={e => updateStyle({ fontSize: parseInt(e.target.value) })}>
+                 <select className="border border-slate-300 dark:border-slate-700 rounded text-[10px] w-10 p-0.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200" onChange={e => updateStyle({ fontSize: parseInt(e.target.value) })}>
                      {[8,9,10,11,12,14,16,18,20,24,32].map(s => <option key={s} value={s}>{s}</option>)}
                  </select>
              </div>
-             <div className="flex gap-1 items-center justify-start">
-                 <button onClick={() => updateStyle({ bold: true })} className="p-0.5 hover:bg-slate-200 rounded" title="Bold"><Bold size={12}/></button>
-                 <button onClick={() => updateStyle({ bold: false })} className="p-0.5 hover:bg-slate-200 rounded text-slate-400" title="Normal"><Bold size={12} strokeWidth={1}/></button>
-                 <div className="w-px bg-slate-300 h-3 mx-1"></div>
-                 <button onClick={() => updateStyle({ italic: true })} className="p-0.5 hover:bg-slate-200 rounded" title="Italic"><Italic size={12}/></button>
+             <div className="flex gap-1 items-center justify-start text-slate-700 dark:text-slate-200">
+                 <button onClick={() => updateStyle({ bold: true })} className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded cursor-pointer" title="Bold"><Bold size={12}/></button>
+                 <button onClick={() => updateStyle({ bold: false })} className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-400 dark:text-slate-500 cursor-pointer" title="Normal"><Bold size={12} strokeWidth={1}/></button>
+                 <div className="w-px bg-slate-300 dark:bg-slate-700 h-3 mx-1"></div>
+                 <button onClick={() => updateStyle({ italic: true })} className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded cursor-pointer" title="Italic"><Italic size={12}/></button>
              </div>
          </div>
       </RibbonGroup>
@@ -121,28 +121,28 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
       <RibbonGroup label={t('ribbon.groups.colors')}>
           <div className="flex flex-col gap-1 justify-center h-full">
               <div className="flex items-center gap-1.5" title="Text Color">
-                  <Type size={12} className="text-slate-600"/>
-                  <input type="color" className="w-5 h-5 border border-slate-300 p-0 rounded cursor-pointer" onChange={e => updateStyle({ color: e.target.value })} />
+                  <Type size={12} className="text-slate-600 dark:text-slate-300"/>
+                  <input type="color" className="w-5 h-5 border border-slate-300 dark:border-slate-700 p-0 rounded cursor-pointer bg-transparent" onChange={e => updateStyle({ color: e.target.value })} />
               </div>
               <div className="flex items-center gap-1.5" title="Background Color">
-                  <Palette size={12} className="text-slate-600"/>
-                  <input type="color" className="w-5 h-5 border border-slate-300 p-0 rounded cursor-pointer" value="#ffffff" onChange={e => updateStyle({ backgroundColor: e.target.value })} />
+                  <Palette size={12} className="text-slate-600 dark:text-slate-300"/>
+                  <input type="color" className="w-5 h-5 border border-slate-300 dark:border-slate-700 p-0 rounded cursor-pointer bg-transparent" value="#ffffff" onChange={e => updateStyle({ backgroundColor: e.target.value })} />
               </div>
           </div>
       </RibbonGroup>
 
       {/* Alignment */}
       <RibbonGroup label={t('ribbon.groups.alignment')}>
-          <div className="flex gap-0.5 bg-slate-100 rounded p-0.5 border border-slate-200 items-center">
-              <button onClick={() => updateStyle({ align: 'left' })} className="p-1 hover:bg-white rounded hover:shadow-sm"><AlignLeft size={14}/></button>
-              <button onClick={() => updateStyle({ align: 'center' })} className="p-1 hover:bg-white rounded hover:shadow-sm"><AlignCenter size={14}/></button>
-              <button onClick={() => updateStyle({ align: 'right' })} className="p-1 hover:bg-white rounded hover:shadow-sm"><AlignRight size={14}/></button>
+          <div className="flex gap-0.5 bg-slate-100 dark:bg-slate-800/80 rounded p-0.5 border border-slate-200 dark:border-slate-700 items-center text-slate-700 dark:text-slate-200">
+              <button onClick={() => updateStyle({ align: 'left' })} className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded hover:shadow-sm cursor-pointer"><AlignLeft size={14}/></button>
+              <button onClick={() => updateStyle({ align: 'center' })} className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded hover:shadow-sm cursor-pointer"><AlignCenter size={14}/></button>
+              <button onClick={() => updateStyle({ align: 'right' })} className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded hover:shadow-sm cursor-pointer"><AlignRight size={14}/></button>
           </div>
       </RibbonGroup>
       
       {/* Borders/Layout */}
       <RibbonGroup label={t('ribbon.groups.layout')}>
-          <div className="flex flex-col gap-1 justify-center h-full">
+          <div className="flex flex-col gap-1 justify-center h-full text-slate-700 dark:text-slate-200">
              <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
                  <input type="checkbox" onChange={e => updateStyle({ borderBottom: e.target.checked })} className="scale-90" />
                  <span>Border Bottom</span>
@@ -156,7 +156,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
              <select 
                  value={report.groupingFieldId || ''} 
                  onChange={e => updateReportSettings({ groupingFieldId: e.target.value || undefined })} 
-                 className="w-full border border-slate-300 rounded p-1 text-[11px] bg-white focus:outline-none focus:border-blue-500"
+                 className="w-full border border-slate-300 dark:border-slate-700 rounded p-1 text-[11px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
              >
                  <option value="">(Keine Gruppierung)</option>
                  {sourceFields.map(f => (<option key={f.id} value={f.id}>{f.name}</option>))}
@@ -166,17 +166,17 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                      <select 
                          value={report.settings?.groupMethod || 'full'} 
                          onChange={e => updateReportSettings({ settings: { ...(report.settings || {}), groupMethod: e.target.value as any } })} 
-                         className="border border-slate-300 rounded p-0.5 text-[9px] w-18 bg-white focus:outline-none"
+                         className="border border-slate-300 dark:border-slate-700 rounded p-0.5 text-[9px] w-18 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none"
                      >
                          <option value="full">Vollständig</option>
                          <option value="firstLetter">1. Buchstabe</option>
                      </select>
-                     <label className="flex items-center gap-1 cursor-pointer text-[9px] select-none text-slate-600 truncate">
+                     <label className="flex items-center gap-1 cursor-pointer text-[9px] select-none text-slate-600 dark:text-slate-300 truncate">
                          <input 
                              type="checkbox" 
                              checked={report.settings?.pageBreakAfterGroup || false} 
                              onChange={e => updateReportSettings({ settings: { ...(report.settings || {}), pageBreakAfterGroup: e.target.checked } })} 
-                             className="rounded border-slate-300 text-blue-600 scale-75" 
+                             className="rounded border-slate-300 dark:border-slate-600 text-blue-600 scale-75" 
                          />
                          <span>Umbruch</span>
                      </label>
@@ -191,7 +191,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
              <select 
                  value={report.settings?.orientation || 'portrait'} 
                  onChange={e => updateReportSettings({ settings: { ...(report.settings || {}), orientation: e.target.value as any } })} 
-                 className="w-full border border-slate-300 rounded p-1 text-[11px] bg-white focus:outline-none focus:border-blue-500"
+                 className="w-full border border-slate-300 dark:border-slate-700 rounded p-1 text-[11px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
              >
                  <option value="portrait">Hochformat (Portrait)</option>
                  <option value="landscape">Querformat (Landscape)</option>
@@ -202,7 +202,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
       {/* DIN 5008 & VOB/B Engine */}
       <RibbonGroup label="Baugewerbe & Normen">
          <div className="flex flex-col gap-1 justify-center h-full text-[10px]">
-            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-200">
                 <input 
                   type="checkbox" 
                   checked={report.settings?.din5008?.enabled || false}
@@ -220,12 +220,12 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                       }
                     }
                   })}
-                  className="scale-90 rounded border-slate-300 text-blue-600"
+                  className="scale-90 rounded border-slate-300 dark:border-slate-600 text-blue-600"
                 />
-                <FileCheck size={12} className="text-blue-600" />
+                <FileCheck size={12} className="text-blue-600 dark:text-blue-400" />
                 <span>DIN 5008 Briefbogen</span>
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-200">
                 <input 
                   type="checkbox" 
                   checked={report.settings?.commercialVob?.enabled || false}
@@ -241,9 +241,9 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                       }
                     }
                   })}
-                  className="scale-90 rounded border-slate-300 text-amber-600"
+                  className="scale-90 rounded border-slate-300 dark:border-slate-600 text-amber-600"
                 />
-                <Calculator size={12} className="text-amber-600" />
+                <Calculator size={12} className="text-amber-600 dark:text-amber-400" />
                 <span>VOB/B Summenmatrix</span>
             </label>
          </div>
@@ -252,7 +252,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
       {/* E-Rechnung & QR-Codes */}
       <RibbonGroup label="E-Rechnung & QR">
          <div className="flex flex-col gap-1 justify-center h-full text-[10px]">
-            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-200">
                 <input 
                   type="checkbox" 
                   checked={report.settings?.zugferd?.enabled || false}
@@ -272,12 +272,12 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                       }
                     }
                   })}
-                  className="scale-90 rounded border-slate-300 text-emerald-600"
+                  className="scale-90 rounded border-slate-300 dark:border-slate-600 text-emerald-600"
                 />
-                <FileCode size={12} className="text-emerald-600" />
+                <FileCode size={12} className="text-emerald-600 dark:text-emerald-400" />
                 <span>ZUGFeRD / Factur-X</span>
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700 dark:text-slate-200">
                 <input 
                   type="checkbox" 
                   checked={report.settings?.swissQrCode?.enabled || false}
@@ -294,9 +294,9 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                       }
                     }
                   })}
-                  className="scale-90 rounded border-slate-300 text-red-600"
+                  className="scale-90 rounded border-slate-300 dark:border-slate-600 text-red-600"
                 />
-                <QrCode size={12} className="text-red-600" />
+                <QrCode size={12} className="text-red-600 dark:text-red-400" />
                 <span>Swiss QR-Bill</span>
             </label>
          </div>
@@ -307,7 +307,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
         <div className="flex gap-1 items-center h-full">
             <button
               onClick={() => eventBus.publish('PRINT_REPORT', { reportId: report.id, outputFormat: 'print_dialog' })}
-              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 rounded text-slate-700 hover:text-blue-700"
+              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 hover:text-blue-700 dark:hover:text-blue-400 cursor-pointer"
               title="Globalen Druckdialog auslösen (EventBus)"
             >
               <Printer size={14} />
@@ -315,7 +315,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
             </button>
             <button
               onClick={() => eventBus.publish('PRINT_REPORT', { reportId: report.id, outputFormat: 'email_direct' })}
-              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 rounded text-slate-700 hover:text-sky-700"
+              className="flex flex-col items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 hover:text-sky-700 dark:hover:text-sky-400 cursor-pointer"
               title="Bericht per E-Mail versenden (EventBus)"
             >
               <Mail size={14} />
@@ -335,7 +335,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
                      const parsed = e.target.value.split(',').map(v => v.trim()).filter(Boolean);
                      updateReportSettings({ allowedRoles: parsed });
                  }}
-                 className="w-full border border-slate-300 rounded p-1 text-[11px] bg-white focus:outline-none focus:border-blue-500"
+                 className="w-full border border-slate-300 dark:border-slate-700 rounded p-1 text-[11px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500"
              />
          </div>
       </RibbonGroup>

@@ -573,44 +573,44 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
         {/* Generator settings Modal */}
         {showSettingsModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-150">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-[520px] max-w-full overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-[520px] max-w-full overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
               
               {/* Modal Header */}
-              <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-100 text-blue-600 rounded">
+                  <div className="p-1.5 bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 rounded">
                     <Settings size={16} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Generator & Backend-Konfiguration</h3>
-                    <p className="text-[11px] text-slate-500">Passen Sie die Ziel-Technologien und Netzwerk-Ports an</p>
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Generator & Backend-Konfiguration</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Passen Sie die Ziel-Technologien und Netzwerk-Ports an</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowSettingsModal(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               {/* Modal Tabs */}
-              <div className="flex border-b border-slate-200 bg-white">
+              <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                 <button
-                  className={`flex-1 py-2 text-xs font-bold ${activeTab === 'backend' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 py-2 text-xs font-bold cursor-pointer transition-colors ${activeTab === 'backend' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                   onClick={() => setActiveTab('backend')}
                 >
                   Backend
                 </button>
                 <button
-                  className={`flex-1 py-2 text-xs font-bold ${activeTab === 'frontend' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 py-2 text-xs font-bold cursor-pointer transition-colors ${activeTab === 'frontend' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                   onClick={() => setActiveTab('frontend')}
                 >
                   Frontend
                 </button>
                 <button
-                  className={`flex-1 py-2 text-xs font-bold ${activeTab === 'connection' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 py-2 text-xs font-bold cursor-pointer transition-colors ${activeTab === 'connection' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                   onClick={() => setActiveTab('connection')}
                 >
                   Connection String
@@ -624,9 +624,9 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                   <div className="space-y-4 animate-in fade-in">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">Datenbanktyp</label>
+                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Datenbanktyp</label>
                         <select 
-                            className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             value={backendConfig.dbType}
                             onChange={e => setBackendConfig({ ...backendConfig, dbType: e.target.value as DbType })}
                         >
@@ -639,9 +639,9 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                       </div>
 
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">Backend-Technologie</label>
+                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Backend-Technologie</label>
                         <select 
-                            className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             value={backendConfig.language}
                             onChange={e => {
                                 const lang = e.target.value as any;
@@ -684,10 +684,10 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
                     {/* Conditional .NET Version option */}
                     {backendConfig.language === 'dotnet' && (
-                      <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
-                        <label className="block font-bold text-slate-700 mb-1">.NET SDK Version</label>
+                      <div className="p-3 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-lg">
+                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">.NET SDK Version</label>
                         <select 
-                            className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-mono text-blue-700 focus:outline-none focus:border-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 font-mono text-blue-700 dark:text-blue-300 focus:outline-none focus:border-blue-500"
                             value={backendConfig.backendVersion || '9.0'}
                             onChange={e => setBackendConfig({ ...backendConfig, backendVersion: e.target.value })}
                         >
@@ -697,18 +697,18 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                             <option value="7.0">7.0</option>
                             <option value="6.0">6.0 (LTS)</option>
                         </select>
-                        <p className="text-[10px] text-slate-500 mt-1">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
                           Wählen Sie 9.0 oder 8.0 passend zu Ihrem lokal installierten .NET SDK in Visual Studio 2022.
                         </p>
                       </div>
                     )}
 
                     {/* Protocol Selector for Swagger (HTTP / HTTPS / Both) */}
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                      <label className="block font-bold text-slate-700">Entwicklungs-Protokolle & Swagger</label>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg space-y-2">
+                      <label className="block font-bold text-slate-700 dark:text-slate-200">Entwicklungs-Protokolle & Swagger</label>
                       <div className="grid grid-cols-1 gap-2">
                         <select 
-                          className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-blue-500"
+                          className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                           value={backendConfig.protocolMode || 'both'}
                           onChange={e => setBackendConfig({ ...backendConfig, protocolMode: e.target.value as any })}
                         >
@@ -726,7 +726,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                           checked={backendConfig.useSwagger}
                           onChange={e => setBackendConfig({ ...backendConfig, useSwagger: e.target.checked })}
                         />
-                        <label htmlFor="useSwaggerCheckbox" className="font-semibold text-slate-700 cursor-pointer select-none">
+                        <label htmlFor="useSwaggerCheckbox" className="font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
                           Swagger / OpenAPI Dokumentation aktivieren und beim Starten anzeigen
                         </label>
                       </div>
@@ -734,10 +734,10 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">API Port (Localhost)</label>
+                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">API Port (Localhost)</label>
                         <input 
                             type="number" 
-                            className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             value={backendConfig.port}
                             onChange={e => setBackendConfig({ ...backendConfig, port: parseInt(e.target.value) || 5000 })}
                         />
@@ -753,9 +753,9 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                   <div className="space-y-4 animate-in fade-in">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">Frontend-Framework</label>
+                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Frontend-Framework</label>
                         <select 
-                            className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             value={backendConfig.frontendFramework}
                             onChange={e => {
                                 const fw = e.target.value as FrontendFramework;
@@ -786,9 +786,9 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                       </div>
 
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">Styling Framework</label>
+                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Styling Framework</label>
                         <select 
-                            className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             value={backendConfig.stylingFramework || 'tailwind'}
                             onChange={e => {
                                 const fw = e.target.value as any;
@@ -804,10 +804,10 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">Frontend Port (Localhost)</label>
+                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Frontend Port (Localhost)</label>
                         <input 
                             type="number" 
-                            className="w-full border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            className="w-full border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             value={backendConfig.frontendPort || 3000}
                             onChange={e => setBackendConfig({ ...backendConfig, frontendPort: parseInt(e.target.value) || 3000 })}
                         />
@@ -818,12 +818,12 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
 
                 {activeTab === 'connection' && (
                   <div className="space-y-4 animate-in fade-in">
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                      <h4 className="font-bold text-slate-800 mb-2">Verbindungszeichenfolge (Connection String)</h4>
-                      <p className="text-slate-500 text-[11px] mb-3">Geben Sie die Verbindungszeichenfolge für die Datenbank an. Diese wird im Backend konfiguriert.</p>
+                    <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2">Verbindungszeichenfolge (Connection String)</h4>
+                      <p className="text-slate-500 dark:text-slate-400 text-[11px] mb-3">Geben Sie die Verbindungszeichenfolge für die Datenbank an. Diese wird im Backend konfiguriert.</p>
                       
                       <textarea 
-                        className="w-full border border-slate-300 rounded-lg p-3 bg-white text-slate-800 font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="w-full border border-slate-300 dark:border-slate-700 rounded-lg p-3 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         rows={4}
                         placeholder="Server=localhost;Database=my_db;User Id=root;Password=***;"
                         value={backendConfig.dbConnection || ''}
@@ -836,7 +836,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                             setShowSettingsModal(false);
                             onOpenSettings();
                           }}
-                          className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition-colors"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold flex items-center gap-1 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded transition-colors cursor-pointer"
                         >
                           <Database size={12} />
                           Erweiterten Assistenten öffnen
@@ -848,10 +848,10 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
                 <button 
                   onClick={() => setShowSettingsModal(false)}
-                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                  className="bg-slate-800 hover:bg-slate-900 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <Check size={14} /> Speichern & Schließen
                 </button>

@@ -1,7 +1,10 @@
 import React from 'react';
 import { HeroSection } from './info/HeroSection';
+import { IndexedDbFirstArchitectureSection } from './info/IndexedDbFirstArchitectureSection';
 import { ComparisonSection } from './info/ComparisonSection';
 import { FeaturesGrid } from './info/FeaturesGrid';
+import { EnterpriseSecuritySection } from './info/EnterpriseSecuritySection';
+import { DachIndustryStandardsSection } from './info/DachIndustryStandardsSection';
 import { DesktopBuildsSection } from './info/DesktopBuildsSection';
 import { AiAndAutomationSection } from './info/AiAndAutomationSection';
 import { LiveCollaborationSection } from './info/LiveCollaborationSection';
@@ -15,10 +18,13 @@ interface AppInfoViewProps {
 
 export const AppInfoView: React.FC<AppInfoViewProps> = ({ onNavigate }) => {
   return (
-    <div className="h-full bg-slate-50 overflow-y-auto" id="app-info-view-root">
+    <div className="h-full bg-slate-950 text-slate-100 overflow-y-auto" id="app-info-view-root">
       <HeroSection onNavigate={onNavigate} />
+      <IndexedDbFirstArchitectureSection />
       <ComparisonSection />
       <FeaturesGrid />
+      <EnterpriseSecuritySection />
+      <DachIndustryStandardsSection />
       <DesktopBuildsSection />
       <AiAndAutomationSection />
       <LiveCollaborationSection />
