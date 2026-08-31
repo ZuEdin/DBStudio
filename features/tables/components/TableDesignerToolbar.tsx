@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, ShieldCheck, Building2, Code2, ArrowLeft, FileCode2, CheckSquare } from 'lucide-react';
+import { Plus, ShieldCheck, Building2, Code2, ArrowLeft, FileCode2, CheckSquare, Sparkles } from 'lucide-react';
 
 interface TableDesignerToolbarProps {
   tableName: string;
@@ -10,6 +10,7 @@ interface TableDesignerToolbarProps {
   onOpenTemplatesModal: () => void;
   onOpenImportBridge?: () => void;
   onOpenValidationModal?: () => void;
+  onOpenNormalizationModal?: () => void;
   activeTab: 'fields' | 'sql' | 'indexes';
   setActiveTab: (tab: 'fields' | 'sql' | 'indexes') => void;
   onClose?: () => void;
@@ -24,6 +25,7 @@ export const TableDesignerToolbar: React.FC<TableDesignerToolbarProps> = ({
   onOpenTemplatesModal,
   onOpenImportBridge,
   onOpenValidationModal,
+  onOpenNormalizationModal,
   activeTab,
   setActiveTab,
   onClose,
@@ -63,6 +65,16 @@ export const TableDesignerToolbar: React.FC<TableDesignerToolbarProps> = ({
             >
               <Plus className="w-3.5 h-3.5" /> Feld hinzufügen
             </button>
+
+            {onOpenNormalizationModal && (
+              <button
+                onClick={onOpenNormalizationModal}
+                className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xs transition-colors"
+                title="3NF Normalisierungs-Assistent: Redundanzen erkennen und Tabellen-Splits durchführen"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" /> 3NF Normalisierung
+              </button>
+            )}
 
             <button
               onClick={onOpenAuditModal}

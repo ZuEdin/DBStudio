@@ -395,7 +395,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                     onChange={e => onChange(fieldName, e.target.value)}
                     onFocus={() => onFocusField && onFocusField(fieldName)}
                     onContextMenu={(e) => onContextMenu && onContextMenu(e, fieldName, value)}
-                    className="flex-1 shrink-0 appearance-none bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm disabled:bg-slate-50 dark:disabled:bg-slate-900 disabled:text-slate-400 dark:disabled:text-slate-500"
+                    className={`flex-1 shrink-0 appearance-none bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm disabled:bg-slate-50 dark:disabled:bg-slate-900 disabled:text-slate-400 dark:disabled:text-slate-500 ${errorClass}`}
                 >
                     <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Auswählen...</option>
                     {options.map((opt, idx) => (
@@ -412,6 +412,7 @@ export const FormWidget: React.FC<FormWidgetProps> = ({
                     </button>
                 )}
               </div>
+              {renderFieldErrors()}
           </div>
       );
   }

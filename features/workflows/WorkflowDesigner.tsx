@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { 
   ReactFlow, 
   MiniMap, 
@@ -24,6 +24,7 @@ import {
 import { WorkflowToolbox } from './components/WorkflowToolbox';
 import { WorkflowProperties } from './components/WorkflowProperties';
 import { WorkflowExecutionConsole } from './components/WorkflowExecutionConsole';
+import { WorkflowDebuggerPanel } from './components/WorkflowDebuggerPanel';
 import { customNodeTypes } from './components/WorkflowNodes';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { 
@@ -37,9 +38,12 @@ import {
   Sparkles,
   ToggleLeft,
   ToggleRight,
-  Share2
+  Share2,
+  Bug,
+  StepForward,
+  Clock
 } from 'lucide-react';
-import { WorkflowExecutionEngine } from '../logic/WorkflowEngine';
+import { WorkflowExecutionEngine, WorkflowDebugSession } from '../logic/WorkflowEngine';
 import { N8nExportModal } from './components/N8nExportModal';
 
 interface WorkflowDesignerProps {
@@ -61,6 +65,13 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showConsole, setShowConsole] = useState<boolean>(false);
   const [showN8nExport, setShowN8nExport] = useState<boolean>(false);
+
+  // Debugger states
+  const [debugSession, setDebugSession] = useState<WorkflowDebugSession | null>(null);
+  const [isDebugActive, setIsDebugActive] = useState<boolean>(false);
+  const [debugCurrentNodeId, setDebugCurrentNodeId] = useState<string | null>(null);
+  const [debugVariables, setDebugVariables] = useState<Record<string, any>>({});
+  const [isDebuggerPanelOpen, setIsDebuggerPanelOpen] = useState<boolean>(false);
 
   // Transform our store nodes to React Flow nodes
   const initialNodes: Node[] = useMemo(() => (workflow.nodes || []).map(n => ({
@@ -107,6 +118,27 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
     onWorkflowChange(updatedWorkflow);
   }, [workflow, onWorkflowChange]);
 
+  // Listen to custom breakpoint toggle events from custom nodes
+  useEffect(() => {
+    const handleToggleBreakpoint = (e: any) => {
+      const { nodeId } = e.detail || {};
+      if (!nodeId) return;
+      setNodes((nds) => {
+        const updated = nds.map((n) => {
+          if (n.id === nodeId) {
+            const hasBp = Boolean(n.data?.hasBreakpoint);
+            return { ...n, data: { ...n.data, hasBreakpoint: !hasBp } };
+          }
+          return n;
+        });
+        syncWorkflow(updated, edges);
+        return updated;
+      });
+    };
+    window.addEventListener('workflow:toggle-breakpoint', handleToggleBreakpoint);
+    return () => window.removeEventListener('workflow:toggle-breakpoint', handleToggleBreakpoint);
+  }, [edges, syncWorkflow, setNodes]);
+
   const onConnect = useCallback((params: Connection) => {
     let edgeLabel: string | undefined = undefined;
     if (params.sourceHandle === 'true') edgeLabel = 'Wahr';
@@ -143,7 +175,6 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
         return;
       }
 
-      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
@@ -307,21 +338,78 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
     }
   };
 
-  const handleDirectTestRun = async () => {
-    setShowConsole(true);
-    const triggerNode = workflow.nodes.find(n => n.type === 'triggerNode');
-    const tableId = triggerNode?.data.triggerConfig?.tableId;
-    const table = tables.find(t => t.id === tableId) || tables[0];
-    const record = table?.data?.[0] || { id: 'TEST_001', name: 'Test Datensatz' };
+  // ----------------------------------------------------
+  // STEP-BY-STEP DEBUGGER CONTROLS
+  // ----------------------------------------------------
+  const handleStartDebugger = () => {
+    const triggerTable = tables.find(t => t.id === workflow.nodes.find(n => n.type === 'triggerNode')?.data.triggerConfig?.tableId) || tables[0];
+    const record = triggerTable?.data?.[0] || { id: 'TEST_001', name: 'Test Datensatz', betrag: 149.99, status: 'Bezahlt' };
+    const breakpoints = nodes.filter(n => n.data?.hasBreakpoint).map(n => n.id);
 
-    await WorkflowExecutionEngine.executeWorkflow(
-      workflow,
-      'onManual',
-      record,
-      undefined,
-      { onShowToast }
-    );
+    const session = new WorkflowDebugSession(workflow, record, breakpoints, {
+      onShowToast,
+      onStepChange: (event) => {
+        setDebugCurrentNodeId(event.nodeId);
+        setDebugVariables(event.variables);
+        setNodes(nds => nds.map(n => ({
+          ...n,
+          data: { ...n.data, isCurrentDebug: n.id === event.nodeId }
+        })));
+      }
+    });
+
+    setDebugSession(session);
+    setIsDebugActive(true);
+    setIsDebuggerPanelOpen(true);
+    setDebugCurrentNodeId(session.currentNodeId);
+    setDebugVariables(session.context.variables);
+
+    setNodes(nds => nds.map(n => ({
+      ...n,
+      data: { ...n.data, isCurrentDebug: n.id === session.currentNodeId }
+    })));
+
+    onShowToast?.('Debugger gestartet: Workflow pausiert am Start-Knoten.', 'info');
   };
+
+  const handleStepOver = async () => {
+    if (!debugSession) return;
+    const res = await debugSession.stepOver();
+    if (res.status === 'completed') {
+      onShowToast?.('Workflow Debugging abgeschlossen (100% Erfolgreich).', 'success');
+      setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, isCurrentDebug: false } })));
+    }
+  };
+
+  const handleResume = async () => {
+    if (!debugSession) return;
+    const log = await debugSession.resume();
+    if (debugSession.isCompleted) {
+      onShowToast?.(`Workflow Ausführung beendet: ${log.status === 'success' ? 'Erfolg' : 'Fehler'}`, log.status === 'success' ? 'success' : 'error');
+      setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, isCurrentDebug: false } })));
+    }
+  };
+
+  const handleStopDebugger = () => {
+    if (debugSession) {
+      debugSession.stop();
+    }
+    setDebugSession(null);
+    setIsDebugActive(false);
+    setIsDebuggerPanelOpen(false);
+    setDebugCurrentNodeId(null);
+    setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, isCurrentDebug: false } })));
+    onShowToast?.('Debugger beendet.', 'info');
+  };
+
+  const handleUpdateDebugVariable = (path: string, value: any) => {
+    if (!debugSession) return;
+    debugSession.setVariable(path, value);
+    setDebugVariables({ ...debugSession.context.variables });
+    onShowToast?.(`Variable '${path}' aktualisiert.`, 'info');
+  };
+
+  const currentNodeObj = nodes.find(n => n.id === debugCurrentNodeId);
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-100 overflow-hidden" id="workflow-designer-root">
@@ -372,25 +460,29 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
           <button
             type="button"
             onClick={() => setShowN8nExport(true)}
-            className="bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+            className="bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
             title="Diesen visuellen Workflow als n8n Workflow-JSON exportieren"
           >
             <Share2 size={13} className="text-orange-600" />
-            <span>n8n Export (.json)</span>
+            <span>n8n Export</span>
           </button>
 
-          {/* Test Run Button */}
+          {/* Step-by-Step Debugger Button */}
           <button
             type="button"
-            onClick={handleDirectTestRun}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
-            id="btn-header-test-run"
+            onClick={isDebugActive ? () => setIsDebuggerPanelOpen(!isDebuggerPanelOpen) : handleStartDebugger}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer border ${
+              isDebugActive
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-600 animate-pulse'
+                : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
+            }`}
+            title="Einzelschritt-Debugger mit Breakpoints und Variableninspektor starten"
           >
-            <Play size={13} fill="currentColor" />
-            <span>Testlauf starten</span>
+            <Bug size={14} />
+            <span>{isDebugActive ? 'Debugger Aktiv' : 'Debugger starten'}</span>
           </button>
 
-          {/* Console Toggle */}
+          {/* Direct Run / Console Toggle */}
           <button
             type="button"
             onClick={() => setShowConsole(!showConsole)}
@@ -401,7 +493,7 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
             }`}
           >
             <Terminal size={14} className={showConsole ? 'text-emerald-400' : 'text-slate-500'} />
-            <span>Konsole {showConsole ? 'verbergen' : 'öffnen'}</span>
+            <span>Run-Logs ({workflow.executionLogs?.length || 0})</span>
           </button>
         </div>
       </div>
@@ -444,6 +536,20 @@ export const WorkflowDesigner: React.FC<WorkflowDesignerProps> = ({
             />
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#cbd5e1" />
           </ReactFlow>
+
+          {/* Floating Live Debugger Panel */}
+          <WorkflowDebuggerPanel
+            isOpen={isDebuggerPanelOpen}
+            isPaused={Boolean(debugSession?.isPaused)}
+            currentNodeId={debugCurrentNodeId}
+            currentNodeLabel={String(currentNodeObj?.data?.label || debugCurrentNodeId || 'Knoten')}
+            variables={debugVariables}
+            onStepOver={handleStepOver}
+            onResume={handleResume}
+            onStop={handleStopDebugger}
+            onUpdateVariable={handleUpdateDebugVariable}
+            onClose={() => setIsDebuggerPanelOpen(false)}
+          />
         </div>
 
         {/* Right: Properties Inspector */}

@@ -40,7 +40,10 @@ export interface GroupLevel {
   sortOrder?: 'asc' | 'desc';
   showHeader?: boolean;
   showFooter?: boolean;
-  pageBreakAfter?: boolean;
+  pageBreakBefore?: boolean; // Beginne Gruppe auf neuer Seite (z.B. Hauptkategorien, Kostenstellen)
+  pageBreakAfter?: boolean; // Seitenumbruch nach Gruppenende
+  keepTogether?: boolean; // Gruppe zusammenhalten (verhindert unschönen Seitenumbruch mitten in der Gruppe)
+  keepWithNext?: boolean; // Header mit erster Detailzeile zusammenhalten (Orphan-Schutz)
   repeatOnEveryPage?: boolean;
 }
 
@@ -192,6 +195,42 @@ export interface SubReportConfig {
   parentKeyFieldId: string;
   title?: string;
   inline?: boolean;
+  keepTogether?: boolean; // Unterbericht als geschlossenen Block zusammenhalten
+  pageBreakBefore?: boolean; // Unterbericht immer auf neuer Seite beginnen
+}
+
+export interface ThermalPrinterConfig {
+  enabled?: boolean;
+  paperWidth: '58mm' | '80mm';
+  connectionType: 'webusb' | 'webserial' | 'webbluetooth' | 'network_raw' | 'browser_direct';
+  networkHost?: string;
+  networkPort?: number;
+  characterSet?: 'CP437' | 'CP850' | 'CP1252' | 'UTF-8';
+  autoCut?: boolean;
+  openCashDrawer?: boolean;
+  feedLines?: number;
+  printBarcode?: boolean;
+  barcodeType?: 'QR_CODE' | 'CODE128' | 'EAN13';
+  barcodeContent?: string;
+  receiptHeader?: string;
+  receiptFooter?: string;
+}
+
+export interface EscPosReceiptData {
+  title: string;
+  subtitle?: string;
+  meta: Array<{ label: string; value: string }>;
+  items: Array<{ name: string; qty: number; unitPrice: number; total: number }>;
+  vatRates?: Array<{ label: string; rate: number; net: number; tax: number }>;
+  netTotal: number;
+  taxTotal: number;
+  grossTotal: number;
+  paymentMethod?: string;
+  cashGiven?: number;
+  cashReturn?: number;
+  qrCodeData?: string;
+  barcodeData?: string;
+  footerNotes?: string;
 }
 
 export interface ReportChartConfig {
@@ -206,6 +245,8 @@ export interface ReportSettings {
   orientation?: 'portrait' | 'landscape';
   pageSize?: 'A4' | 'Letter';
   pageBreakAfterGroup?: boolean;
+  keepTableRowsTogether?: boolean; // Striktes Zusammenhalten von Tabellenzeilen über Seitenränder hinweg
+  keepGroupFootersWithData?: boolean; // Verhindert verwaiste Summenzeilen am Seitenanfang (Orphan Footer Protection)
   groupMethod?: 'full' | 'firstLetter';
   showReportHeader?: boolean;
   showReportFooter?: boolean;
@@ -214,6 +255,8 @@ export interface ReportSettings {
   showGridlines?: boolean;
   subtitle?: string;
   companyLogoUrl?: string;
+  vectorLogoSvg?: string; // Skalierbare Vektorgrafik (SVG) für verlustfreien PDF/A-Druck
+  vectorSignatureSvg?: string; // Vektorbasierte Prüfsignatur ohne Rasterverluste
   logoPosition?: 'left' | 'center' | 'right';
   logoWidth?: number;
   din5008?: Din5008Config;
@@ -224,6 +267,7 @@ export interface ReportSettings {
   stationery?: StationeryBackgroundConfig;
   freeformElements?: FreeformCanvasElement[];
   bandSections?: BandSectionConfig;
+  thermalPrinter?: ThermalPrinterConfig;
 }
 
 export interface DashboardWidget {

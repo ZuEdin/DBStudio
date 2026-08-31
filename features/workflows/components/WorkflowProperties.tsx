@@ -17,7 +17,8 @@ import {
   Info,
   Sparkles,
   Zap,
-  Variable
+  Variable,
+  Bug
 } from 'lucide-react';
 import { 
   WorkflowFieldMapping, 
@@ -33,6 +34,7 @@ import {
   WorkflowDelayConfig,
   WorkflowJsScriptConfig
 } from '../../../types/workflow';
+import { CRON_PRESETS, describeCronExpression } from '../../scheduler/utils/cronHelper';
 
 interface WorkflowPropertiesProps {
   node: Node | undefined;
@@ -140,38 +142,37 @@ export const WorkflowProperties: React.FC<WorkflowPropertiesProps> = ({
           <div className="space-y-3">
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                Cron-Ausdruck / Zeitplan
+                Cron Vorlage / Intervall
+              </label>
+              <select
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none mb-2"
+                value={config.cronExpression || '0 8 * * *'}
+                onChange={(e) => onUpdate({ triggerConfig: { ...config, cronExpression: e.target.value } })}
+              >
+                {CRON_PRESETS.map((preset) => (
+                  <option key={preset.expression} value={preset.expression}>
+                    {preset.label} ({preset.expression})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Benutzerdefinierter Cron-Ausdruck (5 Felder)
               </label>
               <input 
                 type="text"
-                placeholder="0 8 * * * (Jeden Tag um 08:00)"
+                placeholder="0 23 * * * (Nächtlicher Abgleich)"
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
                 value={config.cronExpression || ''}
                 onChange={(e) => onUpdate({ triggerConfig: { ...config, cronExpression: e.target.value } })}
               />
-            </div>
-            <div className="flex flex-wrap gap-1.5 text-[10px]">
-              <button 
-                type="button" 
-                onClick={() => onUpdate({ triggerConfig: { ...config, cronExpression: '0 * * * *' } })}
-                className="px-2 py-0.5 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded transition-colors"
-              >
-                Stündlich
-              </button>
-              <button 
-                type="button" 
-                onClick={() => onUpdate({ triggerConfig: { ...config, cronExpression: '0 8 * * *' } })}
-                className="px-2 py-0.5 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded transition-colors"
-              >
-                Täglich 08:00
-              </button>
-              <button 
-                type="button" 
-                onClick={() => onUpdate({ triggerConfig: { ...config, cronExpression: '0 0 * * 1' } })}
-                className="px-2 py-0.5 bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded transition-colors"
-              >
-                Montags 00:00
-              </button>
+              <div className="mt-1.5 p-2 bg-indigo-50/70 border border-indigo-100 rounded text-[11px] text-indigo-900 flex items-start gap-1.5">
+                <Info size={13} className="text-indigo-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Bedeutung:</strong> {describeCronExpression(config.cronExpression || '0 8 * * *')}
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -833,6 +834,33 @@ export const WorkflowProperties: React.FC<WorkflowPropertiesProps> = ({
                 value={nodeData.label || ''}
                 onChange={(e) => onUpdate({ label: e.target.value })}
               />
+            </div>
+
+            {/* Debugger Breakpoint Toggle */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm flex items-center justify-center ${nodeData.hasBreakpoint ? 'bg-rose-600' : 'bg-slate-300'}`}>
+                  {nodeData.hasBreakpoint && <span className="w-1 h-1 rounded-full bg-white" />}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>Debugger Breakpoint</span>
+                    {nodeData.hasBreakpoint && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 bg-rose-100 text-rose-700 rounded">Aktiv</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-slate-400">Pausiert den Debugger vor der Ausführung</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUpdate({ hasBreakpoint: !nodeData.hasBreakpoint })}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${nodeData.hasBreakpoint ? 'bg-rose-600' : 'bg-slate-300'}`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${nodeData.hasBreakpoint ? 'translate-x-4' : 'translate-x-0'}`}
+                />
+              </button>
             </div>
 
             <div className="pt-2">

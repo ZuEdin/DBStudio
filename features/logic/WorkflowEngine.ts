@@ -132,6 +132,235 @@ export interface WorkflowExecutionContext {
   onOpenMessageBox?: (title: string, message: string) => void;
 }
 
+export interface WorkflowDebugStepEvent {
+  nodeId: string;
+  nodeLabel: string;
+  nodeType: string;
+  status: 'paused' | 'running' | 'success' | 'failed' | 'completed';
+  stepLog?: WorkflowExecutionStepLog;
+  variables: Record<string, any>;
+  isBreakpoint: boolean;
+  canStepNext: boolean;
+}
+
+export class WorkflowDebugSession {
+  public workflow: Workflow;
+  public context: WorkflowExecutionContext;
+  public breakpoints: Set<string>;
+  public queue: string[] = [];
+  public visited: Set<string> = new Set();
+  public currentNodeId: string | null = null;
+  public isCompleted = false;
+  public isPaused = false;
+  public status: 'idle' | 'running' | 'paused' | 'success' | 'failed' | 'cancelled' = 'idle';
+  private onStepChange?: (event: WorkflowDebugStepEvent) => void;
+
+  constructor(
+    workflow: Workflow,
+    triggerRecord?: Record<string, any>,
+    initialBreakpoints?: string[],
+    callbacks?: {
+      onShowToast?: (msg: string, type: 'success' | 'info' | 'warning' | 'error') => void;
+      onOpenMessageBox?: (title: string, message: string) => void;
+      onStepChange?: (event: WorkflowDebugStepEvent) => void;
+    }
+  ) {
+    this.workflow = workflow;
+    this.breakpoints = new Set(initialBreakpoints || []);
+    this.onStepChange = callbacks?.onStepChange;
+
+    const logId = 'debug_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const log: WorkflowExecutionLog = {
+      id: logId,
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      triggerEvent: 'onManual',
+      triggeredBy: 'Debugger (Einzelschritt-Modus)',
+      startedAt: new Date().toISOString(),
+      status: 'running',
+      steps: []
+    };
+
+    this.context = {
+      workflow,
+      triggerEvent: 'onManual',
+      triggerRecord: triggerRecord || {},
+      previousRecord: {},
+      variables: {
+        trigger: triggerRecord || {},
+        system: {
+          now: new Date().toISOString(),
+          date: new Date().toLocaleDateString('de-DE'),
+          time: new Date().toLocaleTimeString('de-DE'),
+          appName: 'DB Studio Pro'
+        }
+      },
+      log,
+      onShowToast: callbacks?.onShowToast,
+      onOpenMessageBox: callbacks?.onOpenMessageBox
+    };
+
+    // Find trigger / start node
+    const triggerNodes = workflow.nodes.filter(
+      n => (n.type as string) === 'triggerNode' || (n.type as string) === 'trigger' || (n.data as any)?.isTrigger
+    );
+    const startNode = triggerNodes[0] || workflow.nodes[0];
+    if (startNode) {
+      this.queue = [startNode.id];
+      this.currentNodeId = startNode.id;
+      this.isPaused = true;
+      this.status = 'paused';
+    } else {
+      this.isCompleted = true;
+      this.status = 'failed';
+    }
+  }
+
+  public setVariable(path: string, value: any): void {
+    const parts = path.trim().replace(/^\{\{|\}\}$/g, '').split('.');
+    let target: any = this.context.variables;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!target[parts[i]]) target[parts[i]] = {};
+      target = target[parts[i]];
+    }
+    target[parts[parts.length - 1]] = value;
+  }
+
+  public async stepOver(): Promise<WorkflowDebugStepEvent> {
+    if (this.isCompleted || this.queue.length === 0) {
+      this.isCompleted = true;
+      this.status = 'success';
+      this.context.log.status = 'success';
+      this.context.log.completedAt = new Date().toISOString();
+      this.persistLog();
+
+      const event: WorkflowDebugStepEvent = {
+        nodeId: '',
+        nodeLabel: 'Ende des Workflows',
+        nodeType: 'system',
+        status: 'completed',
+        variables: JSON.parse(JSON.stringify(this.context.variables)),
+        isBreakpoint: false,
+        canStepNext: false
+      };
+      this.onStepChange?.(event);
+      return event;
+    }
+
+    const nextId = this.queue.shift()!;
+    this.currentNodeId = nextId;
+    const node = this.workflow.nodes.find(n => n.id === nextId);
+
+    if (!node) {
+      return this.stepOver();
+    }
+
+    this.visited.add(nextId);
+    const stepResult = await WorkflowExecutionEngine.executeSingleNode(node, this.context);
+    const lastStepLog = this.context.log.steps[this.context.log.steps.length - 1];
+
+    // Find next connected nodes
+    const outgoingEdges = this.workflow.edges.filter(e => e.source === nextId);
+    let nextNodeIds: string[] = [];
+
+    if (node.type === 'conditionNode') {
+      const conditionPassed = Boolean(stepResult.conditionMet);
+      const trueEdge = outgoingEdges.find(e => 
+        e.label === 'True' || e.label === 'Ja' || e.label === 'Wahr' || e.sourceHandle === 'true' || e.sourceHandle === 'handle-true'
+      );
+      const falseEdge = outgoingEdges.find(e => 
+        e.label === 'False' || e.label === 'Nein' || e.label === 'Falsch' || e.sourceHandle === 'false' || e.sourceHandle === 'handle-false'
+      );
+      const targetEdge = conditionPassed ? (trueEdge || outgoingEdges[0]) : (falseEdge || outgoingEdges[1]);
+      if (targetEdge && !this.visited.has(targetEdge.target)) {
+        nextNodeIds.push(targetEdge.target);
+      }
+    } else {
+      for (const edge of outgoingEdges) {
+        if (!this.visited.has(edge.target)) {
+          nextNodeIds.push(edge.target);
+        }
+      }
+    }
+
+    // Push unvisited targets to front of queue
+    this.queue = [...nextNodeIds, ...this.queue];
+    this.currentNodeId = this.queue[0] || null;
+
+    if (this.queue.length === 0) {
+      this.isCompleted = true;
+      this.status = 'success';
+      this.context.log.status = 'success';
+      this.context.log.completedAt = new Date().toISOString();
+      this.persistLog();
+    }
+
+    const nextHasBreakpoint = this.currentNodeId ? this.breakpoints.has(this.currentNodeId) : false;
+    const event: WorkflowDebugStepEvent = {
+      nodeId: nextId,
+      nodeLabel: node.data?.label || node.id,
+      nodeType: node.type,
+      status: this.isCompleted ? 'completed' : 'paused',
+      stepLog: lastStepLog,
+      variables: JSON.parse(JSON.stringify(this.context.variables)),
+      isBreakpoint: nextHasBreakpoint,
+      canStepNext: !this.isCompleted
+    };
+
+    this.onStepChange?.(event);
+    return event;
+  }
+
+  public async resume(): Promise<WorkflowExecutionLog> {
+    while (!this.isCompleted && this.queue.length > 0) {
+      const nextId = this.queue[0];
+      if (this.breakpoints.has(nextId) && nextId !== this.currentNodeId) {
+        // Hit breakpoint! Pause here
+        this.isPaused = true;
+        this.status = 'paused';
+        const node = this.workflow.nodes.find(n => n.id === nextId);
+        this.onStepChange?.({
+          nodeId: nextId,
+          nodeLabel: node?.data?.label || nextId,
+          nodeType: node?.type || 'action',
+          status: 'paused',
+          variables: JSON.parse(JSON.stringify(this.context.variables)),
+          isBreakpoint: true,
+          canStepNext: true
+        });
+        return this.context.log;
+      }
+      await this.stepOver();
+    }
+    return this.context.log;
+  }
+
+  public stop(): void {
+    this.isCompleted = true;
+    this.status = 'cancelled';
+    this.context.log.status = 'cancelled';
+    this.context.log.completedAt = new Date().toISOString();
+    this.persistLog();
+  }
+
+  private persistLog(): void {
+    const store = useProjectStore.getState();
+    const updatedWorkflows = (store.workflows || []).map(w => {
+      if (w.id === this.workflow.id) {
+        const existingLogs = w.executionLogs || [];
+        return {
+          ...w,
+          lastExecutedAt: this.context.log.completedAt,
+          lastExecutionStatus: this.context.log.status === 'success' ? 'success' : 'failed',
+          executionLogs: [this.context.log, ...existingLogs.slice(0, 19)]
+        } as Workflow;
+      }
+      return w;
+    });
+    store.setWorkflows(updatedWorkflows);
+  }
+}
+
 export class WorkflowExecutionEngine {
   
   public static async executeWorkflow(
@@ -326,23 +555,34 @@ export class WorkflowExecutionEngine {
     }
   }
 
-  private static async executeSingleNode(
+  public static async executeSingleNode(
     node: WorkflowNode,
     context: WorkflowExecutionContext
   ): Promise<{ success: boolean; conditionMet?: boolean; loopItems?: any[]; output?: any }> {
     const store = useProjectStore.getState();
     const nodeLabel = node.data?.label || node.id;
-    const timestamp = new Date().toISOString();
+    const stepStartTime = Date.now();
+    const inputPayloadSnapshot = JSON.parse(JSON.stringify(context.variables.trigger || context.triggerRecord || {}));
 
-    const addLogStep = (status: 'success' | 'failed' | 'skipped' | 'info', details: string, output?: any) => {
+    const addLogStep = (
+      status: 'success' | 'failed' | 'skipped' | 'info', 
+      details: string, 
+      output?: any,
+      customInput?: any
+    ) => {
+      const stepDuration = Date.now() - stepStartTime;
       context.log.steps.push({
         nodeId: node.id,
         nodeLabel,
         nodeType: node.type,
         status,
         timestamp: new Date().toISOString(),
+        durationMs: Math.max(1, stepDuration),
         details,
-        output
+        inputPayload: customInput || inputPayloadSnapshot,
+        outputPayload: output !== undefined ? output : (status === 'success' ? { status: 'ok', durationMs: stepDuration } : undefined),
+        output: output,
+        variablesState: JSON.parse(JSON.stringify(context.variables))
       });
     };
 
@@ -775,8 +1015,16 @@ export class WorkflowExecutionEngine {
       nodeType: 'emailActionNode',
       status: 'success',
       timestamp: new Date().toISOString(),
+      durationMs: 45,
       details: `E-Mail erfolgreich versendet an '${recipient}'. Betreff: "${subject}".`,
-      output: emailPayload
+      inputPayload: {
+        to: recipient,
+        subject,
+        bodyTemplate: cfg.body
+      },
+      outputPayload: emailPayload,
+      output: emailPayload,
+      variablesState: JSON.parse(JSON.stringify(context.variables))
     });
 
     return { success: true };

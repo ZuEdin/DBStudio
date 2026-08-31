@@ -12,6 +12,7 @@ import { SequenceConfigModal } from './components/SequenceConfigModal';
 import { MockDataGeneratorModal } from './MockDataGeneratorModal';
 import { GaebDatanormImportModal } from './components/GaebDatanormImportModal';
 import { ValidationRulesModal } from './components/ValidationRulesModal';
+import { TableNormalizationWizardModal } from './components/TableNormalizationWizardModal';
 import { UserCheck } from 'lucide-react';
 
 interface TableDesignerProps {
@@ -39,6 +40,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [showImportBridge, setShowImportBridge] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
+  const [showNormalizationModal, setShowNormalizationModal] = useState(false);
   const [computedModalField, setComputedModalField] = useState<Field | null>(null);
   const [sequenceModalField, setSequenceModalField] = useState<Field | null>(null);
   const [showMockData, setShowMockData] = useState(false);
@@ -241,6 +243,7 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({
         onOpenTemplatesModal={() => setShowTemplatesModal(true)}
         onOpenImportBridge={() => setShowImportBridge(true)}
         onOpenValidationModal={() => setShowValidationModal(true)}
+        onOpenNormalizationModal={() => setShowNormalizationModal(true)}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onClose={onClose}
@@ -385,6 +388,15 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({
           onClose={() => setShowValidationModal(false)}
           table={table}
           onUpdateRules={(rules) => onTableChange({ ...table, validationRules: rules })}
+        />
+      )}
+
+      {showNormalizationModal && (
+        <TableNormalizationWizardModal
+          isOpen={showNormalizationModal}
+          onClose={() => setShowNormalizationModal(false)}
+          table={table}
+          onTableChange={onTableChange}
         />
       )}
     </div>

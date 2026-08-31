@@ -16,20 +16,175 @@ import {
   PlusCircle,
   Edit3,
   Trash2,
-  Calculator
+  Calculator,
+  Loader2,
+  Bug
 } from 'lucide-react';
 import { WorkflowNodeData } from '../../../types/workflow';
 
 interface CustomNodeProps {
+  id?: string;
   data: WorkflowNodeData;
   isConnectable?: boolean;
   selected?: boolean;
 }
 
 // ----------------------------------------------------
+// SHARED NODE SHELL WITH BREAKPOINT & DEBUG HIGHLIGHT
+// ----------------------------------------------------
+interface NodeShellProps {
+  nodeId?: string;
+  data: WorkflowNodeData;
+  selected?: boolean;
+  borderColor: string;
+  ringColor: string;
+  badgeBg: string;
+  badgeText: string;
+  categoryLabel: string;
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: React.ReactNode;
+  minWidth?: string;
+  topInput?: boolean;
+  bottomOutput?: boolean;
+  isConnectable?: boolean;
+  children?: React.ReactNode;
+  sourceHandleId?: string;
+}
+
+const NodeShell: React.FC<NodeShellProps> = ({
+  nodeId,
+  data,
+  selected,
+  borderColor,
+  ringColor,
+  badgeBg,
+  badgeText,
+  categoryLabel,
+  icon,
+  title,
+  subtitle,
+  minWidth = 'min-w-[210px]',
+  topInput = true,
+  bottomOutput = true,
+  isConnectable,
+  children,
+  sourceHandleId = 'output'
+}) => {
+  const hasBreakpoint = Boolean(data.hasBreakpoint);
+  const isCurrentDebug = Boolean(data.isCurrentDebug);
+
+  const toggleBreakpoint = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof window !== 'undefined' && nodeId) {
+      window.dispatchEvent(
+        new CustomEvent('workflow:toggle-breakpoint', {
+          detail: { nodeId }
+        })
+      );
+    }
+  };
+
+  return (
+    <div
+      className={`relative px-4 py-3 shadow-md rounded-xl bg-white border-2 ${minWidth} transition-all select-none ${
+        isCurrentDebug 
+          ? 'border-amber-500 ring-4 ring-amber-300 shadow-xl shadow-amber-100 z-50' 
+          : selected 
+            ? `${borderColor} ring-2 ${ringColor}` 
+            : 'border-slate-300 hover:border-slate-400'
+      }`}
+    >
+      {/* Top Input Handle */}
+      {topInput && (
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="input"
+          isConnectable={isConnectable}
+          className="w-3 h-3 bg-slate-400 border-2 border-white"
+        />
+      )}
+
+      {/* Breakpoint Button (Top-Left) */}
+      <button
+        type="button"
+        onClick={toggleBreakpoint}
+        title={hasBreakpoint ? 'Breakpoint entfernen' : 'Breakpoint setzen (F9)'}
+        className={`absolute -top-2.5 -left-2.5 z-20 flex items-center justify-center rounded-full transition-transform hover:scale-125 focus:outline-none ${
+          hasBreakpoint 
+            ? 'w-5 h-5 bg-rose-600 border-2 border-white shadow-md text-white' 
+            : 'w-4 h-4 bg-slate-200 hover:bg-rose-400 border border-slate-300 opacity-30 hover:opacity-100'
+        }`}
+      >
+        {hasBreakpoint ? <span className="w-1.5 h-1.5 rounded-full bg-white" /> : null}
+      </button>
+
+      {/* Debugger Active Badge */}
+      {isCurrentDebug && (
+        <div className="absolute -top-3 right-2 z-20 px-2 py-0.5 bg-amber-500 text-white font-bold text-[9px] uppercase tracking-wider rounded-full shadow flex items-center gap-1 animate-bounce">
+          <Bug size={10} />
+          <span>Debugger Pausiert</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="flex items-center gap-1.5">
+          <div className={`p-1.5 rounded-lg ${badgeBg} ${badgeText}`}>
+            {icon}
+          </div>
+          <span className={`font-bold text-[10px] uppercase tracking-wider ${badgeText}`}>
+            {categoryLabel}
+          </span>
+        </div>
+
+        {/* Node status / execution indicator */}
+        <div className="flex items-center gap-1">
+          {data.status === 'running' && (
+            <Loader2 size={12} className="text-amber-500 animate-spin" />
+          )}
+          {data.status === 'success' && (
+            <CheckCircle2 size={12} className="text-emerald-600" />
+          )}
+          {data.status === 'failed' && (
+            <AlertCircle size={12} className="text-rose-600" />
+          )}
+          {hasBreakpoint && !isCurrentDebug && (
+            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1 rounded">BP</span>
+          )}
+        </div>
+      </div>
+
+      {/* Main title & subtitle */}
+      <div className="font-bold text-xs text-slate-800 mt-1 truncate max-w-[200px]">{title}</div>
+      {subtitle && (
+        <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[200px]">
+          {subtitle}
+        </div>
+      )}
+
+      {/* Extra children (e.g. true/false ports) */}
+      {children}
+
+      {/* Standard Bottom Output Handle */}
+      {bottomOutput && (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id={sourceHandleId}
+          isConnectable={isConnectable}
+          className="w-3 h-3 bg-indigo-600 border-2 border-white"
+        />
+      )}
+    </div>
+  );
+};
+
+// ----------------------------------------------------
 // 1. TRIGGER NODE
 // ----------------------------------------------------
-export const TriggerNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const TriggerNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const event = data.triggerConfig?.event || 'onCreate';
   const eventLabels: Record<string, string> = {
     onCreate: 'Datensatz erstellt (onCreate)',
@@ -42,40 +197,29 @@ export const TriggerNode: React.FC<CustomNodeProps> = ({ data, isConnectable, se
   };
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[200px] transition-all ${
-      selected ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-indigo-400 hover:border-indigo-500'
-    }`}>
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="flex items-center gap-1.5">
-          <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
-            <Play size={13} fill="currentColor" />
-          </div>
-          <span className="font-bold text-[10px] uppercase tracking-wider text-indigo-700">Trigger</span>
-        </div>
-        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'Workflow Start'}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[180px]">
-        {eventLabels[event] || event}
-      </div>
-
-      {/* Output Port */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-indigo-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      topInput={false}
+      bottomOutput={true}
+      isConnectable={isConnectable}
+      borderColor="border-indigo-600"
+      ringColor="ring-indigo-200"
+      badgeBg="bg-indigo-50"
+      badgeText="text-indigo-700"
+      categoryLabel="Trigger"
+      icon={<Play size={13} fill="currentColor" />}
+      title={data.label || 'Workflow Start'}
+      subtitle={eventLabels[event] || event}
+    />
   );
 };
 
 // ----------------------------------------------------
 // 2. DATABASE ACTION NODE (Create, Update, Delete, Calculate)
 // ----------------------------------------------------
-export const DatabaseActionNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const DatabaseActionNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const dbCfg = data.databaseActionConfig || (data.actionConfig as any) || {};
   const actionType = dbCfg.actionType || 'createRecord';
 
@@ -96,204 +240,118 @@ export const DatabaseActionNode: React.FC<CustomNodeProps> = ({ data, isConnecta
   };
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[200px] transition-all ${
-      selected ? 'border-emerald-600 ring-2 ring-emerald-200' : 'border-emerald-400 hover:border-emerald-500'
-    }`}>
-      {/* Input Port */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
-          {actionIcons[actionType] || <Database size={13} />}
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-emerald-700">Datenbank</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'Datenbank-Aktion'}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
-        <span>{actionLabels[actionType] || actionType}</span>
-      </div>
-
-      {/* Output Port */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-emerald-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      isConnectable={isConnectable}
+      borderColor="border-emerald-600"
+      ringColor="ring-emerald-200"
+      badgeBg="bg-emerald-50"
+      badgeText="text-emerald-700"
+      categoryLabel="Datenbank"
+      icon={actionIcons[actionType] || <Database size={13} />}
+      title={data.label || 'Datenbank-Aktion'}
+      subtitle={actionLabels[actionType] || actionType}
+    />
   );
 };
 
 // ----------------------------------------------------
 // 3. EMAIL ACTION NODE
 // ----------------------------------------------------
-export const EmailActionNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const EmailActionNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const emailCfg = (data.emailActionConfig || (data.actionConfig as any) || {}) as any;
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[210px] transition-all ${
-      selected ? 'border-blue-600 ring-2 ring-blue-200' : 'border-blue-400 hover:border-blue-500'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-          <Mail size={13} />
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-blue-700">E-Mail Versand</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'E-Mail senden'}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[190px]">
-        An: {emailCfg.to || '{{trigger.email}}'}
-      </div>
-      {emailCfg.subject && (
-        <div className="text-[9px] text-slate-400 truncate max-w-[190px] italic">
-          "{emailCfg.subject}"
-        </div>
-      )}
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-blue-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      isConnectable={isConnectable}
+      borderColor="border-blue-600"
+      ringColor="ring-blue-200"
+      badgeBg="bg-blue-50"
+      badgeText="text-blue-700"
+      categoryLabel="E-Mail Versand"
+      icon={<Mail size={13} />}
+      title={data.label || 'E-Mail senden'}
+      subtitle={`An: ${emailCfg.to || '{{trigger.email}}'}`}
+    />
   );
 };
 
 // ----------------------------------------------------
 // 4. EXPORT ACTION NODE (PDF, EXCEL, CSV)
 // ----------------------------------------------------
-export const ExportActionNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const ExportActionNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const exportCfg = data.exportActionConfig;
-  const type = exportCfg?.exportType || 'excel';
+  const type = (exportCfg?.exportType || 'excel').toUpperCase();
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[200px] transition-all ${
-      selected ? 'border-purple-600 ring-2 ring-purple-200' : 'border-purple-400 hover:border-purple-500'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
-          <FileSpreadsheet size={13} />
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-purple-700">Dokument-Export</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'Export generieren'}</div>
-      <div className="text-[10px] text-purple-600 font-bold uppercase mt-0.5">
-        Format: {type.toUpperCase()}
-      </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-purple-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      isConnectable={isConnectable}
+      borderColor="border-purple-600"
+      ringColor="ring-purple-200"
+      badgeBg="bg-purple-50"
+      badgeText="text-purple-700"
+      categoryLabel="Dokument-Export"
+      icon={<FileSpreadsheet size={13} />}
+      title={data.label || 'Export generieren'}
+      subtitle={`Format: ${type}`}
+    />
   );
 };
 
 // ----------------------------------------------------
 // 5. NOTIFICATION ACTION NODE (Toast / Message Box)
 // ----------------------------------------------------
-export const NotificationActionNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const NotificationActionNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const notifCfg = data.notificationActionConfig;
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[190px] transition-all ${
-      selected ? 'border-teal-600 ring-2 ring-teal-200' : 'border-teal-400 hover:border-teal-500'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600">
-          <Bell size={13} />
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-teal-700">Benachrichtigung</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'Toast / Dialog'}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[170px]">
-        {notifCfg?.message || 'Benachrichtigung anzeigen'}
-      </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-teal-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      isConnectable={isConnectable}
+      borderColor="border-teal-600"
+      ringColor="ring-teal-200"
+      badgeBg="bg-teal-50"
+      badgeText="text-teal-700"
+      categoryLabel="Benachrichtigung"
+      icon={<Bell size={13} />}
+      title={data.label || 'Toast / Dialog'}
+      subtitle={notifCfg?.message || 'Benachrichtigung anzeigen'}
+    />
   );
 };
 
 // ----------------------------------------------------
 // 6. CONDITION NODE (IF / ELSE WITH DUAL PORTS)
 // ----------------------------------------------------
-export const ConditionNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const ConditionNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const cond = data.conditionConfig;
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[210px] transition-all ${
-      selected ? 'border-amber-500 ring-2 ring-amber-200' : 'border-amber-400 hover:border-amber-500'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-1.5">
-          <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
-            <HelpCircle size={13} />
-          </div>
-          <span className="font-bold text-[10px] uppercase tracking-wider text-amber-700">Bedingung (IF)</span>
-        </div>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'Prüfung'}</div>
-      <div className="text-[10px] font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mt-1 truncate">
-        {cond?.fieldId ? `${cond.fieldId} ${cond.operator} ${cond.value || ''}` : 'Regel definieren...'}
-      </div>
-
-      {/* Dual output ports for True and False paths */}
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      bottomOutput={false}
+      isConnectable={isConnectable}
+      borderColor="border-amber-500"
+      ringColor="ring-amber-200"
+      badgeBg="bg-amber-50"
+      badgeText="text-amber-700"
+      categoryLabel="Bedingung (IF)"
+      icon={<HelpCircle size={13} />}
+      title={data.label || 'Prüfung'}
+      subtitle={cond?.fieldId ? `${cond.fieldId} ${cond.operator} ${cond.value || ''}` : 'Regel definieren...'}
+    >
       <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100 text-[10px] font-bold">
         <div className="flex items-center gap-1 text-emerald-600 relative">
           <span>✓ Wahr</span>
@@ -316,41 +374,30 @@ export const ConditionNode: React.FC<CustomNodeProps> = ({ data, isConnectable, 
           />
         </div>
       </div>
-    </div>
+    </NodeShell>
   );
 };
 
 // ----------------------------------------------------
 // 7. LOOP NODE (FOR EACH WITH DUAL PORTS)
 // ----------------------------------------------------
-export const LoopNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
-  const loopCfg = data.loopConfig;
-
+export const LoopNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[210px] transition-all ${
-      selected ? 'border-orange-500 ring-2 ring-orange-200' : 'border-orange-400 hover:border-orange-500'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-orange-50 text-orange-600">
-          <RotateCcw size={13} className="animate-spin" style={{ animationDuration: '6s' }} />
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-orange-700">Schleife (Loop)</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'Für jeden Eintrag'}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5">
-        Variable: <span className="font-mono font-bold text-orange-600">item</span>
-      </div>
-
-      {/* Output ports for Each and After loop */}
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      bottomOutput={false}
+      isConnectable={isConnectable}
+      borderColor="border-orange-500"
+      ringColor="ring-orange-200"
+      badgeBg="bg-orange-50"
+      badgeText="text-orange-700"
+      categoryLabel="Schleife (Loop)"
+      icon={<RotateCcw size={13} />}
+      title={data.label || 'Für jeden Eintrag'}
+      subtitle="Variable: item"
+    >
       <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100 text-[10px] font-bold">
         <div className="flex items-center gap-1 text-orange-600 relative">
           <span>Schleife</span>
@@ -373,129 +420,77 @@ export const LoopNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selec
           />
         </div>
       </div>
-    </div>
+    </NodeShell>
   );
 };
 
 // ----------------------------------------------------
 // 8. API CALL NODE
 // ----------------------------------------------------
-export const ApiNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const ApiNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const apiCfg = data.apiConfig;
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[200px] transition-all ${
-      selected ? 'border-sky-600 ring-2 ring-sky-200' : 'border-sky-400 hover:border-sky-500'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-sky-50 text-sky-600">
-          <Globe size={13} />
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-sky-700">REST API / Webhook</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'API Aufruf'}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
-        <span className="font-mono font-bold text-sky-600">{apiCfg?.method || 'POST'}</span>
-        <span className="truncate max-w-[140px]">{apiCfg?.url || 'https://api.domain.com'}</span>
-      </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-sky-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      isConnectable={isConnectable}
+      borderColor="border-sky-600"
+      ringColor="ring-sky-200"
+      badgeBg="bg-sky-50"
+      badgeText="text-sky-700"
+      categoryLabel="REST API / Webhook"
+      icon={<Globe size={13} />}
+      title={data.label || 'API Aufruf'}
+      subtitle={`${apiCfg?.method || 'POST'} ${apiCfg?.url || 'https://api.domain.com'}`}
+    />
   );
 };
 
 // ----------------------------------------------------
 // 9. DELAY NODE (Timer)
 // ----------------------------------------------------
-export const DelayNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const DelayNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   const secs = data.delayConfig?.seconds || 5;
 
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[180px] transition-all ${
-      selected ? 'border-slate-600 ring-2 ring-slate-200' : 'border-slate-300 hover:border-slate-400'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
-          <Clock size={13} />
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-slate-600">Wartezeit</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'Verzögerung'}</div>
-      <div className="text-[10px] text-slate-500 mt-0.5">
-        Warte <span className="font-bold text-slate-700">{secs}</span> Sekunden
-      </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      isConnectable={isConnectable}
+      borderColor="border-slate-600"
+      ringColor="ring-slate-200"
+      badgeBg="bg-slate-100"
+      badgeText="text-slate-700"
+      categoryLabel="Wartezeit"
+      icon={<Clock size={13} />}
+      title={data.label || 'Verzögerung'}
+      subtitle={`Warte ${secs} Sekunden`}
+    />
   );
 };
 
 // ----------------------------------------------------
 // 10. SCRIPT NODE (Custom JS)
 // ----------------------------------------------------
-export const ScriptNode: React.FC<CustomNodeProps> = ({ data, isConnectable, selected }) => {
+export const ScriptNode: React.FC<CustomNodeProps> = ({ id, data, isConnectable, selected }) => {
   return (
-    <div className={`px-4 py-3 shadow-md rounded-xl bg-white border-2 min-w-[190px] transition-all ${
-      selected ? 'border-pink-600 ring-2 ring-pink-200' : 'border-pink-400 hover:border-pink-500'
-    }`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="input"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-slate-400 border-2 border-white"
-      />
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="p-1.5 rounded-lg bg-pink-50 text-pink-600">
-          <Code2 size={13} />
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider text-pink-700">Code Script</span>
-      </div>
-
-      <div className="font-bold text-xs text-slate-800 mt-1">{data.label || 'JS Sandbox'}</div>
-      <div className="text-[10px] font-mono text-pink-600 mt-0.5">
-        (ctx, record) =&gt; ...
-      </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-pink-600 border-2 border-white"
-      />
-    </div>
+    <NodeShell
+      nodeId={id}
+      data={data}
+      selected={selected}
+      isConnectable={isConnectable}
+      borderColor="border-pink-600"
+      ringColor="ring-pink-200"
+      badgeBg="bg-pink-50"
+      badgeText="text-pink-700"
+      categoryLabel="Code Script"
+      icon={<Code2 size={13} />}
+      title={data.label || 'JS Sandbox'}
+      subtitle="(ctx, record) => ..."
+    />
   );
 };
 

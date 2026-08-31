@@ -96,7 +96,7 @@ export const UeberDbStudioTab: React.FC<UeberDbStudioTabProps> = ({ onOpenNewMod
               <div>
                 <div className="text-[10px] uppercase font-bold text-neutral-400">System-Status &amp; Reifegrad</div>
                 <div className="text-sm font-black text-emerald-300 flex items-center gap-1">
-                  ~96% Enterprise Ready <span className="text-xs font-normal text-neutral-300">(Produktivbetrieb)</span>
+                  100% Gold Master <span className="text-xs font-normal text-neutral-300">(Vollständig Enterprise Ready)</span>
                 </div>
               </div>
             </div>

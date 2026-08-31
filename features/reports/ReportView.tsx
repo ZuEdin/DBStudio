@@ -33,7 +33,10 @@ import { CommercialVobSummary } from './components/CommercialVobSummary';
 import { SwissQrBill } from './components/SwissQrBill';
 import { ReportEmailModal } from './components/ReportEmailModal';
 import { FreeformCanvasRenderer } from './components/FreeformCanvasRenderer';
+import { ZugferdValidationModal } from './components/ZugferdValidationModal';
+import { validateZugferdInvoice } from './utils/zugferdValidator';
 import { downloadZugferdXml } from './utils/zugferdGenerator';
+import { SvgPdfEmbedder } from './utils/svgPdfEmbedder';
 import { eventBus } from '../../services/eventBus';
 
 interface ReportViewProps {
@@ -287,23 +290,48 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: report.settings?.orientation || 'portrait' });
 
+    // 1. Scalable Vector Logo (SVG) embedding without raster losses
+    if (report.settings?.vectorLogoSvg) {
+      SvgPdfEmbedder.embedSvg(doc, report.settings.vectorLogoSvg, {
+        x: 14,
+        y: 10,
+        width: 50,
+        height: 18,
+      });
+    }
+
+    const titleX = report.settings?.vectorLogoSvg ? 70 : 14;
     doc.setFontSize(report.styles?.header?.fontSize || 18);
     if (report.styles?.header?.bold) doc.setFont('helvetica', 'bold');
     if (report.styles?.header?.color) doc.setTextColor(report.styles.header.color);
-    doc.text(report.name, 14, 15);
+    doc.text(report.name, titleX, 15);
 
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.setFont('helvetica', 'normal');
     if (report.settings?.subtitle) {
-      doc.text(report.settings.subtitle, 14, 22);
+      doc.text(report.settings.subtitle, titleX, 22);
     }
-    doc.text(`Erstellt am: ${new Date().toLocaleDateString()}`, 14, report.settings?.subtitle ? 27 : 22);
+    doc.text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, titleX, report.settings?.subtitle ? 27 : 22);
 
-    let finalY = report.settings?.subtitle ? 34 : 28;
+    let finalY = Math.max(report.settings?.vectorLogoSvg ? 32 : 28, report.settings?.subtitle ? 34 : 28);
 
-    processedGroups.forEach((group) => {
-      if (finalY > 250) {
+    // 2. Multi-page Group Rendering with Strict KeepTogether & Break Rules
+    processedGroups.forEach((group, groupIdx) => {
+      const activeGroupLevel = groupLevels[group.level] || groupLevels[0];
+      const pageBreakBefore = activeGroupLevel?.pageBreakBefore;
+      const keepTogether = activeGroupLevel?.keepTogether ?? report.settings?.bandSections?.detailBand?.keepTogether ?? true;
+      const estimatedGroupHeight = (group.items.length * 7) + 25; // Approx header + rows + sum
+
+      // A. "Auf neuer Seite beginnen" per Group Level (e.g. Kostenstelle / Hauptkategorie)
+      if (pageBreakBefore && groupIdx > 0) {
+        doc.addPage();
+        finalY = 20;
+      } else if (keepTogether && (finalY + estimatedGroupHeight > 270) && finalY > 50) {
+        // B. KeepTogether: Move entire group to fresh page if it would awkwardly split immediately
+        doc.addPage();
+        finalY = 20;
+      } else if (finalY > 255) {
         doc.addPage();
         finalY = 20;
       }
@@ -326,6 +354,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
         head: [tableHeaders],
         body: tableBody,
         theme: report.settings?.showGridlines ? 'grid' : report.settings?.zebraStriping ? 'striped' : 'plain',
+        rowPageBreak: report.settings?.keepTableRowsTogether !== false ? 'avoid' : 'auto',
         styles: {
           fontSize: report.styles?.detail?.fontSize || 9,
           cellPadding: 2,
@@ -342,6 +371,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
       finalY = doc.lastAutoTable.finalY + 5;
 
       if (group.summaries.length > 0) {
+        // Prevent orphaned group summary footer at top of new page
+        if (finalY > 265) {
+          doc.addPage();
+          finalY = 20;
+        }
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(15, 23, 42);
@@ -350,7 +384,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
         finalY += 10;
       }
 
-      if (report.settings?.pageBreakAfterGroup) {
+      const pageBreakAfter = activeGroupLevel?.pageBreakAfter ?? report.settings?.pageBreakAfterGroup;
+      if (pageBreakAfter && groupIdx < processedGroups.length - 1) {
         doc.addPage();
         finalY = 20;
       } else {
@@ -358,9 +393,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
       }
     });
 
-    // Overall Grand Total
+    // 3. Overall Grand Total
     if (grandTotalSummaries.length > 0) {
-      if (finalY > 250) {
+      if (finalY > 245) {
         doc.addPage();
         finalY = 20;
       }
@@ -371,6 +406,21 @@ export const ReportView: React.FC<ReportViewProps> = ({
       doc.setTextColor(15, 23, 42);
       const text = grandTotalSummaries.map((s) => `${s.label}: ${s.value}`).join('   |   ');
       doc.text(`GESAMTERGEBNIS: ${text}`, 16, finalY + 5.5);
+      finalY += 14;
+    }
+
+    // 4. Scalable Vector Signature Stamp (SVG) in PDF/A-3b
+    if (report.settings?.vectorSignatureSvg) {
+      if (finalY > 240) {
+        doc.addPage();
+        finalY = 20;
+      }
+      SvgPdfEmbedder.embedSvg(doc, report.settings.vectorSignatureSvg, {
+        x: 14,
+        y: finalY,
+        width: 80,
+        height: 25,
+      });
     }
 
     doc.save(`${report.name.replace(/[^a-z0-9]/gi, '_')}.pdf`);
@@ -449,6 +499,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const bandSections = report.settings?.bandSections;
 
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showZugferdModal, setShowZugferdModal] = useState(false);
+
+  const zugferdValidation = useMemo(() => {
+    return validateZugferdInvoice(
+      zugferdConfig,
+      baseNetTotal,
+      baseNetTotal * 0.19,
+      baseNetTotal * 1.19,
+      data.map((d, i) => ({
+        name: d.bezeichnung || d.name || d.title || `Position ${i + 1}`,
+        quantity: d.menge || d.anzahl || 1,
+        unitPrice: d.einzelpreis || d.preis || baseNetTotal,
+        total: d.gesamtpreis || baseNetTotal,
+      }))
+    );
+  }, [zugferdConfig, baseNetTotal, data]);
 
   const handlePrint = () => {
     try {
@@ -512,11 +578,16 @@ export const ReportView: React.FC<ReportViewProps> = ({
             </button>
             {zugferdConfig?.enabled && (
               <button
-                onClick={() => downloadZugferdXml(zugferdConfig, baseNetTotal, baseNetTotal * 0.19, baseNetTotal * 1.19)}
-                className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded font-semibold text-xs transition-colors shadow-sm cursor-pointer"
-                title="ZUGFeRD / Factur-X XML herunterladen"
+                onClick={() => setShowZugferdModal(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-bold text-xs transition-colors shadow-sm cursor-pointer border ${
+                  zugferdValidation.isValid
+                    ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-600'
+                    : 'bg-amber-600 hover:bg-amber-700 text-white border-amber-500 animate-pulse'
+                }`}
+                title="ZUGFeRD 2.2 / EN 16931 Konformitätsbericht prüfen"
               >
-                <FileCode size={14} /> Factur-X XML
+                <FileCode size={14} />
+                <span>ZUGFeRD {zugferdValidation.score}%</span>
               </button>
             )}
             <button
@@ -680,27 +751,39 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </div>
             )}
 
-            {processedGroups.map((group, groupIdx) => (
-              <div
-                key={groupIdx}
-                className="break-inside-avoid border border-slate-200 rounded-lg overflow-hidden shadow-2xs"
-              >
-                {/* GRUPPENKOPF (Group Header) */}
-                {groupLevels.length > 0 && (
-                  <div
-                    className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-300 text-slate-800 font-bold text-sm"
-                    style={getCssFromStyle(report.styles?.groupHeader)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="p-1 bg-slate-800 text-white rounded text-[10px] font-mono">GRUPPE</span>
-                      <span className="text-xs text-slate-500 font-semibold">{group.fieldLabel}:</span>
-                      <span className="text-sm font-bold text-slate-900">{group.groupValue}</span>
+            {processedGroups.map((group, groupIdx) => {
+              const activeGroupLevel = groupLevels[group.level] || groupLevels[0];
+              const pageBreakBefore = activeGroupLevel?.pageBreakBefore;
+              const pageBreakAfter = activeGroupLevel?.pageBreakAfter ?? report.settings?.pageBreakAfterGroup;
+              const keepTogether = activeGroupLevel?.keepTogether ?? report.settings?.bandSections?.detailBand?.keepTogether ?? true;
+
+              return (
+                <div
+                  key={groupIdx}
+                  className={`border border-slate-200 rounded-lg overflow-hidden shadow-2xs ${
+                    keepTogether ? 'break-inside-avoid page-break-inside-avoid' : ''
+                  }`}
+                  style={{
+                    pageBreakBefore: pageBreakBefore && groupIdx > 0 ? 'always' : 'auto',
+                    pageBreakAfter: pageBreakAfter && groupIdx < processedGroups.length - 1 ? 'always' : 'auto',
+                  }}
+                >
+                  {/* GRUPPENKOPF (Group Header) */}
+                  {groupLevels.length > 0 && (
+                    <div
+                      className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-300 text-slate-800 font-bold text-sm"
+                      style={getCssFromStyle(report.styles?.groupHeader)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="p-1 bg-slate-800 text-white rounded text-[10px] font-mono">GRUPPE</span>
+                        <span className="text-xs text-slate-500 font-semibold">{group.fieldLabel}:</span>
+                        <span className="text-sm font-bold text-slate-900">{group.groupValue}</span>
+                      </div>
+                      <span className="text-xs text-slate-500 font-mono font-normal bg-white px-2 py-0.5 rounded border border-slate-200">
+                        {group.items.length} Zeilen
+                      </span>
                     </div>
-                    <span className="text-xs text-slate-500 font-mono font-normal bg-white px-2 py-0.5 rounded border border-slate-200">
-                      {group.items.length} Zeilen
-                    </span>
-                  </div>
-                )}
+                  )}
 
                 {/* DETAILBEREICH (Detail Band Table) */}
                 <div className="overflow-x-auto">
@@ -813,7 +896,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   </div>
                 )}
               </div>
-            ))}
+            );
+          })}
 
             {/* Bottom Carry-Over (Übertrag auf Folgeseite) if enabled */}
             {vobConfig?.enabled && vobConfig.enableCarryOver && (
@@ -910,6 +994,19 @@ export const ReportView: React.FC<ReportViewProps> = ({
         <ReportEmailModal
           reportName={report.name}
           onClose={() => setShowEmailModal(false)}
+        />
+      )}
+
+      {showZugferdModal && zugferdConfig && (
+        <ZugferdValidationModal
+          validation={zugferdValidation}
+          config={zugferdConfig}
+          netTotal={baseNetTotal}
+          taxTotal={baseNetTotal * 0.19}
+          grossTotal={baseNetTotal * 1.19}
+          items={data}
+          onClose={() => setShowZugferdModal(false)}
+          onExportPdf={handleExportPDF}
         />
       )}
     </div>

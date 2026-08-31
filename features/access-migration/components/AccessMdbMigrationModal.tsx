@@ -24,8 +24,10 @@ import {
   CheckCircle2,
   RefreshCw,
   Eye,
-  Info
+  Info,
+  Code2
 } from 'lucide-react';
+import { VbaConverterModal } from './VbaConverterModal';
 
 interface AccessMdbMigrationModalProps {
   initialFile?: File | null;
@@ -49,6 +51,7 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
   const [selectedTableIndex, setSelectedTableIndex] = useState<number>(0);
   const [selectedTableNames, setSelectedTableNames] = useState<string[]>([]);
   const [showSystemTables, setShowSystemTables] = useState<boolean>(false);
+  const [showVbaModal, setShowVbaModal] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
@@ -181,12 +184,22 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowVbaModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all cursor-pointer shadow-xs"
+              title="Access VBA-Makros in TypeScript transpilieren"
+            >
+              <Code2 size={14} className="text-amber-400" />
+              <span>VBA &rarr; TypeScript</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Step Indicator */}
@@ -532,6 +545,13 @@ export const AccessMdbMigrationModal: React.FC<AccessMdbMigrationModalProps> = (
           </div>
         </div>
       </div>
+
+      {showVbaModal && (
+        <VbaConverterModal
+          formName={meta?.tables[selectedTableIndex]?.name || 'AccessForm'}
+          onClose={() => setShowVbaModal(false)}
+        />
+      )}
     </div>
   );
 };

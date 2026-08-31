@@ -183,6 +183,20 @@ export const useFormViewState = ({
 
   const currentRecord = isCreating || isUnbound ? tempRecord : processedData[currentIndex] || {};
 
+  // Real-time live validation effect for instantaneous inline feedback
+  useEffect(() => {
+    const activeRec = (isCreating || isUnbound) ? tempRecord : currentRecord;
+    if (activeRec && (Object.keys(activeRec).length > 0 || isCreating)) {
+      const result = validateFormRecord(form, sourceTable, activeRec, allTables);
+      setErrorsByField(result.errorsByField);
+      if (result.isValid) {
+        setValidationError(null);
+      }
+    } else {
+      setErrorsByField({});
+    }
+  }, [tempRecord, currentRecord, isCreating, isUnbound, form, sourceTable, allTables]);
+
   useEffect(() => {
     if (!isCreating && !isUnbound) {
       if (currentIndex >= processedData.length && processedData.length > 0) {

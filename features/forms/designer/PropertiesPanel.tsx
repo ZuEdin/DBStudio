@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FormElement, Form, Table, Relationship } from '../../../types/index';
 import { Edit3, Trash2, Settings2, Shield, Users, Zap, Plus, ChevronDown, ArrowUp, ArrowDown, Sparkles, Filter, Layers, Calculator, LayoutGrid } from 'lucide-react';
 import { getSavedMacros } from '../../logic/MacroEngine';
+import { RegexRuleBuilder } from './RegexRuleBuilder';
 
 interface CommaSeparatedInputProps {
   value: string[];
@@ -1271,20 +1272,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       )}
 
                       {rule.type === 'regex' && (
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">RegEx Muster:</label>
-                          <input 
-                            type="text"
-                            placeholder="z.B. ^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"
-                            value={rule.regexPattern || ''}
-                            onChange={e => {
-                              const updated = [...(selectedElement.validationRules || [])];
-                              updated[rIdx] = { ...updated[rIdx], regexPattern: e.target.value };
-                              onPropertyChange('validationRules', updated);
-                            }}
-                            className="w-full border border-slate-300 p-1 rounded text-[11px] font-mono"
-                          />
-                        </div>
+                        <RegexRuleBuilder
+                          rule={rule}
+                          onUpdate={(updates) => {
+                            const updated = [...(selectedElement.validationRules || [])];
+                            updated[rIdx] = { ...updated[rIdx], ...updates };
+                            onPropertyChange('validationRules', updated);
+                          }}
+                        />
                       )}
 
                       {rule.type === 'custom_js' && (

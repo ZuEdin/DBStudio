@@ -114,6 +114,8 @@ export interface WorkflowNodeData {
   description?: string;
   status?: 'idle' | 'running' | 'success' | 'failed' | 'skipped';
   lastRunResult?: string;
+  hasBreakpoint?: boolean;
+  isCurrentDebug?: boolean;
   
   // Specific configurations
   triggerConfig?: WorkflowTriggerConfig;
@@ -184,8 +186,12 @@ export interface WorkflowExecutionStepLog {
   nodeType: string;
   status: 'success' | 'failed' | 'skipped' | 'info';
   timestamp: string;
+  durationMs?: number;
   details: string;
+  inputPayload?: any;
+  outputPayload?: any;
   output?: any;
+  variablesState?: Record<string, any>;
 }
 
 export interface WorkflowExecutionLog {
