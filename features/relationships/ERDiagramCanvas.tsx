@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -15,27 +15,39 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Table, TableNode, Relationship } from '../../types/index';
+import { Table, TableNode, Relationship, TableGroup } from '../../types/index';
 import { 
-  Grid, 
-  Zap, 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize, 
   Group, 
   AlignLeft, 
-  Magnet, 
-  Grid3X3,
 } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { useERDiagramStore } from './stores/useERDiagramStore';
 
 // Imported modular components
 import { ERGroupNodeComponent } from './components/ERGroupNodeComponent';
 import { ERTableNodeComponent } from './components/ERTableNodeComponent';
+import { ERCustomEdge } from './components/ERCustomEdge';
+import { SchemaLinterPanel } from './components/SchemaLinterPanel';
+import { DbmlSplitEditor } from './components/DbmlSplitEditor';
+import { SqlReverseEngineerModal } from './components/SqlReverseEngineerModal';
+import { SchemaDiffModal } from './components/SchemaDiffModal';
+import { MockDataGeneratorModal } from './components/MockDataGeneratorModal';
+import { DataDictionaryModal } from './components/DataDictionaryModal';
+import { IndexConstraintDesignerModal } from './components/IndexConstraintDesignerModal';
+import { GlobalEnumManagerModal } from './components/GlobalEnumManagerModal';
+
+// Services
+import { AutoLayoutEngine } from './services/autoLayoutEngine';
+import { SchemaLinterService } from './services/schemaLinter';
+import { LayoutDirection, EnumDefinition, CustomTypeDefinition } from './types/erDesignerTypes';
 
 const nodeTypes = {
   erTableNode: ERTableNodeComponent,
   erGroupNode: ERGroupNodeComponent,
+};
+
+const edgeTypes = {
+  erCustomEdge: ERCustomEdge,
 };
 
 interface ERDiagramCanvasProps {
@@ -63,15 +75,54 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
 }) => {
   const [nodesState, setNodesState, onNodesChange] = useNodesState<Node>([]);
   const [edgesState, setEdgesState, onEdgesChange] = useEdgesState<Edge>([]);
-  const [snapToGrid, setSnapToGrid] = useState<boolean>(true);
 
-  const tableGroups = useProjectStore((state) => state.tableGroups);
+  // ER Diagram Zustand Store (synced with Ribbon)
+  const {
+    notationStyle,
+    snapToGrid,
+    showMinimap,
+    isLinterOpen,
+    setIsLinterOpen,
+    isDbmlOpen,
+    setIsDbmlOpen,
+    isSqlReverseModalOpen,
+    setIsSqlReverseModalOpen,
+    isSchemaDiffModalOpen,
+    setIsSchemaDiffModalOpen,
+    isMockDataModalOpen,
+    setIsMockDataModalOpen,
+    isDataDictionaryModalOpen,
+    setIsDataDictionaryModalOpen,
+    isEnumManagerModalOpen,
+    setIsEnumManagerModalOpen,
+    selectedTableForConstraints,
+    setSelectedTableForConstraints,
+    setLinterReport,
+    actionTrigger
+  } = useERDiagramStore();
+
+  // Global Project Store Hooks
+  const tableGroups = useProjectStore((state) => state.tableGroups) || [];
   const setTableGroups = useProjectStore((state) => state.setTableGroups);
+  const setTables = useProjectStore((state) => state.setTables);
+  const setRelationships = useProjectStore((state) => state.setRelationships);
+  const enums = (useProjectStore((state: any) => state.enums) as EnumDefinition[]) || [];
+  const customTypes = (useProjectStore((state: any) => state.customTypes) as CustomTypeDefinition[]) || [];
 
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   const tablesLength = tables.length;
   const nodesLength = nodes?.length || 0;
+
+  // Linter Score for Ribbon Badge
+  const linterReport = useMemo(() => {
+    return SchemaLinterService.analyzeSchema(tables, relationships);
+  }, [tables, relationships]);
+
+  // Sync health metrics to store
+  useEffect(() => {
+    setLinterReport(linterReport.score, linterReport.issues.length);
+  }, [linterReport, setLinterReport]);
 
   // Sync missing tables to layout nodes with non-overlapping positions
   useEffect(() => {
@@ -85,8 +136,8 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       if (!exists) {
         const col = index % 4;
         const row = Math.floor(index / 4);
-        const x = 50 + col * 280;
-        const y = 80 + row * 320;
+        const x = 50 + col * 300;
+        const y = 80 + row * 340;
 
         updatedNodes.push({
           id: crypto.randomUUID(),
@@ -101,7 +152,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     if (changed) {
       onUpdateNodes(updatedNodes);
     }
-  }, [tablesLength, nodesLength, onUpdateNodes]);
+  }, [tablesLength, nodesLength, onUpdateNodes, tables, nodes]);
 
   const nodesPositionString = JSON.stringify((nodes || []).map((n) => ({ id: n.id, x: n.x, y: n.y, groupId: n.groupId })));
 
@@ -112,7 +163,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     setNodesState((prevNodes) => {
       const prevNodesMap = new Map(prevNodes.map((n) => [n.id, n]));
 
-      // 1. Build Table Nodes (ONLY tables NOT in a collapsed group)
+      // 1. Build Table Nodes
       const tableNodes: Node[] = tables
         .filter((table) => {
           const layoutNode = nodes.find((n) => n.tableId === table.id);
@@ -135,6 +186,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
               nodes,
               tableGroups,
               onDoubleClick: () => onNodeDoubleClick?.(table.id),
+              onOpenConstraints: (tbl: Table) => setSelectedTableForConstraints(tbl),
             },
           };
         });
@@ -163,7 +215,7 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
         let height = 80;
 
         if (!group.isCollapsed) {
-          const maxX = memberLayoutNodes.length > 0 ? Math.max(...memberLayoutNodes.map((n) => n.x + 240)) + 20 : 340;
+          const maxX = memberLayoutNodes.length > 0 ? Math.max(...memberLayoutNodes.map((n) => n.x + 260)) + 20 : 340;
           const maxY = memberLayoutNodes.length > 0 ? Math.max(...memberLayoutNodes.map((n) => {
             const table = tables.find((t) => t.id === n.tableId);
             const fieldCount = table?.fields.length || 0;
@@ -228,11 +280,10 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     });
   }, [tables, nodesPositionString, relationships, tableGroups, setNodesState, onNodeDoubleClick, nodes, setTableGroups]);
 
-  // Sync relationships to React Flow edge structures (handling collapsed groups)
+  // Sync relationships to custom React Flow edges with notation style & fast triggers
   useEffect(() => {
     const collapsedGroupIds = new Set((tableGroups || []).filter(g => g.isCollapsed).map(g => g.id));
     
-    // Map of tableId -> groupId (only for collapsed groups)
     const tableToCollapsedGroup = new Map<string, string>();
     tables.forEach(t => {
       const layoutNode = nodes.find(n => n.tableId === t.id);
@@ -246,7 +297,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
         const fromCollapsedGroupId = tableToCollapsedGroup.get(rel.fromTableId);
         const toCollapsedGroupId = tableToCollapsedGroup.get(rel.toTableId);
 
-        // If both in SAME collapsed group, keep them hidden for now as it would just be a loop
         if (fromCollapsedGroupId && toCollapsedGroupId && fromCollapsedGroupId === toCollapsedGroupId) {
           return null;
         }
@@ -254,45 +304,16 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
         const sourceNodeId = fromCollapsedGroupId ? `group__${fromCollapsedGroupId}` : rel.fromTableId;
         const targetNodeId = toCollapsedGroupId ? `group__${toCollapsedGroupId}` : rel.toTableId;
 
-        // Try to get dynamic handles based on layout coordinates
-        const sourceLayoutNode = nodes.find(n => (fromCollapsedGroupId ? n.id === sourceNodeId : n.tableId === sourceNodeId));
-        const targetLayoutNode = nodes.find(n => (toCollapsedGroupId ? n.id === targetNodeId : n.tableId === targetNodeId));
-        
-        let dynamicSourceHandle = 'right-s';
-        let dynamicTargetHandle = 'left';
-        
-        if (sourceLayoutNode && targetLayoutNode) {
-          const dx = targetLayoutNode.x - sourceLayoutNode.x;
-          const dy = targetLayoutNode.y - sourceLayoutNode.y;
-          
-          if (Math.abs(dx) > Math.abs(dy)) {
-            // Horizontal connection
-            if (dx > 0) {
-              dynamicSourceHandle = 'right-s';
-              dynamicTargetHandle = 'left';
-            } else {
-              dynamicSourceHandle = 'left-s';
-              dynamicTargetHandle = 'right';
-            }
-          } else {
-            // Vertical connection
-            if (dy > 0) {
-              dynamicSourceHandle = 'bottom-s';
-              dynamicTargetHandle = 'top';
-            } else {
-              dynamicSourceHandle = 'top-s';
-              dynamicTargetHandle = 'bottom';
-            }
-          }
-        }
-
         const sourceHandle = fromCollapsedGroupId 
-          ? dynamicSourceHandle
+          ? 'right-s'
           : `${rel.fromTableId}__${rel.fromFieldId}__source`;
           
         const targetHandle = toCollapsedGroupId 
-          ? dynamicTargetHandle
+          ? 'left'
           : `${rel.toTableId}__${rel.toFieldId}__target`;
+
+        const fromTable = tables.find(t => t.id === rel.fromTableId);
+        const toTable = tables.find(t => t.id === rel.toTableId);
 
         return {
           id: rel.id,
@@ -300,41 +321,51 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
           target: targetNodeId,
           sourceHandle,
           targetHandle,
-          type: 'smoothstep',
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 16,
-            height: 16,
-            color: '#64748b',
+          type: 'erCustomEdge',
+          data: {
+            relationship: rel,
+            notationStyle,
+            sourceTable: fromTable?.name,
+            targetTable: toTable?.name,
+            onEdit: (r: Relationship) => {
+              // Trigger context menu or relationship edit
+              onRelationshipContextMenu?.({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2, preventDefault: () => {} } as any, r.id);
+            },
+            onDelete: (relId: string) => {
+              if (showConfirmation) {
+                showConfirmation(
+                  'Beziehung löschen?',
+                  'Möchten Sie diese Verknüpfung wirklich entfernen?',
+                  () => {
+                    const nextRels = relationships.filter(r => r.id !== relId);
+                    setRelationships(nextRels);
+                  },
+                  'Löschen',
+                  'bg-red-600 hover:bg-red-700 text-white'
+                );
+              } else {
+                setRelationships(relationships.filter(r => r.id !== relId));
+              }
+            }
           },
-          style: {
-            stroke: '#64748b',
-            strokeWidth: 2,
-          },
-          label: rel.type === '1:1' ? '1 - 1' : '1 - 1:N',
-          labelStyle: { fill: '#475569', fontWeight: 700, fontSize: 10 },
-          labelBgPadding: [4, 2],
-          labelBgBorderRadius: 4,
-          labelBgStyle: { fill: '#f1f5f9', color: '#475569', fillOpacity: 0.9 },
         };
       })
       .filter(e => e !== null) as Edge[];
 
     setEdgesState(rfEdges);
-  }, [relationships, setEdgesState, tableGroups, tables, nodes]);
+  }, [relationships, setEdgesState, tableGroups, tables, nodes, notationStyle, onRelationshipContextMenu, showConfirmation, setRelationships]);
 
   const dragStartPositions = React.useRef<Record<string, { x: number; y: number }>>({});
   
-  const onNodeDragStart = useCallback((_event: any, node: any, nodes: any[]) => {
-    nodes.forEach(n => {
+  const onNodeDragStart = useCallback((_event: any, _node: any, draggedNodes: any[]) => {
+    draggedNodes.forEach(n => {
       dragStartPositions.current[n.id] = { ...n.position };
     });
   }, []);
 
-  const onNodeDrag = useCallback((_event: any, node: any, draggedNodes: any[]) => {
+  const onNodeDrag = useCallback((_event: any, _node: any, draggedNodes: any[]) => {
     if (!onUpdateNodes) return;
     
-    // Live update the tables during group drag for visual feedback
     const draggedGroups = draggedNodes.filter(n => n.id.startsWith('group__'));
     if (draggedGroups.length === 0) return;
     
@@ -349,7 +380,6 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
           const dx = groupNode.position.x - startPos.x;
           const dy = groupNode.position.y - startPos.y;
           
-          // Find member tables from the global `nodes` store
           const memberIds = nodes.filter(n => n.groupId === groupId).map(n => n.tableId);
           
           nextNodes = nextNodes.map(pn => {
@@ -378,12 +408,10 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
         let potentialGroupId: string | null = null;
         let tableToGroup: string | null = null;
 
-        // Check for drop on group (only if single table node is dragged)
         if (nodesToUpdate.length === 1 && !nodesToUpdate[0].id.startsWith('group__')) {
           const tableNodeId = nodesToUpdate[0].id;
           const tablePos = nodesToUpdate[0].position;
           
-          // Find if dropped on a group node
           const groupNode = nodesState.find(n => 
             n.type === 'erGroupNode' && 
             tablePos.x >= n.position.x && 
@@ -448,105 +476,88 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
               'Hinzufügen',
               'bg-emerald-600 hover:bg-emerald-700 text-white'
             );
-            performUpdate(baseUpdated);
           } else {
             applyGroupChange();
           }
         } else {
           performUpdate(baseUpdated);
         }
-      } else {
-        nodesToUpdate.forEach((dn) => {
-          const layoutNode = nodes.find((n) => n.tableId === dn.id);
-          if (layoutNode && !dn.id.startsWith('group__')) {
-            onMoveNode(layoutNode.id, dn.position.x, dn.position.y);
-          }
-        });
       }
-      dragStartPositions.current = {};
     },
-    [nodes, onMoveNode, onUpdateNodes, nodesState, tableGroups, tables, showConfirmation]
+    [nodes, onUpdateNodes, tableGroups, tables, nodesState, showConfirmation]
   );
 
-  // Handle new link drag & connect triggers
   const handleConnect = useCallback(
-    (connection: Connection) => {
-      if (
-        !connection.source ||
-        !connection.target ||
-        !connection.sourceHandle ||
-        !connection.targetHandle
-      )
-        return;
-
-      const sourceFieldId = connection.sourceHandle.split('__')[1];
-      const targetFieldId = connection.targetHandle.split('__')[1];
-
-      onConnect(connection.source, sourceFieldId, connection.target, targetFieldId);
+    (params: Connection) => {
+      if (params.source && params.target && params.sourceHandle && params.targetHandle) {
+        const [, f1] = params.sourceHandle.split('__');
+        const [, f2] = params.targetHandle.split('__');
+        onConnect(params.source, f1, params.target, f2);
+      }
     },
     [onConnect]
   );
 
-  // Trigger ContextMenu for Relationships (Edges)
-  const onEdgeContextMenu = useCallback(
-    (event: React.MouseEvent, edge: Edge) => {
-      if (onRelationshipContextMenu) {
-        onRelationshipContextMenu(event, edge.id);
-      }
-    },
-    [onRelationshipContextMenu]
-  );
-
-  // Selection actions
-  const selectedRFNodes = nodesState.filter((n) => n.selected && !n.id.startsWith('group__'));
-  const selectedTableIds = selectedRFNodes.map((n) => n.id);
-
-  // Force-directed Physics Layout
-  const triggerPhysicsLayout = () => {
-    if (!onUpdateNodes) return;
-
-    const selectedGroupNodes = nodesState.filter(n => n.selected && n.id.startsWith('group__'));
-    const selectedGroupIds = selectedGroupNodes.map(n => n.id.replace('group__', ''));
-    
-    let targetTableIds: string[] = [];
-    if (selectedGroupIds.length > 0) {
-      targetTableIds = nodes
-        .filter(n => n.groupId && selectedGroupIds.includes(n.groupId))
-        .map(n => n.tableId);
-    } else if (selectedTableIds.length > 0) {
-      targetTableIds = selectedTableIds;
+  const onEdgeContextMenu = (event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    if (onRelationshipContextMenu) {
+      onRelationshipContextMenu(event, edge.id);
     }
+  };
 
-    const tablesToLayout = targetTableIds.length > 0 
-      ? nodes.filter(n => targetTableIds.includes(n.tableId))
-      : nodes;
+  // 1. Hierarchical DAG Auto-Layout Action (Top-Down / Left-Right)
+  const handleHierarchicalAutoLayout = (direction: LayoutDirection) => {
+    if (!onUpdateNodes) return;
+    const layoutResult = AutoLayoutEngine.calculateAutoLayout(tables, relationships, nodes, {
+      direction,
+      rankSep: 140,
+      nodeSep: 80,
+    });
 
-    if (tablesToLayout.length === 0) return;
+    onUpdateNodes(layoutResult.nodes);
+    setTimeout(() => {
+      fitView({ duration: 400, padding: 0.15 });
+    }, 50);
+  };
 
-    const startX = Math.min(...tablesToLayout.map(n => n.x));
-    const startY = Math.min(...tablesToLayout.map(n => n.y));
+  // 2. Physics-based Layout Action
+  const triggerPhysicsLayout = () => {
+    if (!onUpdateNodes || tables.length === 0) return;
 
-    const simNodes = tablesToLayout.map((n) => ({ ...n, vx: 0, vy: 0 }));
-    const iterations = 150;
-    const repulsion = 800000;
+    const iterations = 80;
+    const repulsion = 45000;
     const attraction = 0.05;
-    const damping = 0.7;
-    const optimalDist = 320;
+    const optimalDist = 280;
+    const damping = 0.88;
 
-    for (let i = 0; i < iterations; i++) {
-      for (let j = 0; j < simNodes.length; j++) {
-        for (let k = j + 1; k < simNodes.length; k++) {
-          const dx = simNodes[j].x - simNodes[k].x;
-          const dy = simNodes[j].y - simNodes[k].y;
-          const distSq = dx * dx + dy * dy || 1;
-          const dist = Math.sqrt(distSq);
-          const force = repulsion / distSq;
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          simNodes[j].vx += fx;
-          simNodes[j].vy += fy;
-          simNodes[k].vx -= fx;
-          simNodes[k].vy -= fy;
+    const startX = Math.min(...nodes.map((n) => n.x));
+    const startY = Math.min(...nodes.map((n) => n.y));
+
+    const simNodes = nodes.map((n) => ({
+      tableId: n.tableId,
+      x: n.x,
+      y: n.y,
+      vx: 0,
+      vy: 0,
+    }));
+
+    for (let iter = 0; iter < iterations; iter++) {
+      for (let i = 0; i < simNodes.length; i++) {
+        for (let j = i + 1; j < simNodes.length; j++) {
+          const n1 = simNodes[i];
+          const n2 = simNodes[j];
+          const dx = n2.x - n1.x;
+          const dy = n2.y - n1.y;
+          const dist = Math.sqrt(dx * dx + dy * dy || 1);
+          if (dist < 800) {
+            const force = repulsion / (dist * dist);
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            n1.vx -= fx;
+            n1.vy -= fy;
+            n2.vx += fx;
+            n2.vy += fy;
+          }
         }
       }
 
@@ -591,125 +602,65 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     });
 
     onUpdateNodes(updatedNodes);
+    setTimeout(() => {
+      fitView({ duration: 400, padding: 0.15 });
+    }, 50);
   };
 
-  // Align nodes into a clean grid
+  // 3. Grid Layout
   const triggerGridLayout = () => {
     if (!onUpdateNodes) return;
+    const spacingX = 320;
+    const spacingY = 340;
+    const cols = Math.ceil(Math.sqrt(tables.length));
 
-    const selectedGroupNodes = nodesState.filter(n => n.selected && n.id.startsWith('group__'));
-    const selectedGroupIds = selectedGroupNodes.map(n => n.id.replace('group__', ''));
-    
-    let targetTableIds: string[] = [];
-    if (selectedGroupIds.length > 0) {
-      targetTableIds = nodes
-        .filter(n => n.groupId && selectedGroupIds.includes(n.groupId))
-        .map(n => n.tableId);
-    } else if (selectedTableIds.length > 0) {
-      targetTableIds = selectedTableIds;
-    }
-
-    const tablesToLayout = targetTableIds.length > 0 
-      ? nodes.filter(n => targetTableIds.includes(n.tableId))
-      : nodes;
-
-    if (tablesToLayout.length === 0) return;
-
-    const startX = Math.min(...tablesToLayout.map(n => n.x));
-    const startY = Math.min(...tablesToLayout.map(n => n.y));
-
-    const groupedTables: { [groupId: string]: any[] } = {};
-    const unGroupedTables: any[] = [];
-
-    tablesToLayout.forEach(n => {
-      if (n.groupId) {
-        if (!groupedTables[n.groupId]) groupedTables[n.groupId] = [];
-        groupedTables[n.groupId].push(n);
-      } else {
-        unGroupedTables.push(n);
-      }
+    const updatedNodes = nodes.map((n, idx) => {
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      return {
+        ...n,
+        x: 60 + col * spacingX,
+        y: 80 + row * spacingY,
+      };
     });
 
-    const spacingX = 300;
-    const spacingY = 240;
-    const groupPaddingX = 100;
-    const groupPaddingY = 100;
+    onUpdateNodes(updatedNodes);
+    setTimeout(() => {
+      fitView({ duration: 400, padding: 0.15 });
+    }, 50);
+  };
 
-    let currentGroupStartX = startX;
-    let currentGroupStartY = startY;
-    let maxGroupHeightInRow = 0;
-    const maxWidth = 1400;
+  // Listen to Ribbon actions via useERDiagramStore.actionTrigger
+  useEffect(() => {
+    if (!actionTrigger) return;
+    const { action } = actionTrigger;
 
-    const updatedNodes = [...nodes];
-
-    const layoutTableSet = (tableSet: any[], groupId: string | null) => {
-      if (tableSet.length === 0) return;
-      const cols = Math.ceil(Math.sqrt(tableSet.length));
-      
-      let maxW = 0;
-      let maxH = 0;
-
-      tableSet.forEach((n, idx) => {
-        const col = idx % cols;
-        const row = Math.floor(idx / cols);
-
-        const newX = currentGroupStartX + col * spacingX;
-        const newY = currentGroupStartY + row * spacingY + (groupId ? 80 : 0);
-
-        const originalNodeIdx = updatedNodes.findIndex(un => un.tableId === n.tableId);
-        if (originalNodeIdx !== -1) {
-          updatedNodes[originalNodeIdx] = { 
-            ...updatedNodes[originalNodeIdx], 
-            x: Math.round(newX / 20) * 20, 
-            y: Math.round(newY / 20) * 20 
-          };
-        }
-
-        maxW = Math.max(maxW, col * spacingX + 240);
-        maxH = Math.max(maxH, row * spacingY + 300 + (groupId ? 80 : 0));
-      });
-
-      currentGroupStartX += maxW + groupPaddingX;
-      maxGroupHeightInRow = Math.max(maxGroupHeightInRow, maxH);
-
-      if (currentGroupStartX - startX > maxWidth) {
-        currentGroupStartX = startX;
-        currentGroupStartY += maxGroupHeightInRow + groupPaddingY;
-        maxGroupHeightInRow = 0;
-      }
-    };
-
-    Object.entries(groupedTables).forEach(([groupId, tableSet]) => {
-      layoutTableSet(tableSet, groupId);
-    });
-
-    if (unGroupedTables.length > 0) {
-      if (currentGroupStartX !== startX && maxGroupHeightInRow > 0) {
-        currentGroupStartX = startX;
-        currentGroupStartY += maxGroupHeightInRow + groupPaddingY;
-      }
-      layoutTableSet(unGroupedTables, null);
+    if (action === 'auto_layout_tb') {
+      handleHierarchicalAutoLayout('TB');
+    } else if (action === 'auto_layout_lr') {
+      handleHierarchicalAutoLayout('LR');
+    } else if (action === 'layout_physics') {
+      triggerPhysicsLayout();
+    } else if (action === 'layout_grid') {
+      triggerGridLayout();
+    } else if (action === 'fit_view') {
+      fitView({ duration: 300, padding: 0.15 });
+    } else if (action === 'zoom_in') {
+      zoomIn();
+    } else if (action === 'zoom_out') {
+      zoomOut();
     }
+  }, [actionTrigger, fitView, zoomIn, zoomOut]);
 
-    onUpdateNodes(updatedNodes);
-  };
+  // Multi-selection alignment & grouping
+  const selectedTableIds = nodesState
+    .filter((n) => n.selected && n.type === 'erTableNode')
+    .map((n) => n.id);
 
-  // Align selected nodes to grid multiples of 20
-  const handleAlignAllToGrid = () => {
-    if (!onUpdateNodes) return;
-    const updatedNodes = nodes.map((n) => ({
-      ...n,
-      x: Math.round(n.x / 20) * 20,
-      y: Math.round(n.y / 20) * 20,
-    }));
-    onUpdateNodes(updatedNodes);
-  };
-
-  // Group Selected Nodes
   const handleGroupSelected = () => {
     if (!onUpdateNodes || selectedTableIds.length === 0) return;
     const groupId = crypto.randomUUID();
-    const newGroups = [...(tableGroups || []), { id: groupId, name: 'Neue Gruppe', comment: '' }];
+    const newGroups = [...(tableGroups || []), { id: groupId, name: 'Neue Domäne', comment: '', color: '#3b82f6' }];
     setTableGroups(newGroups);
 
     const updatedNodes = nodes.map((n) => {
@@ -721,10 +672,8 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
     onUpdateNodes(updatedNodes);
   };
 
-  // Ungroup Selected Nodes
   const handleUngroupSelected = () => {
     if (!onUpdateNodes || selectedTableIds.length === 0) return;
-
     const updatedNodes = nodes.map((n) => {
       if (selectedTableIds.includes(n.tableId)) {
         return { ...n, groupId: undefined };
@@ -732,88 +681,47 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       return n;
     });
     onUpdateNodes(updatedNodes);
+  };
 
+  const handleUpdateTable = (updatedTable: Table) => {
+    const nextTables = tables.map(t => t.id === updatedTable.id ? updatedTable : t);
+    setTables(nextTables);
+  };
+
+  const handleAddTable = (newTable: Table) => {
+    const nextTables = [...tables, newTable];
+    setTables(nextTables);
+  };
+
+  const handleApplyDbmlSchema = (newTables: Table[], newRels: Relationship[]) => {
+    setTables(newTables);
+    setRelationships(newRels);
     setTimeout(() => {
-      const remainingGroupIds = new Set(updatedNodes.map((n) => n.groupId).filter(Boolean));
-      const newGroups = (tableGroups || []).filter((g) => remainingGroupIds.has(g.id));
-      setTableGroups(newGroups);
+      handleHierarchicalAutoLayout('TB');
     }, 100);
   };
 
-  // Align selected nodes - Top
-  const handleAlignTop = () => {
-    if (!onUpdateNodes || selectedTableIds.length === 0) return;
-    const selectedLayoutNodes = nodes.filter((n) => selectedTableIds.includes(n.tableId));
-    if (selectedLayoutNodes.length === 0) return;
-
-    const minY = Math.min(...selectedLayoutNodes.map((n) => n.y));
-
-    const updatedNodes = nodes.map((n) => {
-      if (selectedTableIds.includes(n.tableId)) {
-        return { ...n, y: minY };
+  const handleApplyMockData = (dataByTableId: Record<string, any[]>) => {
+    const nextTables = tables.map(t => {
+      const generatedRows = dataByTableId[t.id];
+      if (generatedRows) {
+        return {
+          ...t,
+          data: generatedRows
+        };
       }
-      return n;
+      return t;
     });
-    onUpdateNodes(updatedNodes);
-  };
-
-  // Align selected nodes - Bottom
-  const handleAlignBottom = () => {
-    if (!onUpdateNodes || selectedTableIds.length === 0) return;
-    const selectedLayoutNodes = nodes.filter((n) => selectedTableIds.includes(n.tableId));
-    if (selectedLayoutNodes.length === 0) return;
-
-    const maxY = Math.max(...selectedLayoutNodes.map((n) => n.y));
-
-    const updatedNodes = nodes.map((n) => {
-      if (selectedTableIds.includes(n.tableId)) {
-        return { ...n, y: maxY };
-      }
-      return n;
-    });
-    onUpdateNodes(updatedNodes);
-  };
-
-  // Align selected nodes - Left
-  const handleAlignLeft = () => {
-    if (!onUpdateNodes || selectedTableIds.length === 0) return;
-    const selectedLayoutNodes = nodes.filter((n) => selectedTableIds.includes(n.tableId));
-    if (selectedLayoutNodes.length === 0) return;
-
-    const minX = Math.min(...selectedLayoutNodes.map((n) => n.x));
-
-    const updatedNodes = nodes.map((n) => {
-      if (selectedTableIds.includes(n.tableId)) {
-        return { ...n, x: minX };
-      }
-      return n;
-    });
-    onUpdateNodes(updatedNodes);
-  };
-
-  // Align selected nodes - Right
-  const handleAlignRight = () => {
-    if (!onUpdateNodes || selectedTableIds.length === 0) return;
-    const selectedLayoutNodes = nodes.filter((n) => selectedTableIds.includes(n.tableId));
-    if (selectedLayoutNodes.length === 0) return;
-
-    const maxX = Math.max(...selectedLayoutNodes.map((n) => n.x));
-
-    const updatedNodes = nodes.map((n) => {
-      if (selectedTableIds.includes(n.tableId)) {
-        return { ...n, x: maxX };
-      }
-      return n;
-    });
-    onUpdateNodes(updatedNodes);
+    setTables(nextTables);
   };
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative overflow-hidden bg-neutral-100 dark:bg-neutral-950">
       <ReactFlow
         nodes={nodesState}
         edges={edgesState}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStart={onNodeDragStart}
@@ -829,210 +737,133 @@ const ERDiagramCanvasInner: React.FC<ERDiagramCanvasProps> = ({
       >
         <Background gap={20} size={1.2} color="#cbd5e1" />
         
-        <MiniMap 
-          zoomable 
-          pannable 
-          position="bottom-right" 
-          style={{ bottom: 80, right: 16, height: 120, width: 180, margin: 12 }}
-          nodeColor={(n: any) => {
-            if (n.type === 'erGroupNode') {
-              const groupColor = n.data?.group?.color || 'slate';
-              const isCollapsed = n.data?.group?.isCollapsed;
-              
-              if (isCollapsed) {
-                const solidColors: any = {
-                  purple: '#a855f7',
-                  blue: '#3b82f6',
-                  emerald: '#10b981',
-                  rose: '#f43f5e',
-                  amber: '#f59e0b',
-                  slate: '#64748b'
-                };
-                return solidColors[groupColor] || solidColors.slate;
+        {showMinimap && (
+          <MiniMap 
+            zoomable 
+            pannable 
+            position="bottom-right" 
+            style={{ bottom: 16, right: 16, height: 120, width: 180, margin: 12 }}
+            nodeColor={(n: any) => {
+              if (n.type === 'erGroupNode') {
+                return '#cbd5e1';
               }
+              return '#3b82f6';
+            }}
+            nodeStrokeWidth={2}
+            maskColor="rgba(241, 245, 249, 0.7)"
+          />
+        )}
 
-              const colors: any = {
-                purple: '#f5f3ff',
-                blue: '#eff6ff',
-                emerald: '#ecfdf5',
-                rose: '#fff1f2',
-                amber: '#fffbeb',
-                slate: '#f8fafc'
-              };
-              return colors[groupColor] || colors.slate;
-            }
-            if (n.type === 'erTableNode') {
-              const table = n.data?.table;
-              const layoutNode = nodes.find(ln => ln.tableId === table?.id);
-              if (layoutNode?.groupId) {
-                const group = tableGroups.find(g => g.id === layoutNode.groupId);
-                const groupColor = group?.color || 'slate';
-                const colors: any = {
-                  purple: '#a855f7',
-                  blue: '#3b82f6',
-                  emerald: '#10b981',
-                  rose: '#f43f5e',
-                  amber: '#f59e0b',
-                  slate: '#64748b'
-                };
-                return colors[groupColor] || colors.slate;
-              }
-            }
-            return '#cbd5e1';
-          }}
-          nodeStrokeColor={(n: any) => {
-            const tableId = n.data?.table?.id;
-            const groupColor = n.data?.group?.color || (n.type === 'erTableNode' ? (tableGroups.find(g => g.id === nodes.find(ln => ln.tableId === tableId)?.groupId)?.color) : null) || 'slate';
-            const colors: any = {
-              purple: '#a855f7',
-              blue: '#3b82f6',
-              emerald: '#10b981',
-              rose: '#f43f5e',
-              amber: '#f59e0b',
-              slate: '#64748b'
-            };
-            return colors[groupColor] || colors.slate;
-          }}
-          nodeStrokeWidth={3}
-          maskColor="rgba(241, 245, 249, 0.7)"
-        />
-
+        {/* Multi-Selection Grouping Floating Toolbar (only when multiple tables are selected) */}
         {selectedTableIds.length > 1 && (
           <Panel 
-            position="top-center" 
-            className="bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-300 dark:border-slate-800 p-1 rounded-lg shadow-2xl flex items-center gap-1 z-50 select-none transition-all"
+            position="top-left" 
+            className="m-3 bg-white/95 dark:bg-neutral-900/95 backdrop-blur border border-neutral-300 dark:border-neutral-800 p-1.5 rounded-xl shadow-2xl flex items-center gap-1.5 z-40 select-none"
           >
             <button 
               onClick={handleGroupSelected}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
-              title="Ausgewählte Tabellen in einer neuen Gruppe organisieren"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-200 text-xs font-semibold transition-colors"
+              title="Ausgewählte Tabellen in einer neuen Domäne/Gruppe organisieren"
             >
-              <Group size={14} className="text-purple-600 dark:text-purple-400" />
-              <span>Gruppieren</span>
+              <Group size={14} className="text-blue-600 dark:text-blue-400" />
+              <span>Domäne erstellen</span>
             </button>
             
-            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+            <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700 mx-0.5" />
             
             <button 
               onClick={handleUngroupSelected}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-200 text-xs font-semibold transition-colors"
               title="Gruppe aufheben"
             >
-              <Group size={14} className="text-slate-400 opacity-60" />
-              <span>Aufheben</span>
-            </button>
-
-            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
-            <button 
-              onClick={handleAlignTop}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
-              title="An der höchsten Tabelle ausrichten"
-            >
-              <AlignLeft size={14} className="text-blue-500 rotate-90" />
-              <span>Oben</span>
-            </button>
-            
-            <button 
-              onClick={handleAlignBottom}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
-              title="An der tiefsten Tabelle ausrichten"
-            >
-              <AlignLeft size={14} className="text-blue-500 -rotate-90" />
-              <span>Unten</span>
-            </button>
-
-            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
-            <button 
-              onClick={handleAlignLeft}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
-              title="Am weitesten links ausrichten"
-            >
-              <AlignLeft size={14} className="text-emerald-500" />
-              <span>Links</span>
-            </button>
-
-            <button 
-              onClick={handleAlignRight}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
-              title="Am weitesten rechts ausrichten"
-            >
-              <AlignLeft size={14} className="text-emerald-500 scale-x-[-1]" />
-              <span>Rechts</span>
+              <Group size={14} className="text-neutral-400 opacity-60" />
+              <span>Gruppe aufheben</span>
             </button>
           </Panel>
         )}
-
-        <Panel 
-          position="bottom-left" 
-          className="bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-40 select-none shadow-xl rounded-lg transition-all"
-        >
-          <button 
-            onClick={() => zoomIn()}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors"
-            title="Zoom vergrößern"
-          >
-            <ZoomIn size={15} />
-          </button>
-          <button 
-            onClick={() => zoomOut()}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors"
-            title="Zoom verkleinern"
-          >
-            <ZoomOut size={15} />
-          </button>
-          <button 
-            onClick={() => fitView()}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1 text-[11px] font-semibold pr-2"
-            title="Sichtfeld zurücksetzen / Zentrieren"
-          >
-            <Maximize size={15} />
-            <span className="hidden sm:inline">Anpassen</span>
-          </button>
-
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
-          <button 
-            onClick={triggerPhysicsLayout}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1 text-[11px] font-semibold"
-            title="Smart Auto-Layout (Physik-basiert)"
-          >
-            <Zap size={15} className="text-amber-500" />
-            <span className="hidden sm:inline">Smart Layout</span>
-          </button>
-          <button 
-            onClick={triggerGridLayout}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1 text-[11px] font-semibold"
-            title="Tabellen automatisch im Gitter anordnen"
-          >
-            <Grid3X3 size={15} className="text-slate-400" />
-            <span className="hidden sm:inline">Gitter</span>
-          </button>
-
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
-          <button 
-            onClick={() => setSnapToGrid(!snapToGrid)}
-            className={`p-1.5 rounded transition-colors flex items-center gap-1 text-[11px] font-semibold ${
-              snapToGrid 
-                ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400' 
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-            title="Magnetisches Raster ein-/ausschalten"
-          >
-            <Grid size={15} />
-            <span className="hidden sm:inline">Raster</span>
-          </button>
-          <button 
-            onClick={handleAlignAllToGrid}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-300 transition-colors"
-            title="Alle Tabellen exakt am 20px-Raster ausrichten"
-          >
-            <Magnet size={15} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
-          </button>
-        </Panel>
       </ReactFlow>
+
+      {/* 1. DBML Live Split Editor Drawer */}
+      <DbmlSplitEditor
+        tables={tables}
+        relationships={relationships}
+        tableGroups={tableGroups}
+        isOpen={isDbmlOpen}
+        onClose={() => setIsDbmlOpen(false)}
+        onApplySchema={handleApplyDbmlSchema}
+      />
+
+      {/* 2. Database Schema Linter Drawer */}
+      <SchemaLinterPanel
+        tables={tables}
+        relationships={relationships}
+        isOpen={isLinterOpen}
+        onClose={() => setIsLinterOpen(false)}
+        onUpdateTable={handleUpdateTable}
+        onAddTable={handleAddTable}
+      />
+
+      {/* 3. SQL Reverse Engineer Modal */}
+      <SqlReverseEngineerModal
+        isOpen={isSqlReverseModalOpen}
+        onClose={() => setIsSqlReverseModalOpen(false)}
+        onImport={(importedTables, importedRels) => {
+          handleApplyDbmlSchema(importedTables, importedRels);
+        }}
+      />
+
+      {/* 4. Schema-Diff & Migrations (UP/DOWN) Modal */}
+      <SchemaDiffModal
+        currentTables={tables}
+        currentRelationships={relationships}
+        isOpen={isSchemaDiffModalOpen}
+        onClose={() => setIsSchemaDiffModalOpen(false)}
+      />
+
+      {/* 5. Graph-Aware Relational Mock Data Synthesis Modal */}
+      <MockDataGeneratorModal
+        tables={tables}
+        relationships={relationships}
+        isOpen={isMockDataModalOpen}
+        onClose={() => setIsMockDataModalOpen(false)}
+        onApplyData={handleApplyMockData}
+      />
+
+      {/* 6. Data-Dictionary & Documentation Export Modal */}
+      <DataDictionaryModal
+        tables={tables}
+        relationships={relationships}
+        tableGroups={tableGroups}
+        isOpen={isDataDictionaryModalOpen}
+        onClose={() => setIsDataDictionaryModalOpen(false)}
+      />
+
+      {/* 7. Indizes, Constraints & Composite PK Designer Modal */}
+      {selectedTableForConstraints && (
+        <IndexConstraintDesignerModal
+          table={selectedTableForConstraints}
+          isOpen={!!selectedTableForConstraints}
+          onClose={() => setSelectedTableForConstraints(null)}
+          onUpdateTable={(updatedTable) => {
+            handleUpdateTable(updatedTable);
+            setSelectedTableForConstraints(null);
+          }}
+        />
+      )}
+
+      {/* 8. Global ENUMs & Custom Domain Types Modal */}
+      <GlobalEnumManagerModal
+        isOpen={isEnumManagerModalOpen}
+        onClose={() => setIsEnumManagerModalOpen(false)}
+        enums={enums}
+        customTypes={customTypes}
+        onSave={(updatedEnums, updatedCustomTypes) => {
+          useProjectStore.setState({ 
+            enums: updatedEnums, 
+            customTypes: updatedCustomTypes 
+          } as any);
+        }}
+      />
     </div>
   );
 };

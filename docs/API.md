@@ -80,3 +80,29 @@ Das Express-Backend stellt REST-Endpunkte für den Live-Sync, die Datenbank-Intr
 - **SET NULL**: Setzt die Fremdschlüssel-Attribute in Kindtabellen auf `null` bzw. leer.
 - **RESTRICT**: Blockiert den Löschvorgang, solange verknüpfte Datensätze existieren.
 
+---
+
+## 4. ER-Diagram & Schema Engineering Engine (`useERDiagramStore.ts`)
+
+Die Beziehungs- und Schema-Designer-Tools sind über einen reaktiven Zustand mit dem Microsoft-Access-Ribbon (`Beziehungen-Tools`) verknüpft:
+
+### Zustand & Store-Funktionen
+- **Notationsstile**:
+  - `crows_foot`: Information Engineering (Krähenfuß mit 1, 0..1, 1..N, 0..N Symbolen).
+  - `uml`: UML Class Multiplizitäts-Notation (`1..*`, `0..1`, `1..1`).
+  - `chen`: Peter Chen Entity-Relationship-Notation (`1:N`, `N:M`, `1:1`).
+- **Layout-Engines**:
+  - `auto_layout_tb`: Hierarchisches Top-Down DAG-Layout (Dagre-Algorithmus).
+  - `auto_layout_lr`: Hierarchisches Left-Right DAG-Layout.
+  - `layout_physics`: Kraftbasiertes Federkraft-Entflechtungssystem (Force-Directed Graph).
+  - `layout_grid`: Gleichmäßige 4-Spalten Matrix-Ausrichtung.
+- **Schema-Engineering Werkzeuge**:
+  - `isDbmlOpen`: 2-Wege synchronisierter DBML Live-Code Split-Editor.
+  - `isSqlReverseModalOpen`: SQL DDL Reverse Engineering Parser für `CREATE TABLE` und `ALTER TABLE`.
+  - `isSchemaDiffModalOpen`: Schema-Diff Generator mit automatischen `UP` und `DOWN` SQL-Migrationsskripten.
+  - `isMockDataModalOpen`: Topologisch sortierter, relationaler Fake-Data-Synthesizer.
+  - `isDataDictionaryModalOpen`: Technischer Wörterbuch- und Dokumentations-Export (Markdown, TypeSpec, Prisma).
+  - `isEnumManagerModalOpen`: Globale ENUM-Wertelisten und benutzerdefinierte Domänentypen.
+  - `linterScore` & `linterIssuesCount`: Echtzeit-Analyse auf Namenskonventionen, fehlende Primär-/Fremdschlüssel und Indizes.
+
+

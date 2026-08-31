@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Handle, Position, useReactFlow } from '@xyflow/react';
-import { Database, Globe, Info } from 'lucide-react';
+import { Database, Globe, Info, Zap, Lock, Sparkles, Sliders } from 'lucide-react';
 
 export const ERTableNodeComponent = ({ id, data, selected }: any) => {
-  const { table, relationships, nodes, tableGroups, onDoubleClick } = data;
+  const { table, relationships, nodes, tableGroups, onDoubleClick, onOpenConstraints } = data;
   const [activeCommentFieldId, setActiveCommentFieldId] = useState<string | null>(null);
   const { setNodes } = useReactFlow();
 
@@ -33,14 +33,18 @@ export const ERTableNodeComponent = ({ id, data, selected }: any) => {
   // Find if this table belongs to any group
   const layoutNode = nodes?.find((n: any) => n.tableId === table.id);
   const group = tableGroups?.find((g: any) => g.id === layoutNode?.groupId);
+  const groupColor = group?.color || '#6366f1';
 
   return (
-    <div className={`bg-white dark:bg-slate-900 rounded-lg shadow-xl border-2 transition-all duration-150 ${selected || activeCommentFieldId ? 'z-50' : 'z-0'} ${selected ? 'border-purple-500 ring-4 ring-purple-500/25 scale-[1.02] shadow-2xl' : 'border-slate-300 dark:border-slate-800 hover:border-slate-400'} min-w-[240px] text-xs`}>
+    <div 
+      style={{ borderColor: selected ? '#8b5cf6' : (group ? groupColor : undefined) }}
+      className={`bg-white dark:bg-slate-900 rounded-xl shadow-xl border-2 transition-all duration-150 ${selected || activeCommentFieldId ? 'z-50' : 'z-0'} ${selected ? 'ring-4 ring-purple-500/25 scale-[1.02] shadow-2xl' : 'border-slate-300 dark:border-slate-800 hover:border-slate-400'} min-w-[250px] text-xs`}
+    >
       {/* Node Header */}
       <div 
-        className="bg-gradient-to-r from-slate-800 to-slate-950 text-white p-3 font-bold flex items-center justify-between cursor-pointer select-none rounded-t-lg"
+        className="bg-gradient-to-r from-slate-800 to-slate-950 text-white p-3 font-bold flex items-center justify-between cursor-pointer select-none rounded-t-[10px]"
         onDoubleClick={onDoubleClick}
-        title="Doppelklick zum Bearbeiten"
+        title="Doppelklick zum Bearbeiten im Tabellen-Designer"
       >
         <div className="flex items-center gap-2 min-w-0">
           {table.isApiImport ? (
@@ -52,9 +56,25 @@ export const ERTableNodeComponent = ({ id, data, selected }: any) => {
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {group && (
-            <span className="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1 py-0.5 rounded font-medium max-w-[80px] truncate" title={`Gruppe: ${group.name}`}>
+            <span 
+              style={{ backgroundColor: `${groupColor}25`, borderColor: `${groupColor}50`, color: groupColor }}
+              className="text-[9px] border px-1 py-0.5 rounded font-medium max-w-[80px] truncate" 
+              title={`Domäne: ${group.name}`}
+            >
               📁 {group.name}
             </span>
+          )}
+          {onOpenConstraints && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenConstraints(table);
+              }}
+              className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-amber-300 transition-colors"
+              title="Indizes, Constraints & Composite PKs"
+            >
+              <Sliders size={12} />
+            </button>
           )}
           <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700/50 uppercase font-mono">
             {table.isApiImport ? 'api' : 'sql'}
@@ -63,17 +83,20 @@ export const ERTableNodeComponent = ({ id, data, selected }: any) => {
       </div>
 
       {/* Fields List */}
-      <div className="p-1.5 space-y-1 bg-slate-50 dark:bg-slate-950 rounded-b-lg nodrag">
+      <div className="p-1.5 space-y-1 bg-slate-50 dark:bg-slate-950 rounded-b-[10px] nodrag">
         {table.fields.map((field: any) => {
           const isPrimaryKey = field.isPrimaryKey;
           const isForeignKey = relationships?.some(
             (r: any) => r.toTableId === table.id && r.toFieldId === field.id
           );
+          const isIndexed = field.isIndexed;
+          const isUnique = field.isUnique;
+          const isCalculated = field.isCalculated;
 
           return (
             <div
               key={field.id}
-              className={`relative h-8 px-2 flex items-center justify-between hover:bg-white dark:hover:bg-slate-800 rounded border transition-all select-none group cursor-pointer nodrag ${activeCommentFieldId === field.id ? 'bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-900 ring-1 ring-purple-100 dark:ring-purple-900/30' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
+              className={`relative h-8 px-2 flex items-center justify-between hover:bg-white dark:hover:bg-slate-800 rounded-lg border transition-all select-none group cursor-pointer nodrag ${activeCommentFieldId === field.id ? 'bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-900 ring-1 ring-purple-100 dark:ring-purple-900/30' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
               onClick={() => {
                 if (field.comment) {
                   setActiveCommentFieldId(activeCommentFieldId === field.id ? null : field.id);
@@ -100,6 +123,9 @@ export const ERTableNodeComponent = ({ id, data, selected }: any) => {
               <div className="flex items-center gap-1.5 truncate max-w-[70%]">
                 {isPrimaryKey && <span className="text-yellow-500 font-bold" title="Primary Key">🔑</span>}
                 {isForeignKey && <span className="text-cyan-500 text-[10px] font-extrabold tracking-wider" title="Foreign Key">FK</span>}
+                {isIndexed && !isPrimaryKey && <span title="Indexiert (BTREE)" className="inline-flex items-center"><Zap size={11} className="text-amber-500 shrink-0" /></span>}
+                {isUnique && !isPrimaryKey && <span title="UNIQUE Constraint" className="inline-flex items-center"><Lock size={10} className="text-emerald-500 shrink-0" /></span>}
+                {isCalculated && <span className="text-purple-500 font-mono text-[10px] font-bold" title="Berechnete Spalte (Formula)">𝑓𝑥</span>}
                 <span className={`truncate font-medium ${isPrimaryKey ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-600 dark:text-slate-300'}`}>
                   {field.name}
                 </span>
