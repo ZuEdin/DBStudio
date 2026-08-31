@@ -122,6 +122,8 @@ interface UIStore {
   setShowAuditTrailModal: (show: boolean) => void;
   showWordPressModal: boolean;
   setShowWordPressModal: (show: boolean) => void;
+  showFullStackCodeGenModal: boolean;
+  setShowFullStackCodeGenModal: (show: boolean) => void;
   showNextcloudModal: boolean;
   setShowNextcloudModal: (show: boolean) => void;
   showConstructionOfflineModal: boolean;
@@ -292,6 +294,8 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowAuditTrailModal: (showAuditTrailModal) => set({ showAuditTrailModal }),
   showWordPressModal: false,
   setShowWordPressModal: (showWordPressModal) => set({ showWordPressModal }),
+  showFullStackCodeGenModal: false,
+  setShowFullStackCodeGenModal: (showFullStackCodeGenModal) => set({ showFullStackCodeGenModal }),
   showNextcloudModal: false,
   setShowNextcloudModal: (showNextcloudModal) => set({ showNextcloudModal }),
   showConstructionOfflineModal: false,

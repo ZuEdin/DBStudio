@@ -601,44 +601,44 @@ Diese Roadmap definiert den Ausbau der **Code-Generierungs-Engine** von ~85% auf
 ```
 
 ### 🖥️ A. Backend Frameworks & ORM Generatoren
-- [ ] **1. C# .NET 10 EF Core & FastEndpoints / Minimal APIs:**
+- [x] **1. C# .NET 10 EF Core & FastEndpoints / Minimal APIs:**
   - Vollständige Solution mit **Clean Architecture** (Domain, Application, Infrastructure, API).
   - Entity Framework Core DbContext, Fluent API Mappings, Repositories, CQRS mit MediatR, FluentValidation, Swagger / Scalar OpenAPI und xUnit Test-Suite.
   - Native AOT Kompilierungskompatibilität für blitzschnelle Container-Starts.
-- [ ] **2. Node.js (Express, Fastify & NestJS):**
+- [x] **2. Node.js (Express, Fastify & NestJS):**
   - Typsicheres TypeScript-Projekt wahlweise mit **Drizzle ORM**, **Prisma** oder **Kysely**.
   - Zod-Schema-Validierung, JWT / Cookie-Auth, Role-Guards, Rate-Limiter und automatische Swagger-UI Dokumentation.
-- [ ] **3. PHP 8.3 / 8.4 PDO & Laravel 11 / Symfony 7:**
+- [x] **3. PHP 8.3 / 8.4 PDO & Laravel 11 / Symfony 7:**
   - Moderne PHP-Struktur mit Repositories, PHP 8 Attributes (`#[Route]`, `#[Validate]`), Form Requests, API Resources und optionalen **Filament v3** Admin-Panels.
   - Integration von PHPStan (Level 8) und Pest PHP Tests.
-- [ ] **4. Python FastAPI & SQLAlchemy 2.0 / Pydantic v2:**
+- [x] **4. Python FastAPI & SQLAlchemy 2.0 / Pydantic v2:**
   - Asynchrone Python-API mit Pydantic v2 Datenvalidierung, SQLAlchemy 2.0 Async-Session, Alembic-Migrationen und automatischer `/docs` Swagger-Generierung.
   - Pytest Test-Suite mit Testcontainers.
 
 ### 🌐 B. Moderne Frontend Frameworks & Single Page Applications
-- [ ] **1. React 19 + Tailwind CSS + TanStack Query v5:**
+- [x] **1. React 19 + Tailwind CSS + TanStack Query v5:**
   - Modernste React 19 Patterns (Actions, `use()`, Server Components ready), TanStack Query v5 mit automatischem Caching und Invalidierung, Zustand State-Management und React Hook Form + Zod.
   - Barrierefreie Headless UI / Radix Primitives für alle Controls.
-- [ ] **2. Angular 19 Standalone Signals & SignalStore:**
+- [x] **2. Angular 19 Standalone Signals & SignalStore:**
   - 100% Zoneless Standalone Components, Angular Signals, Resource API, Reactive Forms, Tailwind CSS Integration und NgRx SignalStore.
-- [ ] **3. Vue 3.5 + Pinia + VeeValidate:**
+- [x] **3. Vue 3.5 + Pinia + VeeValidate:**
   - Composition API (`<script setup lang="ts">`), Pinia Stores mit optimierter Reaktivität und unplugin-vue-components.
-- [ ] **4. Svelte 5 mit Runes (`$state`, `$derived`, `$props`):**
+- [x] **4. Svelte 5 mit Runes (`$state`, `$derived`, `$props`):**
   - Ultraschnelles, schlankes Svelte 5 Frontend mit nativer Runes-Reaktivität.
 
 ### 🔌 C. CMS & Enterprise Plugin Generatoren (WordPress & Nextcloud)
-- [ ] **1. WordPress Plugin Generator (Modern PHP & Block Editor):**
+- [x] **1. WordPress Plugin Generator (Modern PHP & Block Editor):**
   - Generierung eigener Custom Post Types (CPTs), benutzerdefinierter Tabellen mit `$wpdb`, REST API Endpunkten (`/wp-json/my-app/v1/`), Gutenberg Block-Komponenten und WP-Admin Einstellungsseiten.
   - Optionale Integration mit WooCommerce Hooks & Filter.
-- [ ] **2. Nextcloud OCP App Generator:**
+- [x] **2. Nextcloud OCP App Generator:**
   - Vollständige Nextcloud App mit `appinfo/info.xml`, OCP QueryBuilder Services, PSR-konformen Controllern, Vue 3 `@nextcloud/vue` Frontend und automatischen `ISchemaWrapper` Migrationen.
 
 ### 🏗️ D. Architektur-Qualität, API Docs & DevOps
-- [ ] **1. OpenAPI 3.1 & Postman / Bruno Collections:**
+- [x] **1. OpenAPI 3.1 & Postman / Bruno Collections:**
   - Automatische Generierung vollständiger `openapi.json` / `openapi.yaml` Dokumentationen und sofort importierbarer Postman/Bruno API-Collections für alle CRUD-Endpunkte.
-- [ ] **2. Containerisierung & CI/CD Pipelines:**
+- [x] **2. Containerisierung & CI/CD Pipelines:**
   - Generierung von optimierten Multi-Stage `Dockerfile`, `docker-compose.yml` (App + DB + Redis) und GitHub Actions CI/CD Workflows (Lint, Test, Build, Deploy).
-- [ ] **3. Automatische Unit- & Integrations-Tests:**
+- [x] **3. Automatische Unit- & Integrations-Tests:**
   - Generierung von Endpunkt-Tests mit Mock-Datenbanken (z. B. Supertest für Node, WebApplicationFactory für .NET, Pest/PHPUnit für PHP).
 
 ---

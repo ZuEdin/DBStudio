@@ -33,6 +33,7 @@ import { OpenApiMockServerModal } from '../features/openapi/OpenApiMockServerMod
 import { SecurityRlsModal } from '../features/security/SecurityRlsModal';
 import { AuditTrailModal } from '../features/audit-trail/AuditTrailModal';
 import { WordPressGeneratorModal } from '../features/wordpress/WordPressGeneratorModal';
+import { FullStackCodeGenModal } from '../features/codegen/FullStackCodeGenModal';
 import { NextcloudGeneratorModal } from '../features/nextcloud/NextcloudGeneratorModal';
 import { OfflineSyncDashboardModal } from '../features/offline-sync';
 import { IndustryInterfacesModal } from '../features/industry-interfaces';
@@ -418,6 +419,15 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
       {ui.showWordPressModal && (
         <WordPressGeneratorModal 
           onClose={() => ui.setShowWordPressModal(false)}
+        />
+      )}
+
+      {ui.showFullStackCodeGenModal && (
+        <FullStackCodeGenModal
+          isOpen={ui.showFullStackCodeGenModal}
+          onClose={() => ui.setShowFullStackCodeGenModal(false)}
+          tables={tables}
+          relationships={relationships}
         />
       )}
 
