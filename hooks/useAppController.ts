@@ -1503,6 +1503,20 @@ export const useAppController = () => {
         case 'query_open_criteria_helper':
              window.dispatchEvent(new CustomEvent('query-designer-action', { detail: { action } }));
              break;
+        case 'query_toggle_distinct': {
+             const rawQuery = (activeObject && 'columns' in activeObject ? activeObject as Query : null) ||
+                 (currentView.type === 'query_designer' || currentView.type === 'query_results' ? store.queries.find(q => q.id === currentView.queryId) : store.queries[0]);
+             if (rawQuery && rawQuery.type === 'SELECT') {
+                 const selectQ = rawQuery as SelectQuery;
+                 const newDistinct = !selectQ.distinct;
+                 const updatedQuery: SelectQuery = { ...selectQ, distinct: newDistinct };
+                 store.setQueries(store.queries.map(q => q.id === updatedQuery.id ? updatedQuery : q));
+                 setActiveObject(updatedQuery);
+                 setIsDirty(true);
+                 ui.addToast(newDistinct ? "Eindeutige Werte (DISTINCT) aktiviert." : "Eindeutige Werte (DISTINCT) deaktiviert.", "info");
+             }
+             break;
+        }
         case 'query_export_as_view': {
              const targetQuery = (activeObject && 'columns' in activeObject ? activeObject as Query : null) ||
                  (currentView.type === 'query_designer' || currentView.type === 'query_results' ? store.queries.find(q => q.id === currentView.queryId) : store.queries[0]);

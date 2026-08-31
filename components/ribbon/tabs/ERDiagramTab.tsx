@@ -29,7 +29,7 @@ export const ERDiagramTab: React.FC<ERDiagramTabProps> = ({ onAction }) => {
   const ui = useUIStore();
 
   return (
-    <div className="flex gap-4 h-full items-stretch overflow-x-auto pb-1 max-w-full">
+    <div className="flex gap-2 h-full items-stretch">
       {/* 1. Layout & Speichern */}
       <RibbonGroup label="Layout & Modell">
         <RibbonButton

@@ -56,7 +56,7 @@ export const FormDesignTab: React.FC<FormDesignTabProps> = ({ onAction }) => {
     (currentView.type === 'form_designer' || currentView.type === 'form_view' ? currentView.formId : store.forms[0]?.id);
 
   return (
-    <div className="flex gap-4 h-full items-stretch overflow-x-auto pb-1 max-w-full">
+    <div className="flex gap-2 h-full items-stretch">
       {/* 1. Ansichten */}
       <RibbonGroup label="Ansichten">
         <RibbonButton

@@ -69,10 +69,63 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     if (queryColumns.length === 0 || nodes.length === 0) {
       setGeneratedSql('Ziehen Sie Felder in den Grid, um eine Abfrage zu erstellen.');
     } else {
-      const sql = generateSqlSelect(nodes, queryColumns, tables, relationships, dbType);
+      const sql = generateSqlSelect(nodes, queryColumns, tables, relationships, dbType, false, undefined, Boolean(selectQuery.distinct));
       setGeneratedSql(sql + ';');
     }
-  }, [query, relationships, tables, dbType]);
+  }, [query, relationships, tables, dbType, selectQuery.distinct]);
+
+  useEffect(() => {
+    const handleDesignerAction = (e: Event) => {
+      const customEvent = e as CustomEvent<{ action: string }>;
+      const action = customEvent.detail?.action;
+      if (!action) return;
+
+      switch (action) {
+        case 'open_crosstab_modal':
+        case 'query_open_crosstab_wizard':
+          setShowCrosstabModal(true);
+          break;
+        case 'open_access_converter':
+        case 'query_open_access_converter':
+          setShowAccessSqlModal(true);
+          break;
+        case 'open_sql_view':
+        case 'query_open_sql_view': {
+          const sqlSection = document.getElementById('query-sql-terminal-pane');
+          if (sqlSection) {
+            sqlSection.scrollIntoView({ behavior: 'smooth' });
+          }
+          ui.addToast("SQL-Ansicht im unteren Fensterbereich aktiv.", "info");
+          break;
+        }
+        case 'query_open_join_props': {
+          if (relationships && relationships.length > 0) {
+            setSelectedRelForJoin(relationships[0]);
+          } else {
+            ui.addToast("Keine Beziehungslinien in der aktuellen Abfrage vorhanden. Verbinden Sie Tabellen per Drag-and-Drop.", "info");
+          }
+          break;
+        }
+        case 'query_open_parameters_modal':
+          setShowParamsModal(true);
+          break;
+        case 'query_open_export_modal':
+          setShowExportModal(true);
+          break;
+        case 'query_open_criteria_helper':
+          addCalculatedColumn();
+          ui.addToast("Neues Berechnungs- und Kriterienfeld eingefügt.", "success");
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('query-designer-action', handleDesignerAction);
+    return () => {
+      window.removeEventListener('query-designer-action', handleDesignerAction);
+    };
+  }, [relationships, queryColumns, nodes]);
 
   const autoResolveAliases = (cols: QueryColumn[]): QueryColumn[] => {
     const countMap: Record<string, number> = {};
@@ -377,7 +430,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
         </div>
         
         {/* Terminal / Code Editor Pane */}
-        <div className="flex flex-col bg-slate-900 border-t border-slate-700 shrink-0">
+        <div id="query-sql-terminal-pane" className="flex flex-col bg-slate-900 border-t border-slate-700 shrink-0">
           {overrideSql && (
             <div className="bg-amber-500/10 border-b border-amber-500/30 px-3 py-1 flex justify-between items-center text-[10px] text-amber-400">
               <span className="flex items-center gap-1 font-bold">

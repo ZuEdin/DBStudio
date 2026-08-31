@@ -42,6 +42,7 @@ export interface SelectQuery {
   columns: QueryColumn[];
   parameters?: QueryParameter[];
   joinOverrides?: QueryJoinOverride[];
+  distinct?: boolean;
 }
 
 export interface Criterion {

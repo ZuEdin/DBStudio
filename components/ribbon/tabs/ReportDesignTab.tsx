@@ -77,7 +77,7 @@ export const ReportDesignTab: React.FC<ReportDesignTabProps> = ({ onAction }) =>
   }
 
   return (
-    <div className="flex gap-4 h-full items-center overflow-visible pb-1 max-w-full">
+    <div className="flex gap-2 h-full items-center">
       {/* Target Selection */}
       <div className="flex flex-col px-2 border-r border-slate-300 dark:border-slate-700 pr-4 h-full justify-center w-40 shrink-0">
           <label className="block text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-1 uppercase">{t('ribbon.groups.target')}</label>

@@ -4,7 +4,7 @@ import { quoteIdentifier, toPascalCase, normalizeDbType } from './generators/com
 import { resolveFormValue } from '../features/queries/utils/queryExecution';
 import { transpileExpression } from '../features/queries/utils/expressionTranspiler';
 
-export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType | string, useRawNames: boolean = false, context?: Record<string, any>): string => {
+export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType | string, useRawNames: boolean = false, context?: Record<string, any>, distinct: boolean = false): string => {
     if (nodes.length === 0) return '';
     
     const normalizedDb = normalizeDbType(dbType);
@@ -281,5 +281,6 @@ export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], ta
     
     const orderByClause = orderByCols ? `\nORDER BY ${orderByCols}` : '';
     
-    return `SELECT\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause}${groupByClause}${havingClause}${orderByClause}`;
+    const distinctPrefix = distinct ? ' DISTINCT' : '';
+    return `SELECT${distinctPrefix}\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause}${groupByClause}${havingClause}${orderByClause}`;
 };

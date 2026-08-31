@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table, Field, LockInfo, Relationship, ValidationRule } from '../../types';
 import { DATA_TYPES } from '../../config/dataTypes';
 import { TableDesignerToolbar } from './components/TableDesignerToolbar';
@@ -48,6 +48,45 @@ export const TableDesigner: React.FC<TableDesignerProps> = ({
 
   const activeSelectedFieldId = selectedFieldId || fields[0]?.id || null;
   const selectedField = fields.find((f) => f.id === activeSelectedFieldId) || fields[0] || null;
+
+  useEffect(() => {
+    const handleDesignerAction = (e: Event) => {
+      const customEvent = e as CustomEvent<{ action: string }>;
+      const action = customEvent.detail?.action;
+      if (!action) return;
+
+      switch (action) {
+        case 'table_open_ddl':
+          setActiveTab('sql');
+          break;
+        case 'table_open_templates_modal':
+          setShowTemplatesModal(true);
+          break;
+        case 'table_open_computed_modal':
+          setComputedModalField(selectedField || fields[0] || null);
+          break;
+        case 'table_open_sequence_modal':
+          setSequenceModalField(selectedField || fields[0] || null);
+          break;
+        case 'table_open_validation_modal':
+          setShowValidationModal(true);
+          break;
+        case 'table_open_gaeb_import':
+          setShowImportBridge(true);
+          break;
+        case 'table_open_mock_generator':
+          setShowMockData(true);
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('table-designer-action', handleDesignerAction);
+    return () => {
+      window.removeEventListener('table-designer-action', handleDesignerAction);
+    };
+  }, [selectedField, fields]);
 
   const isLockedByMe = lockedBy?.userId === currentUserId;
   const isLockedByOther = lockedBy && !isLockedByMe;

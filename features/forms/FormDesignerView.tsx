@@ -246,6 +246,24 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
 
         if (actionTrigger.action === 'form_add_label') {
             newEl.type = 'label'; newEl.label = 'Neues Label'; newEl.className = 'font-bold text-lg mb-2';
+        } else if (actionTrigger.action === 'form_add_text_input') {
+            newEl.type = 'field'; newEl.fieldId = 'custom_text_' + Date.now(); newEl.label = 'Eingabefeld'; newEl.widgetType = 'text'; newEl.className = 'mb-3';
+        } else if (actionTrigger.action === 'form_add_dropdown_input') {
+            newEl.type = 'field'; newEl.fieldId = 'custom_select_' + Date.now(); newEl.label = 'Auswahlliste / Lookup'; newEl.widgetType = 'select'; newEl.className = 'mb-3';
+        } else if (actionTrigger.action === 'form_add_checkbox_input') {
+            newEl.type = 'field'; newEl.fieldId = 'custom_bool_' + Date.now(); newEl.label = 'Bestätigung / Checkbox'; newEl.widgetType = 'checkbox'; newEl.className = 'mb-3';
+        } else if (actionTrigger.action === 'form_add_date_input') {
+            newEl.type = 'field'; newEl.fieldId = 'custom_date_' + Date.now(); newEl.label = 'Datumsauswahl'; newEl.widgetType = 'date'; newEl.className = 'mb-3';
+        } else if (actionTrigger.action === 'form_add_subform') {
+            const otherForms = allForms.filter(f => f.id !== form.id);
+            if (otherForms.length > 0) {
+                setLinkingSubform(otherForms[0]);
+                return;
+            } else {
+                newEl.type = 'subform'; newEl.label = 'Unterformular (Detail)';
+                newEl.subform = { formId: '', masterLinkFieldId: '', childLinkFieldId: '', canAdd: true, canEdit: true, canDelete: true };
+                newEl.className = 'mb-4 border border-blue-200 dark:border-blue-800 rounded p-3 bg-blue-50/30 dark:bg-blue-950/20';
+            }
         } else if (actionTrigger.action === 'form_add_button') {
             newEl.type = 'button'; 
             newEl.label = '⚡ Makro ausführen'; 

@@ -45,7 +45,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
   const isSelectQuery = query?.type === 'SELECT';
 
   return (
-    <div className="flex gap-4 h-full items-stretch overflow-x-auto pb-1 max-w-full">
+    <div className="flex gap-2 h-full items-stretch">
       {/* 1. Ergebnisse & Ausführen */}
       <RibbonGroup label="Ergebnisse & Ansichten">
         <RibbonButton
@@ -56,7 +56,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           title="Führt die Abfrage aus und zeigt die Ergebnisdaten an (Access '! Ausführen')"
         />
 
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[120px]">
+        <div className="flex flex-col gap-1 justify-center h-full min-w-[120px]">
           <button
             onClick={() => {
               if (query) {
@@ -65,7 +65,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
                 ui.setCurrentView({ type: 'query_designer', queryId: store.queries[0].id });
               }
             }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium cursor-pointer ${
+            className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs transition-colors text-left font-medium cursor-pointer ${
               isQueryDesigner
                 ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-300 font-semibold'
                 : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
@@ -83,7 +83,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
                 ui.setCurrentView({ type: 'query_results', queryId: store.queries[0].id });
               }
             }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors text-left font-medium cursor-pointer ${
+            className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs transition-colors text-left font-medium cursor-pointer ${
               isQueryResults
                 ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 font-semibold'
                 : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
@@ -95,7 +95,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           </button>
           <button
             onClick={() => onAction('query_open_sql_view')}
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="Generierten SQL-Code anzeigen / bearbeiten"
           >
             <Code size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />

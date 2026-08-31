@@ -488,6 +488,16 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         return newRow;
     });
 
+    if (query.distinct) {
+        const seen = new Set<string>();
+        return finalData.filter(row => {
+            const key = JSON.stringify(row);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
     return finalData;
 };
 
