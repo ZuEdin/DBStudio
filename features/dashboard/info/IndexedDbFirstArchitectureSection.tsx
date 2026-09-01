@@ -76,7 +76,7 @@ export const IndexedDbFirstArchitectureSection: React.FC = () => {
               </p>
             </div>
             <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/50">
-              API-Dokumentation: docs/API_DOCUMENTATION.md
+              API-Dokumentation: docs/3_API_AND_DATA_ENGINE.md
             </span>
           </div>
 
