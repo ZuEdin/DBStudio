@@ -20,21 +20,46 @@ In **SQLite** ist `main` der interne Standard-Schemaname für die primäre Daten
 
 ---
 
-## Durchgeführte Behebung
+### Fehlerbild 2:
+```text
+Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 1: 'no such column: Rechnungen.RechnungsNr'.
+   at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at FakturierungPro.Controllers.QueriesController.GetOffeneRechnungen(Int32 page, Int32 pageSize)
+```
 
-### 1. `generateSqlSelect` mit `usePascalCaseTableNames` (`utils/sqlHelper.ts`)
-- `generateSqlSelect` unterstützt nun das Flag `usePascalCaseTableNames: boolean`.
+### Ursache von Fehler 2:
+1. **Knoten-Aliase in SQL-Joins**:
+   - Wenn eine SQL-Abfrage aus mehreren Tabellen-Knoten (z. B. `n1`, `n2`) besteht, erzeugt SQL die Tabellen als `FROM [Kunden] AS [n1] LEFT JOIN [Rechnungen] AS [n2]`.
+   - Sobald eine Tabelle im SQL-FROM/JOIN einen Alias besitzt (`AS [n2]`), verbietet SQLite (und ANSI-SQL), Spalten über den ursprünglichen Tabellennamen (`Rechnungen.RechnungsNr`) zu referenzieren.
+   - Wenn in den Query-Spalten das Feld `nodeId` fehlte oder nicht direkt gemappt wurde, fiel der Spalten-Präfix fälschlicherweise auf `col.tableName` (`Rechnungen.RechnungsNr`) anstelle des Knoten-Alias (`n2.RechnungsNr`) zurück.
+   - Beim Ausführen des Views in SQLite trat daraufhin `no such column: Rechnungen.RechnungsNr` auf.
+
+---
+
+## Durchgeführte Behebungen
+
+### 1. Intelligente Spalten-Knoten-Auflösung (`utils/sqlHelper.ts`)
+- Die neue Funktion `resolveColumnNode` mappt jede Spalte im `SELECT`, `WHERE`, `GROUP BY` und `ORDER BY` exakt auf den aktiven Knoten-Alias (`nodeInfo.alias`):
+  1. Direkte `nodeId`-Übereinstimmung
+  2. Tabellen-ID (`tableId`) Abgleich mit den Knoten
+  3. Tabellennamen-Abgleich (`tableName` in PascalCase oder Designername)
+  4. Spalten-/Feld-ID-Abgleich (`fieldId` oder `fieldName` in den Entitätsfeldern der Tabelle)
+  5. Fallback auf den Root-Knoten-Alias
+- Im `SELECT` werden alle Spalten nun immer mit `AS [Spaltenname]` exportiert, sodass die View-Spaltennamen exakt den C#-Properties und `[Column("...")]`-Attributen entsprechen.
+
+### 2. `generateSqlSelect` mit `usePascalCaseTableNames` (`utils/sqlHelper.ts`)
+- `generateSqlSelect` unterstützt das Flag `usePascalCaseTableNames: boolean`.
 - Bei Aktivierung werden Root-Tabellennamen sowie alle `JOIN`-Tabellennamen konsistent in PascalCase umgewandelt (`toPascalCase(rawTableName)`), passend zur generierten Datenbankstruktur.
 
-### 2. .NET Seed & View-Initialisierung (`utils/generators/dotnet/seed.ts`)
+### 3. .NET Seed & View-Initialisierung (`utils/generators/dotnet/seed.ts`)
 - In `DbInitializer.Initialize` wird `generateSqlSelect(..., true)` mit aktiviertem PascalCase-Flag aufgerufen.
-- Die erzeugten Views (z. B. `CREATE VIEW IF NOT EXISTS [MeineAbfrage] AS SELECT ... FROM [LehrlingeLehre] AS [node1]`) referenzieren exakt dieselben Tabellennamen, die per EF Core und `DbInitializer` angelegt wurden.
+- Die erzeugten Views (z. B. `CREATE VIEW IF NOT EXISTS [MeineAbfrage] AS SELECT [n2].[RechnungsNr] AS [RechnungsNr] ... FROM [Kunden] AS [n1] LEFT JOIN [Rechnungen] AS [n2] ON ...`) referenzieren exakt dieselben Tabellen und Aliase, die per EF Core und `DbInitializer` angelegt wurden.
 
-### 3. Schema & Database Generator (`utils/generators/databaseGenerator.ts`)
+### 4. Schema & Database Generator (`utils/generators/databaseGenerator.ts`)
 - Auch in `databaseGenerator.ts` werden die Views im generierten `schema.sql` synchron mit den PascalCase-Tabellendefinitionen erzeugt.
 
-### 4. EF Core Spaltenmapping für Query-Modelle (`utils/generators/dotnet/models.ts`)
-- Alle Properties in den generierten Query-Modellen (`Models/<QueryName>.cs`) erhalten nun explizit:
+### 5. EF Core Spaltenmapping für Query-Modelle (`utils/generators/dotnet/models.ts`)
+- Alle sichtbaren Spalten (`c.show !== false`) in den generierten Query-Modellen (`Models/<QueryName>.cs`) erhalten explizit:
   - `[Column("<Spaltenname>")]` für sicheres EF Core View-Mapping (auch bei Sonderzeichen, Unterstrichen oder Aliasen).
   - `[JsonPropertyName("<Spaltenname>")]` für saubere REST API JSON-Serialisierung.
 

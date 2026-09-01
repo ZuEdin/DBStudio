@@ -97,7 +97,7 @@ export function generateSqlSelect(
   }
 
   // 1. Resolve Table Nodes
-  const nodeTableMap = new Map<string, { tableName: string; alias: string; table?: Table }>();
+  const nodeTableMap = new Map<string, { tableName: string; alias: string; table?: Table; nodeId: string }>();
   nodes.forEach((node) => {
     const tableData = node.data || {};
     const tableId = node.tableId || tableData.tableId || (typeof node.id === 'string' && tables.some(t => t.id === node.id) ? node.id : undefined);
@@ -111,7 +111,7 @@ export function generateSqlSelect(
     const resolvedName = table ? table.name : (nodeTableName || (tables.length > 0 ? tables[0].name : 'Table1'));
     const tableName = usePascalCaseTableNames ? toPascalCase(resolvedName) : resolvedName;
     const alias = node.id || tableName;
-    nodeTableMap.set(node.id, { tableName, alias, table });
+    nodeTableMap.set(node.id, { tableName, alias, table, nodeId: node.id });
   });
 
   const rootNode = nodes[0];
@@ -119,7 +119,63 @@ export function generateSqlSelect(
   const rootInfo = nodeTableMap.get(rootNode.id) || {
     tableName: usePascalCaseTableNames ? toPascalCase(defaultRootName) : defaultRootName,
     alias: rootNode.id,
-    table: tables[0]
+    table: tables[0],
+    nodeId: rootNode.id
+  };
+
+  /**
+   * Helper to resolve any column to its corresponding node alias in the query graph.
+   */
+  const resolveColumnNode = (col: QueryColumn): { tableName: string; alias: string; table?: Table; nodeId: string } => {
+    // 1. Direct match by nodeId
+    if (col.nodeId && nodeTableMap.has(col.nodeId)) {
+      return nodeTableMap.get(col.nodeId)!;
+    }
+
+    // 2. Match by tableId in nodes or tables
+    if (col.tableId) {
+      for (const [_, info] of nodeTableMap) {
+        if (
+          info.nodeId === col.tableId ||
+          (info.table && info.table.id === col.tableId)
+        ) {
+          return info;
+        }
+      }
+    }
+
+    // 3. Match by tableName (exact, case-insensitive, or pascalCase)
+    if (col.tableName) {
+      const lowerColTableName = col.tableName.trim().toLowerCase();
+      const pascalColTableName = toPascalCase(col.tableName).toLowerCase();
+      for (const [_, info] of nodeTableMap) {
+        if (
+          info.tableName.toLowerCase() === lowerColTableName ||
+          info.tableName.toLowerCase() === pascalColTableName ||
+          (info.table && info.table.name.toLowerCase() === lowerColTableName) ||
+          info.alias.toLowerCase() === lowerColTableName
+        ) {
+          return info;
+        }
+      }
+    }
+
+    // 4. Match by fieldId or fieldName in node's table
+    for (const [_, info] of nodeTableMap) {
+      if (info.table?.fields) {
+        const hasField = info.table.fields.some(
+          (f) =>
+            (col.fieldId && f.id === col.fieldId) ||
+            (col.fieldName && f.name.toLowerCase() === col.fieldName.toLowerCase())
+        );
+        if (hasField) {
+          return info;
+        }
+      }
+    }
+
+    // 5. Fallback to root node
+    return rootInfo;
   };
 
   // 2. Build SELECT Columns
@@ -135,8 +191,8 @@ export function generateSqlSelect(
     selectItems.push(`${quoteSqlIdentifier(rootInfo.alias, dbType)}.*`);
   } else {
     visibleColumns.forEach((col) => {
-      const nodeInfo = col.nodeId ? nodeTableMap.get(col.nodeId) : null;
-      const targetTableOrAlias = nodeInfo ? nodeInfo.alias : col.tableName;
+      const nodeInfo = resolveColumnNode(col);
+      const targetTableOrAlias = nodeInfo.alias;
       const quotedCol = `${quoteSqlIdentifier(targetTableOrAlias, dbType)}.${quoteSqlIdentifier(col.fieldName, dbType)}`;
 
       let itemSql = quotedCol;
@@ -152,9 +208,8 @@ export function generateSqlSelect(
         groupByItems.push(quotedCol);
       }
 
-      if (col.alias && col.alias.trim() && col.alias !== col.fieldName) {
-        itemSql += ` AS ${quoteSqlIdentifier(col.alias.trim(), dbType)}`;
-      }
+      const effectiveAlias = col.alias && col.alias.trim() ? col.alias.trim() : col.fieldName;
+      itemSql += ` AS ${quoteSqlIdentifier(effectiveAlias, dbType)}`;
 
       selectItems.push(itemSql);
 
@@ -255,8 +310,8 @@ export function generateSqlSelect(
   const whereConditions: string[] = [];
   columns.forEach((col) => {
     if (col.criteria && col.criteria.length > 0) {
-      const nodeInfo = col.nodeId ? nodeTableMap.get(col.nodeId) : null;
-      const targetTableOrAlias = nodeInfo ? nodeInfo.alias : col.tableName;
+      const nodeInfo = resolveColumnNode(col);
+      const targetTableOrAlias = nodeInfo.alias;
       const quotedCol = `${quoteSqlIdentifier(targetTableOrAlias, dbType)}.${quoteSqlIdentifier(col.fieldName, dbType)}`;
 
       const colCritList = col.criteria

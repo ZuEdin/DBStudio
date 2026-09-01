@@ -431,7 +431,7 @@ ${validationMethod}
       const safeName = toPascalCase(q.name);
       const usedNames = new Set<string>();
 
-      const props = selectQ.columns.filter(c => c.show || (c.criteria && c.criteria.some(cr => cr && cr.trim() !== ''))).map(c => {
+      const props = selectQ.columns.filter(c => c.show !== false).map(c => {
           const table = tables.find(t => t.id === c.tableId);
           const field = table?.fields.find(f => f.id === c.fieldId);
           let type = 'string?';
