@@ -13,6 +13,7 @@ import { DockerFilePreview } from './components/DockerFilePreview';
 
 import { Table, Relationship } from '../../types';
 import { useBridgeStore } from '../../stores/useBridgeStore';
+import { useDisclaimerStore } from '../../stores/useDisclaimerStore';
 import { X, Play, Download, Terminal, Layers, Box, CheckCircle2, ShieldCheck, Laptop } from 'lucide-react';
 
 interface DockerCloudDeployerModalProps {
@@ -92,56 +93,60 @@ export const DockerCloudDeployerModal: React.FC<DockerCloudDeployerModalProps> =
     ];
   }, [config, tables, relationships]);
 
-  const handleDownloadZip = async () => {
-    try {
-      await ZipPackageService.downloadDeploymentZip(config.projectName, generatedFiles);
-      onAddToast('Docker Deployment Paket (.zip) erfolgreich heruntergeladen!', 'success');
-    } catch (e: any) {
-      onAddToast(`Download fehlgeschlagen: ${e.message}`, 'error');
-    }
+  const handleDownloadZip = () => {
+    useDisclaimerStore.getState().requireConfirmation(`Docker Deployment Export (${config.projectName})`, async () => {
+      try {
+        await ZipPackageService.downloadDeploymentZip(config.projectName, generatedFiles);
+        onAddToast('Docker Deployment Paket (.zip) erfolgreich heruntergeladen!', 'success');
+      } catch (e: any) {
+        onAddToast(`Download fehlgeschlagen: ${e.message}`, 'error');
+      }
+    });
   };
 
-  const handleDeployToBridge = async () => {
-    const bridgeStore = useBridgeStore.getState();
-    setIsDeploying(true);
-    try {
-      const isOnline = await bridgeStore.checkHealth();
-      if (!isOnline) {
-        onAddToast('Lokale PC-Bridge ist offline. Bitte starten Sie die Bridge.', 'warning');
+  const handleDeployToBridge = () => {
+    useDisclaimerStore.getState().requireConfirmation(`Container Deployment via Bridge (${config.projectName})`, async () => {
+      const bridgeStore = useBridgeStore.getState();
+      setIsDeploying(true);
+      try {
+        const isOnline = await bridgeStore.checkHealth();
+        if (!isOnline) {
+          onAddToast('Lokale PC-Bridge ist offline. Bitte starten Sie die Bridge.', 'warning');
+          bridgeStore.setRunnerModalOpen(true);
+          setIsDeploying(false);
+          return;
+        }
+
+        const payload = {
+          projectId: config.projectName.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+          projectName: config.projectName,
+          stack: {
+            backendType: config.backendLanguage,
+            frontendType: config.frontendFramework,
+            databaseType: config.dbEngine
+          },
+          ports: {
+            backendPort: config.backendPort,
+            frontendPort: config.frontendPort
+          },
+          options: {
+            useSharedDependencies: true,
+            autoInstall: true,
+            autoMigrateDb: true,
+            autoRun: true
+          },
+          files: generatedFiles.map(f => ({ path: f.path, content: f.content }))
+        };
+
+        await bridgeStore.deployProject(payload);
+        onAddToast('Container-Stack erfolgreich an lokale Bridge übertragen!', 'success');
         bridgeStore.setRunnerModalOpen(true);
+      } catch (err: any) {
+        onAddToast(`Fehler bei Übertragung: ${err.message}`, 'error');
+      } finally {
         setIsDeploying(false);
-        return;
       }
-
-      const payload = {
-        projectId: config.projectName.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
-        projectName: config.projectName,
-        stack: {
-          backendType: config.backendLanguage,
-          frontendType: config.frontendFramework,
-          databaseType: config.dbEngine
-        },
-        ports: {
-          backendPort: config.backendPort,
-          frontendPort: config.frontendPort
-        },
-        options: {
-          useSharedDependencies: true,
-          autoInstall: true,
-          autoMigrateDb: true,
-          autoRun: true
-        },
-        files: generatedFiles.map(f => ({ path: f.path, content: f.content }))
-      };
-
-      await bridgeStore.deployProject(payload);
-      onAddToast('Container-Stack erfolgreich an lokale Bridge übertragen!', 'success');
-      bridgeStore.setRunnerModalOpen(true);
-    } catch (err: any) {
-      onAddToast(`Fehler bei Übertragung: ${err.message}`, 'error');
-    } finally {
-      setIsDeploying(false);
-    }
+    });
   };
 
   return (

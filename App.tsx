@@ -13,18 +13,21 @@ import { ThemeInjector } from './components/ThemeInjector';
 import { useAppController } from './hooks/useAppController';
 import { useAuthStore } from './stores/useAuthStore';
 import { useUIStore } from './stores/useUIStore';
+import { useDisclaimerStore } from './stores/useDisclaimerStore';
 
 export default function App() {
   const app = useAppController();
   const { db } = app;
   const { isBackstageOpen, setIsBackstageOpen, setActiveTab } = useUIStore();
   const { checkAdSession } = useAuthStore();
+  const { init: initDisclaimer } = useDisclaimerStore();
 
   React.useEffect(() => {
+    initDisclaimer();
     if (checkAdSession) {
       checkAdSession();
     }
-  }, [checkAdSession]);
+  }, [checkAdSession, initDisclaimer]);
 
   // If no project is currently open, show MS Access Start / Backstage View directly
   if (!db.projectId) {

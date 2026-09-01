@@ -11,6 +11,7 @@ import { GitPushModal } from '../versioning/GitPushModal';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { getSavedMacros } from '../logic/MacroEngine';
 import { getApiUrl } from '../../stores/useConfigStore';
+import { useDisclaimerStore } from '../../stores/useDisclaimerStore';
 
 interface BackendViewProps {
   tables: Table[];
@@ -207,62 +208,64 @@ export const BackendView: React.FC<BackendViewProps> = ({ tables, relationships,
   };
 
   const handleExportZip = async () => {
-    let filesToZip = generatedFiles;
-    if (filesToZip.length === 0) {
-      try {
-        const macros = getSavedMacros();
-        filesToZip = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents, macros);
-        if (localConfig.deploymentConfig) {
-          const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`, tables, relationships, queries);
-          filesToZip = [...filesToZip, ...deployFiles];
+    useDisclaimerStore.getState().requireConfirmation(`Backend-Export (${localConfig.projectName || 'Projekt'})`, async () => {
+      let filesToZip = generatedFiles;
+      if (filesToZip.length === 0) {
+        try {
+          const macros = getSavedMacros();
+          filesToZip = generateBackendCode(tables, relationships, queries, localConfig, forms, reports, pages, customComponents, macros);
+          if (localConfig.deploymentConfig) {
+            const deployFiles = generateDeploymentScripts(localConfig, `Backend/${localConfig.projectName}`, tables, relationships, queries);
+            filesToZip = [...filesToZip, ...deployFiles];
+          }
+          setGeneratedFiles(filesToZip);
+        } catch (err: any) {
+          showMessage("Generierungsfehler", err.message || "Fehler beim Erstellen der Backend-Dateien", 'error');
+          return;
         }
-        setGeneratedFiles(filesToZip);
-      } catch (err: any) {
-        showMessage("Generierungsfehler", err.message || "Fehler beim Erstellen der Backend-Dateien", 'error');
-        return;
       }
-    }
 
-    if (filesToZip.length === 0) {
-        showMessage("Export fehlgeschlagen", "Keine Dateien zum Exportieren vorhanden.", 'warning');
-        return;
-    }
-    const zip = new JSZip();
-    const cleanProjectName = sanitizeProjectName(localConfig.projectName || 'MyProject');
+      if (filesToZip.length === 0) {
+          showMessage("Export fehlgeschlagen", "Keine Dateien zum Exportieren vorhanden.", 'warning');
+          return;
+      }
+      const zip = new JSZip();
+      const cleanProjectName = sanitizeProjectName(localConfig.projectName || 'MyProject');
 
-    // Check if Electron project to add root-level convenience launcher scripts
-    const hasBackendElectron = filesToZip.some(f => f.path.startsWith(`Backend/${cleanProjectName}`) && (f.path.includes('preload.js') || f.path.includes('main.js')));
-    const isElectronProj = localConfig.language === 'electron' || localConfig.frontendFramework === 'electron' || hasBackendElectron;
-    if (isElectronProj) {
-        const electronDir = hasBackendElectron ? `Backend/${cleanProjectName}` : `ElectronApp`;
-        zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Electron Application...\r\ncd ${electronDir}\r\ncall run.bat\r\n`);
-        zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Electron App Launcher for macOS/Linux\ncd ${electronDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
-    }
+      // Check if Electron project to add root-level convenience launcher scripts
+      const hasBackendElectron = filesToZip.some(f => f.path.startsWith(`Backend/${cleanProjectName}`) && (f.path.includes('preload.js') || f.path.includes('main.js')));
+      const isElectronProj = localConfig.language === 'electron' || localConfig.frontendFramework === 'electron' || hasBackendElectron;
+      if (isElectronProj) {
+          const electronDir = hasBackendElectron ? `Backend/${cleanProjectName}` : `ElectronApp`;
+          zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Electron Application...\r\ncd ${electronDir}\r\ncall run.bat\r\n`);
+          zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Electron App Launcher for macOS/Linux\ncd ${electronDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
+      }
 
-    const hasBackendTauri = filesToZip.some(f => f.path.startsWith(`Backend/${cleanProjectName}/src-tauri`) || f.path.includes('tauri.conf.json'));
-    const isTauriProj = localConfig.language === 'tauri' || localConfig.frontendFramework === 'tauri' || hasBackendTauri;
-    if (isTauriProj) {
-        const tauriDir = hasBackendTauri ? `Backend/${cleanProjectName}` : `TauriApp`;
-        zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Tauri Application...\r\ncd ${tauriDir}\r\ncall run.bat\r\n`);
-        zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Tauri App Launcher for macOS/Linux\ncd ${tauriDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
-    }
+      const hasBackendTauri = filesToZip.some(f => f.path.startsWith(`Backend/${cleanProjectName}/src-tauri`) || f.path.includes('tauri.conf.json'));
+      const isTauriProj = localConfig.language === 'tauri' || localConfig.frontendFramework === 'tauri' || hasBackendTauri;
+      if (isTauriProj) {
+          const tauriDir = hasBackendTauri ? `Backend/${cleanProjectName}` : `TauriApp`;
+          zip.file("run.bat", `@echo off\r\ncls\r\necho Starte DB Studio Pro Tauri Application...\r\ncd ${tauriDir}\r\ncall run.bat\r\n`);
+          zip.file("run.sh", `#!/bin/bash\n# DB Studio Pro Tauri App Launcher for macOS/Linux\ncd ${tauriDir}\nchmod +x run.sh 2>/dev/null || true\nbash run.sh\n`);
+      }
 
-    filesToZip.forEach(file => zip.file(file.path, file.content));
+      filesToZip.forEach(file => zip.file(file.path, file.content));
 
-    const content = await zip.generateAsync({ type: 'blob' });
-    const url = window.URL.createObjectURL(content);
-    const a = document.createElement('a');
-    document.body.appendChild(a);
-    a.style.display = 'none';
-    a.href = url;
-    
-    const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-    a.download = `${cleanProjectName}_FullStack_${timeStr}.zip`;
-    
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(content);
+      const a = document.createElement('a');
+      document.body.appendChild(a);
+      a.style.display = 'none';
+      a.href = url;
+      
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
+      a.download = `${cleanProjectName}_FullStack_${timeStr}.zip`;
+      
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    });
   };
 
   const handleAiRefactor = async () => {

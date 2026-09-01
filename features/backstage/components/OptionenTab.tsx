@@ -19,9 +19,14 @@ import {
   ExternalLink,
   ShieldCheck,
   AlertTriangle,
-  Copy
+  Copy,
+  Scale,
+  ShieldAlert,
+  Clock,
+  RefreshCcw
 } from 'lucide-react';
 import { downloadBridgePackageZip, downloadRelayPhpScript } from '../../../utils/bridgePackageGenerator';
+import { useDisclaimerStore } from '../../../stores/useDisclaimerStore';
 
 export const OptionenTab: React.FC = () => {
   const { config, updateConfig } = useConfigStore();
@@ -34,6 +39,12 @@ export const OptionenTab: React.FC = () => {
     checkHealth 
   } = useBridgeStore();
   const ui = useUIStore();
+  const { 
+    status: disclaimerStatus, 
+    acceptedAt: disclaimerAcceptedAt, 
+    revokeDisclaimer, 
+    openModal: openDisclaimerModal 
+  } = useDisclaimerStore();
 
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -457,6 +468,72 @@ export const OptionenTab: React.FC = () => {
             <span className="px-2 py-1 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
               Aktiviert
             </span>
+          </div>
+        </div>
+
+        {/* Code-Generierung & Haftungsausschluss-Zustimmung */}
+        <div className="p-5 rounded-xl bg-[#333333] border border-[#444444] space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Scale size={16} className="text-amber-400" />
+              <h2 className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">
+                Haftungsausschluss für generierten Code & Exporte
+              </h2>
+            </div>
+            {disclaimerStatus === 'persistent' && (
+              <span className="px-2.5 py-1 rounded-full bg-emerald-950/70 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-emerald-400" />
+                Dauerhaft bestätigt
+              </span>
+            )}
+            {disclaimerStatus === 'session' && (
+              <span className="px-2.5 py-1 rounded-full bg-amber-950/70 text-amber-300 border border-amber-500/40 text-[11px] font-bold flex items-center gap-1.5">
+                <Clock size={13} className="text-amber-400" />
+                Nur für diese Sitzung
+              </span>
+            )}
+            {disclaimerStatus === 'unconfirmed' && (
+              <span className="px-2.5 py-1 rounded-full bg-rose-950/70 text-rose-300 border border-rose-500/40 text-[11px] font-bold flex items-center gap-1.5">
+                <ShieldAlert size={13} className="text-rose-400" />
+                Nicht bestätigt
+              </span>
+            )}
+          </div>
+
+          <div className="text-xs text-neutral-300 space-y-2 bg-[#2a2a2a] p-3.5 rounded-lg border border-[#404040]">
+            <p className="leading-relaxed text-[11.5px] text-neutral-300">
+              Der Softwarehersteller übernimmt keine Haftung für Fehler, Datenverluste, Sicherheitsrisiken oder Schäden, die durch die Verwendung von automatisch generiertem Quellcode (C#, TypeScript, Python, PHP, SQL, Docker etc.) entstehen.
+            </p>
+            {disclaimerAcceptedAt && (
+              <p className="text-[11px] text-neutral-400">
+                Zuletzt bestätigt: <strong className="text-neutral-200">{new Date(disclaimerAcceptedAt).toLocaleString('de-DE')}</strong>
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
+            <button
+              type="button"
+              onClick={() => openDisclaimerModal('Einstellungs-Überprüfung')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <FileText size={13} />
+              <span>Haftungsausschluss einsehen & anpassen</span>
+            </button>
+
+            {disclaimerStatus !== 'unconfirmed' && (
+              <button
+                type="button"
+                onClick={() => {
+                  revokeDisclaimer();
+                  ui.addToast("Haftungsausschluss-Zustimmung widerrufen. Sie werden beim nächsten Export erneut gefragt.", 'info');
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-red-950/40 hover:bg-red-900/50 text-red-300 border border-red-500/30 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <RefreshCcw size={13} />
+                <span>Zustimmung widerrufen & zurücksetzen</span>
+              </button>
+            )}
           </div>
         </div>
 

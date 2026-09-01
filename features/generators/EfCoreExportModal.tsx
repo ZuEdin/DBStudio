@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Code2, Database, Download, Copy, Check, Layers, Cpu, Server, Sparkles, FileCode } from 'lucide-react';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { EfCoreCodeGenerator, EfCoreGeneratorOptions, GeneratedCsFile } from './efCoreGenerator';
+import { useDisclaimerStore } from '../../stores/useDisclaimerStore';
 
 interface EfCoreExportModalProps {
   isOpen: boolean;
@@ -43,28 +44,32 @@ export const EfCoreExportModal: React.FC<EfCoreExportModalProps> = ({ isOpen, on
 
   const handleCopy = () => {
     if (!currentFile) return;
-    navigator.clipboard.writeText(currentFile.code);
-    setCopied(true);
-    if (onShowToast) onShowToast(`"${currentFile.fileName}" in die Zwischenablage kopiert!`, 'success');
-    setTimeout(() => setCopied(false), 2000);
+    useDisclaimerStore.getState().requireConfirmation(`C# Code-Kopie (${currentFile.fileName})`, () => {
+      navigator.clipboard.writeText(currentFile.code);
+      setCopied(true);
+      if (onShowToast) onShowToast(`"${currentFile.fileName}" in die Zwischenablage kopiert!`, 'success');
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const handleDownloadAll = () => {
-    const combined = allFiles
-      .map(
-        (f) =>
-          `// ==========================================================================\n// FILE: ${f.fileName} (${f.description})\n// ==========================================================================\n\n${f.code}\n`
-      )
-      .join('\n\n');
+    useDisclaimerStore.getState().requireConfirmation(`.NET 10 EF Core Bundle-Export`, () => {
+      const combined = allFiles
+        .map(
+          (f) =>
+            `// ==========================================================================\n// FILE: ${f.fileName} (${f.description})\n// ==========================================================================\n\n${f.code}\n`
+        )
+        .join('\n\n');
 
-    const blob = new Blob([combined], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${projectName || 'DBStudio'}-EFCore-DotNet10-Bundle.cs`;
-    link.click();
-    URL.revokeObjectURL(url);
-    if (onShowToast) onShowToast(`EF Core Bundle erfolgreich heruntergeladen!`, 'success');
+      const blob = new Blob([combined], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${projectName || 'DBStudio'}-EFCore-DotNet10-Bundle.cs`;
+      link.click();
+      URL.revokeObjectURL(url);
+      if (onShowToast) onShowToast(`EF Core Bundle erfolgreich heruntergeladen!`, 'success');
+    });
   };
 
   return (

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Table, Query, Relationship } from '../../../../types/index';
 import { useConfigStore, getApiUrl } from '../../../../stores/useConfigStore';
 import { useProjectStore } from '../../../../stores/useProjectStore';
+import { useDisclaimerStore } from '../../../../stores/useDisclaimerStore';
 import { handleDownloadSelfHostZip } from '../utils/zipGenerator';
 import { FkError, RbacRole, AuditLog, TeamProject, TeamMember, SystemTable } from '../types';
 
@@ -1083,22 +1084,25 @@ module.exports = app;`;
   };
 
   const executeDownloadZip = () => {
-    handleDownloadSelfHostZip(
-      selfHostLang,
-      tables,
-      selectedTables,
-      queries,
-      selectedQueries,
-      relationships,
-      showMessage,
-      adServerAddress,
-      adBaseDn,
-      adGroupMappings,
-      adServiceAccountUsername,
-      adServiceAccountPassword,
-      subfolderPath,
-      includeWwwroot
-    );
+    const langLabel = selfHostLang === 'nodejs' ? 'Node.js Express' : selfHostLang === 'csharp' ? '.NET 10 C#' : selfHostLang === 'php' ? 'PHP Laravel' : 'Python FastAPI';
+    useDisclaimerStore.getState().requireConfirmation(`Self-Host Backend Export (${langLabel})`, () => {
+      handleDownloadSelfHostZip(
+        selfHostLang,
+        tables,
+        selectedTables,
+        queries,
+        selectedQueries,
+        relationships,
+        showMessage,
+        adServerAddress,
+        adBaseDn,
+        adGroupMappings,
+        adServiceAccountUsername,
+        adServiceAccountPassword,
+        subfolderPath,
+        includeWwwroot
+      );
+    });
   };
 
   const systemSchema: Record<string, SystemTable> = {

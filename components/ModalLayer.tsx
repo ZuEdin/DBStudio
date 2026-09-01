@@ -54,6 +54,7 @@ import { AstCodeSyncModal } from '../features/ast-sync/components/AstCodeSyncMod
 import { EfCoreExportModal } from '../features/generators/EfCoreExportModal';
 import { DesktopPackageModal } from '../features/generators/DesktopPackageModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
+import { CodeGenDisclaimerModal } from './modals/CodeGenDisclaimerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useBridgeStore } from '../stores/useBridgeStore';
@@ -646,6 +647,9 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
           ui.setBackstageActiveTab('optionen');
         }}
       />
+
+      {/* Code Generation & Liability Disclaimer Modal */}
+      <CodeGenDisclaimerModal />
     </>
   );
 };

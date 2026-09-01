@@ -9,6 +9,7 @@ import { generateModernFrontendProject } from '../../utils/generators/frontendMo
 import { generateWordPressPlugin, generateNextcloudApp } from '../../utils/generators/cmsPluginsGenerator';
 import { generateDevOpsArtifacts } from '../../utils/generators/devOpsOpenApiGenerator';
 import { saveCodeProjectToIndexedDB } from '../../utils/generators/services/codeGenIndexedDBService';
+import { useDisclaimerStore } from '../../stores/useDisclaimerStore';
 
 interface FullStackCodeGenModalProps {
   isOpen: boolean;
@@ -102,23 +103,40 @@ export const FullStackCodeGenModal: React.FC<FullStackCodeGenModalProps> = ({
   const currentPath = selectedFilePath && generatedFiles[selectedFilePath] ? selectedFilePath : filePaths[0] || '';
   const fileContent = generatedFiles[currentPath] || '';
 
+  const { requireConfirmation } = useDisclaimerStore();
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(fileContent);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    requireConfirmation(`Code-Kopie (${activeStack})`, () => {
+      navigator.clipboard.writeText(fileContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
   };
 
-  const handleSaveToIndexedDB = async () => {
-    await saveCodeProjectToIndexedDB({
-      id: `proj_${Date.now()}`,
-      projectName: `Project_${activeStack}`,
-      targetStack: activeStack,
-      generatedAt: Date.now(),
-      filesCount: filePaths.length,
-      zipSizeKb: Math.round(JSON.stringify(generatedFiles).length / 1024),
-      filesJson: JSON.stringify(generatedFiles),
+  const handleSaveToIndexedDB = () => {
+    requireConfirmation(`IndexedDB Quellcode-Sicherung (${activeStack})`, async () => {
+      await saveCodeProjectToIndexedDB({
+        id: `proj_${Date.now()}`,
+        projectName: `Project_${activeStack}`,
+        targetStack: activeStack,
+        generatedAt: Date.now(),
+        filesCount: filePaths.length,
+        zipSizeKb: Math.round(JSON.stringify(generatedFiles).length / 1024),
+        filesJson: JSON.stringify(generatedFiles),
+      });
+      alert('Projekt erfolgreich in IndexedDB gespeichert!');
     });
-    alert('Projekt erfolgreich in IndexedDB gespeichert!');
+  };
+
+  const handleDownloadFile = () => {
+    requireConfirmation(`Datei-Export (${currentPath.split('/').pop() || activeStack})`, () => {
+      const blob = new Blob([fileContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = currentPath.split('/').pop() || 'code.txt';
+      a.click();
+    });
   };
 
   return (
@@ -224,15 +242,8 @@ export const FullStackCodeGenModal: React.FC<FullStackCodeGenModalProps> = ({
               Schließen
             </button>
             <button
-              onClick={() => {
-                const blob = new Blob([fileContent], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = currentPath.split('/').pop() || 'code.txt';
-                a.click();
-              }}
-              className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-2xs"
+              onClick={handleDownloadFile}
+              className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
               <Download size={14} />
               <span>Datei herunterladen</span>
