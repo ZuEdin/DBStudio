@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Canvas } from '../../components/Canvas';
 import { QueryGrid } from './components/QueryGrid';
 import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType, Form, QueryParameter } from '../../types/index';
-import { Calculator, Sigma, Sparkles, Play, Database, Wand2, Loader2, Check, HelpCircle, X, Terminal, Code, GitCommit, Sliders, FileCode, PlayCircle, Table as TableIcon } from 'lucide-react';
+import { Calculator, Sigma, Sparkles, Play, Database, Wand2, Loader2, Check, HelpCircle, X, Terminal, Code, GitCommit, Sliders, FileCode, PlayCircle, Table as TableIcon, TableProperties } from 'lucide-react';
 import { generateSqlSelect } from '../../utils/sqlHelper';
 import { AccessSqlConverterModal } from '../tools/AccessSqlConverterModal';
 import { useUIStore } from '../../stores/useUIStore';
@@ -138,8 +138,19 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
           setShowExportModal(true);
           break;
         case 'query_open_criteria_helper':
+        case 'query_add_calculated_field':
           addCalculatedColumn();
           ui.addToast("Neues Berechnungs- und Kriterienfeld eingefügt.", "success");
+          break;
+        case 'open_access_converter':
+        case 'query_open_access_converter':
+          setShowAccessSqlModal(true);
+          break;
+        case 'open_crosstab_modal':
+          setShowCrosstabModal(true);
+          break;
+        case 'query_toggle_totals':
+          toggleTotals();
           break;
         case 'query_open_window_functions':
           setShowWindowModal(true);
@@ -443,6 +454,15 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
          >
             <Sliders size={14} className="text-slate-600" />
             <span>Parameter {selectQuery.parameters && selectQuery.parameters.length > 0 ? `(${selectQuery.parameters.length})` : ''}</span>
+         </button>
+
+         <button 
+           onClick={() => ui.setActiveWizard('maketable')} 
+           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border bg-teal-50 border-teal-200 text-teal-800 hover:bg-teal-100 font-semibold transition shadow-2xs cursor-pointer"
+           title="Erstelle neue permanente oder temporäre Tabelle aus dieser Abfrage"
+         >
+            <TableProperties size={14} className="text-teal-600" />
+            <span>Tabelle erstellen</span>
          </button>
 
          <button 

@@ -5,6 +5,7 @@ import {
   Code,
   Plus,
   Table as TableIcon,
+  TableProperties,
   Sigma,
   Sliders,
   Sparkles,
@@ -17,13 +18,15 @@ import {
   CheckSquare,
   HelpCircle,
   Database,
-  Trash2
+  Trash2,
+  Calculator,
+  Bot
 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useUIStore } from '../../../stores/useUIStore';
 import { useProjectStore } from '../../../stores/useProjectStore';
-import { Query, SelectQuery } from '../../../types';
+import { Query } from '../../../types';
 
 interface QueryDesignTabProps {
   onAction: (action: string, payload?: any) => void;
@@ -46,7 +49,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
 
   return (
     <div className="flex gap-2 h-full items-stretch">
-      {/* 1. Ergebnisse & Ausführen */}
+      {/* 1. Ergebnisse & Ansichten */}
       <RibbonGroup label="Ergebnisse & Ansichten">
         <RibbonButton
           icon={<Play className="text-emerald-600 fill-emerald-500" />}
@@ -104,7 +107,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
         </div>
       </RibbonGroup>
 
-      {/* 2. Abfragetyp (Access Query Types) */}
+      {/* 2. Abfragetyp (Access Query Types & Make-Table) */}
       <RibbonGroup label="Abfragetyp">
         <RibbonButton
           icon={<TableIcon className="text-blue-600 dark:text-blue-400" />}
@@ -113,6 +116,14 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           onClick={() => onAction('query_set_type_select')}
           size="large"
           title="Standard-Auswahlabfrage zur Datenanzeige"
+        />
+
+        <RibbonButton
+          icon={<TableProperties className="text-teal-600 dark:text-teal-400" />}
+          label="Tabelle erstellen"
+          onClick={() => ui.setActiveWizard('maketable')}
+          size="large"
+          title="Erstellt eine neue permanente oder temporäre Tabelle aus dieser Abfrage (SELECT INTO / TEMP TABLE)"
         />
 
         <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px] border-r border-slate-200/50 dark:border-slate-700/60 pr-2">
@@ -170,7 +181,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
         </div>
       </RibbonGroup>
 
-      {/* 3. Abfrage-Setup */}
+      {/* 3. Abfrage-Setup & Entwurf */}
       <RibbonGroup label="Abfrage-Setup">
         <RibbonButton
           icon={<Sigma className="text-indigo-600 dark:text-indigo-400" />}
@@ -190,6 +201,14 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
             <span className="truncate">Tabelle einfügen</span>
           </button>
           <button
+            onClick={() => onAction('query_add_calculated_field')}
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
+            title="Neues berechnetes Feld (Formel/Ausdruck) in Abfrage einfügen"
+          >
+            <Calculator size={13} className="text-teal-600 dark:text-teal-400 shrink-0" />
+            <span className="truncate">Berechnetes Feld</span>
+          </button>
+          <button
             onClick={() => onAction('query_open_join_props')}
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
             title="JOIN-Eigenschaften konfigurieren (INNER JOIN, LEFT JOIN, RIGHT JOIN)"
@@ -197,6 +216,9 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
             <ArrowRightLeft size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
             <span className="truncate">JOIN-Typen...</span>
           </button>
+        </div>
+
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px]">
           <button
             onClick={() => onAction('query_open_parameters_modal')}
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
@@ -205,9 +227,6 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
             <Sliders size={13} className="text-amber-500 shrink-0" />
             <span className="truncate">Parameter ([?])...</span>
           </button>
-        </div>
-
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[120px]">
           <button
             onClick={() => onAction('query_toggle_distinct')}
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
@@ -255,7 +274,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
         />
       </RibbonGroup>
 
-      {/* 5. Konvertierung & Export */}
+      {/* 5. Konvertierung, KI & Export */}
       <RibbonGroup label="Konvertierung & Export" isLast>
         <RibbonButton
           icon={<FileCode className="text-purple-600 dark:text-purple-400" />}
@@ -265,7 +284,7 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           title="Konvertiert MS Access SQL Dialekt in PostgreSQL, SQLite, MySQL und SQL Server"
         />
 
-        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[125px]">
+        <div className="flex flex-col gap-1 justify-center h-full py-1 min-w-[130px]">
           <button
             onClick={() => onAction('query_export_as_view')}
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
@@ -277,13 +296,25 @@ export const QueryDesignTab: React.FC<QueryDesignTabProps> = ({ onAction }) => {
           <button
             onClick={() => onAction('query_open_export_modal')}
             className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left font-medium cursor-pointer"
-            title="Query-Export als JSON, SQL oder C# LINQ"
+            title="Query-Export als JSON, SQL, React Hook oder C# LINQ"
           >
             <FileSpreadsheet size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">Exportieren...</span>
+          </button>
+          <button
+            onClick={() => {
+              ui.setAiCopilotTab('query');
+              ui.setShowAiCopilotModal(true);
+            }}
+            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 font-semibold transition-colors text-left cursor-pointer"
+            title="AI Query-Copilot öffnen"
+          >
+            <Bot size={13} className="text-indigo-500 shrink-0" />
+            <span className="truncate">AI Copilot</span>
           </button>
         </div>
       </RibbonGroup>
     </div>
   );
 };
+

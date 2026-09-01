@@ -122,6 +122,8 @@ export interface Table {
   description?: string;
   fields: Field[];
   data?: any[];
+  isTemporary?: boolean;
+  tempScope?: 'session' | 'transaction' | 'global';
   isApiImport?: boolean;
   apiConfig?: ApiConfig;
   validationRules?: ValidationRule[];

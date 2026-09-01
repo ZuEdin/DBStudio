@@ -19,7 +19,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
     if (selectedNodeIds.length <= 1) return null;
 
     return (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-50 transition-colors">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-20 transition-colors">
             <button 
                 onClick={handleGroupSelected}
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors"

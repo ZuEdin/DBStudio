@@ -307,6 +307,20 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <MakeTableWizard 
           tables={tables} 
           queries={queries} 
+          initialSourceId={
+            ui.currentView.type === 'query_designer' || ui.currentView.type === 'query_results'
+              ? (ui.currentView as any).queryId
+              : (ui.currentView.type === 'table_data' || ui.currentView.type === 'table_edit'
+                  ? (ui.currentView as any).tableId
+                  : undefined)
+          }
+          initialSourceType={
+            ui.currentView.type === 'query_designer' || ui.currentView.type === 'query_results'
+              ? 'query'
+              : (ui.currentView.type === 'table_data' || ui.currentView.type === 'table_edit'
+                  ? 'table'
+                  : undefined)
+          }
           onClose={() => setActiveWizard(null)} 
         />
       )}

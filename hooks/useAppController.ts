@@ -1507,6 +1507,7 @@ export const useAppController = () => {
         case 'query_open_parameters_modal':
         case 'query_open_export_modal':
         case 'query_open_criteria_helper':
+        case 'query_add_calculated_field':
              window.dispatchEvent(new CustomEvent('query-designer-action', { detail: { action } }));
              break;
         case 'query_toggle_distinct': {

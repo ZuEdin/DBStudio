@@ -45,7 +45,7 @@ export const Minimap: React.FC<MinimapProps> = ({
 }) => {
     return (
         <div 
-            className="absolute bottom-16 right-4 z-40 transition-all duration-300"
+            className="absolute bottom-16 right-4 z-20 transition-all duration-300"
             style={{ pointerEvents: 'auto' }}
         >
             <div className="flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800/80 rounded-xl shadow-2xl overflow-hidden">

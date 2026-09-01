@@ -52,6 +52,14 @@ const RenderNode: React.FC<RenderNodeProps> = ({
             return <DynamicIcon size={14} className={`${type === 'table' && (n.item as Table).isApiImport ? 'text-blue-600 dark:text-blue-400' : colorClass} flex-shrink-0`} />;
         })()}
         <span className="truncate" title={n.item.name}>{overrideName || n.displayName}</span>
+        {type === 'table' && (n.item as Table).isTemporary && (
+          <span 
+            className="ml-1 px-1 py-0.2 bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[9px] rounded font-mono font-bold border border-amber-300 dark:border-amber-700 shrink-0" 
+            title={`Temporäre Tabelle (${(n.item as Table).tempScope || 'Session'}-Scope)`}
+          >
+            TEMP
+          </span>
+        )}
         {type === 'page' && (n.item as any).isSubpage && (
           <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[9px] rounded font-semibold flex-shrink-0">Sub</span>
         )}

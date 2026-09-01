@@ -29,7 +29,7 @@ export const CanvasControls: React.FC<CanvasControlsProps> = ({
     scale
 }) => {
     return (
-        <div className="absolute bottom-4 left-4 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-[100] select-none transition-colors">
+        <div className="absolute bottom-4 left-4 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-300 dark:border-slate-800 p-1 flex items-center gap-1 z-20 select-none transition-colors">
             {/* Interaction Modes */}
             <button 
                 onClick={() => setCanvasMode('select')}
