@@ -53,7 +53,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
   };
 
   return (
-    <div className="bg-slate-800 text-white text-xs px-2 py-1 flex justify-between items-center select-none shrink-0 print:hidden h-10 border-b border-slate-700">
+    <header className="app-header bg-slate-800 text-white text-xs px-2 py-1 flex justify-between items-center select-none shrink-0 print:hidden no-print h-10 border-b border-slate-700">
         <div className="flex items-center gap-4">
             <span className="font-bold flex items-center gap-2">
                 <Cloud size={14} className="text-blue-400 font-bold shrink-0" />
@@ -297,6 +297,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onAction, chats }) => {
                 {t('app.save_backup')}
             </button>
         </div>
-    </div>
+    </header>
   );
 };

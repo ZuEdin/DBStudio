@@ -1,286 +1,254 @@
+import { DbType, QueryColumn, Table, Relationship } from '../types/index';
 
-import { Table, Relationship, QueryColumn, TableNode, DbType } from '../types/index';
-import { quoteIdentifier, toPascalCase, normalizeDbType } from './generators/common';
-import { resolveFormValue } from '../features/queries/utils/queryExecution';
-import { transpileExpression } from '../features/queries/utils/expressionTranspiler';
+/**
+ * Quotes an identifier (table or column name) according to the target SQL dialect.
+ */
+export function quoteSqlIdentifier(identifier: string, dbType: DbType | string = DbType.SQLite): string {
+  if (!identifier) return '';
+  if (identifier === '*') return '*';
 
-export const generateSqlSelect = (nodes: TableNode[], columns: QueryColumn[], tables: Table[], relationships: Relationship[], dbType: DbType | string, useRawNames: boolean = false, context?: Record<string, any>, distinct: boolean = false): string => {
-    if (nodes.length === 0) return '';
-    
-    const normalizedDb = normalizeDbType(dbType);
-    const formatIdentifier = (name: string) => useRawNames ? name : toPascalCase(name);
+  const typeStr = String(dbType).toUpperCase();
+  if (typeStr.includes('MYSQL') || typeStr.includes('MARIA')) {
+    return `\`${identifier.replace(/`/g, '``')}\``;
+  }
+  if (typeStr.includes('MSSQL') || typeStr.includes('SQL_SERVER') || typeStr === 'SQL') {
+    return `[${identifier.replace(/\]/g, ']]')}]`;
+  }
+  // Standard ANSI & PostgreSQL / SQLite
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
 
-    // 1. Assign unique aliases to each TableNode
-    const nodeAliases = new Map<string, string>();
-    nodes.forEach((node, idx) => {
-        const table = tables.find(t => t.id === node.tableId);
-        const baseName = table ? formatIdentifier(table.name) : 'Table';
-        // Use a short stable alias
-        nodeAliases.set(node.id, `${baseName}_${idx}`);
+/**
+ * Resolves dynamic criteria / form values in SQL criteria expressions.
+ */
+function resolveCriteriaExpression(
+  crit: string,
+  forExecution: boolean,
+  context?: Record<string, any>
+): string {
+  if (!crit) return '';
+  let resolved = crit.trim();
+
+  // If starts with Access-style [Forms]![formName]![fieldName]
+  const formRefPattern = /\[Forms\]!\[([^\]]+)\]!\[([^\]]+)\]/gi;
+  if (forExecution && context) {
+    resolved = resolved.replace(formRefPattern, (_match, formName, fieldName) => {
+      const key1 = `forms.${formName.toLowerCase()}.${fieldName.toLowerCase()}`;
+      if (context[key1] !== undefined) {
+        const val = context[key1];
+        return typeof val === 'number' ? String(val) : `'${String(val).replace(/'/g, "''")}'`;
+      }
+      if (context.currentRecord && context.currentRecord[fieldName] !== undefined) {
+        const val = context.currentRecord[fieldName];
+        return typeof val === 'number' ? String(val) : `'${String(val).replace(/'/g, "''")}'`;
+      }
+      if (context[fieldName] !== undefined) {
+        const val = context[fieldName];
+        return typeof val === 'number' ? String(val) : `'${String(val).replace(/'/g, "''")}'`;
+      }
+      return 'NULL';
     });
+  }
 
-    // 2. Map Columns to their Aliases
-    const selectClause = columns.filter(c => c.show || (c.criteria && c.criteria.some(cr => cr && cr.trim() !== ''))).map(c => {
-        const alias = c.alias ? formatIdentifier(c.alias) : formatIdentifier(c.fieldName);
-        const quotedAlias = quoteIdentifier(alias, normalizedDb);
-        
-        let fieldExpr = '';
-        if (c.isCalculated) {
-            const dialectMap: Record<DbType, 'SQLITE' | 'POSTGRES' | 'MYSQL' | 'MSSQL'> = {
-                [DbType.SQLite]: 'SQLITE',
-                [DbType.PostgreSQL]: 'POSTGRES',
-                [DbType.MySQL]: 'MYSQL',
-                [DbType.SQL]: 'MSSQL',
-                [DbType.NoSQL]: 'POSTGRES'
-            };
-            const transpiled = transpileExpression(c.expression || '', dialectMap[normalizedDb] || 'SQLITE');
-            fieldExpr = `(${transpiled})`;
-        } else {
-            // Try to find the correct node alias
-            let nodeAlias = '';
-            let targetTable: Table | undefined;
-            if (c.nodeId && nodeAliases.has(c.nodeId)) {
-                nodeAlias = nodeAliases.get(c.nodeId)!;
-                const node = nodes.find(n => n.id === c.nodeId);
-                targetTable = tables.find(t => t.id === node?.tableId);
-            } else {
-                // Fallback: find first node matching tableId
-                const node = nodes.find(n => n.tableId === c.tableId);
-                if (node) {
-                    nodeAlias = nodeAliases.get(node.id)!;
-                    targetTable = tables.find(t => t.id === node.tableId);
-                } else {
-                    nodeAlias = formatIdentifier(c.tableName);
-                    targetTable = tables.find(t => t.id === c.tableId || t.name.toLowerCase() === (c.tableName || '').toLowerCase());
-                }
-            }
+  // Format shorthand operators: e.g. "> 50", "= 'Berlin'", "Like '*GmbH*'"
+  if (resolved.startsWith('>') || resolved.startsWith('<') || resolved.startsWith('=')) {
+    return resolved;
+  }
 
-            // Resolve actual field name on the table
-            let resolvedColName = c.fieldName;
-            if (targetTable) {
-                const matchedField = targetTable.fields.find(f => f.id === c.fieldId || f.name.toLowerCase() === (c.fieldName || '').toLowerCase());
-                if (matchedField) {
-                    resolvedColName = matchedField.name;
-                }
-            }
+  // Convert Access wildcards * and ? to SQL % and _
+  if (/^like\s+/i.test(resolved)) {
+    resolved = resolved
+      .replace(/\*/g, '%')
+      .replace(/\?/g, '_');
+    return resolved;
+  }
 
-            fieldExpr = `${quoteIdentifier(nodeAlias, normalizedDb)}.${quoteIdentifier(resolvedColName, normalizedDb)}`;
-        }
+  // If user entered just a bare string or number
+  if (/^['"].*['"]$/.test(resolved) || /^-?\d+(\.\d+)?$/.test(resolved)) {
+    return `= ${resolved}`;
+  }
 
-        if (c.aggregate && !['GROUP_BY', 'EXPRESSION', 'FIRST', 'LAST'].includes(c.aggregate)) {
-            fieldExpr = `${c.aggregate}(${fieldExpr})`;
-        }
+  // If it doesn't contain comparison operators
+  if (!/^(IS|IN|BETWEEN|LIKE|NOT|=|>|<)/i.test(resolved)) {
+    // Treat as equality or string match
+    return `= '${resolved.replace(/'/g, "''")}'`;
+  }
 
-        return `  ${fieldExpr} AS ${quotedAlias}`;
-    }).join(',\n');
+  return resolved;
+}
 
-    // 3. Build FROM and JOINs using BFS for pathfinding
-    const firstNode = nodes[0];
-    const firstTable = tables.find(t => t.id === firstNode.tableId);
-    if (!firstTable) return '';
+/**
+ * Generates a full SQL SELECT statement from Visual Query Designer nodes, columns, and relationships.
+ */
+export function generateSqlSelect(
+  nodes: any[] = [],
+  columns: QueryColumn[] = [],
+  tables: Table[] = [],
+  relationships: Relationship[] = [],
+  dbType: DbType | string = DbType.SQLite,
+  forExecution: boolean = false,
+  context?: Record<string, any>,
+  distinct: boolean = false
+): string {
+  if (!nodes || nodes.length === 0) {
+    return 'SELECT 1;';
+  }
 
-    const firstAlias = nodeAliases.get(firstNode.id)!;
-    let fromClause = `FROM ${quoteIdentifier(formatIdentifier(firstTable.name), dbType)} AS ${quoteIdentifier(firstAlias, dbType)}`;
-    
-    const joinedNodeIds = new Set([firstNode.id]);
-    let joins = '';
-    
-    // BFS Queue
-    const queue = [firstNode.id];
-    
-    while (queue.length > 0 && joinedNodeIds.size < nodes.length) {
-        const currentNodeId = queue.shift()!;
-        const currentNode = nodes.find(n => n.id === currentNodeId)!;
-        const currentAlias = nodeAliases.get(currentNodeId)!;
+  // 1. Resolve Table Nodes
+  const nodeTableMap = new Map<string, { tableName: string; alias: string }>();
+  nodes.forEach((node) => {
+    const tableData = node.data || {};
+    const tableId = tableData.tableId || node.id;
+    const table = tables.find((t) => t.id === tableId || t.name === tableData.name);
+    const tableName = table ? table.name : (tableData.name || 'Table1');
+    const alias = node.id || tableName;
+    nodeTableMap.set(node.id, { tableName, alias });
+  });
 
-        // Find all possible connections from this node to unjoined nodes
-        for (const targetNode of nodes) {
-            if (joinedNodeIds.has(targetNode.id)) continue;
+  const rootNode = nodes[0];
+  const rootInfo = nodeTableMap.get(rootNode.id) || {
+    tableName: tables[0]?.name || 'Table1',
+    alias: rootNode.id,
+  };
 
-            // Find relationship between currentNode.tableId and targetNode.tableId
-            const rel = relationships.find(r => 
-                (r.fromTableId === currentNode.tableId && r.toTableId === targetNode.tableId) ||
-                (r.toTableId === currentNode.tableId && r.fromTableId === targetNode.tableId)
-            );
+  // 2. Build SELECT Columns
+  const selectItems: string[] = [];
+  const groupByItems: string[] = [];
+  const orderByItems: string[] = [];
+  let hasAggregate = false;
 
-            if (rel) {
-                const targetAlias = nodeAliases.get(targetNode.id)!;
-                const targetTable = tables.find(t => t.id === targetNode.tableId || t.name === targetNode.tableId || t.name?.toLowerCase() === targetNode.tableId?.toLowerCase());
-                if (!targetTable) continue;
-                
-                let onClause = '';
-                if (rel.fromTableId === currentNode.tableId && rel.toTableId === targetNode.tableId) {
-                    const currentT = tables.find(t => t.id === rel.fromTableId || t.name === rel.fromTableId || t.name?.toLowerCase() === rel.fromTableId?.toLowerCase());
-                    const targetT = tables.find(t => t.id === rel.toTableId || t.name === rel.toTableId || t.name?.toLowerCase() === rel.toTableId?.toLowerCase());
-                    const fromF = currentT?.fields.find(f => f.id === rel.fromFieldId || f.name === rel.fromFieldId || f.name?.toLowerCase() === rel.fromFieldId?.toLowerCase());
-                    const toF = targetT?.fields.find(f => f.id === rel.toFieldId || f.name === rel.toFieldId || f.name?.toLowerCase() === rel.toFieldId?.toLowerCase());
-                    if (fromF && toF) {
-                        onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
-                    }
-                } else {
-                    const currentT = tables.find(t => t.id === rel.toTableId || t.name === rel.toTableId || t.name?.toLowerCase() === rel.toTableId?.toLowerCase());
-                    const targetT = tables.find(t => t.id === rel.fromTableId || t.name === rel.fromTableId || t.name?.toLowerCase() === rel.fromTableId?.toLowerCase());
-                    const fromF = currentT?.fields.find(f => f.id === rel.toFieldId || f.name === rel.toFieldId || f.name?.toLowerCase() === rel.toFieldId?.toLowerCase());
-                    const toF = targetT?.fields.find(f => f.id === rel.fromFieldId || f.name === rel.fromFieldId || f.name?.toLowerCase() === rel.fromFieldId?.toLowerCase());
-                    if (fromF && toF) {
-                        onClause = `${quoteIdentifier(currentAlias, dbType)}.${quoteIdentifier(fromF.name, dbType)} = ${quoteIdentifier(targetAlias, dbType)}.${quoteIdentifier(toF.name, dbType)}`;
-                    }
-                }
+  // Filter columns that should be displayed
+  const visibleColumns = columns.filter((col) => col.show !== false);
 
-                if (onClause) {
-                    const joinKeyword = rel.joinType === 'INNER' 
-                        ? 'INNER JOIN' 
-                        : rel.joinType === 'RIGHT' 
-                        ? 'RIGHT OUTER JOIN' 
-                        : rel.joinType === 'FULL' 
-                        ? 'FULL OUTER JOIN' 
-                        : 'LEFT JOIN';
+  if (visibleColumns.length === 0) {
+    selectItems.push(`${quoteSqlIdentifier(rootInfo.alias, dbType)}.*`);
+  } else {
+    visibleColumns.forEach((col) => {
+      const nodeInfo = col.nodeId ? nodeTableMap.get(col.nodeId) : null;
+      const targetTableOrAlias = nodeInfo ? nodeInfo.alias : col.tableName;
+      const quotedCol = `${quoteSqlIdentifier(targetTableOrAlias, dbType)}.${quoteSqlIdentifier(col.fieldName, dbType)}`;
 
-                    joins += `\n${joinKeyword} ${quoteIdentifier(formatIdentifier(targetTable.name), dbType)} AS ${quoteIdentifier(targetAlias, dbType)} ON ${onClause}`;
-                    joinedNodeIds.add(targetNode.id);
-                    queue.push(targetNode.id);
-                }
-            }
-        }
+      let itemSql = quotedCol;
+
+      // Handle Expressions vs Aggregates
+      if (col.isCalculated && col.expression) {
+        itemSql = col.expression;
+      } else if (col.aggregate && col.aggregate !== 'GROUP_BY') {
+        hasAggregate = true;
+        itemSql = `${col.aggregate}(${quotedCol})`;
+      } else if (col.aggregate === 'GROUP_BY') {
+        hasAggregate = true;
+        groupByItems.push(quotedCol);
+      }
+
+      if (col.alias && col.alias.trim() && col.alias !== col.fieldName) {
+        itemSql += ` AS ${quoteSqlIdentifier(col.alias.trim(), dbType)}`;
+      }
+
+      selectItems.push(itemSql);
+
+      // Collect Sort Orders
+      if (col.sort === 'ASC' || col.sort === 'DESC') {
+        orderByItems.push(`${quotedCol} ${col.sort}`);
+      }
+    });
+  }
+
+  // 3. Build FROM & JOIN Clause
+  let fromClause = `${quoteSqlIdentifier(rootInfo.tableName, dbType)} AS ${quoteSqlIdentifier(rootInfo.alias, dbType)}`;
+
+  // Find relationships connecting the current nodes
+  const joinedNodeIds = new Set<string>([rootNode.id]);
+  const remainingNodes = nodes.slice(1);
+
+  while (remainingNodes.length > 0) {
+    let joinedInThisRound = false;
+
+    for (let i = 0; i < remainingNodes.length; i++) {
+      const node = remainingNodes[i];
+      const nodeInfo = nodeTableMap.get(node.id)!;
+
+      // Check if relationship exists between joinedNodeIds and this node
+      const matchingRel = relationships.find((rel) => {
+        const fromMatch =
+          joinedNodeIds.has(rel.fromTableId) ||
+          Array.from(joinedNodeIds).some((id) => nodeTableMap.get(id)?.tableName === rel.fromTableId);
+        const toMatch =
+          rel.toTableId === node.id ||
+          rel.toTableId === nodeInfo.tableName ||
+          nodeTableMap.get(node.id)?.tableName === rel.toTableId;
+        return (fromMatch && toMatch) || (rel.fromTableId === node.id && joinedNodeIds.has(rel.toTableId));
+      });
+
+      if (matchingRel) {
+        const sourceAlias = matchingRel.fromTableId;
+        const targetAlias = nodeInfo.alias;
+        const sourceCol = matchingRel.fromFieldId || 'id';
+        const targetCol = matchingRel.toFieldId || 'id';
+
+        fromClause += `\nLEFT JOIN ${quoteSqlIdentifier(nodeInfo.tableName, dbType)} AS ${quoteSqlIdentifier(
+          targetAlias,
+          dbType
+        )} ON ${quoteSqlIdentifier(sourceAlias, dbType)}.${quoteSqlIdentifier(
+          sourceCol,
+          dbType
+        )} = ${quoteSqlIdentifier(targetAlias, dbType)}.${quoteSqlIdentifier(targetCol, dbType)}`;
+
+        joinedNodeIds.add(node.id);
+        remainingNodes.splice(i, 1);
+        joinedInThisRound = true;
+        break;
+      }
     }
 
-    // 4. WHERE clause
-    const whereConditions = columns.map(c => {
-        if (c.aggregate && !['GROUP_BY', 'EXPRESSION'].includes(c.aggregate)) return null;
-        const validCriteria = c.criteria.filter(crit => crit.trim() !== '');
-        if (validCriteria.length === 0) return null;
-        
-        let nodeAlias = '';
-        if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
-        else {
-            const node = nodes.find(n => n.tableId === c.tableId);
-            nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
-        }
-
-        const fieldRef = c.isCalculated ? `(${c.expression})` : `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
-        
-        const conditions = validCriteria.map(crit => {
-            let criteria = crit.trim();
-
-            if (/(?:\[?Forms\]?!)/i.test(criteria)) {
-                const formMatch = criteria.match(/(?:\[?Forms\]?!\s*\[?([^!\]]+)\]?!\s*\[?([^!\]\s]+)\]?)/i);
-                if (formMatch && formMatch.length >= 3) {
-                    const formName = formMatch[1];
-                    const fieldName = formMatch[2];
-                    const val = resolveFormValue(formName, fieldName, context);
-                    if (val !== undefined && val !== null && val !== '') {
-                        const opMatch = criteria.match(/^(=|like |>|<|>=|<=)/i);
-                        const op = opMatch ? opMatch[0].trim() : '=';
-                        const escapedVal = String(val).replace(/'/g, "''");
-                        criteria = `${op} '${escapedVal}'`;
-                    } else {
-                        criteria = `= ''`;
-                    }
-                }
-            }
-
-            if (criteria === null) return null;
-
-            if (criteria.includes('"')) criteria = criteria.replace(/"/g, "'");
-            if (criteria.includes('TODAY')) {
-                const todaySql = dbType === DbType.SQL ? "CAST(GETDATE() AS DATE)" : (dbType === DbType.SQLite ? "DATE('now')" : "CURDATE()");
-                criteria = criteria.replace(/TODAY/g, todaySql);
-            }
-            const upper = criteria.toUpperCase();
-            if (upper === 'NULL') return `${fieldRef} IS NULL`;
-            if (upper === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
-            if (upper === 'IS NULL' || upper === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
-
-            const startsWithOp = /^(?:=|>|<|>=|<=|!=|<>|LIKE\s|IN\s|NOT\s|BETWEEN\s|IS\s)/i.test(criteria);
-            if (!startsWithOp) {
-                if (/^\d+(\.\d+)?$/.test(criteria)) {
-                    criteria = `= ${criteria}`;
-                } else {
-                    const cleanStr = criteria.replace(/^['"]|['"]$/g, '');
-                    criteria = `= '${cleanStr.replace(/'/g, "''")}'`;
-                }
-            }
-
-            return `${fieldRef} ${criteria}`; 
-        }).filter(Boolean);
-        return conditions.length > 0 ? (conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0]) : null;
-    }).filter(Boolean);
-
-    const whereClause = whereConditions.length > 0 ? `\nWHERE\n  ${whereConditions.join('\n  AND ')}` : '';
-    
-    // 5. GROUP BY
-    const hasAggregation = columns.some(c => c.aggregate && !['GROUP_BY', 'EXPRESSION'].includes(c.aggregate));
-    const groupByColumns = columns.filter(c => c.aggregate === 'GROUP_BY');
-    let groupByClause = '';
-    if (hasAggregation) {
-        let groupCols = groupByColumns;
-        if (groupCols.length === 0) {
-            groupCols = columns.filter(c => (c.show || c.sort) && (!c.aggregate || c.aggregate === 'GROUP_BY' || c.aggregate === 'EXPRESSION'));
-        }
-        if (groupCols.length > 0) {
-            const groups = groupCols.map(c => {
-                if (c.isCalculated) return `(${c.expression})`;
-                let nodeAlias = '';
-                if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
-                else {
-                    const node = nodes.find(n => n.tableId === c.tableId);
-                    nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
-                }
-                return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)}`;
-            }).join(', ');
-            groupByClause = `\nGROUP BY ${groups}`;
-        }
+    if (!joinedInThisRound) {
+      // Cross join fallback for unlinked tables
+      const fallbackNode = remainingNodes.shift()!;
+      const fallbackInfo = nodeTableMap.get(fallbackNode.id)!;
+      fromClause += `\nCROSS JOIN ${quoteSqlIdentifier(fallbackInfo.tableName, dbType)} AS ${quoteSqlIdentifier(
+        fallbackInfo.alias,
+        dbType
+      )}`;
+      joinedNodeIds.add(fallbackNode.id);
     }
+  }
 
+  // 4. Build WHERE Clause
+  const whereConditions: string[] = [];
+  columns.forEach((col) => {
+    if (col.criteria && col.criteria.length > 0) {
+      const nodeInfo = col.nodeId ? nodeTableMap.get(col.nodeId) : null;
+      const targetTableOrAlias = nodeInfo ? nodeInfo.alias : col.tableName;
+      const quotedCol = `${quoteSqlIdentifier(targetTableOrAlias, dbType)}.${quoteSqlIdentifier(col.fieldName, dbType)}`;
 
-    // 5.5 HAVING
-    const havingConditions = columns.map(c => {
-        if (!c.aggregate || ['GROUP_BY', 'EXPRESSION'].includes(c.aggregate)) return null;
-        const validCriteria = c.criteria.filter(crit => crit.trim() !== '');
-        if (validCriteria.length === 0) return null;
-        
-        let fieldRef = '';
-        if (c.alias && !c.isCalculated) {
-            fieldRef = `"${c.alias}"`;
-        } else {
-            let nodeAlias = '';
-            if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId);
-            else {
-                const node = nodes.find(n => n.tableId === c.tableId);
-                nodeAlias = node ? nodeAliases.get(node.id) : formatIdentifier(c.tableName);
-            }
-            fieldRef = `${c.aggregate}(${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)})`;
-        }
+      const colCritList = col.criteria
+        .filter((c) => Boolean(c && c.trim()))
+        .map((c) => {
+          const resolvedOpAndVal = resolveCriteriaExpression(c, forExecution, context);
+          return `${quotedCol} ${resolvedOpAndVal}`;
+        });
 
-        const conditions = validCriteria.map(criteria => {
-            if (/^=|>|<|>=|<=/.test(criteria)) return `${fieldRef} ${criteria}`;
-            const upper = criteria.toUpperCase().trim();
-            if (upper.startsWith('LIKE ')) return `${fieldRef} ${criteria}`;
-            if (upper === 'NULL') return `${fieldRef} IS NULL`;
-            if (upper === 'NOT NULL') return `${fieldRef} IS NOT NULL`;
-            if (upper === 'IS NULL' || upper === 'IS NOT NULL') return `${fieldRef} ${criteria}`;
-            return `${fieldRef} ${criteria}`; 
-        }).filter(Boolean);
-        return conditions.length > 0 ? (conditions.length > 1 ? `(${conditions.join(' OR ')})` : conditions[0]) : null;
-    }).filter(Boolean);
+      if (colCritList.length > 0) {
+        whereConditions.push(`(${colCritList.join(' OR ')})`);
+      }
+    }
+  });
 
-    const havingClause = havingConditions.length > 0 ? `\nHAVING\n  ${havingConditions.join('\n  AND ')}` : '';
+  // 5. Assemble Full SQL Query
+  const distinctKeyword = distinct ? 'DISTINCT ' : '';
+  let sql = `SELECT ${distinctKeyword}${selectItems.join(', ')}\nFROM ${fromClause}`;
 
-    // 6. ORDER BY
-    const orderByCols = columns.filter(c => c.sort).map(c => {
-        if (c.alias) return `${quoteIdentifier(formatIdentifier(c.alias), dbType)} ${c.sort}`;
-        if (c.isCalculated) return `(${c.expression}) ${c.sort}`;
-        let nodeAlias = '';
-        if (c.nodeId && nodeAliases.has(c.nodeId)) nodeAlias = nodeAliases.get(c.nodeId)!;
-        else {
-            const node = nodes.find(n => n.tableId === c.tableId);
-            nodeAlias = node ? nodeAliases.get(node.id)! : formatIdentifier(c.tableName);
-        }
-        return `${quoteIdentifier(nodeAlias, dbType)}.${quoteIdentifier(c.fieldName, dbType)} ${c.sort}`;
-    }).join(', ');
-    
-    const orderByClause = orderByCols ? `\nORDER BY ${orderByCols}` : '';
-    
-    const distinctPrefix = distinct ? ' DISTINCT' : '';
-    return `SELECT${distinctPrefix}\n${selectClause || '  *'}\n${fromClause}${joins}${whereClause}${groupByClause}${havingClause}${orderByClause}`;
-};
+  if (whereConditions.length > 0) {
+    sql += `\nWHERE ${whereConditions.join(' AND ')}`;
+  }
+
+  if (hasAggregate && groupByItems.length > 0) {
+    sql += `\nGROUP BY ${groupByItems.join(', ')}`;
+  }
+
+  if (orderByItems.length > 0) {
+    sql += `\nORDER BY ${orderByItems.join(', ')}`;
+  }
+
+  return sql;
+}

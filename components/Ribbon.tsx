@@ -122,7 +122,7 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
   };
 
   return (
-    <div className="flex flex-col bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 select-none relative z-40 transition-all duration-300 print:hidden">
+    <nav className="app-ribbon flex flex-col bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 select-none relative z-40 transition-all duration-300 print:hidden no-print">
       {/* Tab Headers and Toggle */}
       <div className="flex bg-slate-800 dark:bg-slate-950 text-white pt-1 px-2 gap-1 overflow-x-auto items-end justify-between border-b border-slate-700 dark:border-slate-800/80">
         <div className="flex gap-1 items-end">
@@ -272,6 +272,6 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
             onClose={() => setShowConnectionModal(false)}
           />
       )}
-    </div>
+    </nav>
   );
 };

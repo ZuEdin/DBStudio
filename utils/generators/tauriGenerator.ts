@@ -1,1 +1,1 @@
-export { generateTauri } from './tauri';
+export { generateTauri } from './tauri/index';

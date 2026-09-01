@@ -5,13 +5,51 @@ import { Buffer } from 'buffer';
 import App from './App';
 import './i18n'; // Init i18n
 
-// Polyfill for Buffer in browser environment
+// Polyfill for process & Buffer in browser environment
 if (typeof window !== 'undefined') {
   (window as any).Buffer = Buffer;
   (window as any).global = window;
+  if (!(window as any).process) {
+    (window as any).process = {
+      env: { NODE_ENV: 'production' },
+      browser: true,
+      version: 'v18.0.0',
+      versions: {},
+      platform: 'browser',
+      argv: [],
+      cwd: () => '/',
+      nextTick: (fn: Function, ...args: any[]) => setTimeout(() => fn(...args), 0),
+      stdout: { isTTY: false },
+      stderr: { isTTY: false },
+      stdin: { isTTY: false },
+    };
+  } else {
+    (window as any).process.browser = true;
+    if (!(window as any).process.version) (window as any).process.version = 'v18.0.0';
+    if (!(window as any).process.versions) (window as any).process.versions = {};
+    if ((window as any).process.versions.node) delete (window as any).process.versions.node;
+  }
 }
 if (typeof globalThis !== 'undefined') {
   (globalThis as any).Buffer = Buffer;
+  (globalThis as any).global = globalThis;
+  if (!(globalThis as any).process) {
+    (globalThis as any).process = (window as any)?.process || {
+      env: { NODE_ENV: 'production' },
+      browser: true,
+      version: 'v18.0.0',
+      versions: {},
+      platform: 'browser',
+      argv: [],
+      cwd: () => '/',
+      nextTick: (fn: Function, ...args: any[]) => setTimeout(() => fn(...args), 0),
+    };
+  } else {
+    (globalThis as any).process.browser = true;
+    if (!(globalThis as any).process.version) (globalThis as any).process.version = 'v18.0.0';
+    if (!(globalThis as any).process.versions) (globalThis as any).process.versions = {};
+    if ((globalThis as any).process.versions.node) delete (globalThis as any).process.versions.node;
+  }
 }
 
 // Polyfill for crypto.randomUUID in non-secure HTTP contexts

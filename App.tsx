@@ -47,27 +47,29 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300 relative">
+    <div className="app-container flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300 relative print:h-auto print:overflow-visible print:bg-white">
       <ThemeInjector />
       <AppHeader onAction={app.handleRibbonAction} chats={app.chats} />
       
       <Ribbon onAction={app.handleRibbonAction} />
       
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 overflow-hidden relative print:overflow-visible print:h-auto">
         <Sidebar onSetView={app.handleSetView} />
         
-        <div className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
+        <div className="app-workspace-content flex-1 flex flex-col overflow-hidden relative transition-all duration-300 print:overflow-visible print:h-auto">
           <Workspace onSetView={app.handleSetView} onActiveObjectChange={app.handleActiveObjectChange} />
         </div>
 
-        <ChatPanel 
-            isOpen={app.isChatOpen} 
-            onClose={() => app.setIsChatOpen(false)}
-            chats={app.chats}
-            activeChatId={app.activeChatId}
-            onSelectChat={app.handleSelectChat}
-            onSendMessage={app.handleSendMessage}
-        />
+        <div className="app-chat-panel no-print print:hidden">
+          <ChatPanel 
+              isOpen={app.isChatOpen} 
+              onClose={() => app.setIsChatOpen(false)}
+              chats={app.chats}
+              activeChatId={app.activeChatId}
+              onSelectChat={app.handleSelectChat}
+              onSendMessage={app.handleSendMessage}
+          />
+        </div>
       </div>
 
       <StatusBar 
@@ -78,28 +80,34 @@ export default function App() {
       
       {/* MS Access Backstage View Overlay when 'Datei' (File) is clicked */}
       {isBackstageOpen && (
-        <AccessBackstageView 
-          onCloseBackstage={() => {
-            setIsBackstageOpen(false);
-            if (app.activeTab === 'file') {
-              setActiveTab('home');
-            }
-          }} 
-        />
+        <div className="no-print print:hidden">
+          <AccessBackstageView 
+            onCloseBackstage={() => {
+              setIsBackstageOpen(false);
+              if (app.activeTab === 'file') {
+                setActiveTab('home');
+              }
+            }} 
+          />
+        </div>
       )}
 
       {/* ModalLayer rendered AFTER BackstageView so all modals (Close, Save, Wizards) sit cleanly above Backstage */}
-      <ModalLayer 
-        onCloseSavePrompt={app.closeSavePrompt}
-        onContextMenuAction={app.handleContextMenuAction}
-        onSaveWizardQuery={app.onSaveWizardQuery}
-        onExecuteAppend={app.onExecuteAppend}
-        onExecuteDelete={app.onExecuteDelete}
-        onSaveElectronSettings={app.onSaveElectronSettings}
-        onSetView={app.handleSetView}
-      />
+      <div className="app-modal-layer no-print print:hidden">
+        <ModalLayer 
+          onCloseSavePrompt={app.closeSavePrompt}
+          onContextMenuAction={app.handleContextMenuAction}
+          onSaveWizardQuery={app.onSaveWizardQuery}
+          onExecuteAppend={app.onExecuteAppend}
+          onExecuteDelete={app.onExecuteDelete}
+          onSaveElectronSettings={app.onSaveElectronSettings}
+          onSetView={app.handleSetView}
+        />
+      </div>
 
-      <ToastContainer toasts={app.toasts} onDismiss={app.removeToast} />
+      <div className="toast-container no-print print:hidden">
+        <ToastContainer toasts={app.toasts} onDismiss={app.removeToast} />
+      </div>
     </div>
   );
 }

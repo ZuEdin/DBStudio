@@ -1,13 +1,18 @@
 /* Global Styles for DB Studio Pro */
 
 @media print {
-  header, 
-  nav, 
-  aside, 
-  .navbar, 
-  .no-print, 
-  .d-print-none, 
-  .print\:hidden, 
+  /* Hide application shell components, navigation bars, ribbons, sidebars, modals and toolbars */
+  .app-header,
+  .app-ribbon,
+  .app-sidebar,
+  .app-statusbar,
+  .app-tabbar,
+  .app-chat-panel,
+  .app-modal-layer,
+  .toast-container,
+  .no-print,
+  .d-print-none,
+  .print\:hidden,
   [data-no-print] {
     display: none !important;
     height: 0 !important;
@@ -18,7 +23,8 @@
     padding: 0 !important;
   }
   
-  html, body, #root, #root > div, main, .flex-1, .min-h-screen, .min-vh-100 {
+  /* Reset container constraints so report flows across natural print pages */
+  html, body, #root, #root > div, .app-workspace, .app-workspace-content, main, .flex-1, .min-h-screen {
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
@@ -33,6 +39,16 @@
     position: static !important;
   }
 
+  /* Make sure Report View container and report paper are 100% visible and unconstrained */
+  .report-view-container {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
   .report-paper {
     box-shadow: none !important;
     border: none !important;
@@ -43,6 +59,21 @@
     width: 100% !important;
     max-width: 100% !important;
     position: static !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Ensure all report sections are visible and preserve colors */
+  .report-section,
+  .report-header-band,
+  .report-page-header-band,
+  .report-group-header-band,
+  .report-detail-band,
+  .report-group-footer-band,
+  .report-page-footer-band,
+  .report-footer-band {
+    visibility: visible !important;
+    display: block !important;
   }
 
   * {
@@ -51,7 +82,7 @@
   }
 
   @page {
-    margin: 10mm;
+    margin: 12mm;
     size: auto;
   }
 }

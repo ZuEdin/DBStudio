@@ -340,19 +340,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
 
   if (!isOpen) {
     return (
-      <div className="w-8 bg-slate-50 border-r border-slate-300 flex flex-col items-center py-2 select-none">
+      <aside className="app-sidebar no-print print:hidden w-8 bg-slate-50 border-r border-slate-300 flex flex-col items-center py-2 select-none">
         <button onClick={() => toggleSidebar(true)} title="Seitenleiste einblenden" className="p-1 hover:bg-slate-200 rounded text-slate-600">
           <PanelLeftOpen size={20} />
         </button>
         <div className="mt-4 flex flex-col gap-4 text-slate-400">
            <Database size={16} />
         </div>
-      </div>
+      </aside>
     );
   }
 
   return (
-    <div className="w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 flex flex-col h-full select-none transition-all duration-300">
+    <aside className="app-sidebar no-print print:hidden w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 flex flex-col h-full select-none transition-all duration-300">
       <div className="p-2 bg-slate-200 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Database size={16} />
@@ -527,6 +527,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
         </div>
 
       </div>
-    </div>
+    </aside>
   );
 };

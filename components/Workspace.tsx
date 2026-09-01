@@ -121,7 +121,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ onSetView, onActiveObjectC
         />
       </div>
       
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-2 flex items-center h-8 justify-between print:hidden transition-colors duration-300">
+      <div className="app-tabbar no-print bg-white dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-2 flex items-center h-8 justify-between print:hidden transition-colors duration-300">
          {currentView.type !== 'welcome' ? (
            <div className="bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300 px-3 py-1 text-xs font-bold border-t-2 border-sky-600 dark:border-sky-500 flex items-center gap-2">
              <span>{getTabTitle()}</span>

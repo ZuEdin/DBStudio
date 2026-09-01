@@ -20,6 +20,7 @@ import {
   CheckSquare,
   Mail,
   FileCode,
+  Layers,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -35,10 +36,19 @@ import { ReportEmailModal } from './components/ReportEmailModal';
 import { FreeformCanvasRenderer } from './components/FreeformCanvasRenderer';
 import { ZugferdValidationModal } from './components/ZugferdValidationModal';
 import { CrossPlatformPrintDialogModal } from './components/CrossPlatformPrintDialogModal';
+import { ReportGroupNodeRenderer } from './components/ReportGroupNodeRenderer';
 import { ReportExpressionEngine } from './utils/reportExpressionEngine';
 import { validateZugferdInvoice } from './utils/zugferdValidator';
 import { downloadZugferdXml } from './utils/zugferdGenerator';
 import { SvgPdfEmbedder } from './utils/svgPdfEmbedder';
+import {
+  buildMultiLevelGroupTree,
+  calculateSliceSummaries,
+  flattenGroupTreeForExport,
+  getRecordFieldValue,
+  GroupTreeNode,
+  SummaryResult,
+} from './utils/groupTreeProcessor';
 import { eventBus } from '../../services/eventBus';
 
 interface ReportViewProps {
@@ -50,13 +60,6 @@ interface ReportViewProps {
   allReports?: Report[];
   allQueries?: Query[];
   widgetMode?: boolean;
-}
-
-export interface SummaryResult {
-  fieldName: string;
-  calc: string;
-  label: string;
-  value: number | string;
 }
 
 const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
@@ -71,23 +74,6 @@ const getCssFromStyle = (style?: TextStyle): React.CSSProperties => {
     textAlign: style.align,
     borderBottom: style.borderBottom ? '1px solid #e2e8f0' : undefined,
   };
-};
-
-const getRecordValue = (item: Record<string, any>, fieldName?: string, label?: string) => {
-  if (!item) return undefined;
-  if (fieldName && item[fieldName] !== undefined) return item[fieldName];
-  if (label && item[label] !== undefined) return item[label];
-
-  const searchKeys = [fieldName, label].filter(Boolean) as string[];
-  const lowerKeys = searchKeys.map((k) => k.toLowerCase());
-
-  for (const key of Object.keys(item)) {
-    const lowerKey = key.toLowerCase();
-    if (lowerKeys.includes(lowerKey) || lowerKeys.some((lk) => lowerKey.endsWith('.' + lk))) {
-      return item[key];
-    }
-  }
-  return undefined;
 };
 
 export const ReportView: React.FC<ReportViewProps> = ({
@@ -165,134 +151,35 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return cols;
   }, [report.columns, sourceFields, groupLevels, relationships, report.sourceId, report.sourceType]);
 
-  // Calculate summaries for a dataset
-  const calculateSummaries = (items: Record<string, any>[], filterGroupFieldId?: string): SummaryResult[] => {
-    const results: SummaryResult[] = [];
-    if (!items || items.length === 0) return results;
-
-    const applicableSummaries = report.summaries.filter((s) => {
-      if (filterGroupFieldId) {
-        return !s.groupFieldId || s.groupFieldId === filterGroupFieldId;
-      }
-      return true;
-    });
-
-    applicableSummaries.forEach((summary) => {
-      const fieldName = summary.fieldName;
-
-      if (summary.calculation === 'COUNT') {
-        results.push({
-          fieldName,
-          calc: 'COUNT',
-          label: `Anzahl (${fieldName})`,
-          value: items.length,
-        });
-      } else {
-        const vals = items
-          .map((item) => Number(item[fieldName]))
-          .filter((v) => !isNaN(v) && v !== null);
-
-        if (vals.length === 0) {
-          results.push({
-            fieldName,
-            calc: summary.calculation,
-            label: `${summary.calculation} (${fieldName})`,
-            value: 0,
-          });
-          return;
-        }
-
-        if (summary.calculation === 'SUM') {
-          const sum = vals.reduce((acc, v) => acc + v, 0);
-          results.push({
-            fieldName,
-            calc: 'SUM',
-            label: `Summe (${fieldName})`,
-            value: Math.round(sum * 100) / 100,
-          });
-        } else if (summary.calculation === 'AVG') {
-          const avg = vals.reduce((acc, v) => acc + v, 0) / vals.length;
-          results.push({
-            fieldName,
-            calc: 'AVG',
-            label: `Durchschnitt (${fieldName})`,
-            value: Math.round(avg * 100) / 100,
-          });
-        } else if (summary.calculation === 'MIN') {
-          const min = Math.min(...vals);
-          results.push({ fieldName, calc: 'MIN', label: `Minimum (${fieldName})`, value: min });
-        } else if (summary.calculation === 'MAX') {
-          const max = Math.max(...vals);
-          results.push({ fieldName, calc: 'MAX', label: `Maximum (${fieldName})`, value: max });
-        }
-      }
-    });
-    return results;
-  };
-
+  // Grand totals across all dataset records
   const grandTotalSummaries = useMemo(() => {
-    return calculateSummaries(data);
+    return calculateSliceSummaries(data, report.summaries);
   }, [data, report.summaries]);
 
-  // Derive Base Net Total from grand totals
+  // Base Net Total for VOB summaries
   const baseNetTotal = useMemo(() => {
     const sumItem = grandTotalSummaries.find((s) => s.calc === 'SUM');
     if (sumItem && typeof sumItem.value === 'number') {
       return sumItem.value;
     }
-    // Fallback: search numeric columns
     return 145000;
   }, [grandTotalSummaries]);
 
-  // Multi-level grouping processor
-  const processedGroups = useMemo(() => {
-    if (groupLevels.length === 0) {
-      return [
-        {
-          groupPath: [],
-          level: 0,
-          groupValue: 'Gesamt',
-          fieldLabel: '',
-          items: data,
-          summaries: calculateSummaries(data),
-        },
-      ];
-    }
-
-    const level1Group = groupLevels[0];
-    const level1Field = sourceFields.find((f) => f.id === level1Group.fieldId);
-    const level1FieldName = level1Field?.name || level1Group.fieldName || '';
-
-    const groupedMap: Record<string, Record<string, any>[]> = {};
-    data.forEach((row) => {
-      let rawVal = row[level1FieldName];
-      if (rawVal === undefined || rawVal === null || rawVal === '') rawVal = '(Nicht angegeben)';
-      let key = String(rawVal);
-      if (report.settings?.groupMethod === 'firstLetter') {
-        key = key.charAt(0).toUpperCase();
-      }
-      if (!groupedMap[key]) groupedMap[key] = [];
-      groupedMap[key].push(row);
-    });
-
-    const sortedKeys = Object.keys(groupedMap).sort((a, b) => {
-      return level1Group.sortOrder === 'desc' ? b.localeCompare(a) : a.localeCompare(b);
-    });
-
-    return sortedKeys.map((key) => ({
-      groupPath: [key],
-      level: 0,
-      groupValue: key,
-      fieldLabel: level1FieldName,
-      items: groupedMap[key],
-      summaries: calculateSummaries(groupedMap[key], level1Group.fieldId),
-    }));
+  // Multi-level grouping processor (Recursive Tree)
+  const groupTree = useMemo(() => {
+    return buildMultiLevelGroupTree(
+      data,
+      groupLevels,
+      sourceFields,
+      report.summaries,
+      report.settings?.groupMethod
+    );
   }, [data, groupLevels, sourceFields, report.summaries, report.settings?.groupMethod]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF({ orientation: report.settings?.orientation || 'portrait' });
 
-    // 1. Scalable Vector Logo (SVG) embedding without raster losses
+    // Vector Logo
     if (report.settings?.vectorLogoSvg) {
       SvgPdfEmbedder.embedSvg(doc, report.settings.vectorLogoSvg, {
         x: 14,
@@ -318,84 +205,89 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     let finalY = Math.max(report.settings?.vectorLogoSvg ? 32 : 28, report.settings?.subtitle ? 34 : 28);
 
-    // 2. Multi-page Group Rendering with Strict KeepTogether & Break Rules
-    processedGroups.forEach((group, groupIdx) => {
-      const activeGroupLevel = groupLevels[group.level] || groupLevels[0];
+    // Recursively render group tree in PDF
+    function renderPdfNode(node: GroupTreeNode) {
+      const activeGroupLevel = groupLevels[node.level] || groupLevels[0];
       const pageBreakBefore = activeGroupLevel?.pageBreakBefore;
       const keepTogether = activeGroupLevel?.keepTogether ?? report.settings?.bandSections?.detailBand?.keepTogether ?? true;
-      const estimatedGroupHeight = (group.items.length * 7) + 25; // Approx header + rows + sum
 
-      // A. "Auf neuer Seite beginnen" per Group Level (e.g. Kostenstelle / Hauptkategorie)
-      if (pageBreakBefore && groupIdx > 0) {
+      if (pageBreakBefore && finalY > 40) {
         doc.addPage();
         finalY = 20;
-      } else if (keepTogether && (finalY + estimatedGroupHeight > 270) && finalY > 50) {
-        // B. KeepTogether: Move entire group to fresh page if it would awkwardly split immediately
-        doc.addPage();
-        finalY = 20;
-      } else if (finalY > 255) {
+      } else if (keepTogether && finalY > 250) {
         doc.addPage();
         finalY = 20;
       }
 
-      if (groupLevels.length > 0) {
-        doc.setFontSize(11);
+      // Group Header
+      if (groupLevels.length > 0 && (node.config?.showHeader ?? true)) {
+        const indentX = 14 + node.level * 6;
+        doc.setFontSize(node.level === 0 ? 11 : 10);
         doc.setFont('helvetica', 'bold');
-        doc.setFillColor(240, 243, 246);
-        doc.rect(14, finalY, 182, 8, 'F');
+        if (node.level === 0) {
+          doc.setFillColor(235, 240, 246);
+        } else if (node.level === 1) {
+          doc.setFillColor(243, 244, 246);
+        } else {
+          doc.setFillColor(254, 243, 199);
+        }
+        doc.rect(indentX, finalY, 182 - node.level * 6, 7, 'F');
         doc.setTextColor(30, 41, 59);
-        doc.text(`${group.fieldLabel}: ${group.groupValue}`, 16, finalY + 5.5);
-        finalY += 12;
+        doc.text(`[Ebene ${node.level + 1}] ${node.fieldLabel}: ${node.groupValue} (${node.totalCount} Zeilen)`, indentX + 2, finalY + 5);
+        finalY += 10;
       }
 
-      const tableHeaders = displayColumns.map((c) => c.label);
-      const tableBody = group.items.map((item) => displayColumns.map((col) => String(item[col.fieldName] ?? '')));
+      // If has subgroups, recurse
+      if (node.subGroups && node.subGroups.length > 0) {
+        node.subGroups.forEach(renderPdfNode);
+      } else {
+        // Leaf table
+        const tableHeaders = displayColumns.map((c) => c.label);
+        const tableBody = node.items.map((item) =>
+          displayColumns.map((col) => String(getRecordFieldValue(item, col.fieldName, col.label) ?? ''))
+        );
 
-      autoTable(doc, {
-        startY: finalY,
-        head: [tableHeaders],
-        body: tableBody,
-        theme: report.settings?.showGridlines ? 'grid' : report.settings?.zebraStriping ? 'striped' : 'plain',
-        rowPageBreak: report.settings?.keepTableRowsTogether !== false ? 'avoid' : 'auto',
-        styles: {
-          fontSize: report.styles?.detail?.fontSize || 9,
-          cellPadding: 2,
-        },
-        headStyles: {
-          fillColor: [226, 232, 240],
-          textColor: [51, 65, 85],
-          fontStyle: 'bold',
-        },
-        margin: { left: groupLevels.length > 0 ? 20 : 14, right: 14 },
-      });
+        autoTable(doc, {
+          startY: finalY,
+          head: [tableHeaders],
+          body: tableBody,
+          theme: report.settings?.showGridlines ? 'grid' : report.settings?.zebraStriping ? 'striped' : 'plain',
+          rowPageBreak: report.settings?.keepTableRowsTogether !== false ? 'avoid' : 'auto',
+          styles: {
+            fontSize: report.styles?.detail?.fontSize || 9,
+            cellPadding: 2,
+          },
+          headStyles: {
+            fillColor: [226, 232, 240],
+            textColor: [51, 65, 85],
+            fontStyle: 'bold',
+          },
+          margin: { left: 14 + (node.level > 0 ? (node.level + 1) * 4 : 0), right: 14 },
+        });
 
-      // @ts-ignore
-      finalY = doc.lastAutoTable.finalY + 5;
+        // @ts-ignore
+        finalY = doc.lastAutoTable.finalY + 4;
+      }
 
-      if (group.summaries.length > 0) {
-        // Prevent orphaned group summary footer at top of new page
+      // Group Footer (summaries isolated to this node!)
+      if (groupLevels.length > 0 && (node.config?.showFooter ?? true) && node.summaries.length > 0) {
         if (finalY > 265) {
           doc.addPage();
           finalY = 20;
         }
-        doc.setFontSize(9);
+        const indentX = 14 + node.level * 6;
+        doc.setFontSize(8.5);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        const summaryText = group.summaries.map((s) => `${s.label}: ${s.value}`).join('   |   ');
-        doc.text(`[Gruppen-Summe]: ${summaryText}`, groupLevels.length > 0 ? 20 : 14, finalY);
-        finalY += 10;
+        doc.setTextColor(51, 65, 85);
+        const summaryText = node.summaries.map((s) => `${s.label}: ${s.value}`).join('   |   ');
+        doc.text(`[Zwischensumme ${node.fieldLabel}: ${node.groupValue}]: ${summaryText}`, indentX, finalY);
+        finalY += 8;
       }
+    }
 
-      const pageBreakAfter = activeGroupLevel?.pageBreakAfter ?? report.settings?.pageBreakAfterGroup;
-      if (pageBreakAfter && groupIdx < processedGroups.length - 1) {
-        doc.addPage();
-        finalY = 20;
-      } else {
-        finalY += 4;
-      }
-    });
+    groupTree.forEach(renderPdfNode);
 
-    // 3. Overall Grand Total
+    // Grand Totals
     if (grandTotalSummaries.length > 0) {
       if (finalY > 245) {
         doc.addPage();
@@ -411,7 +303,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
       finalY += 14;
     }
 
-    // 4. Scalable Vector Signature Stamp (SVG) in PDF/A-3b
+    // Signature Stamp
     if (report.settings?.vectorSignatureSvg) {
       if (finalY > 240) {
         doc.addPage();
@@ -429,18 +321,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
   };
 
   const handleExportExcel = () => {
-    const exportData = processedGroups.flatMap((group) => {
-      return group.items.map((item) => {
-        const row: any = {};
-        if (groupLevels.length > 0) {
-          row[`[Gruppe] ${group.fieldLabel}`] = group.groupValue;
-        }
-        displayColumns.forEach((col) => {
-          row[col.label] = item[col.fieldName];
-        });
-        return row;
-      });
-    });
+    const exportData = flattenGroupTreeForExport(
+      groupTree,
+      groupLevels,
+      displayColumns.map((c) => ({ label: c.label, fieldName: c.fieldName }))
+    );
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -448,14 +333,21 @@ export const ReportView: React.FC<ReportViewProps> = ({
     XLSX.writeFile(wb, `${report.name.replace(/[^a-z0-9]/gi, '_')}.xlsx`);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const isLandscape = report.settings?.orientation === 'landscape';
+  const sizeClasses = isLandscape
+    ? 'w-[297mm] min-h-[210mm] max-w-none'
+    : 'w-[210mm] min-h-[297mm] max-w-none';
+
   const getCellStyle = (value: any, column: ReportColumn): React.CSSProperties => {
-    let style = { ...getCssFromStyle(report.styles?.detail) };
-    if (!column.formattingRules || column.formattingRules.length === 0) return style;
-    const numValue = Number(value);
-    const isNum = !isNaN(numValue) && value !== '';
+    if (!column.formattingRules || column.formattingRules.length === 0) return {};
     for (const rule of column.formattingRules) {
       let match = false;
-      const ruleVal = Number(rule.value);
+      const numVal = Number(value);
+      const ruleNum = Number(rule.value);
       switch (rule.operator) {
         case 'eq':
           match = String(value) === rule.value;
@@ -463,46 +355,38 @@ export const ReportView: React.FC<ReportViewProps> = ({
         case 'neq':
           match = String(value) !== rule.value;
           break;
+        case 'gt':
+          match = !isNaN(numVal) && !isNaN(ruleNum) && numVal > ruleNum;
+          break;
+        case 'lt':
+          match = !isNaN(numVal) && !isNaN(ruleNum) && numVal < ruleNum;
+          break;
+        case 'gte':
+          match = !isNaN(numVal) && !isNaN(ruleNum) && numVal >= ruleNum;
+          break;
+        case 'lte':
+          match = !isNaN(numVal) && !isNaN(ruleNum) && numVal <= ruleNum;
+          break;
         case 'contains':
           match = String(value).toLowerCase().includes(rule.value.toLowerCase());
           break;
-        case 'gt':
-          match = isNum && numValue > ruleVal;
-          break;
-        case 'lt':
-          match = isNum && numValue < ruleVal;
-          break;
-        case 'gte':
-          match = isNum && numValue >= ruleVal;
-          break;
-        case 'lte':
-          match = isNum && numValue <= ruleVal;
-          break;
       }
-      if (match) {
-        const ruleCss = getCssFromStyle(rule.style);
-        style = { ...style, ...ruleCss };
-      }
+      if (match) return getCssFromStyle(rule.style);
     }
-    return style;
+    return {};
   };
 
   const targetTable = detailView ? allTables.find((t) => t.id === detailView.targetTableId) : null;
-  const isLandscape = report.settings?.orientation === 'landscape';
-  const sizeClasses = isLandscape ? 'max-w-[297mm] min-h-[210mm]' : 'max-w-[210mm] min-h-[297mm]';
-
   const din5008 = report.settings?.din5008;
   const vobConfig = report.settings?.commercialVob;
-  const epcConfig = report.settings?.epcQrCode;
   const swissConfig = report.settings?.swissQrCode;
-  const zugferdConfig = report.settings?.zugferd;
-  const stationeryConfig = report.settings?.stationery;
-  const freeformElements = report.settings?.freeformElements || [];
+  const epcConfig = report.settings?.epcQrCode;
   const bandSections = report.settings?.bandSections;
+  const zugferdConfig = report.settings?.zugferd;
 
+  const [showPrintProfileModal, setShowPrintProfileModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showZugferdModal, setShowZugferdModal] = useState(false);
-  const [showPrintProfileModal, setShowPrintProfileModal] = useState(false);
 
   const zugferdValidation = useMemo(() => {
     return validateZugferdInvoice(
@@ -510,50 +394,32 @@ export const ReportView: React.FC<ReportViewProps> = ({
       baseNetTotal,
       baseNetTotal * 0.19,
       baseNetTotal * 1.19,
-      data.map((d, i) => ({
-        name: d.bezeichnung || d.name || d.title || `Position ${i + 1}`,
-        quantity: d.menge || d.anzahl || 1,
-        unitPrice: d.einzelpreis || d.preis || baseNetTotal,
-        total: d.gesamtpreis || baseNetTotal,
-      }))
+      data
     );
   }, [zugferdConfig, baseNetTotal, data]);
 
-  const handlePrint = () => {
-    try {
-      if (typeof window !== 'undefined') {
-        window.focus();
-        window.print();
-      }
-    } catch (err) {
-      console.warn('Browser print dialog could not be invoked directly (e.g. iframe restriction). Generating PDF fallback...', err);
-      handleExportPDF();
-    }
-  };
-
-  // Subscribe to Global MFE EventBus for PRINT_REPORT
   useEffect(() => {
-    const unsub = eventBus.subscribe('PRINT_REPORT', (payload: any) => {
-      if (!payload || !payload.reportId || payload.reportId === report.id) {
-        if (payload?.outputFormat === 'print_dialog') {
-          handlePrint();
-        } else if (payload?.outputFormat === 'pdf_download') {
+    const unsubscribe = eventBus.subscribe('print_report', (payload: any) => {
+      if (payload.reportId === report.id) {
+        if (payload.outputFormat === 'pdf_download') {
           handleExportPDF();
-        } else if (payload?.outputFormat === 'email_direct') {
+        } else if (payload.outputFormat === 'email_direct') {
           setShowEmailModal(true);
+        } else {
+          handlePrint();
         }
       }
     });
-    return () => unsub();
-  }, [report, data, processedGroups]);
+    return () => unsubscribe();
+  }, [report.id, groupTree, grandTotalSummaries]);
 
   return (
-    <div className={`${widgetMode ? 'bg-transparent' : 'bg-slate-200'} h-full overflow-hidden flex flex-col`}>
+    <div className={`report-view-container ${widgetMode ? 'bg-transparent' : 'bg-slate-200'} h-full overflow-hidden flex flex-col print:h-auto print:overflow-visible print:bg-white`}>
       <style>{`
         @media print {
           @page {
             size: ${isLandscape ? 'landscape' : 'portrait'};
-            margin: 15mm;
+            margin: 12mm;
           }
           body {
             -webkit-print-color-adjust: exact;
@@ -563,12 +429,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
       {/* Sticky Toolbar */}
       {!widgetMode && (
-        <div className="bg-white border-b border-slate-300 p-2 flex justify-between items-center flex-shrink-0 sticky top-0 z-20 shadow-sm no-print">
+        <div className="app-ribbon-sub bg-white border-b border-slate-300 p-2 flex justify-between items-center flex-shrink-0 sticky top-0 z-20 shadow-sm no-print print:hidden">
           <div className="flex items-center gap-2 pl-2 text-xs font-bold text-slate-700">
             <Printer size={16} className="text-blue-600" />
             <span>Berichtsvorschau (Banded Report Engine)</span>
             <span className="text-slate-400 font-normal">
-              | {processedGroups.length} Gruppen ({data.length} Datensätze)
+              | {groupLevels.length > 0 ? `${groupLevels.length}-stufig gruppiert` : 'Ohne Gruppierung'} ({data.length} Datensätze)
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -625,28 +491,36 @@ export const ReportView: React.FC<ReportViewProps> = ({
         </div>
       )}
 
-      <div className={`${widgetMode ? 'p-2 relative' : 'p-8 flex-1 bg-slate-200'} overflow-auto`}>
+      <div className={`${widgetMode ? 'p-2 relative' : 'p-8 flex-1 bg-slate-200'} overflow-auto print:overflow-visible print:p-0 print:m-0 print:bg-white`}>
         <div
           id="report-paper-container"
           className={
             widgetMode
               ? 'w-full bg-white h-full report-paper'
-              : `report-paper mx-auto bg-white shadow-2xl p-[15mm] border border-slate-300 transition-all duration-300 ${sizeClasses}`
+              : `report-paper mx-auto bg-white shadow-2xl p-[15mm] border border-slate-300 transition-all duration-300 print:shadow-none print:border-none print:p-0 print:m-0 ${sizeClasses}`
           }
         >
-          {/* 1. DIN 5008 LETTERHEAD (If enabled) */}
+          {/* ========================================================= */}
+          {/* 1. BERICHTSKOPF (REPORT HEADER)                           */}
+          {/* ========================================================= */}
           {din5008?.enabled ? (
-            <Din5008Letterhead
-              config={din5008}
-              companyLogoUrl={report.settings?.companyLogoUrl}
-              reportName={report.name}
-            />
+            <div className="report-header-band report-section">
+              <Din5008Letterhead
+                config={din5008}
+                companyLogoUrl={report.settings?.companyLogoUrl}
+                reportName={report.name}
+              />
+            </div>
           ) : (
-            /* Standard Report Header */
             !widgetMode &&
             report.settings?.showReportHeader !== false &&
             (bandSections?.reportHeader?.visible ?? true) && (
-              <header className="border-b-2 border-slate-800 pb-4 mb-6" style={getCssFromStyle(report.styles?.header)}>
+              <div
+                className={`report-header-band report-section border-b-2 border-slate-800 pb-4 mb-6 ${
+                  bandSections?.reportHeader?.coverPage ? 'break-after-page' : ''
+                }`}
+                style={getCssFromStyle(report.styles?.header)}
+              >
                 {report.settings?.logoPosition === 'center' ? (
                   <div className="flex flex-col items-center text-center space-y-2">
                     {report.settings?.companyLogoUrl && (
@@ -740,20 +614,50 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     </div>
                   </div>
                 )}
-              </header>
+              </div>
             )
           )}
 
           {/* Freeform Elements in Report Header */}
           <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="reportHeader" />
 
+          {/* ========================================================= */}
+          {/* 2. SEITENKOPF (PAGE HEADER)                               */}
+          {/* ========================================================= */}
+          {(bandSections?.pageHeader?.visible ?? true) && (
+            <div className="report-page-header-band report-section border-b border-slate-300 pb-2 mb-4 flex justify-between items-center text-xs text-slate-600">
+              <div className="flex items-center gap-3">
+                {(bandSections?.pageHeader?.repeatLogo ?? true) && report.settings?.companyLogoUrl && (
+                  <img
+                    src={report.settings.companyLogoUrl}
+                    alt="Logo"
+                    className="h-6 max-w-[100px] object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <span className="font-bold text-slate-800">{report.name}</span>
+                {report.settings?.subtitle && (
+                  <span className="text-slate-400">| {report.settings.subtitle}</span>
+                )}
+              </div>
+              <div className="text-[11px] text-slate-500 font-mono">
+                {ReportExpressionEngine.evaluate('=Format(Jetzt(); "TT.MM.JJJJ")', {})}
+              </div>
+            </div>
+          )}
+
+          {/* Freeform Elements in Page Header */}
+          <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="pageHeader" />
+
           {/* Embedded Chart if enabled */}
           {report.chartConfig && report.chartConfig.enabled && (
             <ReportChartRenderer config={report.chartConfig} data={data} sourceFields={sourceFields} />
           )}
 
-          {/* 2. HAUPTDATEN & GRUPPIERUNG (Detail Band & Group Headers/Footers) */}
-          <main className="space-y-6">
+          {/* ========================================================= */}
+          {/* 3. DETAILBEREICH & MEHRSTUFIGE GRUPPIERUNG (Detail Band)  */}
+          {/* ========================================================= */}
+          <div className="report-detail-section space-y-4">
             {/* Top Carry-Over (Übertrag am Seitenanfang) if enabled */}
             {vobConfig?.enabled && vobConfig.enableCarryOver && (
               <div className="bg-slate-100 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-700 flex justify-between items-center font-mono">
@@ -762,165 +666,39 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </div>
             )}
 
-            {processedGroups.map((group, groupIdx) => {
-              const activeGroupLevel = groupLevels[group.level] || groupLevels[0];
-              const pageBreakBefore = activeGroupLevel?.pageBreakBefore;
-              const pageBreakAfter = activeGroupLevel?.pageBreakAfter ?? report.settings?.pageBreakAfterGroup;
-              const keepTogether = activeGroupLevel?.keepTogether ?? report.settings?.bandSections?.detailBand?.keepTogether ?? true;
+            {/* Recursive Multi-Level Group Nodes */}
+            {groupTree.map((rootNode) => (
+              <ReportGroupNodeRenderer
+                key={rootNode.id}
+                node={rootNode}
+                groupLevelsCount={groupLevels.length}
+                displayColumns={displayColumns}
+                report={report}
+                sourceFields={sourceFields}
+                relationships={relationships}
+                allReports={allReports}
+                allTables={allTables}
+                allQueries={allQueries}
+                onShowDetail={(tableId, id) => setDetailView({ targetTableId: tableId, recordId: id })}
+                getCellStyle={getCellStyle}
+                getCssFromStyle={getCssFromStyle}
+              />
+            ))}
 
-              return (
-                <div
-                  key={groupIdx}
-                  className={`border border-slate-200 rounded-lg overflow-hidden shadow-2xs ${
-                    keepTogether ? 'break-inside-avoid page-break-inside-avoid' : ''
-                  }`}
-                  style={{
-                    pageBreakBefore: pageBreakBefore && groupIdx > 0 ? 'always' : 'auto',
-                    pageBreakAfter: pageBreakAfter && groupIdx < processedGroups.length - 1 ? 'always' : 'auto',
-                  }}
-                >
-                  {/* GRUPPENKOPF (Group Header) */}
-                  {groupLevels.length > 0 && (
-                    <div
-                      className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-300 text-slate-800 font-bold text-sm"
-                      style={getCssFromStyle(report.styles?.groupHeader)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="p-1 bg-slate-800 text-white rounded text-[10px] font-mono">GRUPPE</span>
-                        <span className="text-xs text-slate-500 font-semibold">{group.fieldLabel}:</span>
-                        <span className="text-sm font-bold text-slate-900">{group.groupValue}</span>
-                      </div>
-                      <span className="text-xs text-slate-500 font-mono font-normal bg-white px-2 py-0.5 rounded border border-slate-200">
-                        {group.items.length} Zeilen
-                      </span>
-                    </div>
-                  )}
-
-                {/* DETAILBEREICH (Detail Band Table) */}
-                <div className="overflow-x-auto">
-                  <table
-                    className={`w-full text-left text-xs border-collapse ${
-                      report.settings?.showGridlines ? 'border border-slate-300 divide-y divide-slate-300' : ''
-                    }`}
-                  >
-                    <thead>
-                      <tr
-                        className="bg-slate-50 border-b border-slate-300 text-slate-600 font-bold uppercase tracking-wider text-[11px]"
-                        style={getCssFromStyle(report.styles?.columnHeader)}
-                      >
-                        {displayColumns.map((col) => (
-                          <th
-                            key={col.id}
-                            className={`p-2.5 font-bold ${
-                              report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''
-                            }`}
-                          >
-                            {col.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {group.items.map((item, itemIndex) => {
-                        const isZebra = report.settings?.zebraStriping && itemIndex % 2 === 1;
-                        const parentKeyValue = report.subReport
-                          ? item[sourceFields.find((f) => f.id === report.subReport?.parentKeyFieldId)?.name || 'id']
-                          : null;
-
-                        return (
-                          <React.Fragment key={itemIndex}>
-                            <tr
-                              className={`transition-colors ${
-                                isZebra ? 'bg-slate-50/80' : 'bg-white'
-                              } hover:bg-blue-50/50`}
-                            >
-                              {displayColumns.map((col) => {
-                                const val = getRecordValue(item, col.fieldName, col.label);
-                                return (
-                                  <td
-                                    key={col.id}
-                                    className={`p-2.5 whitespace-nowrap ${
-                                      report.settings?.showGridlines ? 'border-r border-slate-200 last:border-r-0' : ''
-                                    }`}
-                                    style={getCellStyle(val, { ...col } as any)}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <ReportCellRenderer value={val} renderType={col.renderType || 'text'} />
-                                      {col.isFK && col.targetTableId && val && (
-                                        <button
-                                          onClick={() =>
-                                            setDetailView({ targetTableId: col.targetTableId!, recordId: val })
-                                          }
-                                          className="text-blue-500 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                                          title="Details anzeigen"
-                                        >
-                                          <ExternalLink size={12} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                );
-                              })}
-                            </tr>
-
-                            {/* Nested Sub-Report if configured */}
-                            {report.subReport && report.subReport.reportId && (
-                              <tr className="bg-slate-50/60">
-                                <td colSpan={displayColumns.length} className="p-2 pl-6">
-                                  <SubReportRenderer
-                                    subReportId={report.subReport.reportId}
-                                    foreignKeyFieldId={report.subReport.foreignKeyFieldId}
-                                    parentKeyValue={parentKeyValue}
-                                    allReports={allReports}
-                                    allTables={allTables}
-                                    allQueries={allQueries}
-                                  />
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* GRUPPENFUSS (Group Footer with Calculations) */}
-                {group.summaries.length > 0 && (
-                  <div
-                    className="bg-amber-50/80 px-3 py-2 border-t border-amber-200 flex flex-wrap items-center gap-4 text-xs"
-                    style={getCssFromStyle(report.styles?.footer)}
-                  >
-                    <div className="flex items-center gap-1 font-bold text-amber-900">
-                      <Calculator size={14} className="text-amber-700" />
-                      <span>Gruppenfuss-Ergebnisse:</span>
-                    </div>
-                    {group.summaries.map((sum, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-amber-300 shadow-2xs"
-                      >
-                        <span className="text-[10px] font-bold text-amber-800 uppercase">{sum.label}:</span>
-                        <span className="font-mono font-bold text-slate-900">{sum.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+            {/* Freeform Elements in Detail Band */}
+            <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="detail" />
 
             {/* Bottom Carry-Over (Übertrag auf Folgeseite) if enabled */}
             {vobConfig?.enabled && vobConfig.enableCarryOver && (
               <div className="bg-slate-100 border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-700 flex justify-between items-center font-mono mt-2">
-                <span className="font-semibold text-slate-600">Übertrag auf Seite 2:</span>
+                <span className="font-semibold text-slate-600">Übertrag auf Folgeseite:</span>
                 <span className="font-bold text-slate-900">
                   {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(baseNetTotal)}
                 </span>
               </div>
             )}
 
-            {/* 3. VOB/B Commercial Summary Matrix & EPC QR Code */}
+            {/* VOB/B Commercial Summary Matrix & EPC QR Code */}
             {vobConfig?.enabled && (
               <CommercialVobSummary
                 vobConfig={vobConfig}
@@ -929,49 +707,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
               />
             )}
 
-            {/* 3b. Swiss QR-Bill (Section de Paiement) */}
+            {/* Swiss QR-Bill */}
             {swissConfig?.enabled && (
               <SwissQrBill config={swissConfig} />
-            )}
-
-            {/* 4. BERICHTSFUSS / GESAMTERGEBNISSE (Report Footer - Grand Totals) */}
-            {grandTotalSummaries.length > 0 && !vobConfig?.enabled && (
-              <div className="mt-8 p-4 bg-slate-900 text-white rounded-lg shadow-md space-y-2 border border-slate-800">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
-                    <Calculator size={16} />
-                    <span>Berichtsfuss — Gesamtergebnisse ({data.length} Datensätze gesamt)</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-4 pt-1">
-                  {grandTotalSummaries.map((sum, i) => (
-                    <div
-                      key={i}
-                      className="bg-slate-800 px-3 py-1.5 rounded border border-slate-700 flex items-center gap-2"
-                    >
-                      <span className="text-xs text-slate-300 font-medium">{sum.label}:</span>
-                      <span className="text-sm font-bold font-mono text-amber-300">{sum.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Freeform Elements in Report Footer */}
-            <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="reportFooter" />
-
-            {/* Signature Box in Report Footer */}
-            {(bandSections?.reportFooter?.signatureBox ?? true) && (
-              <div className="mt-8 pt-6 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs text-slate-600">
-                <div className="border-t border-dashed border-slate-400 pt-2">
-                  <div className="font-semibold text-slate-800">Ort, Datum / Bauleitung Auftragnehmer</div>
-                  <div className="text-[10px] text-slate-400">Geprüft & Freigegeben</div>
-                </div>
-                <div className="border-t border-dashed border-slate-400 pt-2">
-                  <div className="font-semibold text-slate-800">Ort, Datum / Auftraggeber / Bauherr</div>
-                  <div className="text-[10px] text-slate-400">Zur Zahlung angewiesen</div>
-                </div>
-              </div>
             )}
 
             {data.length === 0 && (
@@ -979,21 +717,94 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 Keine Daten für diesen Bericht vorhanden.
               </div>
             )}
-          </main>
+          </div>
 
-          {/* 5. DIN 5008 3-Column Footer or Standard Page Footer */}
+          {/* ========================================================= */}
+          {/* 4. BERICHTSFUSS (REPORT FOOTER)                           */}
+          {/* ========================================================= */}
+          {!widgetMode &&
+            report.settings?.showReportFooter !== false &&
+            (bandSections?.reportFooter?.visible ?? true) && (
+              <div className="report-footer-band report-section mt-8 pt-4 border-t-2 border-slate-800 space-y-4">
+                {/* Grand Totals (Gesamtergebnisse) */}
+                {(bandSections?.reportFooter?.showGrandTotal ?? true) &&
+                  grandTotalSummaries.length > 0 &&
+                  !vobConfig?.enabled && (
+                    <div className="p-4 bg-slate-900 text-white rounded-lg shadow-md space-y-2 border border-slate-800">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
+                          <Calculator size={16} />
+                          <span>Berichtsfuss — Gesamtergebnisse ({data.length} Datensätze gesamt)</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-4 pt-1">
+                        {grandTotalSummaries.map((sum, i) => (
+                          <div
+                            key={i}
+                            className="bg-slate-800 px-3 py-1.5 rounded border border-slate-700 flex items-center gap-2"
+                          >
+                            <span className="text-xs text-slate-300 font-medium">{sum.label}:</span>
+                            <span className="text-sm font-bold font-mono text-amber-300">{sum.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Optional Custom Closing Text */}
+                {bandSections?.reportFooter?.closingText && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-700 whitespace-pre-line">
+                    {bandSections.reportFooter.closingText}
+                  </div>
+                )}
+
+                {/* Freeform Elements in Report Footer */}
+                <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="reportFooter" />
+
+                {/* Signature Box in Report Footer */}
+                {(bandSections?.reportFooter?.signatureBox ?? true) && (
+                  <div className="pt-4 grid grid-cols-2 gap-8 text-xs text-slate-600">
+                    <div className="border-t border-dashed border-slate-400 pt-2">
+                      <div className="font-semibold text-slate-800">Ort, Datum / Ersteller / Bauleitung</div>
+                      <div className="text-[10px] text-slate-400">Geprüft & Freigegeben</div>
+                    </div>
+                    <div className="border-t border-dashed border-slate-400 pt-2">
+                      <div className="font-semibold text-slate-800">Ort, Datum / Auftraggeber / Prüfer</div>
+                      <div className="text-[10px] text-slate-400">Zur Kenntnis genommen & akzeptiert</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+          {/* ========================================================= */}
+          {/* 5. SEITENFUSS (PAGE FOOTER)                               */}
+          {/* ========================================================= */}
           {din5008?.enabled ? (
-            <Din5008ThreeColumnFooter config={din5008} />
+            <div className="report-page-footer-band report-section">
+              <Din5008ThreeColumnFooter config={din5008} />
+            </div>
           ) : (
             !widgetMode &&
             report.settings?.showPageFooter !== false &&
             (bandSections?.pageFooter?.visible ?? true) && (
-              <footer className="mt-12 pt-3 border-t border-slate-200 flex justify-between items-center text-[11px] text-slate-400 font-mono">
-                <div>DB Studio Pro • Banded Report Engine ({ReportExpressionEngine.evaluate('=Datum()', {})})</div>
-                <div>{ReportExpressionEngine.evaluate('="Seite " & [Seite] & " von " & [Seiten]', { pageNumber: 1, totalPages: 1 })}</div>
-              </footer>
+              <div className="report-page-footer-band report-section mt-12 pt-3 border-t border-slate-300 flex justify-between items-center text-[11px] text-slate-500 font-mono">
+                <div>
+                  {(bandSections?.pageFooter?.printDate ?? true)
+                    ? `DB Studio Pro • Banded Report Engine (${ReportExpressionEngine.evaluate('=Datum()', {})})`
+                    : 'DB Studio Pro • Banded Report Engine'}
+                </div>
+                <div>
+                  {(bandSections?.pageFooter?.showPageNumbers ?? true)
+                    ? ReportExpressionEngine.evaluate('="Seite " & [Seite] & " von " & [Seiten]', { pageNumber: 1, totalPages: 1 })
+                    : ''}
+                </div>
+              </div>
             )
           )}
+
+          {/* Freeform Elements in Page Footer */}
+          <FreeformCanvasRenderer elements={report.freeformElements || report.settings?.freeformElements} section="pageFooter" />
         </div>
       </div>
 

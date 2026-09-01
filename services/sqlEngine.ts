@@ -88,7 +88,9 @@ export const initSqlEngine = async () => {
 
     // Default Browser WASM Fallback
     activeDriver = 'wasm';
-    const initializer = (typeof window !== 'undefined' && window.initSqlJs) ? window.initSqlJs : initSqlJs;
+    const initializer = (typeof window !== 'undefined' && (window as any).initSqlJs)
+      ? (window as any).initSqlJs
+      : (typeof initSqlJs === 'function' ? initSqlJs : (initSqlJs as any)?.default);
     if (typeof initializer === 'function') {
       SQL = await initializer({
         locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`

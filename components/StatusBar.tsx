@@ -55,7 +55,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentView, activeObject,
     && !currentView.type.includes('workflow');
 
   return (
-    <div className="bg-slate-200 dark:bg-slate-800 border-t border-slate-300 dark:border-slate-700 h-6 px-2 flex justify-between items-center text-xs select-none print:hidden transition-colors duration-300">
+    <footer className="app-statusbar bg-slate-200 dark:bg-slate-800 border-t border-slate-300 dark:border-slate-700 h-6 px-2 flex justify-between items-center text-xs select-none print:hidden no-print transition-colors duration-300">
       <div className="text-slate-600 dark:text-slate-400 font-medium">
         {getStatusText()}
       </div>
@@ -176,6 +176,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({ currentView, activeObject,
           </div>
         </div>
       )}
-    </div>
+    </footer>
   );
 };
