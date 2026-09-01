@@ -288,7 +288,8 @@ export const generateDatabaseScripts = (tables: Table[], rawRelationships: Relat
         sql += `\n-- Views\n`;
         queries.forEach(q => {
             if (q.type === 'SELECT') {
-                const selectSql = generateSqlSelect((q as SelectQuery).nodes, (q as SelectQuery).columns, processingTables, relationships, normalizedDb, true);
+                const selectQ = q as SelectQuery;
+                const selectSql = generateSqlSelect(selectQ.nodes, selectQ.columns, processingTables, relationships, normalizedDb, true, undefined, Boolean(selectQ.distinct), true);
                 if (selectSql) {
                     // Simple wrapper to avoid SQL errors if view logic is complex, 
                     // but for standard SQL generation we output it.

@@ -1,4 +1,5 @@
 import { DbType, QueryColumn, Table, Relationship } from '../types/index';
+import { toPascalCase } from './generators/common';
 
 /**
  * Quotes an identifier (table or column name) according to the target SQL dialect.
@@ -88,7 +89,8 @@ export function generateSqlSelect(
   dbType: DbType | string = DbType.SQLite,
   forExecution: boolean = false,
   context?: Record<string, any>,
-  distinct: boolean = false
+  distinct: boolean = false,
+  usePascalCaseTableNames: boolean = false
 ): string {
   if (!nodes || nodes.length === 0) {
     return 'SELECT 1;';
@@ -106,14 +108,16 @@ export function generateSqlSelect(
       t.id === node.id ||
       t.name.toLowerCase() === String(node.id).toLowerCase()
     );
-    const tableName = table ? table.name : (nodeTableName || (tables.length > 0 ? tables[0].name : 'Table1'));
+    const resolvedName = table ? table.name : (nodeTableName || (tables.length > 0 ? tables[0].name : 'Table1'));
+    const tableName = usePascalCaseTableNames ? toPascalCase(resolvedName) : resolvedName;
     const alias = node.id || tableName;
     nodeTableMap.set(node.id, { tableName, alias, table });
   });
 
   const rootNode = nodes[0];
+  const defaultRootName = tables[0]?.name || 'Table1';
   const rootInfo = nodeTableMap.get(rootNode.id) || {
-    tableName: tables[0]?.name || 'Table1',
+    tableName: usePascalCaseTableNames ? toPascalCase(defaultRootName) : defaultRootName,
     alias: rootNode.id,
     table: tables[0]
   };

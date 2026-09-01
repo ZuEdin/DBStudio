@@ -446,17 +446,16 @@ ${validationMethod}
               type += '?';
           }
           
-          let propName = toPascalCase(c.alias || c.fieldName);
-          let colAttr = '';
+          const rawColName = c.alias && c.alias.trim() ? c.alias.trim() : c.fieldName;
+          let propName = toPascalCase(rawColName);
           
           if (propName === safeName) {
               propName = `${propName}Value`;
-              colAttr = `        [Column("${c.alias || c.fieldName}")]\n        [JsonPropertyName("${c.alias || c.fieldName}")]\n`;
           }
           
           // Deduplication Logic
           if (usedNames.has(propName)) {
-              propName = toPascalCase(`${c.alias || c.fieldName}${toPascalCase(c.tableName)}`);
+              propName = toPascalCase(`${rawColName}${toPascalCase(c.tableName)}`);
           }
           let counter = 2;
           const original = propName;
@@ -466,6 +465,7 @@ ${validationMethod}
           }
           usedNames.add(propName);
 
+          const colAttr = `        [Column("${rawColName}")]\n        [JsonPropertyName("${rawColName}")]\n`;
           return `${colAttr}        public ${type} ${propName} { get; set; }`;
       }).join('\n\n');
 

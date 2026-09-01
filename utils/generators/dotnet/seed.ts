@@ -87,7 +87,7 @@ export const generateDbInitializer = (tables: Table[], relationships: Relationsh
         seedLogic += `                // Create database views for custom select queries\n`;
         selectQueries.forEach(q => {
             const selectQ = q as SelectQuery;
-            const selectSql = generateSqlSelect(selectQ.nodes, selectQ.columns, tables, relationships, dbType, false);
+            const selectSql = generateSqlSelect(selectQ.nodes, selectQ.columns, tables, relationships, dbType, false, undefined, Boolean(selectQ.distinct), true);
             if (selectSql) {
                 const viewName = toPascalCase(q.name);
                 let createViewSql = '';
