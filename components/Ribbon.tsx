@@ -40,7 +40,7 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
 
   const toggleRibbon = () => setIsOpen(!isOpen);
 
-  // Automatisch zum Kontext-Tab wechseln
+  // Automatisch zum Kontext-Tab wechseln, oder bei keinem aktiven Bereich auf 'Start' (home)
   useEffect(() => {
     if (currentView.type === 'table_edit' || currentView.type === 'table_create' || currentView.type === 'table_data') {
       setActiveTab('table_design');
@@ -56,6 +56,9 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
       setActiveTab('page_design');
     } else if (currentView.type === 'relationships') {
       setActiveTab('er_diagram');
+    } else {
+      // Wenn kein aktiver Bereich ausgewählt ist (z.B. welcome, dashboard, app_info) -> Registerkarte Start anzeigen
+      setActiveTab('home');
     }
   }, [currentView.type, setActiveTab]);
 
@@ -70,11 +73,14 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
       case 'pages':
         return <PagesTab onAction={onAction} />;
       case 'page_design':
-        return <PageDesignTab onAction={onAction} />;
+        if (currentView.type === 'page_designer' || currentView.type === 'page_view') {
+          return <PageDesignTab onAction={onAction} />;
+        }
+        return <HomeTab onAction={onAction} />;
       case 'external':
         return <ExternalDataTab onAction={onAction} />;
       case 'deploy':
-        if (!backendConfig || !setBackendConfig) return null;
+        if (!backendConfig || !setBackendConfig) return <HomeTab onAction={onAction} />;
         return (
           <DeployTab 
             onAction={onAction} 
@@ -84,23 +90,41 @@ export const Ribbon: React.FC<RibbonProps> = ({ onAction }) => {
           />
         );
       case 'table_design':
-        return <TableDesignTab onAction={onAction} />;
+        if (currentView.type === 'table_edit' || currentView.type === 'table_create' || currentView.type === 'table_data') {
+          return <TableDesignTab onAction={onAction} />;
+        }
+        return <HomeTab onAction={onAction} />;
       case 'query_design':
-        return <QueryDesignTab onAction={onAction} />;
+        if (currentView.type === 'query_designer' || currentView.type === 'query_results') {
+          return <QueryDesignTab onAction={onAction} />;
+        }
+        return <HomeTab onAction={onAction} />;
       case 'form_design':
-        return <FormDesignTab onAction={onAction} />;
+        if (currentView.type === 'form_designer' || currentView.type === 'form_view') {
+          return <FormDesignTab onAction={onAction} />;
+        }
+        return <HomeTab onAction={onAction} />;
       case 'report_design':
-        return <ReportDesignTab onAction={onAction} />;
+        if (currentView.type === 'report_designer' || currentView.type === 'report_view') {
+          return <ReportDesignTab onAction={onAction} />;
+        }
+        return <HomeTab onAction={onAction} />;
       case 'workflow_design':
-        return <WorkflowDesignTab onAction={onAction} />;
+        if (currentView.type === 'workflow_designer') {
+          return <WorkflowDesignTab onAction={onAction} />;
+        }
+        return <HomeTab onAction={onAction} />;
       case 'er_diagram':
-        return <ERDiagramTab onAction={onAction} />;
+        if (currentView.type === 'relationships') {
+          return <ERDiagramTab onAction={onAction} />;
+        }
+        return <HomeTab onAction={onAction} />;
       case 'projekte':
         return <ProjectsTab onAction={onAction} />;
       case 'security':
         return <SecurityTab onAction={onAction} />;
       default:
-        return null;
+        return <HomeTab onAction={onAction} />;
     }
   };
 
