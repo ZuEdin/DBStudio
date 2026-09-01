@@ -24,7 +24,7 @@
   }
   
   /* Reset container constraints so report flows across natural print pages */
-  html, body, #root, #root > div, .app-workspace, .app-workspace-content, main, .flex-1, .min-h-screen {
+  html, body, #root, #root > div, .app-container, .app-workspace, .app-workspace-content, main, .flex-1, .min-h-screen {
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
@@ -46,7 +46,8 @@
     max-height: none !important;
     padding: 0 !important;
     margin: 0 !important;
-    background: transparent !important;
+    background: #ffffff !important;
+    display: block !important;
   }
 
   .report-paper {
@@ -68,12 +69,18 @@
   .report-header-band,
   .report-page-header-band,
   .report-group-header-band,
-  .report-detail-band,
   .report-group-footer-band,
   .report-page-footer-band,
   .report-footer-band {
     visibility: visible !important;
-    display: block !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  table.report-detail-band {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
   }
 
   * {

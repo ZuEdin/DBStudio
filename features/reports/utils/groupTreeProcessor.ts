@@ -36,14 +36,30 @@ export function getRecordFieldValue(
     }
   }
 
-  // Case-insensitive fallback
+  // Case-insensitive and dotted/prefixed fallback
   const recordKeys = Object.keys(record);
   for (const candidate of candidateKeys) {
     if (!candidate) continue;
     const lowerCandidate = candidate.toLowerCase().trim();
+    
+    // Direct case-insensitive match
     const matchedKey = recordKeys.find((k) => k.toLowerCase().trim() === lowerCandidate);
     if (matchedKey && record[matchedKey] !== undefined && record[matchedKey] !== null) {
       return record[matchedKey];
+    }
+
+    // Dotted or underscore table prefix match (e.g. "Mitarbeiter.Geschlecht" -> "Geschlecht")
+    const prefixedKey = recordKeys.find((k) => {
+      const lowerK = k.toLowerCase().trim();
+      return (
+        lowerK.endsWith(`.${lowerCandidate}`) ||
+        lowerK.endsWith(`_${lowerCandidate}`) ||
+        lowerCandidate.endsWith(`.${lowerK}`) ||
+        lowerCandidate.endsWith(`_${lowerK}`)
+      );
+    });
+    if (prefixedKey && record[prefixedKey] !== undefined && record[prefixedKey] !== null) {
+      return record[prefixedKey];
     }
   }
 
@@ -66,6 +82,17 @@ export function calculateSliceSummaries(
     if (!currentGroupFieldId) return true;
     return !s.groupFieldId || s.groupFieldId === currentGroupFieldId;
   });
+
+  if (applicableSummaries.length === 0) {
+    // Default count for slice if no explicit summaries defined
+    results.push({
+      fieldName: 'Anzahl',
+      calc: 'COUNT',
+      label: 'Anzahl Datensätze',
+      value: items.length,
+    });
+    return results;
+  }
 
   applicableSummaries.forEach((summary) => {
     const fieldName = summary.fieldName;
@@ -182,14 +209,25 @@ export function buildMultiLevelGroupTree(
     }
 
     const currentLevelConfig = groupLevels[levelIndex];
-    const fieldObj = sourceFields.find((f) => f.id === currentLevelConfig.fieldId);
+    const fieldObj = sourceFields.find(
+      (f) =>
+        f.id === currentLevelConfig.fieldId ||
+        (currentLevelConfig.fieldName && f.name.toLowerCase() === currentLevelConfig.fieldName.toLowerCase())
+    );
     const fieldName = fieldObj?.name || currentLevelConfig.fieldName || currentLevelConfig.fieldId;
-    const fieldLabel = fieldName || `Ebene ${levelIndex + 1}`;
+    const fieldLabel = currentLevelConfig.fieldName || fieldObj?.name || fieldName || `Ebene ${levelIndex + 1}`;
 
     // Group subset by currentLevelConfig's field value
     const partitionMap: Record<string, Record<string, any>[]> = {};
     subset.forEach((row) => {
-      let rawVal = getRecordFieldValue(row, fieldName, fieldObj?.name, currentLevelConfig.fieldId);
+      let rawVal = getRecordFieldValue(
+        row,
+        fieldName,
+        fieldObj?.name,
+        currentLevelConfig.fieldName,
+        currentLevelConfig.fieldId,
+        fieldObj?.id
+      );
       if (rawVal === undefined || rawVal === null || String(rawVal).trim() === '') {
         rawVal = '(Nicht angegeben)';
       }

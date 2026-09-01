@@ -1,12 +1,119 @@
-import { Table, DbType } from '../../../types';
+import { Table, DbType, SelectQuery, QueryColumn, AggregateFunction, CrosstabRole } from '../../../types';
 import { quoteIdentifier } from '../../../utils/generators/common';
+import {
+  transformToPivotMatrix,
+  PivotMatrixResult,
+  MatrixComputationConfig,
+} from './crosstabTransformer';
 
 export interface CrosstabConfig {
   sourceTableId: string;
   rowHeaders: { fieldId: string; fieldName: string; alias?: string }[];
-  columnHeader: { fieldId: string; fieldName: string };
-  valueField: { fieldId: string; fieldName: string; aggregate: 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX' };
+  columnHeader: { fieldId: string; fieldName: string; alias?: string };
+  valueField: { fieldId: string; fieldName: string; alias?: string; aggregate: AggregateFunction };
   distinctColumnHeaders?: string[];
+  showRowTotals?: boolean;
+  showColTotals?: boolean;
+}
+
+/**
+ * Extracts a normalized CrosstabConfig from a Query object.
+ */
+export function extractCrosstabConfigFromQuery(
+  query: SelectQuery,
+  tables: Table[]
+): CrosstabConfig | null {
+  if (!query || !query.columns || query.columns.length === 0) return null;
+
+  const rowHeaders: { fieldId: string; fieldName: string; alias?: string }[] = [];
+  let columnHeader: { fieldId: string; fieldName: string; alias?: string } | null = null;
+  let valueField: { fieldId: string; fieldName: string; alias?: string; aggregate: AggregateFunction } | null = null;
+
+  // 1. Check explicit crosstab role flags
+  query.columns.forEach((col) => {
+    if (col.crosstab === 'ROW_HEADING') {
+      rowHeaders.push({ fieldId: col.fieldId, fieldName: col.fieldName, alias: col.alias });
+    } else if (col.crosstab === 'COLUMN_HEADING') {
+      columnHeader = { fieldId: col.fieldId, fieldName: col.fieldName, alias: col.alias };
+    } else if (col.crosstab === 'VALUE') {
+      valueField = {
+        fieldId: col.fieldId,
+        fieldName: col.fieldName,
+        alias: col.alias,
+        aggregate: (col.aggregate && col.aggregate !== 'GROUP_BY' ? col.aggregate : 'COUNT') as AggregateFunction,
+      };
+    }
+  });
+
+  // 2. Fallback: check query.crosstabConfig property
+  if ((!columnHeader || !valueField) && query.crosstabConfig) {
+    const cfg = query.crosstabConfig;
+    const findField = (name: string) => {
+      const col = query.columns.find((c) => c.fieldName === name || c.alias === name);
+      return { fieldId: col?.fieldId || name, fieldName: name, alias: col?.alias };
+    };
+
+    return {
+      sourceTableId: query.nodes[0]?.data?.tableId || query.nodes[0]?.id || tables[0]?.id || '',
+      rowHeaders: (cfg.rowHeaders || []).map(findField),
+      columnHeader: findField(cfg.columnHeader),
+      valueField: {
+        ...findField(cfg.valueField),
+        aggregate: cfg.aggregate || 'COUNT',
+      },
+      showRowTotals: cfg.showRowTotals !== false,
+      showColTotals: cfg.showColTotals !== false,
+    };
+  }
+
+  // 3. Fallback: heuristic detection if query is marked as CROSSTAB or has GROUP_BY + Aggregates
+  if (query.type === 'CROSSTAB' && (!columnHeader || !valueField)) {
+    const visibleCols = query.columns.filter((c) => c.show);
+    const groupCols = visibleCols.filter((c) => c.aggregate === 'GROUP_BY' || !c.aggregate);
+    const aggCols = visibleCols.filter((c) => c.aggregate && c.aggregate !== 'GROUP_BY');
+
+    if (groupCols.length >= 2 && aggCols.length >= 1) {
+      // First N-1 group cols -> Row Headers, Last group col -> Column Header
+      const rCols = groupCols.slice(0, groupCols.length - 1).map((c) => ({
+        fieldId: c.fieldId,
+        fieldName: c.fieldName,
+        alias: c.alias,
+      }));
+      const cCol = {
+        fieldId: groupCols[groupCols.length - 1].fieldId,
+        fieldName: groupCols[groupCols.length - 1].fieldName,
+        alias: groupCols[groupCols.length - 1].alias,
+      };
+      const vCol = {
+        fieldId: aggCols[0].fieldId,
+        fieldName: aggCols[0].fieldName,
+        alias: aggCols[0].alias,
+        aggregate: aggCols[0].aggregate as AggregateFunction,
+      };
+
+      return {
+        sourceTableId: query.nodes[0]?.data?.tableId || query.nodes[0]?.id || tables[0]?.id || '',
+        rowHeaders: rCols.length > 0 ? rCols : [{ fieldId: groupCols[0].fieldId, fieldName: groupCols[0].fieldName, alias: groupCols[0].alias }],
+        columnHeader: cCol,
+        valueField: vCol,
+        showRowTotals: true,
+        showColTotals: true,
+      };
+    }
+  }
+
+  if (rowHeaders.length > 0 && columnHeader && valueField) {
+    return {
+      sourceTableId: query.nodes[0]?.data?.tableId || query.nodes[0]?.id || tables[0]?.id || '',
+      rowHeaders,
+      columnHeader,
+      valueField,
+      showRowTotals: true,
+      showColTotals: true,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -18,18 +125,30 @@ export const generateCrosstabSql = (
   dbType: DbType = DbType.SQLite
 ): string => {
   const table = tables.find((t) => t.id === config.sourceTableId || t.name === config.sourceTableId);
-  if (!table) return '-- Quelltabelle für Kreuztabelle nicht gefunden';
+  const tableNameStr = table ? table.name : (config.sourceTableId || 'Tabelle');
+  const tableName = quoteIdentifier(tableNameStr, dbType);
 
-  const tableName = quoteIdentifier(table.name, dbType);
-  const rowCols = config.rowHeaders.map((r) => quoteIdentifier(r.fieldName, dbType)).join(', ');
-  const colField = quoteIdentifier(config.columnHeader.fieldName, dbType);
-  const valField = quoteIdentifier(config.valueField.fieldName, dbType);
-  const agg = config.valueField.aggregate || 'SUM';
+  const rowCols = config.rowHeaders.map((r) => quoteIdentifier(r.alias || r.fieldName, dbType)).join(', ');
+  const colField = quoteIdentifier(config.columnHeader.alias || config.columnHeader.fieldName, dbType);
+  const valField = quoteIdentifier(config.valueField.alias || config.valueField.fieldName, dbType);
+  const agg = config.valueField.aggregate || 'COUNT';
 
-  // Sample or known distinct column headers (e.g. ['Lohn', 'Material', 'Geraete', 'Nachunternehmer'])
+  // Distinct column headers (or placeholders)
   const distinctVals = config.distinctColumnHeaders && config.distinctColumnHeaders.length > 0
     ? config.distinctColumnHeaders
-    : ['Kategorie_A', 'Kategorie_B', 'Kategorie_C'];
+    : ['Männlich', 'Weiblich', 'Divers'];
+
+  // Access SQL format: TRANSFORM ... SELECT ... GROUP BY ... PIVOT ...
+  const accessSql = `TRANSFORM ${agg}(${tableName}.${valField}) AS [${config.valueField.alias || 'Wert'}]
+SELECT ${config.rowHeaders.map(r => `${tableName}.${quoteIdentifier(r.fieldName, DbType.SQL)}`).join(', ')}, ${agg}(${tableName}.${valField}) AS [Gesamtwert]
+FROM ${tableName}
+GROUP BY ${config.rowHeaders.map(r => `${tableName}.${quoteIdentifier(r.fieldName, DbType.SQL)}`).join(', ')}
+PIVOT ${tableName}.${colField};`;
+
+  if (String(dbType).toUpperCase().includes('ACCESS')) {
+    return `-- MS Access SQL Kreuztabellenabfrage
+${accessSql}`;
+  }
 
   if (dbType === DbType.SQL) {
     // MS SQL Server PIVOT syntax
@@ -43,104 +162,59 @@ FROM (
 PIVOT (
     ${agg}(${valField})
     FOR ${colField} IN (${pivotCols})
-) AS PivotTable;`;
+) AS PivotTable;
+
+-- Alternativ (MS Access Dialekt):
+${accessSql}`;
   }
 
-  // ANSI SQL / SQLite / PostgreSQL / MySQL using conditional aggregation
+  // ANSI SQL / SQLite / PostgreSQL / MySQL using conditional aggregation (CASE WHEN)
   const conditionalCols = distinctVals
     .map((val) => {
       const escapedVal = val.replace(/'/g, "''");
       const colAlias = quoteIdentifier(val, dbType);
+      if (agg === 'COUNT') {
+        return `    COUNT(CASE WHEN ${colField} = '${escapedVal}' THEN 1 ELSE NULL END) AS ${colAlias}`;
+      }
       return `    ${agg}(CASE WHEN ${colField} = '${escapedVal}' THEN ${valField} ELSE NULL END) AS ${colAlias}`;
     })
     .join(',\n');
 
-  const totalCol = `    ${agg}(${valField}) AS ${quoteIdentifier('Gesamtsumme', dbType)}`;
+  const totalCol = agg === 'COUNT'
+    ? `    COUNT(*) AS ${quoteIdentifier('Gesamtwert', dbType)}`
+    : `    ${agg}(${valField}) AS ${quoteIdentifier('Gesamtwert', dbType)}`;
 
   return `-- ANSI SQL / ${dbType} Kreuztabellen-Abfrage (Pivot Matrix)
 SELECT 
     ${rowCols},
-${conditionalCols},
-${totalCol}
+${totalCol},
+${conditionalCols}
 FROM ${tableName}
 GROUP BY ${rowCols}
-ORDER BY ${rowCols};`;
+ORDER BY ${rowCols};
+
+-- MS Access Syntax (TRANSFORM ... PIVOT):
+${accessSql}`;
 };
 
 /**
- * Execute in-memory pivot computation for preview
+ * Execute in-memory pivot computation for live preview
  */
 export const executeCrosstabInMemory = (
   config: CrosstabConfig,
   tableData: Record<string, any>[]
-): { headers: string[]; rows: Record<string, any>[] } => {
-  if (!tableData || tableData.length === 0) {
-    return { headers: [], rows: [] };
-  }
-
-  const rowKeyNames = config.rowHeaders.map((r) => r.fieldName);
-  const colKeyName = config.columnHeader.fieldName;
-  const valKeyName = config.valueField.fieldName;
-  const agg = config.valueField.aggregate;
-
-  // 1. Collect all distinct column headers
-  const distinctCols = new Set<string>();
-  tableData.forEach((row) => {
-    const colVal = row[colKeyName];
-    if (colVal !== undefined && colVal !== null) {
-      distinctCols.add(String(colVal));
-    }
-  });
-
-  const sortedCols = Array.from(distinctCols).sort();
-
-  // 2. Group by row keys
-  const grouped: Record<string, { rowData: Record<string, any>; pivotValues: Record<string, number[]>; allValues: number[] }> = {};
-
-  tableData.forEach((row) => {
-    const groupKey = rowKeyNames.map((k) => String(row[k] ?? '')).join('___');
-    if (!grouped[groupKey]) {
-      const initialRowData: Record<string, any> = {};
-      rowKeyNames.forEach((k) => {
-        initialRowData[k] = row[k];
-      });
-      grouped[groupKey] = {
-        rowData: initialRowData,
-        pivotValues: {},
-        allValues: [],
-      };
-    }
-
-    const colVal = String(row[colKeyName] ?? '');
-    const numVal = Number(row[valKeyName]) || 0;
-
-    if (!grouped[groupKey].pivotValues[colVal]) {
-      grouped[groupKey].pivotValues[colVal] = [];
-    }
-    grouped[groupKey].pivotValues[colVal].push(numVal);
-    grouped[groupKey].allValues.push(numVal);
-  });
-
-  const calcAgg = (values?: number[]): number => {
-    if (!values || values.length === 0) return 0;
-    if (agg === 'SUM') return values.reduce((a, b) => a + b, 0);
-    if (agg === 'COUNT') return values.length;
-    if (agg === 'AVG') return values.reduce((a, b) => a + b, 0) / values.length;
-    if (agg === 'MIN') return Math.min(...values);
-    if (agg === 'MAX') return Math.max(...values);
-    return values.reduce((a, b) => a + b, 0);
+): PivotMatrixResult => {
+  const transformConfig: MatrixComputationConfig = {
+    rowHeaders: config.rowHeaders.map((r) => ({ fieldName: r.fieldName, alias: r.alias })),
+    columnHeader: { fieldName: config.columnHeader.fieldName, alias: config.columnHeader.alias },
+    valueField: {
+      fieldName: config.valueField.fieldName,
+      alias: config.valueField.alias,
+      aggregate: config.valueField.aggregate || 'COUNT',
+    },
+    showRowTotals: config.showRowTotals !== false,
+    showColTotals: config.showColTotals !== false,
   };
 
-  const finalRows: Record<string, any>[] = Object.values(grouped).map((group) => {
-    const rowObj: Record<string, any> = { ...group.rowData };
-    sortedCols.forEach((col) => {
-      const val = calcAgg(group.pivotValues[col]);
-      rowObj[col] = Math.round(val * 100) / 100;
-    });
-    rowObj['Gesamtsumme'] = Math.round(calcAgg(group.allValues) * 100) / 100;
-    return rowObj;
-  });
-
-  const headers = [...rowKeyNames, ...sortedCols, 'Gesamtsumme'];
-  return { headers, rows: finalRows };
+  return transformToPivotMatrix(tableData, transformConfig);
 };

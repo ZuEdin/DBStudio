@@ -9,6 +9,9 @@ let db: any = null;
 let SQL: any = null;
 let activeDriver: 'wasm' | 'tauri' | 'electron' = 'wasm';
 let tauriDbConnection: any = null;
+let lastKnownTables: Table[] = [];
+let initPromise: Promise<any> | null = null;
+let syncedTablesChecksum: string = '';
 
 // Developer driver registry for custom connections
 export interface ConnectionDriverConfig {
@@ -38,9 +41,14 @@ export const getActiveDriverStatus = () => {
   return {
     driver: activeDriver,
     registeredConfig: registeredDriverConfig,
+    isReady: Boolean(db || tauriDbConnection),
     isTauri: typeof window !== 'undefined' && !!window.__TAURI__,
     isElectron: typeof window !== 'undefined' && (!!window.ipcRenderer || (window.process && window.process.versions && !!window.process.versions.electron))
   };
+};
+
+export const isSqlEngineReady = (): boolean => {
+  return Boolean(db || tauriDbConnection);
 };
 
 /**
@@ -48,61 +56,99 @@ export const getActiveDriverStatus = () => {
  * Detects Tauri or Electron and configures the native SQLite driver bridge.
  * Falls back to SQL.js WASM in standard browser mode.
  */
-export const initSqlEngine = async () => {
-  if (db || tauriDbConnection) return;
-  
-  try {
-    const status = getActiveDriverStatus();
-    
-    if (status.isTauri) {
-      activeDriver = 'tauri';
-      console.log("Tauri environment detected. Attempting connection to local SQLite plugin...");
-      // In Tauri, databases are opened via the tauri-plugin-sql API
-      if (window.__TAURI__?.sql) {
-        try {
-          tauriDbConnection = await window.__TAURI__.sql.load(`sqlite:${registeredDriverConfig.filepath || 'dbstudio_local.db'}`);
-          console.log("Tauri native SQLite connection established successfully.");
-          return;
-        } catch (err) {
-          console.warn("Failed to load Tauri SQL plugin, falling back to WASM emulation", err);
-        }
-      }
-    }
-    
-    if (status.isElectron) {
-      activeDriver = 'electron';
-      console.log("Electron environment detected. SQLite operations will map through main process IPC channel.");
-      // In Electron, database calls are proxied through ipcRenderer
-      if (window.ipcRenderer) {
-        try {
-          const success = await window.ipcRenderer.invoke('sqlite-init', { filepath: registeredDriverConfig.filepath });
-          if (success) {
-            console.log("Electron native SQLite IPC bridge initialized successfully.");
-            return;
-          }
-        } catch (err) {
-          console.warn("Failed to invoke Electron SQLite IPC bridge, falling back to WASM emulation", err);
-        }
-      }
-    }
-
-    // Default Browser WASM Fallback
-    activeDriver = 'wasm';
-    const initializer = (typeof window !== 'undefined' && (window as any).initSqlJs)
-      ? (window as any).initSqlJs
-      : (typeof initSqlJs === 'function' ? initSqlJs : (initSqlJs as any)?.default);
-    if (typeof initializer === 'function') {
-      SQL = await initializer({
-        locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
-      });
-      db = new SQL.Database();
-      console.log("SQL Engine Initialized (WASM Engine Active)");
-    } else {
-      console.warn("SQL.js initializer pending or unavailable.");
-    }
-  } catch (e) {
-    console.error("Failed to init SQL Engine", e);
+export const initSqlEngine = async (initialTables?: Table[]): Promise<any> => {
+  if (initialTables && initialTables.length > 0) {
+    lastKnownTables = initialTables;
   }
+
+  if (db || tauriDbConnection) {
+    if (initialTables && initialTables.length > 0) {
+      syncTablesToSql(initialTables);
+    }
+    return db || tauriDbConnection;
+  }
+
+  if (initPromise) {
+    await initPromise;
+    if (initialTables && initialTables.length > 0) {
+      syncTablesToSql(initialTables);
+    }
+    return db || tauriDbConnection;
+  }
+  
+  initPromise = (async () => {
+    try {
+      const status = getActiveDriverStatus();
+      
+      if (status.isTauri) {
+        activeDriver = 'tauri';
+        console.log("Tauri environment detected. Attempting connection to local SQLite plugin...");
+        if (window.__TAURI__?.sql) {
+          try {
+            tauriDbConnection = await window.__TAURI__.sql.load(`sqlite:${registeredDriverConfig.filepath || 'dbstudio_local.db'}`);
+            console.log("Tauri native SQLite connection established successfully.");
+            if (lastKnownTables.length > 0) {
+              await syncTablesToSql(lastKnownTables);
+            }
+            return;
+          } catch (err) {
+            console.warn("Failed to load Tauri SQL plugin, falling back to WASM emulation", err);
+          }
+        }
+      }
+      
+      if (status.isElectron) {
+        activeDriver = 'electron';
+        console.log("Electron environment detected. SQLite operations will map through main process IPC channel.");
+        if (window.ipcRenderer) {
+          try {
+            const success = await window.ipcRenderer.invoke('sqlite-init', { filepath: registeredDriverConfig.filepath });
+            if (success) {
+              console.log("Electron native SQLite IPC bridge initialized successfully.");
+              if (lastKnownTables.length > 0) {
+                await syncTablesToSql(lastKnownTables);
+              }
+              return;
+            }
+          } catch (err) {
+            console.warn("Failed to invoke Electron SQLite IPC bridge, falling back to WASM emulation", err);
+          }
+        }
+      }
+
+      // Default Browser WASM Fallback
+      activeDriver = 'wasm';
+      const initializer = (typeof window !== 'undefined' && (window as any).initSqlJs)
+        ? (window as any).initSqlJs
+        : (typeof initSqlJs === 'function' ? initSqlJs : (initSqlJs as any)?.default);
+      if (typeof initializer === 'function') {
+        try {
+          SQL = await initializer({
+            locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${file}`
+          });
+        } catch (cdnErr) {
+          console.warn("Primary cdnjs locateFile failed for sql.js, trying sql.js.org fallback:", cdnErr);
+          SQL = await initializer({
+            locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+          });
+        }
+
+        db = new SQL.Database();
+        console.log("SQL Engine Initialized (WASM Engine Active)");
+
+        if (lastKnownTables.length > 0) {
+          syncTablesToSql(lastKnownTables);
+        }
+      } else {
+        console.warn("SQL.js initializer pending or unavailable.");
+      }
+    } catch (e) {
+      console.error("Failed to init SQL Engine", e);
+    }
+  })();
+
+  await initPromise;
+  return db || tauriDbConnection;
 };
 
 const mapTypeToSql = (type: string): string => {
@@ -117,11 +163,14 @@ const mapTypeToSql = (type: string): string => {
  * Synchronizes list of designer tables to the SQLite database.
  */
 export const syncTablesToSql = async (tables: Table[]) => {
+    if (!tables) return;
+    lastKnownTables = tables;
+
     // Helper to get unique fields per table (prevent duplicate column name errors)
     const getUniqueFields = (fields: typeof tables[0]['fields']) => {
         const seen = new Set<string>();
-        return fields.filter(f => {
-            if (!f.name) return false;
+        return (fields || []).filter(f => {
+            if (!f || !f.name) return false;
             const lower = f.name.trim().toLowerCase();
             if (seen.has(lower)) return false;
             seen.add(lower);
@@ -132,7 +181,6 @@ export const syncTablesToSql = async (tables: Table[]) => {
     // If native Tauri SQLite is active
     if (activeDriver === 'tauri' && tauriDbConnection) {
       try {
-        // Drop existing and recreate tables dynamically in Tauri SQLite
         for (const table of tables) {
           await tauriDbConnection.execute(`DROP TABLE IF EXISTS "${table.name}"`);
           const uniqueFields = getUniqueFields(table.fields);
@@ -153,7 +201,6 @@ export const syncTablesToSql = async (tables: Table[]) => {
             }
           }
         }
-        console.log("Tauri SQLite Sync completed.");
         return;
       } catch (err) {
         console.error("Tauri SQLite Sync Error", err);
@@ -164,7 +211,6 @@ export const syncTablesToSql = async (tables: Table[]) => {
     if (activeDriver === 'electron' && window.ipcRenderer) {
       try {
         await window.ipcRenderer.invoke('sqlite-sync-tables', tables);
-        console.log("Electron SQLite Sync completed.");
         return;
       } catch (err) {
         console.error("Electron SQLite Sync Error", err);
@@ -173,7 +219,7 @@ export const syncTablesToSql = async (tables: Table[]) => {
 
     // WASM Fallback
     if (!db) {
-        console.warn("SQL Engine not ready. Cannot sync tables.");
+        // SQL Engine will automatically sync tables when init completes
         return;
     }
     
@@ -181,31 +227,40 @@ export const syncTablesToSql = async (tables: Table[]) => {
         const existing = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
         if (existing.length > 0 && existing[0].values) {
             existing[0].values.forEach((row: any[]) => {
-                if (row[0] !== 'sqlite_sequence') db.run(`DROP TABLE IF EXISTS "${row[0]}"`);
+                const tblName = row[0];
+                if (tblName && !tblName.startsWith('sqlite_')) {
+                  db.run(`DROP TABLE IF EXISTS "${tblName.replace(/"/g, '""')}"`);
+                }
             });
         }
 
         // Deduplicate tables by name to prevent "table already exists" error
         const uniqueTablesMap = new Map<string, Table>();
-        tables.forEach(t => uniqueTablesMap.set(t.name, t));
+        tables.forEach(t => {
+          if (t && t.name) {
+            uniqueTablesMap.set(t.name.toLowerCase(), t);
+          }
+        });
         
         const uniqueTables = Array.from(uniqueTablesMap.values());
 
         uniqueTables.forEach(table => {
             const uniqueFields = getUniqueFields(table.fields);
-            const fields = uniqueFields.map(f => `"${f.name}" ${mapTypeToSql(f.type)}`).join(', ');
-            // Handle empty tables (no fields) to avoid SQL errors
+            const fields = uniqueFields.map(f => `"${f.name.replace(/"/g, '""')}" ${mapTypeToSql(f.type)}`).join(', ');
             if (!fields) return;
 
-            const createSql = `CREATE TABLE "${table.name}" (${fields});`;
+            const createSql = `CREATE TABLE "${table.name.replace(/"/g, '""')}" (${fields});`;
             db.run(createSql);
 
             if (table.data && table.data.length > 0) {
-                const stmt = db.prepare(`INSERT INTO "${table.name}" VALUES (${uniqueFields.map(() => '?').join(',')})`);
+                const placeholders = uniqueFields.map(() => '?').join(',');
+                const colNames = uniqueFields.map(f => `"${f.name.replace(/"/g, '""')}"`).join(',');
+                const stmt = db.prepare(`INSERT INTO "${table.name.replace(/"/g, '""')}" (${colNames}) VALUES (${placeholders})`);
+                
                 table.data.forEach(row => {
+                    if (!row) return;
                     const values = uniqueFields.map(f => {
                         const val = row[f.name];
-                        // sql.js throws on undefined, use null instead
                         return val === undefined ? null : val;
                     });
                     stmt.run(values);
@@ -213,6 +268,8 @@ export const syncTablesToSql = async (tables: Table[]) => {
                 stmt.free();
             }
         });
+
+        syncedTablesChecksum = uniqueTables.map(t => `${t.name}:${t.data?.length || 0}`).join(';');
     } catch (e) {
         console.error("SQL Sync Error", e);
     }
@@ -221,7 +278,9 @@ export const syncTablesToSql = async (tables: Table[]) => {
 /**
  * Executes a raw query string against the registered SQLite connection.
  */
-export const executeRawSql = (sql: string): any[] => {
+export const executeRawSql = (sql: string, tables?: Table[]): any[] => {
+    if (!sql || !sql.trim()) return [];
+
     // Custom driver interception
     if (registeredDriverConfig.customExecute) {
       try {
@@ -238,17 +297,25 @@ export const executeRawSql = (sql: string): any[] => {
       try {
         let results: any[] = [];
         tauriDbConnection.select(sql).then((res: any) => { results = res; });
-        return results; // Note: async-to-sync returns immediate or relies on state
+        return results;
       } catch (err) {
         console.warn("Tauri select query execution failed", err);
       }
     }
 
-    // WASM Fallback (Standard Mode)
+    // WASM Mode
     if (!db) {
-        console.warn("SQL Engine not ready. Call initSqlEngine() first.");
         return [];
     }
+
+    // Ensure tables are synced if provided
+    if (tables && tables.length > 0) {
+      const currentChecksum = tables.map(t => `${t.name}:${t.data?.length || 0}`).join(';');
+      if (currentChecksum !== syncedTablesChecksum) {
+        syncTablesToSql(tables);
+      }
+    }
+
     try {
         const res = db.exec(sql);
         if (res.length === 0) return [];
@@ -264,7 +331,7 @@ export const executeRawSql = (sql: string): any[] => {
             return obj;
         });
     } catch (e: any) {
-        console.warn("SQL Execution Error:", e);
+        console.info("SQL Query execution note (falling back to JS engine if needed):", e?.message || e);
         return []; 
     }
 };

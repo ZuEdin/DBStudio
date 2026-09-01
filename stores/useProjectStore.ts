@@ -299,7 +299,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     projectName: '',
     history: { past: [], future: [] },
 
-    init: async () => { await initSqlEngine(); },
+    init: async () => { await initSqlEngine(get().tables); },
 
     loadProject: (project) => {
         if (!project.data || !project.data.tables) {
@@ -545,15 +545,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
 
     executeQuery: (query, context) => {
-        if (query.type !== 'SELECT') return [];
+        if (!query || (query.type !== 'SELECT' && query.type !== 'CROSSTAB')) return [];
+        if (query.type === 'CROSSTAB' || query.columns?.some(c => c.crosstab)) {
+            return executeJsQuery(query as any, get().tables, get().relationships, context);
+        }
         try {
-            const sql = generateSqlSelect(query.nodes, query.columns, get().tables, get().relationships, DbType.SQLite, true, context);
-            if (!sql) return executeJsQuery(query, get().tables, get().relationships, context);
-            const results = executeRawSql(sql);
+            const currentTables = get().tables || [];
+            const sql = generateSqlSelect(query.nodes, query.columns, currentTables, get().relationships, DbType.SQLite, true, context);
+            if (!sql) return executeJsQuery(query, currentTables, get().relationships, context);
+            const results = executeRawSql(sql, currentTables);
             if (results && Array.isArray(results) && results.length > 0) return results;
-            return executeJsQuery(query, get().tables, get().relationships, context);
+            return executeJsQuery(query, currentTables, get().relationships, context);
         } catch (e) {
-            console.warn("SQL Engine failed, falling back to JS", e);
+            console.warn("SQL Engine query fallback to JS:", e);
             return executeJsQuery(query, get().tables, get().relationships, context);
         }
     }

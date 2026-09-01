@@ -1,5 +1,6 @@
 
 import { Query, Table, Relationship, SelectQuery, QueryColumn } from '../../../types/index';
+import { extractCrosstabConfigFromQuery, executeCrosstabInMemory } from './crosstabGenerator';
 
 // Helper to extract dynamic parameters [Prompt text] from query criteria
 export const extractQueryParameters = (query: SelectQuery): string[] => {
@@ -292,9 +293,17 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
 
     // 1. Prepare Data (Cartesian Product / Join)
     let workingData: Record<string, any>[] = [];
-    const queryTableIds = new Set(query.nodes.map(n => n.tableId));
-    const initialTableId = query.nodes[0].tableId;
-    const initialTable = tables.find(t => t.id === initialTableId || t.name === initialTableId || t.name?.toLowerCase() === initialTableId?.toLowerCase());
+    const queryTableIds = new Set(query.nodes.map(n => n.tableId || (n as any).data?.tableId || n.id));
+    const initialNode = query.nodes[0];
+    const initialTableId = initialNode.tableId || (initialNode as any).data?.tableId || initialNode.id;
+    const initialTableName = (initialNode as any).tableName || (initialNode as any).name || (initialNode as any).data?.name;
+    const initialTable = tables.find(t => 
+        (initialTableId && t.id === initialTableId) || 
+        (initialTableName && t.name.toLowerCase() === initialTableName.toLowerCase()) ||
+        t.id === initialNode.id ||
+        t.name === initialTableId || 
+        t.name?.toLowerCase() === initialTableId?.toLowerCase()
+    ) || tables[0];
     
     if (!initialTable || !initialTable.data) return [];
 
@@ -387,6 +396,25 @@ export const executeSelectQuery = (query: SelectQuery, tables: Table[], relation
         }
         return true;
     });
+
+    // 3.5 Check for Crosstab / Pivot Query Execution
+    const crosstabConfig = extractCrosstabConfigFromQuery(query, tables);
+    if (query.type === 'CROSSTAB' || crosstabConfig !== null) {
+        if (crosstabConfig) {
+            // Flatten working row keys for crosstab transformer
+            const flattenedData = filteredData.map(row => {
+                const flatRow: Record<string, any> = {};
+                query.columns.forEach(col => {
+                    const val = getFieldValue(row, col);
+                    flatRow[col.fieldName] = val;
+                    if (col.alias) flatRow[col.alias] = val;
+                });
+                return flatRow;
+            });
+            const crosstabMatrix = executeCrosstabInMemory(crosstabConfig, flattenedData);
+            return crosstabMatrix.rows;
+        }
+    }
 
     // 4. Aggregation / Grouping
     const strictAggregation = query.columns.some(c => ['SUM','COUNT','AVG','MIN','MAX'].includes(c.aggregate || ''));

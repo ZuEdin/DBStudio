@@ -95,20 +95,27 @@ export function generateSqlSelect(
   }
 
   // 1. Resolve Table Nodes
-  const nodeTableMap = new Map<string, { tableName: string; alias: string }>();
+  const nodeTableMap = new Map<string, { tableName: string; alias: string; table?: Table }>();
   nodes.forEach((node) => {
     const tableData = node.data || {};
-    const tableId = tableData.tableId || node.id;
-    const table = tables.find((t) => t.id === tableId || t.name === tableData.name);
-    const tableName = table ? table.name : (tableData.name || 'Table1');
+    const tableId = node.tableId || tableData.tableId || (typeof node.id === 'string' && tables.some(t => t.id === node.id) ? node.id : undefined);
+    const nodeTableName = (node as any).tableName || (node as any).name || tableData.name || tableData.tableName;
+    const table = tables.find((t) => 
+      (tableId && t.id === tableId) || 
+      (nodeTableName && t.name.toLowerCase() === nodeTableName.toLowerCase()) || 
+      t.id === node.id ||
+      t.name.toLowerCase() === String(node.id).toLowerCase()
+    );
+    const tableName = table ? table.name : (nodeTableName || (tables.length > 0 ? tables[0].name : 'Table1'));
     const alias = node.id || tableName;
-    nodeTableMap.set(node.id, { tableName, alias });
+    nodeTableMap.set(node.id, { tableName, alias, table });
   });
 
   const rootNode = nodes[0];
   const rootInfo = nodeTableMap.get(rootNode.id) || {
     tableName: tables[0]?.name || 'Table1',
     alias: rootNode.id,
+    table: tables[0]
   };
 
   // 2. Build SELECT Columns
@@ -169,22 +176,49 @@ export function generateSqlSelect(
       const nodeInfo = nodeTableMap.get(node.id)!;
 
       // Check if relationship exists between joinedNodeIds and this node
-      const matchingRel = relationships.find((rel) => {
-        const fromMatch =
-          joinedNodeIds.has(rel.fromTableId) ||
-          Array.from(joinedNodeIds).some((id) => nodeTableMap.get(id)?.tableName === rel.fromTableId);
-        const toMatch =
-          rel.toTableId === node.id ||
-          rel.toTableId === nodeInfo.tableName ||
-          nodeTableMap.get(node.id)?.tableName === rel.toTableId;
-        return (fromMatch && toMatch) || (rel.fromTableId === node.id && joinedNodeIds.has(rel.toTableId));
-      });
+      let matchedRel: Relationship | null = null;
+      let matchedSourceNodeId: string | null = null;
+      let isReversed = false;
 
-      if (matchingRel) {
-        const sourceAlias = matchingRel.fromTableId;
+      for (const joinedId of Array.from(joinedNodeIds)) {
+        const sourceInfo = nodeTableMap.get(joinedId);
+        const rel = relationships.find(r => {
+          const fromMatchesSource = r.fromTableId === joinedId || (sourceInfo?.table && r.fromTableId === sourceInfo.table.id) || r.fromTableId === sourceInfo?.tableName;
+          const toMatchesTarget = r.toTableId === node.id || (nodeInfo?.table && r.toTableId === nodeInfo.table.id) || r.toTableId === nodeInfo?.tableName;
+          if (fromMatchesSource && toMatchesTarget) {
+            isReversed = false;
+            return true;
+          }
+          const fromMatchesTarget = r.fromTableId === node.id || (nodeInfo?.table && r.fromTableId === nodeInfo.table.id) || r.fromTableId === nodeInfo?.tableName;
+          const toMatchesSource = r.toTableId === joinedId || (sourceInfo?.table && r.toTableId === sourceInfo.table.id) || r.toTableId === sourceInfo?.tableName;
+          if (fromMatchesTarget && toMatchesSource) {
+            isReversed = true;
+            return true;
+          }
+          return false;
+        });
+
+        if (rel) {
+          matchedRel = rel;
+          matchedSourceNodeId = joinedId;
+          break;
+        }
+      }
+
+      if (matchedRel && matchedSourceNodeId) {
+        const sourceInfo = nodeTableMap.get(matchedSourceNodeId)!;
+        const sourceAlias = sourceInfo.alias;
         const targetAlias = nodeInfo.alias;
-        const sourceCol = matchingRel.fromFieldId || 'id';
-        const targetCol = matchingRel.toFieldId || 'id';
+
+        // Resolve field IDs to actual column names
+        const relFromFieldId = isReversed ? matchedRel.toFieldId : matchedRel.fromFieldId;
+        const relToFieldId = isReversed ? matchedRel.fromFieldId : matchedRel.toFieldId;
+
+        const sourceField = sourceInfo.table?.fields.find(f => f.id === relFromFieldId || f.name === relFromFieldId);
+        const targetField = nodeInfo.table?.fields.find(f => f.id === relToFieldId || f.name === relToFieldId);
+
+        const sourceCol = sourceField?.name || relFromFieldId || 'id';
+        const targetCol = targetField?.name || relToFieldId || 'id';
 
         fromClause += `\nLEFT JOIN ${quoteSqlIdentifier(nodeInfo.tableName, dbType)} AS ${quoteSqlIdentifier(
           targetAlias,

@@ -47,16 +47,19 @@ export default function App() {
   }
 
   return (
-    <div className="app-container flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300 relative print:h-auto print:overflow-visible print:bg-white">
+    <div className="app-container flex flex-col h-screen overflow-hidden text-sm bg-slate-100 dark:bg-slate-900 font-sans transition-colors duration-300 relative print:h-auto print:overflow-visible print:bg-white print:block">
       <ThemeInjector />
-      <AppHeader onAction={app.handleRibbonAction} chats={app.chats} />
+      <div className="no-print print:hidden">
+        <AppHeader onAction={app.handleRibbonAction} chats={app.chats} />
+        <Ribbon onAction={app.handleRibbonAction} />
+      </div>
       
-      <Ribbon onAction={app.handleRibbonAction} />
-      
-      <div className="flex flex-1 overflow-hidden relative print:overflow-visible print:h-auto">
-        <Sidebar onSetView={app.handleSetView} />
+      <div className="flex flex-1 overflow-hidden relative print:overflow-visible print:h-auto print:block">
+        <div className="no-print print:hidden">
+          <Sidebar onSetView={app.handleSetView} />
+        </div>
         
-        <div className="app-workspace-content flex-1 flex flex-col overflow-hidden relative transition-all duration-300 print:overflow-visible print:h-auto">
+        <div className="app-workspace-content flex-1 flex flex-col overflow-hidden relative transition-all duration-300 print:overflow-visible print:h-auto print:block print:w-full print:p-0">
           <Workspace onSetView={app.handleSetView} onActiveObjectChange={app.handleActiveObjectChange} />
         </div>
 
@@ -72,11 +75,13 @@ export default function App() {
         </div>
       </div>
 
-      <StatusBar 
-        currentView={app.currentView} 
-        activeObject={app.activeObject} 
-        onSetView={app.handleSetView} 
-      />
+      <div className="no-print print:hidden">
+        <StatusBar 
+          currentView={app.currentView} 
+          activeObject={app.activeObject} 
+          onSetView={app.handleSetView} 
+        />
+      </div>
       
       {/* MS Access Backstage View Overlay when 'Datei' (File) is clicked */}
       {isBackstageOpen && (

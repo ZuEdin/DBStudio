@@ -14,6 +14,7 @@ import { QueryParametersModal } from './components/QueryParametersModal';
 import { ParameterPromptModal } from './components/ParameterPromptModal';
 import { QueryExportModal } from './components/QueryExportModal';
 import { CrosstabWizardModal } from './components/CrosstabWizardModal';
+import { extractCrosstabConfigFromQuery, generateCrosstabSql, CrosstabConfig } from './utils/crosstabGenerator';
 import { ActionQueryRunner } from './components/ActionQueryRunner';
 import { WindowFunctionModal } from './components/WindowFunctionModal';
 import { CteQueryBuilderModal } from './components/CteQueryBuilderModal';
@@ -55,7 +56,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   const [showExplainModal, setShowExplainModal] = useState(false);
   const [selectedDialect, setSelectedDialect] = useState<SupportedSqlDialect>('SQLITE');
 
-  if (query.type !== 'SELECT') {
+  if (query.type !== 'SELECT' && query.type !== 'CROSSTAB') {
     const actionQuery = query as any;
     return (
       <div className="flex-1 flex flex-col bg-slate-950 p-6 overflow-y-auto items-center justify-center">
@@ -69,7 +70,9 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
   }
 
   const selectQuery = query as SelectQuery;
-  const [showTotals, setShowTotals] = useState(query.columns.some(c => c.aggregate));
+  const isCrosstabInitial = query.type === 'CROSSTAB' || (query.columns && query.columns.some(c => c.crosstab));
+  const [showTotals, setShowTotals] = useState(query.columns.some(c => c.aggregate) || isCrosstabInitial);
+  const [showCrosstab, setShowCrosstab] = useState(isCrosstabInitial);
   const [generatedSql, setGeneratedSql] = useState('');
   const { nodes, columns: queryColumns } = query;
 
@@ -80,10 +83,21 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     if (queryColumns.length === 0 || nodes.length === 0) {
       setGeneratedSql('Ziehen Sie Felder in den Grid, um eine Abfrage zu erstellen.');
     } else {
-      const sql = generateSqlSelect(nodes, queryColumns, tables, relationships, dbType, false, undefined, Boolean(selectQuery.distinct));
-      setGeneratedSql(sql + ';');
+      const crosstabConfig = extractCrosstabConfigFromQuery(selectQuery, tables);
+      if (selectQuery.type === 'CROSSTAB' || crosstabConfig) {
+        if (crosstabConfig) {
+          const sql = generateCrosstabSql(crosstabConfig, tables, dbType);
+          setGeneratedSql(sql);
+        } else {
+          const sql = generateSqlSelect(nodes, queryColumns, tables, relationships, dbType, false, undefined, Boolean(selectQuery.distinct));
+          setGeneratedSql(sql + ';');
+        }
+      } else {
+        const sql = generateSqlSelect(nodes, queryColumns, tables, relationships, dbType, false, undefined, Boolean(selectQuery.distinct));
+        setGeneratedSql(sql + ';');
+      }
     }
-  }, [query, relationships, tables, dbType, selectQuery.distinct]);
+  }, [query, relationships, tables, dbType, selectQuery.distinct, selectQuery.type, selectQuery.crosstabConfig]);
 
   useEffect(() => {
     const handleDesignerAction = (e: Event) => {
@@ -290,16 +304,134 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     } catch (err) { console.error('Grid drop error', err); }
   };
 
+  const handleApplyCrosstabFromWizard = (crosstabCfg: CrosstabConfig, sql: string) => {
+    const table = tables.find(t => t.id === crosstabCfg.sourceTableId || t.name === crosstabCfg.sourceTableId) || tables[0];
+    if (!table) return;
+
+    let currentNodes = [...nodes];
+    let existingNode = currentNodes.find(n => n.tableId === table.id || (n as any).data?.tableId === table.id);
+    if (!existingNode) {
+      existingNode = {
+        id: `node_${Date.now()}`,
+        tableId: table.id,
+        x: 80,
+        y: 80,
+      };
+      currentNodes.push(existingNode);
+    }
+
+    const newCols: QueryColumn[] = [];
+
+    // Row headers
+    crosstabCfg.rowHeaders.forEach((r, idx) => {
+      newCols.push({
+        id: `col_row_${idx}_${Date.now()}`,
+        tableId: table.id,
+        nodeId: existingNode!.id,
+        fieldId: r.fieldId,
+        tableName: table.name,
+        fieldName: r.fieldName,
+        alias: r.alias || r.fieldName,
+        show: true,
+        criteria: [],
+        aggregate: 'GROUP_BY',
+        crosstab: 'ROW_HEADING',
+      });
+    });
+
+    // Column header
+    newCols.push({
+      id: `col_col_${Date.now()}`,
+      tableId: table.id,
+      nodeId: existingNode.id,
+      fieldId: crosstabCfg.columnHeader.fieldId,
+      tableName: table.name,
+      fieldName: crosstabCfg.columnHeader.fieldName,
+      alias: crosstabCfg.columnHeader.alias || crosstabCfg.columnHeader.fieldName,
+      show: true,
+      criteria: [],
+      aggregate: 'GROUP_BY',
+      crosstab: 'COLUMN_HEADING',
+    });
+
+    // Value field
+    newCols.push({
+      id: `col_val_${Date.now()}`,
+      tableId: table.id,
+      nodeId: existingNode.id,
+      fieldId: crosstabCfg.valueField.fieldId,
+      tableName: table.name,
+      fieldName: crosstabCfg.valueField.fieldName,
+      alias: crosstabCfg.valueField.alias || crosstabCfg.valueField.fieldName,
+      show: true,
+      criteria: [],
+      aggregate: crosstabCfg.valueField.aggregate,
+      crosstab: 'VALUE',
+    });
+
+    const updatedQuery: SelectQuery = {
+      ...selectQuery,
+      type: 'CROSSTAB',
+      nodes: currentNodes,
+      columns: newCols,
+      crosstabConfig: {
+        rowHeaders: crosstabCfg.rowHeaders.map(r => r.fieldName),
+        columnHeader: crosstabCfg.columnHeader.fieldName,
+        valueField: crosstabCfg.valueField.fieldName,
+        aggregate: crosstabCfg.valueField.aggregate,
+        showRowTotals: true,
+        showColTotals: true,
+      }
+    };
+
+    onQueryChange(updatedQuery);
+    setShowTotals(true);
+    setShowCrosstab(true);
+    setOverrideSql('');
+    ui.addToast("Kreuztabellen-Konfiguration erfolgreich in den Designer übernommen!", "success");
+  };
+
   const [showAccessSqlModal, setShowAccessSqlModal] = useState(false);
 
   return (
     <div className="w-full h-full flex flex-col relative">
       {/* Top Toolbar */}
       <div className="bg-slate-100 border-b border-slate-300 p-1 flex gap-2 items-center flex-wrap">
-         <button onClick={toggleTotals} className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs border font-medium ${showTotals ? 'bg-slate-300 border-slate-400' : 'bg-white border-slate-300 hover:bg-slate-50'}`}>
-            <Sigma size={14}/> {showTotals ? 'Aggregation aus' : 'Aggregation (Summe, ...)'}
+         <button onClick={toggleTotals} className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs border font-medium ${showTotals ? 'bg-slate-300 border-slate-400 font-bold text-slate-900' : 'bg-white border-slate-300 hover:bg-slate-50'}`}>
+            <Sigma size={14}/> {showTotals ? 'Aggregation aus' : 'Funktionen / Summen'}
          </button>
          
+         <button 
+           onClick={() => {
+             const nextVal = !showCrosstab;
+             setShowCrosstab(nextVal);
+             if (nextVal) {
+               setShowTotals(true);
+               onQueryChange({ ...selectQuery, type: 'CROSSTAB' });
+             } else {
+               onQueryChange({ ...selectQuery, type: 'SELECT' });
+             }
+           }} 
+           className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border font-medium transition-colors ${
+             showCrosstab || selectQuery.type === 'CROSSTAB' 
+               ? 'bg-purple-100 border-purple-400 text-purple-900 font-bold shadow-2xs' 
+               : 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700'
+           }`}
+           title="Kreuztabellen-Modus (Pivot Zeilen/Spalten/Werte) aktivieren/deaktivieren"
+         >
+            <TableIcon size={14} className={showCrosstab ? 'text-purple-700' : 'text-slate-600'} />
+            <span>Kreuztabelle {showCrosstab ? '(Aktiv)' : ''}</span>
+         </button>
+
+         <button 
+           onClick={() => setShowCrosstabModal(true)} 
+           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border bg-purple-50 border-purple-200 text-purple-800 hover:bg-purple-100 font-bold transition shadow-2xs"
+           title="Kreuztabellen- & Matrix-Assistent öffnen"
+         >
+            <Sparkles size={13} className="text-purple-600" />
+            <span>Pivot Assistent</span>
+         </button>
+
          <button onClick={addCalculatedColumn} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border bg-white border-slate-300 hover:bg-slate-50 font-medium">
             <Calculator size={14}/> Berechnetes Feld
          </button>
@@ -311,15 +443,6 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
          >
             <Sliders size={14} className="text-slate-600" />
             <span>Parameter {selectQuery.parameters && selectQuery.parameters.length > 0 ? `(${selectQuery.parameters.length})` : ''}</span>
-         </button>
-
-         <button 
-           onClick={() => setShowCrosstabModal(true)} 
-           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border bg-white border-slate-300 hover:bg-slate-50 font-medium text-slate-700"
-           title="Kreuztabellen- & Matrix-Assistent öffnen"
-         >
-            <TableIcon size={14} className="text-emerald-600" />
-            <span>Kreuztabelle / Pivot</span>
          </button>
 
          <button 
@@ -415,6 +538,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
           onApplySql={(sql) => {
             setOverrideSql(sql);
           }}
+          onApplyCrosstab={handleApplyCrosstabFromWizard}
         />
       )}
 
@@ -494,6 +618,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
              queries={queries}
              onUpdateColumns={setQueryColumns} 
              showTotals={showTotals}
+             showCrosstab={showCrosstab || Boolean(selectQuery.crosstabConfig)}
            />
         </div>
         

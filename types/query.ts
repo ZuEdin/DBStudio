@@ -1,5 +1,7 @@
 export type AggregateFunction = 'GROUP_BY' | 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX' | 'FIRST' | 'LAST' | 'EXPRESSION';
 
+export type CrosstabRole = 'ROW_HEADING' | 'COLUMN_HEADING' | 'VALUE' | 'NONE';
+
 export type QueryParameterType = 'STRING' | 'NUMBER' | 'DATE' | 'BOOLEAN' | 'ARRAY';
 
 export interface QueryParameter {
@@ -30,19 +32,32 @@ export interface QueryColumn {
   show: boolean;
   criteria: string[];
   aggregate?: AggregateFunction | null;
+  crosstab?: CrosstabRole | null;
   isCalculated?: boolean;
   expression?: string;
 }
 
 export interface SelectQuery {
   id: string;
-  type: 'SELECT';
+  type: 'SELECT' | 'CROSSTAB';
   name: string;
   nodes: any[]; // Using any[] here to avoid circular imports of TableNode
   columns: QueryColumn[];
   parameters?: QueryParameter[];
   joinOverrides?: QueryJoinOverride[];
   distinct?: boolean;
+  crosstabConfig?: {
+    rowHeaders: string[];
+    columnHeader: string;
+    valueField: string;
+    aggregate: AggregateFunction;
+    showRowTotals?: boolean;
+    showColTotals?: boolean;
+  };
+}
+
+export interface CrosstabQuery extends Omit<SelectQuery, 'type'> {
+  type: 'CROSSTAB';
 }
 
 export interface Criterion {
@@ -80,4 +95,5 @@ export interface DeleteQuery {
 
 export type ActionQuery = InsertQuery | UpdateQuery | DeleteQuery;
 
-export type Query = SelectQuery | ActionQuery;
+export type Query = SelectQuery | CrosstabQuery | ActionQuery;
+

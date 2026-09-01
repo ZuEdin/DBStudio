@@ -105,6 +105,7 @@ interface QueryGridProps {
   queries?: Query[];
   onUpdateColumns: (cols: QueryColumn[]) => void;
   showTotals: boolean;
+  showCrosstab?: boolean;
 }
 
 const CriteriaInput: React.FC<{
@@ -221,7 +222,7 @@ const CriteriaInput: React.FC<{
   );
 };
 
-export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, forms = [], queries = [], onUpdateColumns, showTotals }) => {
+export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, forms = [], queries = [], onUpdateColumns, showTotals, showCrosstab }) => {
   const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
 
   const updateColumn = (id: string, updates: Partial<QueryColumn>) => {
@@ -350,6 +351,38 @@ export const QueryGrid: React.FC<QueryGridProps> = ({ columns, tables, forms = [
                       <option value="FIRST">Erster Wert</option>
                       <option value="LAST">Letzter Wert</option>
                       <option value="EXPRESSION">Ausdruck</option>
+                    </select>
+                  </td>
+                ))}
+             </tr>
+          )}
+
+          {(showCrosstab || columns.some(c => c.crosstab)) && (
+             <tr>
+                <th className="border border-slate-300 p-1 font-semibold text-left bg-purple-50/70 text-purple-900">Kreuztabelle:</th>
+                {columns.map(col => (
+                  <td key={col.id} className="border border-slate-300 p-0 bg-purple-50/40">
+                    <select 
+                      className="w-full h-full p-1 border-none bg-transparent font-semibold text-purple-950 text-xs"
+                      value={col.crosstab || 'NONE'}
+                      onChange={e => {
+                        const val = e.target.value as any;
+                        const role = val === 'NONE' ? null : val;
+                        let extraUpdates: Partial<QueryColumn> = { crosstab: role };
+                        if (role === 'ROW_HEADING' || role === 'COLUMN_HEADING') {
+                          if (!col.aggregate) extraUpdates.aggregate = 'GROUP_BY';
+                        } else if (role === 'VALUE') {
+                          if (!col.aggregate || col.aggregate === 'GROUP_BY') {
+                            extraUpdates.aggregate = 'COUNT';
+                          }
+                        }
+                        updateColumn(col.id, extraUpdates);
+                      }}
+                    >
+                      <option value="NONE">(keine)</option>
+                      <option value="ROW_HEADING">Zeilenüberschrift</option>
+                      <option value="COLUMN_HEADING">Spaltenüberschrift</option>
+                      <option value="VALUE">Wert</option>
                     </select>
                   </td>
                 ))}
