@@ -45,8 +45,9 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   const devDependencies: any = { 
       "@types/react": "^18.3.3", 
       "@types/react-dom": "^18.3.0", 
+      "@types/node": "^20.12.0",
       "@vitejs/plugin-react": "^4.3.4",
-       "@types/react-big-calendar": "^1.8.9", 
+      "@types/react-big-calendar": "^1.8.9", 
       "typescript": "^5.4.5", 
       "vite": "^5.4.14" 
   };
@@ -80,7 +81,28 @@ export const generateReactConfigs = (config: BackendConfig, root: string): Virtu
   files.push({ name: 'package.json', path: `${root}/package.json`, content: JSON.stringify(packageJson, null, 2), language: 'json' });
 
   const tsConfig = {
-    "compilerOptions": { "target": "ES2020", "useDefineForClassFields": true, "lib": ["ES2020", "DOM", "DOM.Iterable"], "module": "ESNext", "skipLibCheck": true, "moduleResolution": "bundler", "allowImportingTsExtensions": true, "resolveJsonModule": true, "isolatedModules": true, "noEmit": true, "jsx": "react-jsx", "strict": false, "noUnusedLocals": false, "noUnusedParameters": false, "noImplicitAny": false, "noFallthroughCasesInSwitch": true },
+    "compilerOptions": { 
+      "target": "ES2020", 
+      "useDefineForClassFields": true, 
+      "lib": ["ES2020", "DOM", "DOM.Iterable"], 
+      "module": "ESNext", 
+      "skipLibCheck": true, 
+      "moduleResolution": "bundler", 
+      "allowImportingTsExtensions": true, 
+      "resolveJsonModule": true, 
+      "isolatedModules": true, 
+      "noEmit": true, 
+      "jsx": "react-jsx", 
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      },
+      "strict": false, 
+      "noUnusedLocals": false, 
+      "noUnusedParameters": false, 
+      "noImplicitAny": false, 
+      "noFallthroughCasesInSwitch": true 
+    },
     "include": ["src"], "references": [{ "path": "./tsconfig.node.json" }]
   };
   files.push({ name: 'tsconfig.json', path: `${root}/tsconfig.json`, content: JSON.stringify(tsConfig, null, 2), language: 'json' });
@@ -181,7 +203,56 @@ body {
 ${printStyles}`, language: 'css' });
   }
 
-  files.push({ name: 'vite.config.ts', path: `${root}/vite.config.ts`, content: `import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], base: './', server: { port: ${fePort} } });`, language: 'typescript' });
+  files.push({ 
+    name: 'vite.config.ts', 
+    path: `${root}/vite.config.ts`, 
+    content: `import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+// Automated Zero-Config Production Build Setup
+export default defineConfig({
+  plugins: [react()],
+  base: './', // Relative asset paths for standalone client deployments
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true,
+    sourcemap: false,
+    cssCodeSplit: true,
+    minify: 'esbuild',
+    target: 'es2020',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('xlsx') || id.includes('jspdf')) {
+              return 'vendor-docs';
+            }
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
+  server: {
+    port: ${fePort},
+    host: '0.0.0.0',
+  },
+});`, 
+    language: 'typescript' 
+  });
   
   const wl: any = config.whitelabel || { primaryColor: '#3b82f6', secondaryColor: '#1e293b' };
   
