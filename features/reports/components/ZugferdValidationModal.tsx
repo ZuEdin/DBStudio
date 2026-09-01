@@ -46,7 +46,12 @@ export const ZugferdValidationModal: React.FC<ZugferdValidationModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in">
+    <div 
+      role="dialog"
+      aria-modal="true"
+      data-no-print="true"
+      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in no-print print:hidden"
+    >
       <div className="bg-slate-900 text-slate-100 rounded-2xl w-full max-w-3xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700 flex items-center justify-between">

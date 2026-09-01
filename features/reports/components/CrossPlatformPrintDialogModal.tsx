@@ -68,30 +68,48 @@ export const CrossPlatformPrintDialogModal: React.FC<CrossPlatformPrintDialogMod
   };
 
   const handlePrintSubmit = async () => {
-    await savePrintJobToIndexedDB({
-      id: `print_${Date.now()}`,
-      reportTitle: report.name,
-      printedAt: Date.now(),
-      pageCount,
-      status: 'PRINTED',
-    });
+    try {
+      await savePrintJobToIndexedDB({
+        id: `print_${Date.now()}`,
+        reportTitle: report.name,
+        printedAt: Date.now(),
+        pageCount,
+        status: 'PRINTED',
+      });
+    } catch {
+      // Non-blocking fallback
+    }
 
-    onExecutePrint({
-      targetOS,
-      paperSize,
-      orientation,
-      copies,
-      duplex,
-      marginsMm,
-      colorMode,
-      cupsPrinterName,
-      pdfCompliance,
-    });
     onClose();
+    setTimeout(() => {
+      onExecutePrint({
+        targetOS,
+        paperSize,
+        orientation,
+        copies,
+        duplex,
+        marginsMm,
+        colorMode,
+        cupsPrinterName,
+        pdfCompliance,
+      });
+    }, 150);
+  };
+
+  const handleExportPdfASubmit = () => {
+    onClose();
+    setTimeout(() => {
+      onExportPdfA(pdfCompliance);
+    }, 50);
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div 
+      role="dialog"
+      aria-modal="true"
+      data-no-print="true"
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 no-print print:hidden"
+    >
       <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="bg-slate-900 text-white px-5 py-4 flex justify-between items-center">
@@ -289,7 +307,7 @@ export const CrossPlatformPrintDialogModal: React.FC<CrossPlatformPrintDialogMod
         {/* Footer */}
         <div className="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-between items-center">
           <button
-            onClick={() => onExportPdfA(pdfCompliance)}
+            onClick={handleExportPdfASubmit}
             className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <Download size={14} className="text-emerald-600" />

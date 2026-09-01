@@ -29,7 +29,10 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({ table, rec
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      data-no-print="true"
+      className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center animate-in fade-in-25 backdrop-blur-sm p-4 no-print print:hidden"
       onClick={onClose}
     >
       <div

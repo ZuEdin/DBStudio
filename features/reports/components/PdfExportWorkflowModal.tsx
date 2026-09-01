@@ -52,10 +52,13 @@ export const PdfExportWorkflowModal: React.FC<PdfExportWorkflowModalProps> = ({
         237.5,
         1487.5
       );
+      onClose();
     } else {
-      window.print();
+      onClose();
+      setTimeout(() => {
+        window.print();
+      }, 120);
     }
-    onClose();
   };
 
   const handleSendEmail = async () => {
@@ -80,7 +83,12 @@ export const PdfExportWorkflowModal: React.FC<PdfExportWorkflowModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div 
+      role="dialog"
+      aria-modal="true"
+      data-no-print="true"
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 no-print print:hidden"
+    >
       <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="bg-slate-900 text-white px-5 py-4 flex justify-between items-center">

@@ -76,7 +76,12 @@ export const ReportEmailModal: React.FC<ReportEmailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div 
+      role="dialog"
+      aria-modal="true"
+      data-no-print="true"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 no-print print:hidden"
+    >
       <div className="bg-white rounded-lg shadow-2xl border border-slate-300 w-full max-w-lg overflow-hidden flex flex-col">
         <div className="bg-slate-800 text-white p-4 flex justify-between items-center">
           <div className="flex items-center gap-2 font-bold text-sm">

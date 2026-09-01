@@ -424,6 +424,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
           body {
             -webkit-print-color-adjust: exact;
           }
+          .app-ribbon-sub,
+          .no-print,
+          .print\\:hidden,
+          [data-no-print],
+          [role="dialog"],
+          .fixed {
+            display: none !important;
+            visibility: hidden !important;
+          }
         }
       `}</style>
 
@@ -808,44 +817,53 @@ export const ReportView: React.FC<ReportViewProps> = ({
         </div>
       </div>
 
-      {detailView && targetTable && (
-        <RecordDetailModal table={targetTable} recordId={detailView.recordId} onClose={() => setDetailView(null)} />
-      )}
+      {/* Modals & Dialogs (Excluded from Print) */}
+      <div className="no-print print:hidden" data-no-print="true">
+        {detailView && targetTable && (
+          <RecordDetailModal table={targetTable} recordId={detailView.recordId} onClose={() => setDetailView(null)} />
+        )}
 
-      {showPrintProfileModal && (
-        <CrossPlatformPrintDialogModal
-          isOpen={showPrintProfileModal}
-          onClose={() => setShowPrintProfileModal(false)}
-          report={report}
-          pageCount={1}
-          onExecutePrint={() => {
-            handlePrint();
-          }}
-          onExportPdfA={(compliance) => {
-            handleExportPDF();
-          }}
-        />
-      )}
+        {showPrintProfileModal && (
+          <CrossPlatformPrintDialogModal
+            isOpen={showPrintProfileModal}
+            onClose={() => setShowPrintProfileModal(false)}
+            report={report}
+            pageCount={1}
+            onExecutePrint={(options) => {
+              setShowPrintProfileModal(false);
+              setTimeout(() => {
+                handlePrint();
+              }, 120);
+            }}
+            onExportPdfA={(compliance) => {
+              setShowPrintProfileModal(false);
+              setTimeout(() => {
+                handleExportPDF();
+              }, 50);
+            }}
+          />
+        )}
 
-      {showEmailModal && (
-        <ReportEmailModal
-          reportName={report.name}
-          onClose={() => setShowEmailModal(false)}
-        />
-      )}
+        {showEmailModal && (
+          <ReportEmailModal
+            reportName={report.name}
+            onClose={() => setShowEmailModal(false)}
+          />
+        )}
 
-      {showZugferdModal && zugferdConfig && (
-        <ZugferdValidationModal
-          validation={zugferdValidation}
-          config={zugferdConfig}
-          netTotal={baseNetTotal}
-          taxTotal={baseNetTotal * 0.19}
-          grossTotal={baseNetTotal * 1.19}
-          items={data}
-          onClose={() => setShowZugferdModal(false)}
-          onExportPdf={handleExportPDF}
-        />
-      )}
+        {showZugferdModal && zugferdConfig && (
+          <ZugferdValidationModal
+            validation={zugferdValidation}
+            config={zugferdConfig}
+            netTotal={baseNetTotal}
+            taxTotal={baseNetTotal * 0.19}
+            grossTotal={baseNetTotal * 1.19}
+            items={data}
+            onClose={() => setShowZugferdModal(false)}
+            onExportPdf={handleExportPDF}
+          />
+        )}
+      </div>
     </div>
   );
 };

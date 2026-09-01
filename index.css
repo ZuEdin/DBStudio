@@ -4,6 +4,7 @@
   /* Hide application shell components, navigation bars, ribbons, sidebars, modals and toolbars */
   .app-header,
   .app-ribbon,
+  .app-ribbon-sub,
   .app-sidebar,
   .app-statusbar,
   .app-tabbar,
@@ -13,12 +14,19 @@
   .no-print,
   .d-print-none,
   .print\:hidden,
-  [data-no-print] {
+  [data-no-print],
+  [role="dialog"],
+  [aria-modal="true"],
+  .fixed.inset-0,
+  .modal,
+  .modal-backdrop {
     display: none !important;
     height: 0 !important;
     width: 0 !important;
     overflow: hidden !important;
     visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
     margin: 0 !important;
     padding: 0 !important;
   }
