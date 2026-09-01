@@ -104,3 +104,62 @@
   - Benutzerdefinierte Validierungsausdrücke für Eingabefelder mit sofortigem Inline-Feedback im Formular.
 - [x] **Automatische Normalisierungs-Empfehlungen (3NF):**
   - Assistent erkennt redundante Datenfelder und schlägt automatische Tabellen-Splits mit 1:n-Fremdschlüsseln vor.
+
+---
+
+## 🚀 9. Agency & Headless CMS Multi-Generator Suite (Geplante Erweiterung)
+
+> **Fokus:** Enterprise-Agentur-Fähigkeit, Headless-CMS Anbindung, schlüsselfertige Admin-Panels & White-Label Dokumentation für Kundenübergaben.
+
+### 9.1. 🏛️ Headless CMS & WordPress Full-Stack Generatoren
+- [x] **Strapi v5 & Directus Schema Engine:**
+  - 1-Klick Export von Tabellenschemata in native Strapi v5 `schema.json` Content-Types und Directus API Collections.
+  - Generierung von Relationen, Validierungsregeln und RBAC-Rollenberechtigungen.
+- [x] **WordPress & ACF Pro (Advanced Custom Fields) Suite:**
+  - Generierung von `acf-json` Feldgruppen-Definitionen für nahtlosen Import in WordPress.
+  - Automatisches Scaffolding von Custom Gutenberg-Blöcken (React + PHP Server-Side Rendering) für Tabellen und Erfassungsformulare.
+  - CPT (Custom Post Type) Registrierung mit REST-API-fähigen Endpunkten.
+- [x] **Nextcloud OCP App & Ecosystem:**
+  - Weiterer Ausbau des OCP REST API Generators für Nextcloud 28-30 Apps (`apps/` Verzeichnis Archiv).
+
+### 9.2. 🎛️ Modern Admin-Panel & Dashboard Frameworks
+- [x] **Laravel Filament v3 Resource Generator:**
+  - Generierung fertiger Filament v3 `Resource`-, `Pages`- und `Form`-Klassen inkl. Tabellen-Filtern, Bulk-Actions und Formular-Validierungen.
+- [x] **Next.js 15 & Refine Admin-Panel Boilerplate:**
+  - Generierung von Next.js App-Router Dashboards mit Server Actions, TanStack Table v8, Zod-Validierung und Tailwind CSS.
+- [x] **Supabase & PocketBase Bootstrap:**
+  - Erstellung von Supabase SQL Migrationen inkl. Row-Level Security (RLS) Policies und typisierten TypeScript-Clients.
+
+### 9.3. 💼 Agentur-Kollaboration & Kunden-Übergabe Tools
+- [x] **White-Label Kunden-Dokumentation (PDF & Interaktives HTML):**
+  - Automatisch generiertes, CI-konformes Datenmodell-Handbuch mit interaktivem ER-Diagramm, Datenlexikon und API-Endpoints für den Endkunden.
+- [x] **Kunden-Abnahme-Modus (Client Read-Only Preview):**
+  - Sicherer Präsentationsmodus für Agenturkunden zur Vorab-Freigabe und Kommentierung des Datenmodells.
+- [x] **OpenAPI 3.1 & Postman Collection Exporter:**
+  - Schlüsselfertige `swagger.json` und Postman Collection mit parametrisierten Mock-Requests für externe Agentur-Teams.
+- [x] **Intelligenter CSV/Excel-Migration Wizard:**
+  - Automatische Erkennung und Normalisierung unstrukturierter Kunden-Tabellen (Split von Adressen/Namen, Dublettenprüfung).
+
+---
+
+## 📐 Menüband-Reorganisation: „Bereitstellung & Generatoren“
+
+Um das Menüband übersichtlich, aufgeräumt und auch bei vielen Generatoren skalierbar zu halten, wird die Registerkarte **„Bereitstellung & Generator“** in logische Dropdown-Zentren gegliedert:
+
+1. **Gruppe 1: Ziel-Konfiguration & Live-Status**
+   - Aktive Konfiguration (Stack-Übersicht: DB, API, Frontend, Port) & Bridge-Status.
+2. **Gruppe 2: CMS & Ecosystems (Dropdown-Hub)**
+   - 📦 **WordPress Suite**: Plugin Generator, ACF Pro JSON, Gutenberg Blöcke, Shortcodes
+   - ☁️ **Nextcloud Suite**: OCP App Generator, REST Controller, App ZIP
+   - 🚀 **Headless CMS Hub**: Strapi v5 Schemas, Directus Collections, Supabase
+3. **Gruppe 3: Admin & Dashboard-Frameworks (Dropdown-Hub)**
+   - 🐘 **Laravel Filament v3**: Resource & Table Generator
+   - ⚛️ **Next.js 15 & Refine**: Modern Dashboard Boilerplate
+4. **Gruppe 4: Cloud, DevOps & API (Dropdown-Hub)**
+   - 🐳 **Docker & CI/CD**: Docker Compose, GitHub/GitLab Actions
+   - 🌐 **API & Mocking**: OpenAPI 3.1, Postman Collections, Live Mock Server
+   - ⚡ **Automatisierung**: n8n / Zapier Workflow Bridge, Webhook Ingestion Hub
+5. **Gruppe 5: Export & Desktop-Build (Dropdown-Hub)**
+   - 💻 **Desktop Wrapper**: Tauri 2.0 / Electron (.msi, .exe, .dmg)
+   - ⚙️ **Backend & EF Core**: .NET 10 EF Core, Node.js, Python FastAPI, PHP
+   - 📦 **Projekt ZIP**: Komplettes Projektpaket exportieren

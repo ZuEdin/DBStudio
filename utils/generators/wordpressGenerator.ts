@@ -115,6 +115,7 @@ define('${phpPrefix.toUpperCase()}_URL', plugin_dir_url(__FILE__));
 
 require_once ${phpPrefix.toUpperCase()}_PATH . 'includes/class-db.php';
 require_once ${phpPrefix.toUpperCase()}_PATH . 'includes/class-rest-api.php';
+require_once ${phpPrefix.toUpperCase()}_PATH . 'includes/class-cpt.php';
 require_once ${phpPrefix.toUpperCase()}_PATH . 'includes/class-shortcodes.php';
 
 // Activation & Database Delta
@@ -248,6 +249,211 @@ add_action('rest_api_init', array('${phpPrefix}_REST_API', 'register_routes'));
     path: `WordPressPlugin/${slug}/includes/class-rest-api.php`,
     content: restApiContent,
     language: 'php',
+  });
+
+  // 3b. Custom Post Types (CPT) Handler
+  const cptContent = `<?php
+if (!defined('ABSPATH')) exit;
+
+class ${phpPrefix}_CPT {
+    public static function init() {
+        add_action('init', array(__CLASS__, 'register_post_types'));
+    }
+
+    public static function register_post_types() {
+        ${selectedTables
+          .map((table) => {
+            const cptSlug = `dbs_${table.name.toLowerCase()}`;
+            return `
+        register_post_type('${cptSlug}', array(
+            'labels' => array(
+                'name'               => _x('${table.name}', 'post type general name', '${config.textDomain}'),
+                'singular_name'      => _x('${table.name}', 'post type singular name', '${config.textDomain}'),
+                'add_new'            => _x('Neu hinzufügen', '${table.name}', '${config.textDomain}'),
+                'add_new_item'       => __('Neuen ${table.name} hinzufügen', '${config.textDomain}'),
+                'edit_item'          => __('Bearbeite ${table.name}', '${config.textDomain}'),
+                'all_items'          => __('Alle ${table.name}', '${config.textDomain}')
+            ),
+            'public'             => true,
+            'publicly_queryable' => true,
+            'show_ui'            => true,
+            'show_in_menu'       => '${slug}',
+            'query_var'          => true,
+            'rewrite'            => array('slug' => '${cptSlug}'),
+            'capability_type'    => 'post',
+            'has_archive'        => true,
+            'hierarchical'       => false,
+            'show_in_rest'       => true,
+            'rest_base'          => '${cptSlug}',
+            'supports'           => array('title', 'editor', 'custom-fields', 'revisions')
+        ));`;
+          })
+          .join('\n')}
+    }
+}
+
+add_action('plugins_loaded', array('${phpPrefix}_CPT', 'init'));
+`;
+
+  files.push({
+    name: 'class-cpt.php',
+    path: `WordPressPlugin/${slug}/includes/class-cpt.php`,
+    content: cptContent,
+    language: 'php',
+  });
+
+  // 3c. ACF Pro (Advanced Custom Fields) JSON Definitions
+  selectedTables.forEach((table) => {
+    const tableSlug = table.name.toLowerCase();
+    const acfFields = (table.fields || [])
+      .filter((f) => !f.isPrimaryKey)
+      .map((f, idx) => {
+        let fieldType = 'text';
+        if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'CURRENCY') fieldType = 'number';
+        if (f.type === 'BOOLEAN') fieldType = 'true_false';
+        if (f.type === 'DATE' || f.type === 'DATETIME') fieldType = 'date_picker';
+        if (f.type === 'TEXT') fieldType = 'textarea';
+
+        return {
+          key: `field_dbs_${tableSlug}_${f.name.toLowerCase()}`,
+          label: f.name,
+          name: f.name.toLowerCase(),
+          type: fieldType,
+          instructions: f.comment || `Eingabefeld für ${f.name}`,
+          required: (f.allowNull === false || f.isNullable === false) ? 1 : 0,
+        };
+      });
+
+    const acfGroup = {
+      key: `group_dbs_${tableSlug}`,
+      title: `${table.name} Eigenschaftsfelder`,
+      fields: acfFields,
+      location: [
+        [
+          {
+            param: 'post_type',
+            operator: '==',
+            value: `dbs_${tableSlug}`,
+          },
+        ],
+      ],
+      menu_order: 0,
+      position: 'normal',
+      style: 'default',
+      label_placement: 'top',
+      instruction_placement: 'label',
+      hide_on_screen: '',
+      active: true,
+      description: `Generierte ACF Pro Feldgruppe für ${table.name}`,
+    };
+
+    files.push({
+      name: `group_dbs_${tableSlug}.json`,
+      path: `WordPressPlugin/${slug}/acf-json/group_dbs_${tableSlug}.json`,
+      content: JSON.stringify(acfGroup, null, 2),
+      language: 'json',
+    });
+  });
+
+  // 3d. Custom Gutenberg Block Scaffolding (React + PHP SSR)
+  selectedTables.forEach((table) => {
+    const tableSlug = table.name.toLowerCase();
+
+    // block.json
+    const blockJson = {
+      $schema: 'https://schemas.wp.org/trunk/block.json',
+      apiVersion: 3,
+      name: `dbs/${tableSlug}-block`,
+      version: '1.0.0',
+      title: `${table.name} Datenansicht Block`,
+      category: 'widgets',
+      icon: 'database',
+      description: `Gutenberg Block zur Darstellung von ${table.name} Daten`,
+      supports: {
+        html: false,
+        align: ['wide', 'full'],
+      },
+      textdomain: config.textDomain,
+      editorScript: `file:./index.js`,
+      render: `file:./render.php`,
+    };
+
+    files.push({
+      name: 'block.json',
+      path: `WordPressPlugin/${slug}/blocks/${tableSlug}/block.json`,
+      content: JSON.stringify(blockJson, null, 2),
+      language: 'json',
+    });
+
+    // render.php (PHP SSR)
+    const blockRenderPhp = `<?php
+if (!defined('ABSPATH')) exit;
+
+global $wpdb;
+$table_name = $wpdb->prefix . '${config.tablePrefix}${tableSlug}';
+$items = $wpdb->get_results("SELECT * FROM $table_name LIMIT 20", ARRAY_A);
+?>
+<div class="dbs-gutenberg-block dbs-block-${tableSlug}" style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
+    <h3 style="margin-top: 0;">${table.name} Übersicht</h3>
+    <?php if (empty($items)): ?>
+        <p style="color: #64748b; font-style: italic;">Keine Einträge gefunden.</p>
+    <?php else: ?>
+        <table class="wp-list-table widefat fixed striped" style="width: 100%;">
+            <thead>
+                <tr>
+                    ${(table.fields || []).map((f) => `<th>${f.name}</th>`).join('\n                    ')}
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($items as $row): ?>
+                    <tr>
+                        ${(table.fields || []).map((f) => `<td><?php echo esc_html($row['${f.name}'] ?? ''); ?></td>`).join('\n                        ')}
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+</div>
+`;
+
+    files.push({
+      name: 'render.php',
+      path: `WordPressPlugin/${slug}/blocks/${tableSlug}/render.php`,
+      content: blockRenderPhp,
+      language: 'php',
+    });
+
+    // index.js (React Gutenberg Editor script)
+    const blockIndexJs = `import { registerBlockType } from '@wordpress/blocks';
+import { useBlockProps } from '@wordpress/block-editor';
+
+registerBlockType('dbs/${tableSlug}-block', {
+    edit() {
+        const blockProps = useBlockProps({
+            style: { padding: '16px', border: '2px dashed #3b82f6', borderRadius: '8px', background: '#eff6ff' }
+        });
+
+        return (
+            <div { ...blockProps }>
+                <h4 style={{ margin: 0, color: '#1e40af' }}>📊 Gutenberg Block: ${table.name}</h4>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#3b82f6' }}>
+                    Dieser Block rendert im Frontend dynamisch die Daten der Tabelle <strong>${table.name}</strong>.
+                </p>
+            </div>
+        );
+    },
+    save() {
+        return null; // Server-side rendered via render.php
+    }
+});
+`;
+
+    files.push({
+      name: 'index.js',
+      path: `WordPressPlugin/${slug}/blocks/${tableSlug}/index.js`,
+      content: blockIndexJs,
+      language: 'javascript',
+    });
   });
 
   // 4. Shortcodes Handler

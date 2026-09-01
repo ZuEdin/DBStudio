@@ -53,6 +53,10 @@ import { AccessMdbMigrationModal } from '../features/access-migration/components
 import { AstCodeSyncModal } from '../features/ast-sync/components/AstCodeSyncModal';
 import { EfCoreExportModal } from '../features/generators/EfCoreExportModal';
 import { DesktopPackageModal } from '../features/generators/DesktopPackageModal';
+import { WhitelabelDocGeneratorModal } from '../features/agency/WhitelabelDocGeneratorModal';
+import { ClientApprovalPreviewModal } from '../features/agency/ClientApprovalPreviewModal';
+import { OpenApiPostmanExportModal } from '../features/agency/OpenApiPostmanExportModal';
+import { CsvMigrationWizardModal } from '../features/agency/CsvMigrationWizardModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { CodeGenDisclaimerModal } from './modals/CodeGenDisclaimerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
@@ -640,6 +644,34 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
           isOpen={ui.showDesktopPackagingModal}
           onClose={() => ui.setShowDesktopPackagingModal(false)}
           onShowToast={(msg, type) => addToast(msg, type || 'info')}
+        />
+      )}
+
+      {ui.showWhitelabelDocModal && (
+        <WhitelabelDocGeneratorModal
+          isOpen={ui.showWhitelabelDocModal}
+          onClose={() => ui.setShowWhitelabelDocModal(false)}
+        />
+      )}
+
+      {ui.showClientApprovalModal && (
+        <ClientApprovalPreviewModal
+          isOpen={ui.showClientApprovalModal}
+          onClose={() => ui.setShowClientApprovalModal(false)}
+        />
+      )}
+
+      {ui.showOpenApiExporterModal && (
+        <OpenApiPostmanExportModal
+          isOpen={ui.showOpenApiExporterModal}
+          onClose={() => ui.setShowOpenApiExporterModal(false)}
+        />
+      )}
+
+      {ui.showCsvMigrationModal && (
+        <CsvMigrationWizardModal
+          isOpen={ui.showCsvMigrationModal}
+          onClose={() => ui.setShowCsvMigrationModal(false)}
         />
       )}
 

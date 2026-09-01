@@ -43,31 +43,46 @@ export const PromoTestimonialsAndBadges: React.FC = () => {
         </div>
       </div>
 
-      {/* Comparison Quotes / User Highlights */}
+      {/* Honest Success Story Placeholders */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
-          <div className="flex items-center gap-1 text-amber-400 text-sm">
-            ★★★★★ <span className="text-xs text-slate-400 ml-2 font-normal">DACH Handwerks- &amp; Bau-Enterprise</span>
+        <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-dashed border-indigo-700/60 p-6 rounded-2xl space-y-3 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-indigo-400 bg-indigo-950/70 border border-indigo-800/80 px-2.5 py-0.5 rounded-full">
+              Hier kann Ihre Erfolgsgeschichte stehen #1
+            </span>
+            <span className="text-[10px] text-slate-500 font-mono">Platzhalter</span>
           </div>
           <p className="text-xs text-slate-300 italic leading-relaxed">
-            „Wir haben über 15 alte MS Access-Datenbanken innerhalb von zwei Wochen in DB Studio migriert. Die automatische Generierung von ZUGFeRD-Rechnungen und der C#-Code-Export für unsere interne IT haben uns über 60.000 € Entwicklungskosten erspart.“
+            „Hier kann Ihre eigene Erfolgsgeschichte mit DB Studio Pro stehen: Berichten Sie von Ihrer erfolgreichen Access-Migration, Ihren individuellen Datenbankmasken, automatisierten E-Rechnungen (ZUGFeRD / Swiss QR) oder eingesparten Entwicklungskosten.“
           </p>
-          <div className="text-[11px] font-bold text-white">
-            Dipl.-Ing. Markus Weber <span className="text-slate-400 font-normal">• Leiter IT &amp; Digitalisierung</span>
+          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+            <span className="font-bold text-white">Ihr Name / Ihr Unternehmen</span>
+            <span className="text-slate-400 font-normal">Ihre Branche &amp; IT-Rolle</span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 p-6 rounded-2xl space-y-3">
-          <div className="flex items-center gap-1 text-amber-400 text-sm">
-            ★★★★★ <span className="text-xs text-slate-400 ml-2 font-normal">Full-Stack Softwareberatung</span>
+        <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-dashed border-indigo-700/60 p-6 rounded-2xl space-y-3 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 px-2.5 py-0.5 rounded-full">
+              Hier kann Ihre Erfolgsgeschichte stehen #2
+            </span>
+            <span className="text-[10px] text-slate-500 font-mono">Platzhalter</span>
           </div>
           <p className="text-xs text-slate-300 italic leading-relaxed">
-            „Das visuelle Modellieren von Relationen und der sofortige DDL-Export für PostgreSQL und SQLite ist unschlagbar. Die Local Bridge ermöglicht nahtlose Synchronisation ohne Cloud-Zwang.“
+            „Teilen Sie Ihre Praxis-Erfahrungen mit der Community: Wie hat Ihnen die visuelle Schema-Modellierung, der Multi-DB DDL-Export oder die lokale Offline-Fähigkeit in Ihrem Projekt geholfen?“
           </p>
-          <div className="text-[11px] font-bold text-white">
-            Elena Rossi <span className="text-slate-400 font-normal">• Senior Solution Architect</span>
+          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+            <span className="font-bold text-white">Ihr Team / Ihre Organisation</span>
+            <span className="text-slate-400 font-normal">Ihr Anwendungsfall</span>
           </div>
         </div>
+      </div>
+
+      <div className="text-center">
+        <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+          <CheckCircle2 size={13} className="text-emerald-400" />
+          <span><strong>100% Transparenz:</strong> Wir verzichten bewusst auf erfundene Marketing-Testimonials. Echtes Feedback und echte Software stehen im Mittelpunkt.</span>
+        </p>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History, Laptop, Terminal, Layers, Package, Cloud } from 'lucide-react';
+import { Settings, Play, Download, AppWindow, Server, UploadCloud, CircuitBoard, CloudLightning, Radio, X, Database, Eye, Check, FileCode, RefreshCw, GitCommit, Globe, ShieldCheck, ShieldAlert, History, Laptop, Terminal, Layers, Package, Cloud, LayoutGrid } from 'lucide-react';
 import { BackendConfig, DbType, FrontendFramework, StylingFramework } from '../../../types/index';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -498,8 +498,84 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
             />
         </RibbonGroup>
 
-        {/* Nextcloud App Generator Group */}
-        <RibbonGroup label="Nextcloud">
+        {/* Combined CMS & Headless Ecosystems Group */}
+        <RibbonGroup label="CMS & Headless">
+            <RibbonDropdownButton 
+                icon={<Package className="text-blue-600" />} 
+                label="WordPress Suite" 
+                sublabel="CPT, ACF & Blocks"
+                menuHeader="WordPress Plugin, CPT & REST Generator"
+                onMainClick={() => onAction('open_wordpress_generator')} 
+                size="large"
+                items={[
+                    {
+                        id: 'wp_studio',
+                        label: 'WP Plugin Studio',
+                        description: 'Visueller Generator für Custom Post Types, Tabellen & Admin-Menüs',
+                        icon: <Package size={14} className="text-blue-600" />,
+                        onClick: () => onAction('open_wordpress_generator'),
+                        badge: 'Studio',
+                        badgeColor: 'blue'
+                    },
+                    {
+                        id: 'wp_acf',
+                        label: 'ACF Pro JSON Feldgruppen',
+                        description: 'Automatische acf-json Felddefinitionen für nahtlosen WordPress-Import',
+                        icon: <Layers size={14} className="text-amber-600" />,
+                        onClick: () => onAction('open_wordpress_generator'),
+                        badge: 'ACF Pro',
+                        badgeColor: 'amber'
+                    },
+                    {
+                        id: 'wp_gutenberg',
+                        label: 'Gutenberg Blocks Scaffolding',
+                        description: 'Custom Gutenberg-Blöcke (React Editor & PHP Server-Side Rendering)',
+                        icon: <FileCode size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('open_wordpress_generator'),
+                        badge: 'Gutenberg',
+                        badgeColor: 'emerald'
+                    },
+                    {
+                        id: 'wp_zip',
+                        label: 'Plugin ZIP herunterladen',
+                        description: 'Installationsbereites .zip Archiv für WordPress 6.x erstellen',
+                        icon: <Download size={14} className="text-indigo-600" />,
+                        onClick: () => onAction('open_wordpress_generator'),
+                        badge: 'ZIP',
+                        badgeColor: 'indigo'
+                    }
+                ]}
+            />
+
+            <RibbonDropdownButton 
+                icon={<Layers className="text-purple-600" />} 
+                label="Headless CMS" 
+                sublabel="Strapi & Directus"
+                menuHeader="Headless CMS Schema & API Engine"
+                onMainClick={() => onAction('backend_generate')} 
+                size="large"
+                items={[
+                    {
+                        id: 'strapi_v5',
+                        label: 'Strapi v5 Schema Engine',
+                        description: 'Native schema.json Content-Types, Controllers & RBAC-Permissions',
+                        icon: <Layers size={14} className="text-purple-600" />,
+                        onClick: () => onAction('backend_generate'),
+                        badge: 'Strapi v5',
+                        badgeColor: 'purple'
+                    },
+                    {
+                        id: 'directus_10',
+                        label: 'Directus 10 Schema Snapshot',
+                        description: '1-Klick Directus Collections, Field Interfaces & Docker Setup',
+                        icon: <Database size={14} className="text-blue-600" />,
+                        onClick: () => onAction('backend_generate'),
+                        badge: 'Directus',
+                        badgeColor: 'blue'
+                    }
+                ]}
+            />
+
             <RibbonDropdownButton 
                 icon={<Cloud className="text-sky-600" />} 
                 label="Nextcloud App" 
@@ -511,7 +587,7 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
                     {
                         id: 'nc_studio',
                         label: 'Nextcloud App Studio',
-                        description: 'Visueller Generator für OCP REST API, Migrations & @nextcloud/vue',
+                        description: 'Visueller Generator für OCP REST API, Migrations & @nextcloud/vue (NC 28-30)',
                         icon: <Cloud size={14} className="text-sky-600" />,
                         onClick: () => onAction('open_nextcloud_generator'),
                         badge: 'Studio',
@@ -539,41 +615,41 @@ export const DeployTab: React.FC<DeployTabProps> = ({ onAction, backendConfig, s
             />
         </RibbonGroup>
 
-        {/* WordPress Plugin Generator Dropdown Group */}
-        <RibbonGroup label="WordPress">
+        {/* Modern Admin-Panel & Dashboard Frameworks Group */}
+        <RibbonGroup label="Admin & Dashboards">
             <RibbonDropdownButton 
-                icon={<Package className="text-blue-600" />} 
-                label="WP Plugin Gen" 
-                sublabel="Forms & REST"
-                menuHeader="WordPress Plugin & REST Generator"
-                onMainClick={() => onAction('open_wordpress_generator')} 
+                icon={<LayoutGrid className="text-amber-600" />} 
+                label="Admin Panels" 
+                sublabel="Filament & Refine"
+                menuHeader="Modern Admin-Panel & Dashboard Frameworks"
+                onMainClick={() => onAction('backend_generate')} 
                 size="large"
                 items={[
                     {
-                        id: 'wp_studio',
-                        label: 'WP Plugin Studio',
-                        description: 'Visueller Generator für Custom Post Types, Tabellen & Admin-Menüs',
-                        icon: <Package size={14} className="text-blue-600" />,
-                        onClick: () => onAction('open_wordpress_generator'),
-                        badge: 'Studio',
+                        id: 'laravel_filament_v3',
+                        label: 'Laravel Filament v3 Resource',
+                        description: 'Filament v3 Resources, Pages, Forms (Inputs, Selects, Toggles) & Table Filters',
+                        icon: <FileCode size={14} className="text-amber-600" />,
+                        onClick: () => onAction('backend_generate'),
+                        badge: 'Filament v3',
+                        badgeColor: 'amber'
+                    },
+                    {
+                        id: 'nextjs15_refine',
+                        label: 'Next.js 15 & Refine Boilerplate',
+                        description: 'App-Router Dashboard mit Server Actions, TanStack Table v8 & Zod Validierung',
+                        icon: <Globe size={14} className="text-blue-600" />,
+                        onClick: () => onAction('backend_generate'),
+                        badge: 'Next.js 15',
                         badgeColor: 'blue'
                     },
                     {
-                        id: 'wp_zip',
-                        label: 'Plugin ZIP herunterladen',
-                        description: 'Installationsbereites .zip Archiv für WordPress 6.x erstellen',
-                        icon: <Download size={14} className="text-indigo-600" />,
-                        onClick: () => onAction('open_wordpress_generator'),
-                        badge: 'ZIP',
-                        badgeColor: 'indigo'
-                    },
-                    {
-                        id: 'wp_shortcodes',
-                        label: 'Shortcodes & Block Widgets',
-                        description: 'Gutenberg-Blöcke & PHP-Shortcodes für Tabellen & Formulare',
-                        icon: <FileCode size={14} className="text-emerald-600" />,
-                        onClick: () => onAction('open_wordpress_generator'),
-                        badge: 'Code',
+                        id: 'supabase_pocketbase',
+                        label: 'Supabase RLS & PocketBase Bootstrap',
+                        description: 'Supabase SQL Migrationen mit RLS Policies & PocketBase Schema JSON',
+                        icon: <Database size={14} className="text-emerald-600" />,
+                        onClick: () => onAction('backend_generate'),
+                        badge: 'Supabase',
                         badgeColor: 'emerald'
                     }
                 ]}

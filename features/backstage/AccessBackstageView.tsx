@@ -11,6 +11,7 @@ import { InfoTab } from './components/InfoTab';
 import { UeberDbStudioTab } from './components/UeberDbStudioTab';
 import { KontoTab } from './components/KontoTab';
 import { OptionenTab } from './components/OptionenTab';
+import { FeedbackBugReportTab } from './components/FeedbackBugReportTab';
 import { NewDatabaseModal } from './components/NewDatabaseModal';
 import { createTableFromTemplate, getAllTemplates } from '../../services/tableTemplateService';
 import { getTemplates } from '../../data/templates/index';
@@ -572,6 +573,14 @@ export const AccessBackstageView: React.FC<AccessBackstageViewProps> = ({
         )}
         {activeSubTab === 'ueber_db_studio' && (
           <UeberDbStudioTab onOpenNewModal={() => setIsNewModalOpen(true)} />
+        )}
+        {activeSubTab === 'feedback_bug' && (
+          <FeedbackBugReportTab
+            onGoToTickets={() => {
+              ui.setIsBackstageOpen(false);
+              ui.setCurrentView({ type: 'tickets_board' });
+            }}
+          />
         )}
         {activeSubTab === 'konto' && <KontoTab />}
         {activeSubTab === 'optionen' && <OptionenTab />}

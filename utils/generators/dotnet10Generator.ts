@@ -70,7 +70,8 @@ export const generateDotNet10Solution = (
       .map((c) => {
         const isNum = c.type === 'INTEGER' || c.type === 'INT' || c.type === 'BIGINT' || c.type === 'DOUBLE' || c.type === 'FLOAT' || c.type === 'DECIMAL';
         const typeStr = isNum ? 'int' : c.type === 'BOOLEAN' ? 'bool' : c.type === 'DATE' || c.type === 'DATETIME' || c.type === 'TIMESTAMP' ? 'DateTime' : 'string';
-        return `    public ${typeStr}${c.isNullable || c.allowNull ? '?' : ''} ${c.name} { get; set; }`;
+        const propName = c.name === t.name ? `${c.name}Value` : c.name;
+        return `    public ${typeStr}${c.isNullable || c.allowNull ? '?' : ''} ${propName} { get; set; }`;
       })
       .join('\n');
 

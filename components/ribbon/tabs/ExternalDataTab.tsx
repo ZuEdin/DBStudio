@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Layers, WifiOff, ArrowLeftRight, Cloud } from 'lucide-react';
+import { FileSpreadsheet, Database, Globe, Share2, FileCode, RefreshCw, Download, Save, Layers, WifiOff, ArrowLeftRight, Cloud, Wand2 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +35,7 @@ export const ExternalDataTab: React.FC<ExternalDataTabProps> = ({ onAction }) =>
 
       <RibbonGroup label="Lokaler Import">
         <RibbonButton icon={<FileSpreadsheet className="text-green-600" />} label="Excel Import" onClick={() => onAction('import_excel')} />
+        <RibbonButton icon={<Wand2 className="text-amber-600" />} label="Smart CSV Migration" onClick={() => onAction('open_csv_migration')} />
         <RibbonButton icon={<Database className="text-red-700" />} label="MS Access (MDB/ACCDB)" onClick={() => onAction('open_access_mdb')} />
         <RibbonButton icon={<FileCode className="text-purple-600" />} label="Schema/SQL/JSON" onClick={() => onAction('import_schema')} />
         <RibbonButton icon={<ArrowLeftRight className="text-purple-600" />} label="AST Code Sync" onClick={() => onAction('open_ast_sync')} />

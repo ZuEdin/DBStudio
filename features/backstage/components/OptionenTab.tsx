@@ -23,7 +23,9 @@ import {
   Scale,
   ShieldAlert,
   Clock,
-  RefreshCcw
+  RefreshCcw,
+  Bug,
+  ArrowRight
 } from 'lucide-react';
 import { downloadBridgePackageZip, downloadRelayPhpScript } from '../../../utils/bridgePackageGenerator';
 import { useDisclaimerStore } from '../../../stores/useDisclaimerStore';
@@ -102,6 +104,32 @@ export const OptionenTab: React.FC = () => {
         <p className="text-xs text-neutral-400">
           Konfigurieren Sie Standard-Datenbanktreiber, Auto-Save, die Lokale Execution Bridge und API-Architektur
         </p>
+      </div>
+
+      {/* Bug Report & Feedback Shortcut Banner in Options */}
+      <div className="max-w-3xl mb-6 p-4 rounded-xl bg-gradient-to-r from-rose-950/70 via-[#332630] to-[#333333] border border-rose-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider bg-rose-950/90 px-2 py-0.5 rounded border border-rose-700/60 flex items-center gap-1">
+              <Bug size={11} className="text-rose-400" /> Feedback &amp; Fehler melden
+            </span>
+            <span className="text-xs text-neutral-300 font-semibold">Diagnose &amp; Protokoll-Export</span>
+          </div>
+          <h2 className="text-sm font-bold text-white">
+            Haben Sie einen Fehler entdeckt oder einen Verbesserungswunsch?
+          </h2>
+          <p className="text-xs text-neutral-300 mt-0.5">
+            Nutzen Sie das integrierte Bug-Report-Formular mit automatischer Live-Systemdiagnose (App-Version, Tabellen, Speichertyp) und Ticket-Integration.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            ui.setBackstageActiveTab('feedback_bug');
+          }}
+          className="px-4 py-2 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0 shadow-md flex items-center gap-1.5 cursor-pointer"
+        >
+          <Bug size={14} /> Bug Report öffnen <ArrowRight size={14} />
+        </button>
       </div>
 
       <div className="space-y-6 max-w-3xl">

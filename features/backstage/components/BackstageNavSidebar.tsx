@@ -12,7 +12,8 @@ import {
   UserCircle2, 
   Sliders, 
   Layers,
-  Sparkles
+  Sparkles,
+  Bug
 } from 'lucide-react';
 
 export type BackstageTabType = 
@@ -21,6 +22,7 @@ export type BackstageTabType =
   | 'oeffnen' 
   | 'info' 
   | 'ueber_db_studio'
+  | 'feedback_bug'
   | 'speichern' 
   | 'speichern_unter' 
   | 'drucken' 
@@ -186,8 +188,21 @@ export const BackstageNavSidebar: React.FC<BackstageNavSidebarProps> = ({
         </div>
       </div>
 
-      {/* Bottom Part: Konto, Optionen */}
+      {/* Bottom Part: Feedback & Bug Report, Konto, Optionen */}
       <div className="space-y-0.5 px-2 border-t border-[#383838] pt-2">
+        <button
+          onClick={() => onSelectTab('feedback_bug')}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+            activeTab === 'feedback_bug'
+              ? 'bg-[#333333] text-white border-l-3 border-rose-500 font-semibold'
+              : 'hover:bg-[#2c2c2c] hover:text-white text-neutral-300'
+          }`}
+        >
+          <Bug size={16} className={activeTab === 'feedback_bug' ? 'text-rose-400' : 'text-rose-400/80'} />
+          <span className="flex-1 text-left">Feedback & Bug</span>
+          <span className="text-[9px] bg-rose-950 text-rose-300 border border-rose-800 px-1 py-0.2 rounded font-mono">NEU</span>
+        </button>
+
         <button
           onClick={() => onSelectTab('konto')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors ${

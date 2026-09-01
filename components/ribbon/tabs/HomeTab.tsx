@@ -3,7 +3,7 @@ import {
   Network, ShieldCheck, ClipboardList, Sparkles, History, Shield, Cpu, Code,
   Filter, ArrowUpAZ, ArrowDownZA, RotateCcw, Zap, SlidersHorizontal, CheckSquare,
   RefreshCw, Plus, Save, Trash2, Sigma, CheckCheck, ChevronDown, TableProperties,
-  PencilRuler, Eye
+  PencilRuler, Eye, Bug
 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
@@ -357,6 +357,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({ onAction }) => {
         <RibbonButton icon={<ClipboardList className="text-sky-600" />} label="Kanban-Board" onClick={() => onAction('tickets_board')} size="large" />
         <RibbonButton icon={<History className="text-amber-600" />} label="Git-Schema" onClick={() => onAction('version_control')} size="large" />
         <RibbonButton icon={<Sparkles className="text-purple-600" />} label="AI Copilot" onClick={() => onAction('open_ai_copilot', 'schema')} size="large" />
+        <RibbonButton icon={<Bug className="text-rose-600 dark:text-rose-400" />} label="Fehler melden" onClick={() => { ui.setBackstageActiveTab('feedback_bug'); ui.setIsBackstageOpen(true); }} size="large" />
       </RibbonGroup>
 
       {/* Ganz rechts außen: Entwurf-Button für aktuell geladene Tabelle, Abfrage, Formular, Bericht, etc. */}

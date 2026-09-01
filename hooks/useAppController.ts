@@ -1613,6 +1613,10 @@ export const useAppController = () => {
         case 'open_app_info': handleSetView({ type: 'app_info' }); break;
         case 'theme_designer':
         case 'open_whitelabel': ui.setShowWhitelabelModal(true); break;
+        case 'open_whitelabel_doc': ui.setShowWhitelabelDocModal(true); break;
+        case 'open_client_approval': ui.setShowClientApprovalModal(true); break;
+        case 'open_openapi_exporter': ui.setShowOpenApiExporterModal(true); break;
+        case 'open_csv_migration': ui.setShowCsvMigrationModal(true); break;
         
         case 'open_ai_copilot':
         case 'ai_copilot': {

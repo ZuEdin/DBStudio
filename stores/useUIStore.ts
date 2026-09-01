@@ -18,8 +18,8 @@ interface UIStore {
   // MS Access Backstage State
   isBackstageOpen: boolean;
   setIsBackstageOpen: (open: boolean) => void;
-  backstageActiveTab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'ueber_db_studio' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen';
-  setBackstageActiveTab: (tab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'ueber_db_studio' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen') => void;
+  backstageActiveTab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'ueber_db_studio' | 'feedback_bug' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen';
+  setBackstageActiveTab: (tab: 'startseite' | 'neu' | 'oeffnen' | 'info' | 'ueber_db_studio' | 'feedback_bug' | 'speichern' | 'speichern_unter' | 'drucken' | 'konto' | 'optionen') => void;
   
   // Navigation State
   currentView: ViewType;
@@ -169,6 +169,15 @@ interface UIStore {
   setShowEfCoreModal: (show: boolean) => void;
   showDesktopPackagingModal: boolean;
   setShowDesktopPackagingModal: (show: boolean) => void;
+  
+  showWhitelabelDocModal: boolean;
+  setShowWhitelabelDocModal: (show: boolean) => void;
+  showClientApprovalModal: boolean;
+  setShowClientApprovalModal: (show: boolean) => void;
+  showOpenApiExporterModal: boolean;
+  setShowOpenApiExporterModal: (show: boolean) => void;
+  showCsvMigrationModal: boolean;
+  setShowCsvMigrationModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -345,6 +354,15 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowEfCoreModal: (showEfCoreModal) => set({ showEfCoreModal }),
   showDesktopPackagingModal: false,
   setShowDesktopPackagingModal: (showDesktopPackagingModal) => set({ showDesktopPackagingModal }),
+
+  showWhitelabelDocModal: false,
+  setShowWhitelabelDocModal: (showWhitelabelDocModal) => set({ showWhitelabelDocModal }),
+  showClientApprovalModal: false,
+  setShowClientApprovalModal: (showClientApprovalModal) => set({ showClientApprovalModal }),
+  showOpenApiExporterModal: false,
+  setShowOpenApiExporterModal: (showOpenApiExporterModal) => set({ showOpenApiExporterModal }),
+  showCsvMigrationModal: false,
+  setShowCsvMigrationModal: (showCsvMigrationModal) => set({ showCsvMigrationModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

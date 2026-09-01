@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, ClipboardList, Route, Zap, Database, Layers, LogIn, Cloud, User as UserIcon } from 'lucide-react';
+import { Briefcase, ClipboardList, Route, Zap, Database, Layers, LogIn, Cloud, User as UserIcon, FileText, ShieldCheck, Server, Wand2 } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -32,6 +32,33 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onAction }) => {
           icon={<Route className="text-blue-600" />} 
           label="V-Modell Designer" 
           onClick={() => onAction('project_vmodel')} 
+          size="large" 
+        />
+      </RibbonGroup>
+
+      <RibbonGroup label="Agentur & Kunden-Übergabe">
+        <RibbonButton 
+          icon={<FileText className="text-blue-600" />} 
+          label="Kunden-Doku (White-Label)" 
+          onClick={() => onAction('open_whitelabel_doc')} 
+          size="large" 
+        />
+        <RibbonButton 
+          icon={<ShieldCheck className="text-emerald-600" />} 
+          label="Kunden-Abnahme-Modus" 
+          onClick={() => onAction('open_client_approval')} 
+          size="large" 
+        />
+        <RibbonButton 
+          icon={<Server className="text-indigo-600" />} 
+          label="OpenAPI 3.1 & Postman" 
+          onClick={() => onAction('open_openapi_exporter')} 
+          size="large" 
+        />
+        <RibbonButton 
+          icon={<Wand2 className="text-amber-600" />} 
+          label="CSV/Excel Migration Wizard" 
+          onClick={() => onAction('open_csv_migration')} 
           size="large" 
         />
       </RibbonGroup>
