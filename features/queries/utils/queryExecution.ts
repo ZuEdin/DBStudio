@@ -126,7 +126,7 @@ const matchesCriteria = (value: any, criteria: string, context?: Record<string, 
   let operator = '=';
 
   // Check for keywords
-  if (crit.includes('today') || crit.includes('heute')) {
+  if (crit.includes('today') || crit.includes('heute') || crit.includes('date()') || crit.includes('date') || crit.includes('now()') || crit.includes('now') || crit.includes('curdate()') || crit.includes('jetzt')) {
       isDateComparison = true;
       targetDate.setHours(0,0,0,0);
   } else if (crit.includes('yesterday') || crit.includes('gestern')) {
@@ -148,6 +148,15 @@ const matchesCriteria = (value: any, criteria: string, context?: Record<string, 
   }
 
   if (isDateComparison) {
+      // Check for date offsets like Date() - 7 or TODAY + 3
+      const offsetMatch = crit.match(/([+-])\s*(\d+)/);
+      if (offsetMatch) {
+          const sign = offsetMatch[1];
+          const delta = parseInt(offsetMatch[2], 10);
+          if (!isNaN(delta)) {
+              targetDate.setDate(targetDate.getDate() + (sign === '-' ? -delta : delta));
+          }
+      }
       if (crit.startsWith('>=')) operator = '>=';
       else if (crit.startsWith('<=')) operator = '<=';
       else if (crit.startsWith('>')) operator = '>';

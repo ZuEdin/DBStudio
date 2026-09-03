@@ -1,0 +1,549 @@
+{
+  "id": "ext_coffee_fund",
+  "name": "Kaffeekasse, Club- & Vereinskasse",
+  "description": "Guthabenübersicht, Getränkekonsum, Einzahlungen und Bohnenbestand für Teams, Vereine und Co-Working Spaces.",
+  "icon": "Coffee",
+  "category": "Community & Vereine",
+  "file": "coffee_fund.json",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_members",
+        "name": "Mitglieder & Zahler",
+        "description": "Vereinsmitglieder, Bürokollegen und registrierte Kaffeegenießer",
+        "fields": [
+          {
+            "id": "f_m_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_m_name",
+            "name": "Name",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_m_email",
+            "name": "E-Mail",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_m_balance",
+            "name": "Guthaben_EUR",
+            "type": "DECIMAL",
+            "defaultValue": "0.00"
+          },
+          {
+            "id": "f_m_role",
+            "name": "Rolle",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Mitglied",
+              "Kassenwart",
+              "Gast"
+            ]
+          },
+          {
+            "id": "f_m_active",
+            "name": "Aktiv",
+            "type": "BOOLEAN",
+            "defaultValue": "true"
+          }
+        ]
+      },
+      {
+        "id": "tbl_products",
+        "name": "Getränke & Snacks",
+        "description": "Kaffeespezialitäten, Kaltgetränke, Milchalternativen und Riegel",
+        "fields": [
+          {
+            "id": "f_p_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_p_name",
+            "name": "Produktname",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_p_category",
+            "name": "Kategorie",
+            "type": "VARCHAR",
+            "length": 60,
+            "enumValues": [
+              "Espresso & Kaffee",
+              "Tee & Chai",
+              "Kaltgetränk",
+              "Snack"
+            ]
+          },
+          {
+            "id": "f_p_price",
+            "name": "Preis_EUR",
+            "type": "DECIMAL",
+            "defaultValue": "0.50"
+          },
+          {
+            "id": "f_p_stock",
+            "name": "Bestand_Portionen",
+            "type": "INTEGER",
+            "defaultValue": "50"
+          }
+        ]
+      },
+      {
+        "id": "tbl_transactions",
+        "name": "Transaktionen & Konsum",
+        "description": "Vollständiges Kassenbuch: Einzahlungen, Konsumbuchungen und Bar-Abrechnungen",
+        "fields": [
+          {
+            "id": "f_t_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_t_member",
+            "name": "member_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_t_product",
+            "name": "product_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_t_type",
+            "name": "Buchungstyp",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Konsum",
+              "Einzahlung",
+              "Erstattung",
+              "Korrektur"
+            ]
+          },
+          {
+            "id": "f_t_amount",
+            "name": "Betrag_EUR",
+            "type": "DECIMAL"
+          },
+          {
+            "id": "f_t_created",
+            "name": "Zeitstempel",
+            "type": "TIMESTAMP",
+            "defaultValue": "CURRENT_TIMESTAMP"
+          },
+          {
+            "id": "f_t_note",
+            "name": "Bemerkung",
+            "type": "VARCHAR",
+            "length": 250
+          }
+        ]
+      },
+      {
+        "id": "tbl_supplies",
+        "name": "Bohnen & Materialeinkauf",
+        "description": "Einkäufe von Kaffeebohnen, Milch und Entkalker durch die Kassenwarte",
+        "fields": [
+          {
+            "id": "f_s_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_s_supplier",
+            "name": "Lieferant_Roesterei",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_s_date",
+            "name": "Einkaufsdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_s_cost",
+            "name": "Gesamtkosten_EUR",
+            "type": "DECIMAL"
+          },
+          {
+            "id": "f_s_status",
+            "name": "Erstattungsstatus",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Aus Kasse bezahlt",
+              "Privat vorgelegt",
+              "Erstattet"
+            ]
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_m_t",
+        "fromTableId": "tbl_members",
+        "fromFieldId": "f_m_id",
+        "toTableId": "tbl_transactions",
+        "toFieldId": "f_t_member",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_p_t",
+        "fromTableId": "tbl_products",
+        "fromFieldId": "f_p_id",
+        "toTableId": "tbl_transactions",
+        "toFieldId": "f_t_product",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "SET NULL"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_quick_coffee_booking",
+        "name": "Schnellbuchung Kaffeekonsum",
+        "sourceType": "table",
+        "sourceId": "tbl_transactions",
+        "fields": [],
+        "layout": {
+          "id": "root_f_coffee",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_coffee_head",
+              "type": "label",
+              "label": "☕ Kaffeegenuss verbuchen",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_c_member",
+              "type": "field",
+              "fieldId": "f_t_member",
+              "label": "Mitglied / Trinker auswählen",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_c_prod",
+              "type": "field",
+              "fieldId": "f_t_product",
+              "label": "Produkt / Kaffeespezialität",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_c_amount",
+              "type": "field",
+              "fieldId": "f_t_amount",
+              "label": "Betrag (€)",
+              "widgetType": "number"
+            },
+            {
+              "id": "fld_c_note",
+              "type": "field",
+              "fieldId": "f_t_note",
+              "label": "Notiz / Tassenanzahl",
+              "widgetType": "text"
+            }
+          ]
+        }
+      },
+      {
+        "id": "form_deposit_balance",
+        "name": "Guthaben einzahlen",
+        "sourceType": "table",
+        "sourceId": "tbl_transactions",
+        "fields": [],
+        "layout": {
+          "id": "root_f_deposit",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_dep_head",
+              "type": "label",
+              "label": "💰 Kaffeekassen-Guthaben aufladen",
+              "className": "text-xl font-bold text-emerald-900 border-b pb-2"
+            },
+            {
+              "id": "fld_d_member",
+              "type": "field",
+              "fieldId": "f_t_member",
+              "label": "Mitglied",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_d_amount",
+              "type": "field",
+              "fieldId": "f_t_amount",
+              "label": "Einzahlungsbetrag (€)",
+              "widgetType": "number"
+            },
+            {
+              "id": "fld_d_note",
+              "type": "field",
+              "fieldId": "f_t_note",
+              "label": "Zahlweg (Bar / PayPal / Überweisung)",
+              "widgetType": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_negative_balances",
+        "name": "Mitglieder mit Minussaldo (Mahnliste)",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "tbl_members",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "tbl_members",
+            "fieldId": "f_m_name",
+            "tableName": "Mitglieder & Zahler",
+            "fieldName": "Name",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "tbl_members",
+            "fieldId": "f_m_email",
+            "tableName": "Mitglieder & Zahler",
+            "fieldName": "E-Mail",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "tbl_members",
+            "fieldId": "f_m_balance",
+            "tableName": "Mitglieder & Zahler",
+            "fieldName": "Guthaben_EUR",
+            "show": true,
+            "criteria": [
+              "< 0"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_low_stock_beans",
+        "name": "Kaffeevorrat nachbestellen",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n2",
+            "tableId": "tbl_products",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc4",
+            "tableId": "tbl_products",
+            "fieldId": "f_p_name",
+            "tableName": "Getränke & Snacks",
+            "fieldName": "Produktname",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc5",
+            "tableId": "tbl_products",
+            "fieldId": "f_p_stock",
+            "tableName": "Getränke & Snacks",
+            "fieldName": "Bestand_Portionen",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              "<= 15"
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_member_consumption",
+        "name": "Monatsabrechnung & Konsumübersicht",
+        "sourceType": "table",
+        "sourceId": "tbl_members",
+        "groupingFieldId": "f_m_role",
+        "summaries": [
+          {
+            "fieldId": "f_m_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          },
+          {
+            "fieldId": "f_m_balance",
+            "fieldName": "Guthaben_EUR",
+            "calculation": "SUM"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_m_name",
+            "label": "Mitglied",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_m_role",
+            "label": "Rolle",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_m_balance",
+            "label": "Aktuelles Guthaben (€)",
+            "visible": true,
+            "order": 2,
+            "formattingRules": [
+              {
+                "operator": "lt",
+                "value": "0",
+                "style": {
+                  "color": "#e11d48",
+                  "bold": true
+                }
+              },
+              {
+                "operator": "gte",
+                "value": "0",
+                "style": {
+                  "color": "#059669",
+                  "bold": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_coffee_terminal",
+        "name": "Kaffeekassen-Terminal & Saldo",
+        "description": "Live-Kassenstand, Bohnenvorrat und Schnellbuchung für Mitglieder",
+        "layout": {
+          "id": "coffee_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "coffee_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_cash_balance",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Aktueller Kassenstand",
+                    "value": "142,50",
+                    "unit": "€",
+                    "accentColor": "emerald",
+                    "icon": "DollarSign"
+                  }
+                },
+                {
+                  "id": "kpi_beans_stock",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Bohnenvorrat",
+                    "value": "4.5",
+                    "unit": "kg",
+                    "accentColor": "amber",
+                    "icon": "Coffee"
+                  }
+                },
+                {
+                  "id": "kpi_coffees_month",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Kaffees getrunken (Monat)",
+                    "value": "385",
+                    "unit": "Tassen",
+                    "accentColor": "rose",
+                    "icon": "Smile"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_members",
+              "type": "card",
+              "props": {
+                "title": "Kaffeekasse Mitglieder & Saldo",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_members_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "tbl_members",
+                    "limit": 8,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "CoffeeFundClub",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

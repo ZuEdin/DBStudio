@@ -1,0 +1,446 @@
+{
+  "id": "ext_cms_blog_editorial",
+  "name": "CMS Redaktions-Hub & Content-Management",
+  "description": "Artikel, Autoren, Rubriken, Veröffentlichungsstatus und Leser-Kommentare.",
+  "icon": "FileText",
+  "category": "Content & Medien",
+  "file": "cms_blog_editorial.json",
+  "data": {
+    "tables": [
+      {
+        "id": "t_authors",
+        "name": "Autoren & Redakteure",
+        "description": "Redaktionsteam, Kolumnisten und Gastautoren",
+        "fields": [
+          {
+            "id": "f_aut_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_aut_name",
+            "name": "Name",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_aut_email",
+            "name": "E-Mail",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_aut_role",
+            "name": "Rolle",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Chefredakteur",
+              "Redakteur",
+              "Gastautor"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "t_categories",
+        "name": "Rubriken & Themen",
+        "description": "Kategorien für Nachrichten, Tutorials, Interviews und Reviews",
+        "fields": [
+          {
+            "id": "f_cat_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_cat_name",
+            "name": "Rubrikname",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_cat_slug",
+            "name": "URL_Slug",
+            "type": "VARCHAR",
+            "length": 80,
+            "isUnique": true
+          }
+        ]
+      },
+      {
+        "id": "t_posts",
+        "name": "Artikel & Blogbeiträge",
+        "description": "Veröffentlichte und geplante Artikel mit Metadaten und Klickzahlen",
+        "fields": [
+          {
+            "id": "f_pst_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_pst_title",
+            "name": "Titel",
+            "type": "VARCHAR",
+            "length": 220
+          },
+          {
+            "id": "f_pst_slug",
+            "name": "Slug",
+            "type": "VARCHAR",
+            "length": 220
+          },
+          {
+            "id": "f_pst_author",
+            "name": "author_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_pst_cat",
+            "name": "category_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_pst_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Entwurf",
+              "Review",
+              "Publiziert",
+              "Archiviert"
+            ]
+          },
+          {
+            "id": "f_pst_views",
+            "name": "Aufrufe",
+            "type": "INTEGER",
+            "defaultValue": "0"
+          },
+          {
+            "id": "f_pst_published",
+            "name": "Veroeffentlicht_Am",
+            "type": "TIMESTAMP"
+          }
+        ]
+      },
+      {
+        "id": "t_comments",
+        "name": "Kommentare & Feedback",
+        "description": "Leserreaktionen, Diskussionsbeiträge und Moderationsstatus",
+        "fields": [
+          {
+            "id": "f_cm_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_cm_post",
+            "name": "post_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_cm_author",
+            "name": "Kommentator_Name",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_cm_text",
+            "name": "Kommentar_Text",
+            "type": "TEXT"
+          },
+          {
+            "id": "f_cm_status",
+            "name": "Moderationsstatus",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Freigegeben",
+              "Prüfung",
+              "Spam"
+            ]
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_aut_pst",
+        "fromTableId": "t_authors",
+        "fromFieldId": "f_aut_id",
+        "toTableId": "t_posts",
+        "toFieldId": "f_pst_author",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      },
+      {
+        "id": "rel_cat_pst",
+        "fromTableId": "t_categories",
+        "fromFieldId": "f_cat_id",
+        "toTableId": "t_posts",
+        "toFieldId": "f_pst_cat",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      },
+      {
+        "id": "rel_pst_cm",
+        "fromTableId": "t_posts",
+        "fromFieldId": "f_pst_id",
+        "toTableId": "t_comments",
+        "toFieldId": "f_cm_post",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_article_edit",
+        "name": "Artikel verfassen",
+        "sourceType": "table",
+        "sourceId": "t_posts",
+        "fields": [],
+        "layout": {
+          "id": "root_f_post",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_pst_head",
+              "type": "label",
+              "label": "✍️ Artikel-Editor & Metadaten",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_p_title",
+              "type": "field",
+              "fieldId": "f_pst_title",
+              "label": "Schlagzeile / Titel",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_p_slug",
+              "type": "field",
+              "fieldId": "f_pst_slug",
+              "label": "URL-Slug",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_p_aut",
+              "type": "field",
+              "fieldId": "f_pst_author",
+              "label": "Autor",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_p_cat",
+              "type": "field",
+              "fieldId": "f_pst_cat",
+              "label": "Rubrik",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_p_status",
+              "type": "field",
+              "fieldId": "f_pst_status",
+              "label": "Publikationsstatus",
+              "widgetType": "select"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_published_articles",
+        "name": "Publizierte Artikel nach Klicks",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "t_posts",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "t_posts",
+            "fieldId": "f_pst_title",
+            "tableName": "Artikel & Blogbeiträge",
+            "fieldName": "Titel",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "t_posts",
+            "fieldId": "f_pst_views",
+            "tableName": "Artikel & Blogbeiträge",
+            "fieldName": "Aufrufe",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "t_posts",
+            "fieldId": "f_pst_status",
+            "tableName": "Artikel & Blogbeiträge",
+            "fieldName": "Status",
+            "show": true,
+            "criteria": [
+              "= \"Publiziert\""
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_content_by_category",
+        "name": "Content-Verteilung nach Rubriken",
+        "sourceType": "table",
+        "sourceId": "t_posts",
+        "groupingFieldId": "f_pst_cat",
+        "summaries": [
+          {
+            "fieldId": "f_pst_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          },
+          {
+            "fieldId": "f_pst_views",
+            "fieldName": "Aufrufe",
+            "calculation": "SUM"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_pst_title",
+            "label": "Artikel",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_pst_status",
+            "label": "Status",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_pst_views",
+            "label": "Klicks",
+            "visible": true,
+            "order": 2
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_cms_cockpit",
+        "name": "Redaktions-Cockpit & Content-Portal",
+        "description": "Übersicht veröffentlichter Artikel, Entwürfe und Redaktions-Statistiken",
+        "layout": {
+          "id": "cms_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "cms_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_published_posts",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Publizierte Beiträge",
+                    "value": "48",
+                    "unit": "Artikel",
+                    "accentColor": "emerald",
+                    "icon": "FileCheck"
+                  }
+                },
+                {
+                  "id": "kpi_draft_posts",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Entwürfe in Review",
+                    "value": "7",
+                    "unit": "Entwürfe",
+                    "accentColor": "amber",
+                    "icon": "Edit3"
+                  }
+                },
+                {
+                  "id": "kpi_total_readers",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Leser-Aufrufe gesamt",
+                    "value": "142.800",
+                    "unit": "Views",
+                    "accentColor": "indigo",
+                    "icon": "TrendingUp"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_posts",
+              "type": "card",
+              "props": {
+                "title": "Aktuelle Beiträge & Publikationsstatus",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_posts_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "t_posts",
+                    "limit": 8,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "CmsEditorialHub",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

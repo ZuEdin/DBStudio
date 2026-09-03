@@ -327,10 +327,11 @@ export const TableView: React.FC<TableViewProps> = ({ table, allTables, relation
               return !isNaN(val) && val > max ? val : max;
           }, 0);
           acc[header] = maxVal + 1;
-      } else if (field?.defaultValue !== undefined && field?.defaultValue !== '') {
+      } else if (field?.defaultValue !== undefined && field?.defaultValue !== null && field?.defaultValue !== '') {
+          const defStr = String(field.defaultValue).trim();
           if (field.type === 'BOOLEAN') {
-              acc[header] = field.defaultValue === 'true';
-          } else if ((field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') && field.defaultValue.toUpperCase() === 'NOW') {
+              acc[header] = defStr.toLowerCase() === 'true' || defStr === '1';
+          } else if ((field.type === 'DATE' || field.type === 'TIME' || field.type === 'DATETIME' || field.type === 'TIMESTAMP') && defStr.toUpperCase() === 'NOW') {
               acc[header] = new Date().toISOString();
           } else {
               acc[header] = field.defaultValue;

@@ -149,6 +149,20 @@ const CriteriaInput: React.FC<{
     } else if (lowerVal.endsWith('[')) {
        newSuggestions = ['Forms'];
        shouldShow = true;
+    } else if (lowerVal.startsWith('<') || lowerVal.startsWith('>') || lowerVal.startsWith('=') || lowerVal.startsWith('d') || lowerVal.startsWith('t') || lowerVal.startsWith('h') || lowerVal.startsWith('n')) {
+       const opMatch = lowerVal.match(/^(<=|>=|<>|!=|<|>|=)/);
+       const op = opMatch ? opMatch[0] + ' ' : '';
+       const rest = lowerVal.replace(/^(<=|>=|<>|!=|<|>|=)\s*/, '');
+       if (['', 'd', 'da', 'dat', 'date', 't', 'to', 'tod', 'today', 'h', 'he', 'heu', 'heute', 'n', 'no', 'now'].includes(rest)) {
+          newSuggestions = [
+             `${op}Date()`,
+             `${op}Now()`,
+             `${op}Date() - 7`,
+             `${op}Date() + 7`,
+             `${op}Date() - 30`
+          ];
+          shouldShow = true;
+       }
     }
 
     setSuggestions(newSuggestions);
@@ -162,7 +176,9 @@ const CriteriaInput: React.FC<{
   const handleSelect = (suggestion: string) => {
     let newVal = value;
     const lowerVal = value.toLowerCase();
-    if (lowerVal.match(/\[forms\]!\[[^\]]+\]!\[$/i)) {
+    if (suggestion.includes('Date(') || suggestion.includes('Now(')) {
+       newVal = suggestion;
+    } else if (lowerVal.match(/\[forms\]!\[[^\]]+\]!\[$/i)) {
        newVal = value + suggestion + ']';
     } else if (lowerVal.endsWith('[forms]![')) {
        newVal = value + suggestion + ']![';

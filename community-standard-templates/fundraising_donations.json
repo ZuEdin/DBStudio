@@ -1,0 +1,402 @@
+{
+  "id": "ext_fundraising_donations",
+  "name": "Spenden-, Kampagnen- & Förderverein-Manager",
+  "description": "Spendenbuchungen, Kampagnen-Fortschritt, Spendenbescheinigungen und Förderer-Management.",
+  "icon": "Heart",
+  "category": "Community & Non-Profit",
+  "file": "fundraising_donations.json",
+  "data": {
+    "tables": [
+      {
+        "id": "t_campaigns",
+        "name": "Spendenkampagnen",
+        "description": "Spendenziele, Renovierungen, Förderprojekte und Hilfsaktionen",
+        "fields": [
+          {
+            "id": "f_cmp_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_cmp_title",
+            "name": "Kampagnentitel",
+            "type": "VARCHAR",
+            "length": 180
+          },
+          {
+            "id": "f_cmp_target",
+            "name": "Spendenziel_EUR",
+            "type": "DECIMAL",
+            "defaultValue": "5000.00"
+          },
+          {
+            "id": "f_cmp_start",
+            "name": "Startdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_cmp_end",
+            "name": "Enddatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_cmp_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Aktiv",
+              "Erfolgreich",
+              "Pausiert"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "t_donors",
+        "name": "Spender & Foerderer",
+        "description": "Privatspender, Stiftungen und Firmensponsoren mit Anschrift für Quittungen",
+        "fields": [
+          {
+            "id": "f_dnr_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_dnr_name",
+            "name": "Name_oder_Firma",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_dnr_email",
+            "name": "E-Mail",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_dnr_address",
+            "name": "Anschrift",
+            "type": "VARCHAR",
+            "length": 200
+          },
+          {
+            "id": "f_dnr_tax_opt",
+            "name": "Spendenquittung_Gewuenscht",
+            "type": "BOOLEAN",
+            "defaultValue": "true"
+          }
+        ]
+      },
+      {
+        "id": "t_donations",
+        "name": "Spendenbuchungen",
+        "description": "Eingegangene Spendenbeiträge mit Verwendungszweck und Zahlart",
+        "fields": [
+          {
+            "id": "f_don_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_don_cmp",
+            "name": "campaign_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_don_dnr",
+            "name": "donor_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_don_amount",
+            "name": "Spendenbetrag_EUR",
+            "type": "DECIMAL"
+          },
+          {
+            "id": "f_don_date",
+            "name": "Buchungstag",
+            "type": "DATE"
+          },
+          {
+            "id": "f_don_method",
+            "name": "Zahlweg",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Banküberweisung",
+              "PayPal",
+              "Kreditkarte",
+              "Bargeld"
+            ]
+          },
+          {
+            "id": "f_don_receipt",
+            "name": "Quittung_Ausgestellt",
+            "type": "BOOLEAN",
+            "defaultValue": "false"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_cmp_don",
+        "fromTableId": "t_campaigns",
+        "fromFieldId": "f_cmp_id",
+        "toTableId": "t_donations",
+        "toFieldId": "f_don_cmp",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_dnr_don",
+        "fromTableId": "t_donors",
+        "fromFieldId": "f_dnr_id",
+        "toTableId": "t_donations",
+        "toFieldId": "f_don_dnr",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "SET NULL"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_record_donation",
+        "name": "Spende verbuchen",
+        "sourceType": "table",
+        "sourceId": "t_donations",
+        "fields": [],
+        "layout": {
+          "id": "root_f_donation",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_don_head",
+              "type": "label",
+              "label": "💖 Spende erfassen",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_don_cmp",
+              "type": "field",
+              "fieldId": "f_don_cmp",
+              "label": "Kampagne / Spendenzweck",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_don_dnr",
+              "type": "field",
+              "fieldId": "f_don_dnr",
+              "label": "Spender / Förderer",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_don_amount",
+              "type": "field",
+              "fieldId": "f_don_amount",
+              "label": "Betrag (€)",
+              "widgetType": "number"
+            },
+            {
+              "id": "fld_don_method",
+              "type": "field",
+              "fieldId": "f_don_method",
+              "label": "Zahlungsweg",
+              "widgetType": "select"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_pending_receipts",
+        "name": "Ausstehende Zuwendungsbestätigungen",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "t_donations",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "t_donations",
+            "fieldId": "f_don_dnr",
+            "tableName": "Spendenbuchungen",
+            "fieldName": "donor_id",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "t_donations",
+            "fieldId": "f_don_amount",
+            "tableName": "Spendenbuchungen",
+            "fieldName": "Spendenbetrag_EUR",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ">= 50"
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "t_donations",
+            "fieldId": "f_don_receipt",
+            "tableName": "Spendenbuchungen",
+            "fieldName": "Quittung_Ausgestellt",
+            "show": true,
+            "criteria": [
+              "= false"
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_campaign_totals",
+        "name": "Spendeneingänge nach Kampagne",
+        "sourceType": "table",
+        "sourceId": "t_donations",
+        "groupingFieldId": "f_don_cmp",
+        "summaries": [
+          {
+            "fieldId": "f_don_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          },
+          {
+            "fieldId": "f_don_amount",
+            "fieldName": "Spendenbetrag_EUR",
+            "calculation": "SUM"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_don_date",
+            "label": "Datum",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_don_amount",
+            "label": "Betrag (€)",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_don_method",
+            "label": "Zahlweg",
+            "visible": true,
+            "order": 2
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_fundraising_cockpit",
+        "name": "Spenden- & Förderverein-Cockpit",
+        "description": "Spendenübersicht, Kampagnenziele und offene Bescheinigungen",
+        "layout": {
+          "id": "fund_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "fund_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_donations_total",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Gesamte Spendensumme",
+                    "value": "38.450",
+                    "unit": "€",
+                    "accentColor": "emerald",
+                    "icon": "Heart"
+                  }
+                },
+                {
+                  "id": "kpi_active_campaigns",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Laufende Kampagnen",
+                    "value": "4",
+                    "unit": "Projekte",
+                    "accentColor": "indigo",
+                    "icon": "Target"
+                  }
+                },
+                {
+                  "id": "kpi_pending_receipts",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Offene Quittungen",
+                    "value": "8",
+                    "unit": "Bescheinigungen",
+                    "accentColor": "rose",
+                    "icon": "FileText"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_donations",
+              "type": "card",
+              "props": {
+                "title": "Letzte Spendeneingänge",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_donations_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "t_donations",
+                    "limit": 8,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "FundraisingClubHub",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

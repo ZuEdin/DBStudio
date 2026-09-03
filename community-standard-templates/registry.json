@@ -1,0 +1,72 @@
+{
+  "name": "DBStudio Community Standard Templates",
+  "version": "1.0.0",
+  "author": "DBStudio Community",
+  "updatedAt": "2026-09-03",
+  "templates": [
+    {
+      "id": "ext_coffee_fund",
+      "name": "Kaffeekasse, Club- & Vereinskasse",
+      "description": "Guthabenübersicht, Getränkekonsum, Einzahlungen und Bohnenbestand für Teams, Vereine und Co-Working Spaces.",
+      "icon": "Coffee",
+      "category": "Community & Vereine",
+      "file": "coffee_fund.json"
+    },
+    {
+      "id": "ext_device_rental",
+      "name": "Geräteverleih & Ausleihsystem (Makerspace & Schule)",
+      "description": "Verwaltung von Laptops, Kameras, 3D-Druckern, Ausleihfristen, Rückgaben und Mahnungen.",
+      "icon": "Laptop",
+      "category": "Bildung & Campus",
+      "file": "device_rental.json"
+    },
+    {
+      "id": "ext_course_booking",
+      "name": "Kurs-, Workshop- & Raumbelegungs-Portal",
+      "description": "Organisation von Kursen, Dozenten, Räumen, Raumauslastung und Teilnehmer-Einschreibungen.",
+      "icon": "BookOpen",
+      "category": "Bildung & Events",
+      "file": "course_booking.json"
+    },
+    {
+      "id": "ext_agile_scrum_board",
+      "name": "Agiler Sprint- & Task-Planer (Developer Community)",
+      "description": "Scrum- und Kanban-Projektmanagement mit Sprints, User Stories, Story Points und Aufgaben-Tracking.",
+      "icon": "Kanban",
+      "category": "IT & Softwareentwicklung",
+      "file": "agile_scrum_board.json"
+    },
+    {
+      "id": "ext_cms_blog_editorial",
+      "name": "CMS Redaktions-Hub & Content-Management",
+      "description": "Artikel, Autoren, Rubriken, Veröffentlichungsstatus und Leser-Kommentare.",
+      "icon": "FileText",
+      "category": "Content & Medien",
+      "file": "cms_blog_editorial.json"
+    },
+    {
+      "id": "ext_iot_machine_telemetry",
+      "name": "IoT Sensor-Telemetrie & Maschinen-Leitstand",
+      "description": "Echtzeit-Sensordaten, Schwingungsanalysen, Maschinentemperaturen und Grenzwert-Alarme.",
+      "icon": "Cpu",
+      "category": "IoT & Automation",
+      "file": "iot_machine_telemetry.json"
+    },
+    {
+      "id": "ext_dbstudio_cluster_management",
+      "name": "DBStudio Server- & Cluster-Operations",
+      "description": "Leitstand für gehostete Datenbankinstanzen, Knoten, Backups und System-Health.",
+      "icon": "Server",
+      "category": "DevOps & Administration",
+      "file": "dbstudio_cluster_management.json"
+    },
+    {
+      "id": "ext_fundraising_donations",
+      "name": "Spenden-, Kampagnen- & Förderverein-Manager",
+      "description": "Spendenbuchungen, Kampagnen-Fortschritt, Spendenbescheinigungen und Förderer-Management.",
+      "icon": "Heart",
+      "category": "Community & Non-Profit",
+      "file": "fundraising_donations.json"
+    }
+  ]
+}

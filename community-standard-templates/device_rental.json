@@ -1,0 +1,489 @@
+{
+  "id": "ext_device_rental",
+  "name": "Geräteverleih & Ausleihsystem (Makerspace & Schule)",
+  "description": "Verwaltung von Laptops, Kameras, 3D-Druckern, Ausleihfristen, Rückgaben und Mahnungen.",
+  "icon": "Laptop",
+  "category": "Bildung & Campus",
+  "file": "device_rental.json",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_categories",
+        "name": "Gerätekategorien",
+        "description": "Kategorisierung von IT-Equipment, Audio/Video und Werkzeugen",
+        "fields": [
+          {
+            "id": "f_cat_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_cat_name",
+            "name": "Kategorie",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_cat_max_days",
+            "name": "Max_Ausleihtage",
+            "type": "INTEGER",
+            "defaultValue": "14"
+          },
+          {
+            "id": "f_cat_deposit",
+            "name": "Kaution_Standard_EUR",
+            "type": "DECIMAL",
+            "defaultValue": "0.00"
+          }
+        ]
+      },
+      {
+        "id": "tbl_devices",
+        "name": "Gerätebestand",
+        "description": "Einzelne inventarisierte Geräte mit Seriennummer und Zustand",
+        "fields": [
+          {
+            "id": "f_dev_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_dev_name",
+            "name": "Bezeichnung",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_dev_cat",
+            "name": "category_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_dev_serial",
+            "name": "Seriennummer",
+            "type": "VARCHAR",
+            "length": 80,
+            "isUnique": true
+          },
+          {
+            "id": "f_dev_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Verfügbar",
+              "Verliehen",
+              "In Reparatur",
+              "Ausgemustert"
+            ]
+          },
+          {
+            "id": "f_dev_location",
+            "name": "Lagerort_Regal",
+            "type": "VARCHAR",
+            "length": 100
+          }
+        ]
+      },
+      {
+        "id": "tbl_borrowers",
+        "name": "Ausleiher & Studenten",
+        "description": "Personen, Studenten und Lehrkräfte mit Ausleihberechtigung",
+        "fields": [
+          {
+            "id": "f_b_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_b_name",
+            "name": "Vollstaendiger_Name",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_b_email",
+            "name": "E-Mail",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_b_matr",
+            "name": "Matrikel_Mitarbeiter_Nr",
+            "type": "VARCHAR",
+            "length": 50
+          },
+          {
+            "id": "f_b_phone",
+            "name": "Telefon",
+            "type": "VARCHAR",
+            "length": 40
+          },
+          {
+            "id": "f_b_blocked",
+            "name": "Gesperrt",
+            "type": "BOOLEAN",
+            "defaultValue": "false"
+          }
+        ]
+      },
+      {
+        "id": "tbl_rentals",
+        "name": "Ausleihvorgänge",
+        "description": "Laufende und archivierte Ausleihen mit Rückgabetermin und Zustand",
+        "fields": [
+          {
+            "id": "f_r_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_r_device",
+            "name": "device_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_r_borrower",
+            "name": "borrower_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_r_start",
+            "name": "Ausleihdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_r_due",
+            "name": "Rueckgabefrist",
+            "type": "DATE"
+          },
+          {
+            "id": "f_r_returned",
+            "name": "Tatsaechliche_Rueckgabe",
+            "type": "DATE"
+          },
+          {
+            "id": "f_r_deposit",
+            "name": "Hinterlegte_Kaution_EUR",
+            "type": "DECIMAL",
+            "defaultValue": "0.00"
+          },
+          {
+            "id": "f_r_notes",
+            "name": "Zustandsnotiz_Rueckgabe",
+            "type": "TEXT"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_cat_dev",
+        "fromTableId": "tbl_categories",
+        "fromFieldId": "f_cat_id",
+        "toTableId": "tbl_devices",
+        "toFieldId": "f_dev_cat",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      },
+      {
+        "id": "rel_dev_rent",
+        "fromTableId": "tbl_devices",
+        "fromFieldId": "f_dev_id",
+        "toTableId": "tbl_rentals",
+        "toFieldId": "f_r_device",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_bor_rent",
+        "fromTableId": "tbl_borrowers",
+        "fromFieldId": "f_b_id",
+        "toTableId": "tbl_rentals",
+        "toFieldId": "f_r_borrower",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_new_rental",
+        "name": "Geräteausleihe erfassen",
+        "sourceType": "table",
+        "sourceId": "tbl_rentals",
+        "fields": [],
+        "layout": {
+          "id": "root_f_rental",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_rent_head",
+              "type": "label",
+              "label": "📦 Neue Ausleihe starten",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_r_dev",
+              "type": "field",
+              "fieldId": "f_r_device",
+              "label": "Verfügbares Gerät auswählen",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_r_bor",
+              "type": "field",
+              "fieldId": "f_r_borrower",
+              "label": "Ausleiher / Student",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_r_due",
+              "type": "field",
+              "fieldId": "f_r_due",
+              "label": "Fälligkeitsdatum (Rückgabefrist)",
+              "widgetType": "date"
+            },
+            {
+              "id": "fld_r_dep",
+              "type": "field",
+              "fieldId": "f_r_deposit",
+              "label": "Kaution hinterlegt (€)",
+              "widgetType": "number"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_overdue_rentals",
+        "name": "Überfällige Ausleihen (Mahnfälle)",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "tbl_rentals",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "tbl_rentals",
+            "fieldId": "f_r_device",
+            "tableName": "Ausleihvorgänge",
+            "fieldName": "device_id",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "tbl_rentals",
+            "fieldId": "f_r_borrower",
+            "tableName": "Ausleihvorgänge",
+            "fieldName": "borrower_id",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "tbl_rentals",
+            "fieldId": "f_r_due",
+            "tableName": "Ausleihvorgänge",
+            "fieldName": "Rueckgabefrist",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              "< CURRENT_DATE"
+            ]
+          },
+          {
+            "id": "qc4",
+            "tableId": "tbl_rentals",
+            "fieldId": "f_r_returned",
+            "tableName": "Ausleihvorgänge",
+            "fieldName": "Tatsaechliche_Rueckgabe",
+            "show": true,
+            "criteria": [
+              "IS NULL"
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_device_status_breakdown",
+        "name": "Gerätebestand & Statusbericht",
+        "sourceType": "table",
+        "sourceId": "tbl_devices",
+        "groupingFieldId": "f_dev_status",
+        "summaries": [
+          {
+            "fieldId": "f_dev_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_dev_name",
+            "label": "Gerät",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_dev_serial",
+            "label": "Seriennummer",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_dev_location",
+            "label": "Standort / Fach",
+            "visible": true,
+            "order": 2
+          },
+          {
+            "fieldId": "f_dev_status",
+            "label": "Status",
+            "visible": true,
+            "order": 3,
+            "formattingRules": [
+              {
+                "operator": "eq",
+                "value": "Verfügbar",
+                "style": {
+                  "color": "#059669",
+                  "bold": true
+                }
+              },
+              {
+                "operator": "eq",
+                "value": "Verliehen",
+                "style": {
+                  "color": "#2563eb",
+                  "bold": true
+                }
+              },
+              {
+                "operator": "eq",
+                "value": "In Reparatur",
+                "style": {
+                  "color": "#e11d48",
+                  "bold": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_rental_station",
+        "name": "Geräteverleih & Ausleihstation",
+        "description": "Verfügbare Geräte, aktive Ausleihen und fällige Rückgabetermine",
+        "layout": {
+          "id": "rental_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "rental_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_devices_avail",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Verfügbare Geräte",
+                    "value": "28",
+                    "unit": "Geräte",
+                    "accentColor": "emerald",
+                    "icon": "CheckCircle"
+                  }
+                },
+                {
+                  "id": "kpi_rented_now",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Aktuell verliehen",
+                    "value": "14",
+                    "unit": "Geräte",
+                    "accentColor": "indigo",
+                    "icon": "Laptop"
+                  }
+                },
+                {
+                  "id": "kpi_overdue_returns",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Überfällige Rückgaben",
+                    "value": "2",
+                    "unit": "Vorgänge",
+                    "accentColor": "rose",
+                    "icon": "AlertTriangle"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_devices",
+              "type": "card",
+              "props": {
+                "title": "Gerätebestand & Status",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_dev_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "tbl_devices",
+                    "limit": 8,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "DeviceRentalHub",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

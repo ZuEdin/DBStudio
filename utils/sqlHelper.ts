@@ -20,12 +20,116 @@ export function quoteSqlIdentifier(identifier: string, dbType: DbType | string =
 }
 
 /**
+ * Translates relative date and Access date expressions (e.g. TODAY, Date(), Now(), Heute, Date() - 7)
+ * into dialect-compliant SQL date expressions for SQLite, MSSQL, MySQL, PostgreSQL, etc.
+ */
+function translateDateKeywordsInExpression(
+  expr: string,
+  dbType?: DbType | string
+): { result: string; hasDateKeyword: boolean } {
+  const typeStr = (typeof dbType === 'string' ? dbType : (dbType || '')).toUpperCase();
+  const isSqlServer = typeStr.includes('MSSQL') || typeStr.includes('SQL_SERVER') || typeStr === 'SQL';
+  const isMySql = typeStr.includes('MYSQL') || typeStr.includes('MARIADB');
+  const isPostgres = typeStr.includes('POSTGRES') || typeStr.includes('PG');
+  const isOracle = typeStr.includes('ORACLE');
+
+  const buildDateSql = (isDateTime: boolean, offsetDays: number): string => {
+    if (isSqlServer) {
+      if (isDateTime) {
+        if (offsetDays === 0) return 'GETDATE()';
+        return `DATEADD(day, ${offsetDays}, GETDATE())`;
+      } else {
+        if (offsetDays === 0) return 'CAST(GETDATE() AS DATE)';
+        return `DATEADD(day, ${offsetDays}, CAST(GETDATE() AS DATE))`;
+      }
+    }
+
+    if (isMySql) {
+      if (isDateTime) {
+        if (offsetDays === 0) return 'NOW()';
+        return offsetDays > 0 
+          ? `DATE_ADD(NOW(), INTERVAL ${offsetDays} DAY)` 
+          : `DATE_SUB(NOW(), INTERVAL ${Math.abs(offsetDays)} DAY)`;
+      } else {
+        if (offsetDays === 0) return 'CURDATE()';
+        return offsetDays > 0 
+          ? `DATE_ADD(CURDATE(), INTERVAL ${offsetDays} DAY)` 
+          : `DATE_SUB(CURDATE(), INTERVAL ${Math.abs(offsetDays)} DAY)`;
+      }
+    }
+
+    if (isPostgres) {
+      if (isDateTime) {
+        if (offsetDays === 0) return 'CURRENT_TIMESTAMP';
+        const sign = offsetDays >= 0 ? '+' : '-';
+        return `(CURRENT_TIMESTAMP ${sign} INTERVAL '${Math.abs(offsetDays)} days')`;
+      } else {
+        if (offsetDays === 0) return 'CURRENT_DATE';
+        const sign = offsetDays >= 0 ? '+' : '-';
+        return `(CURRENT_DATE ${sign} INTERVAL '${Math.abs(offsetDays)} days')`;
+      }
+    }
+
+    if (isOracle) {
+      if (isDateTime) {
+        if (offsetDays === 0) return 'SYSDATE';
+        const sign = offsetDays >= 0 ? '+' : '-';
+        return `(SYSDATE ${sign} ${Math.abs(offsetDays)})`;
+      } else {
+        if (offsetDays === 0) return 'TRUNC(SYSDATE)';
+        const sign = offsetDays >= 0 ? '+' : '-';
+        return `(TRUNC(SYSDATE) ${sign} ${Math.abs(offsetDays)})`;
+      }
+    }
+
+    // Default: SQLite (native date/datetime functions)
+    if (isDateTime) {
+      if (offsetDays === 0) return "datetime('now')";
+      const sign = offsetDays >= 0 ? `+${offsetDays}` : `${offsetDays}`;
+      return `datetime('now', '${sign} days')`;
+    } else {
+      if (offsetDays === 0) return "date('now')";
+      const sign = offsetDays >= 0 ? `+${offsetDays}` : `${offsetDays}`;
+      return `date('now', '${sign} days')`;
+    }
+  };
+
+  const dateRegex = /\b(today(?:\(\))?|heute(?:\(\))?|date\(\)|date\b|curdate\(\)|current_date|now\(\)|now\b|jetzt(?:\(\))?|current_timestamp|yesterday|gestern|tomorrow|morgen)(?:\s*([+-])\s*(\d+))?\b/gi;
+
+  let hasDateKeyword = false;
+  const result = expr.replace(dateRegex, (_match, kw, sign, numStr) => {
+    hasDateKeyword = true;
+    const lowerKw = kw.toLowerCase();
+    const isDateTime = lowerKw.includes('now') || lowerKw.includes('jetzt') || lowerKw.includes('current_timestamp');
+
+    let offset = 0;
+    if (lowerKw.includes('yesterday') || lowerKw.includes('gestern')) {
+      offset = -1;
+    } else if (lowerKw.includes('tomorrow') || lowerKw.includes('morgen')) {
+      offset = 1;
+    }
+
+    if (sign && numStr) {
+      const delta = parseInt(numStr, 10);
+      if (!isNaN(delta)) {
+        offset += sign === '-' ? -delta : delta;
+      }
+    }
+
+    return buildDateSql(isDateTime, offset);
+  });
+
+  return { result, hasDateKeyword };
+}
+
+/**
  * Resolves dynamic criteria / form values in SQL criteria expressions.
  */
 function resolveCriteriaExpression(
   crit: string,
   forExecution: boolean,
-  context?: Record<string, any>
+  context?: Record<string, any>,
+  dbType?: DbType | string
 ): string {
   if (!crit) return '';
   let resolved = crit.trim();
@@ -51,6 +155,18 @@ function resolveCriteriaExpression(
     });
   }
 
+  // Check and translate date keywords (e.g. TODAY, Date(), Now(), Heute, etc.)
+  const { result: dateResolved, hasDateKeyword } = translateDateKeywordsInExpression(resolved, dbType);
+  if (hasDateKeyword) {
+    resolved = dateResolved.trim();
+    // If it now starts with an operator like '<', '>', '=', 'BETWEEN', return as is
+    if (/^(IS|IN|BETWEEN|LIKE|NOT|=|>|<|<>|!=)/i.test(resolved)) {
+      return resolved;
+    }
+    // Otherwise prepend '=' for equality comparison
+    return `= ${resolved}`;
+  }
+
   // Format shorthand operators: e.g. "> 50", "= 'Berlin'", "Like '*GmbH*'"
   if (resolved.startsWith('>') || resolved.startsWith('<') || resolved.startsWith('=')) {
     return resolved;
@@ -70,7 +186,7 @@ function resolveCriteriaExpression(
   }
 
   // If it doesn't contain comparison operators
-  if (!/^(IS|IN|BETWEEN|LIKE|NOT|=|>|<)/i.test(resolved)) {
+  if (!/^(IS|IN|BETWEEN|LIKE|NOT|=|>|<|<>|!=)/i.test(resolved)) {
     // Treat as equality or string match
     return `= '${resolved.replace(/'/g, "''")}'`;
   }
@@ -317,7 +433,7 @@ export function generateSqlSelect(
       const colCritList = col.criteria
         .filter((c) => Boolean(c && c.trim()))
         .map((c) => {
-          const resolvedOpAndVal = resolveCriteriaExpression(c, forExecution, context);
+          const resolvedOpAndVal = resolveCriteriaExpression(c, forExecution, context, dbType);
           return `${quotedCol} ${resolvedOpAndVal}`;
         });
 

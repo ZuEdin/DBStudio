@@ -297,13 +297,14 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
       }
 
       // Explicit Default Values override
-      if (f.defaultValue) {
+      if (f.defaultValue !== undefined && f.defaultValue !== null && String(f.defaultValue).trim() !== '') {
+          const defStr = String(f.defaultValue).trim();
           if (type.startsWith('string')) {
-              initializer = ` = "${f.defaultValue}";`;
+              initializer = ` = "${defStr}";`;
           } else if (type.includes('bool')) {
-              initializer = ` = ${f.defaultValue.toLowerCase() === 'true' ? 'true' : 'false'};`;
+              initializer = ` = ${defStr.toLowerCase() === 'true' || defStr === '1' ? 'true' : 'false'};`;
           } else if (type.startsWith('decimal')) {
-              const val = f.defaultValue.trim();
+              const val = defStr;
               if (val.toLowerCase().endsWith('m')) {
                   initializer = ` = ${val};`;
               } else if (!isNaN(Number(val))) {
@@ -312,7 +313,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
                   initializer = ` = ${val};`;
               }
           } else if (type.startsWith('float') || type.startsWith('double')) {
-              const val = f.defaultValue.trim();
+              const val = defStr;
               if (val.toLowerCase().endsWith('f') || val.toLowerCase().endsWith('d')) {
                   initializer = ` = ${val};`;
               } else if (!isNaN(Number(val))) {
@@ -321,7 +322,7 @@ export const generateModels = (tables: Table[], relationships: Relationship[], q
                   initializer = ` = ${val};`;
               }
           } else if (!type.startsWith('DateTime')) {
-              initializer = ` = ${f.defaultValue};`;
+              initializer = ` = ${defStr};`;
           }
       }
 

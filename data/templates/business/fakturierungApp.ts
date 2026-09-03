@@ -1,4 +1,5 @@
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getFakturierungPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: {
@@ -598,6 +599,7 @@ export const getFakturierungApp = (lang: string): ProjectTemplate => {
               ]
             }
           ],
+          pages: getFakturierungPages(t),
           layout: [],
           tableGroups: []
         }

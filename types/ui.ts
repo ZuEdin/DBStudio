@@ -154,6 +154,10 @@ export interface ProjectTemplate {
   icon: string;
   category: string;
   data: ProjectData;
+  isExternal?: boolean;
+  providerId?: string;
+  providerName?: string;
+  providerUrl?: string;
 }
 
 export type ViewType =

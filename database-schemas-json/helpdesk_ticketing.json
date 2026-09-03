@@ -1,0 +1,848 @@
+{
+  "id": "ext_helpdesk_ticketing",
+  "name": "IT-Helpdesk & Kundensupport Ticketsystem",
+  "description": "Tickets, Prioritäten, SLA-Reaktionszeiten, Ticket-Historie und Support-Agenten.",
+  "icon": "LifeBuoy",
+  "category": "Support & Service",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_hd_customers",
+        "name": "Support_Kunden",
+        "description": "Kunden & Anfragesteller",
+        "fields": [
+          {
+            "id": "f_hdk_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_hdk_name",
+            "name": "Name",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_hdk_email",
+            "name": "Email",
+            "type": "EMAIL"
+          },
+          {
+            "id": "f_hdk_org",
+            "name": "Organisation",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_hdk_sla",
+            "name": "SlaStufe",
+            "type": "ENUM",
+            "enumValues": [
+              "Standard",
+              "Gold_4h",
+              "Platinum_1h"
+            ],
+            "defaultValue": "Standard"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Name": "Martin Schulz",
+            "Email": "m.schulz@stadtwerke-nord.de",
+            "Organisation": "Stadtwerke Nord",
+            "SlaStufe": "Platinum_1h"
+          },
+          {
+            "Id": 2,
+            "Name": "Sonja Graf",
+            "Email": "s.graf@mediamarkt-partner.de",
+            "Organisation": "Retail Media GmbH",
+            "SlaStufe": "Gold_4h"
+          }
+        ]
+      },
+      {
+        "id": "tbl_hd_tickets",
+        "name": "Tickets",
+        "description": "Support-Tickets und Störungsmeldungen",
+        "fields": [
+          {
+            "id": "f_tck_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_tck_cust_id",
+            "name": "KundeId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_tck_number",
+            "name": "TicketNummer",
+            "type": "VARCHAR",
+            "length": 30,
+            "isUnique": true
+          },
+          {
+            "id": "f_tck_subject",
+            "name": "Betreff",
+            "type": "VARCHAR",
+            "length": 200
+          },
+          {
+            "id": "f_tck_cat",
+            "name": "Kategorie",
+            "type": "ENUM",
+            "enumValues": [
+              "Hardware",
+              "Software_Bug",
+              "Zugriff_Passwort",
+              "Abrechnung",
+              "FeatureRequest"
+            ]
+          },
+          {
+            "id": "f_tck_priority",
+            "name": "Prioritaet",
+            "type": "ENUM",
+            "enumValues": [
+              "Niedrig",
+              "Normal",
+              "Hoch",
+              "Notfall_P1"
+            ],
+            "defaultValue": "Normal"
+          },
+          {
+            "id": "f_tck_status",
+            "name": "Status",
+            "type": "ENUM",
+            "enumValues": [
+              "Neu",
+              "InBearbeitung",
+              "WartetAufKunde",
+              "Geloest",
+              "Geschlossen"
+            ],
+            "defaultValue": "Neu"
+          },
+          {
+            "id": "f_tck_agent",
+            "name": "ZustaendigerAgent",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_tck_created",
+            "name": "ErstelltAm",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_tck_resolved",
+            "name": "GeloestAm",
+            "type": "DATETIME",
+            "allowNull": true
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "KundeId": 1,
+            "TicketNummer": "TICK-2026-0891",
+            "Betreff": "VPN-Verbindung bricht nach 10 Minuten ab",
+            "Kategorie": "Hardware",
+            "Prioritaet": "Notfall_P1",
+            "Status": "InBearbeitung",
+            "ZustaendigerAgent": "Tobias Meyer",
+            "ErstelltAm": "2026-09-02 08:30:00",
+            "GeloestAm": null
+          },
+          {
+            "Id": 2,
+            "KundeId": 2,
+            "TicketNummer": "TICK-2026-0892",
+            "Betreff": "Passwort-Reset für Buchhaltungstool schlägt fehl",
+            "Kategorie": "Zugriff_Passwort",
+            "Prioritaet": "Normal",
+            "Status": "Geloest",
+            "ZustaendigerAgent": "Sara Demir",
+            "ErstelltAm": "2026-09-01 14:15:00",
+            "GeloestAm": "2026-09-01 15:00:00"
+          }
+        ]
+      },
+      {
+        "id": "tbl_hd_messages",
+        "name": "Ticket_Nachrichten",
+        "description": "Chronologische Kommunikation zwischen Anwender und Support",
+        "fields": [
+          {
+            "id": "f_msg_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_msg_tck_id",
+            "name": "TicketId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_msg_sender",
+            "name": "AbsenderName",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_msg_type",
+            "name": "NachrichtenTyp",
+            "type": "ENUM",
+            "enumValues": [
+              "KundenAntwort",
+              "AgentenAntwort",
+              "InterneNotiz"
+            ],
+            "defaultValue": "AgentenAntwort"
+          },
+          {
+            "id": "f_msg_text",
+            "name": "Nachrichtentext",
+            "type": "TEXT"
+          },
+          {
+            "id": "f_msg_time",
+            "name": "Zeitstempel",
+            "type": "DATETIME"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "TicketId": 1,
+            "AbsenderName": "Martin Schulz",
+            "NachrichtenTyp": "KundenAntwort",
+            "Nachrichtentext": "Seit dem Router-Update heute morgen trennt der Tunnel ständig.",
+            "Zeitstempel": "2026-09-02 08:30:00"
+          },
+          {
+            "Id": 2,
+            "TicketId": 1,
+            "AbsenderName": "Tobias Meyer",
+            "NachrichtenTyp": "InterneNotiz",
+            "Nachrichtentext": "Firmware-Version der Firewall auf Gegenstelle prüfen.",
+            "Zeitstempel": "2026-09-02 08:45:00"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_hdk_tck",
+        "fromTableId": "tbl_hd_customers",
+        "fromFieldId": "f_hdk_id",
+        "toTableId": "tbl_hd_tickets",
+        "toFieldId": "f_tck_cust_id",
+        "sourceTableId": "tbl_hd_customers",
+        "sourceFieldId": "f_hdk_id",
+        "targetTableId": "tbl_hd_tickets",
+        "targetFieldId": "f_tck_cust_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_tck_msg",
+        "fromTableId": "tbl_hd_tickets",
+        "fromFieldId": "f_tck_id",
+        "toTableId": "tbl_hd_messages",
+        "toFieldId": "f_msg_tck_id",
+        "sourceTableId": "tbl_hd_tickets",
+        "sourceFieldId": "f_tck_id",
+        "targetTableId": "tbl_hd_messages",
+        "targetFieldId": "f_msg_tck_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "f_ticket_form",
+        "name": "Ticket-Erfassung & Fallbearbeitung",
+        "sourceType": "table",
+        "sourceId": "tbl_hd_tickets",
+        "fields": [],
+        "layout": {
+          "id": "root_tck",
+          "type": "container",
+          "className": "space-y-6 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_tck",
+              "type": "label",
+              "label": "🎫 Support-Ticket bearbeiten",
+              "className": "text-xl font-bold text-slate-800 dark:text-slate-100 border-b pb-3 flex items-center gap-2"
+            },
+            {
+              "id": "grid_tck_meta",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800",
+              "children": [
+                {
+                  "id": "fld_tk_nr",
+                  "type": "field",
+                  "fieldId": "f_tck_number",
+                  "label": "Ticket-Nr.",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_tk_cust",
+                  "type": "field",
+                  "fieldId": "f_tck_cust_id",
+                  "label": "Kunde / Organisation",
+                  "widgetType": "select",
+                  "lookup": {
+                    "tableId": "tbl_hd_customers",
+                    "valueFieldId": "f_hdk_id",
+                    "labelFields": [
+                      "f_hdk_name",
+                      "f_hdk_org"
+                    ]
+                  }
+                },
+                {
+                  "id": "fld_tk_subj",
+                  "type": "field",
+                  "fieldId": "f_tck_subject",
+                  "label": "Betreff / Problem",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_tk_cat",
+                  "type": "field",
+                  "fieldId": "f_tck_cat",
+                  "label": "Kategorie",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_tk_prio",
+                  "type": "field",
+                  "fieldId": "f_tck_priority",
+                  "label": "Priorität",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_tk_stat",
+                  "type": "field",
+                  "fieldId": "f_tck_status",
+                  "label": "Status",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_tk_agent",
+                  "type": "field",
+                  "fieldId": "f_tck_assigned",
+                  "label": "Zuständiger Agent",
+                  "widgetType": "text"
+                }
+              ]
+            },
+            {
+              "id": "sub_ticket_messages",
+              "type": "subform",
+              "label": "Ticket-Konversation & Verlauf",
+              "subform": {
+                "formId": "f_ticket_messages_sub",
+                "masterLinkFieldId": "f_tck_id",
+                "childLinkFieldId": "f_msg_tck_id",
+                "canAdd": true,
+                "canEdit": false,
+                "canDelete": false
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_ticket_messages_sub",
+        "name": "Ticket Nachrichtenverlauf",
+        "sourceType": "table",
+        "sourceId": "tbl_hd_messages",
+        "fields": [],
+        "layout": {
+          "id": "sub_root_msg",
+          "type": "container",
+          "className": "space-y-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg",
+          "children": [
+            {
+              "id": "fld_msg_sender",
+              "type": "field",
+              "fieldId": "f_msg_sender",
+              "label": "Absender",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_msg_type",
+              "type": "field",
+              "fieldId": "f_msg_type",
+              "label": "Art",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_msg_text",
+              "type": "field",
+              "fieldId": "f_msg_text",
+              "label": "Nachrichtentext",
+              "widgetType": "textarea"
+            },
+            {
+              "id": "fld_msg_time",
+              "type": "field",
+              "fieldId": "f_msg_time",
+              "label": "Gesendet am",
+              "widgetType": "date"
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_customer_form",
+        "name": "Kundenstamm & SLA-Vertrag",
+        "sourceType": "table",
+        "sourceId": "tbl_hd_customers",
+        "fields": [],
+        "layout": {
+          "id": "root_cust",
+          "type": "container",
+          "className": "space-y-4 p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_cust",
+              "type": "label",
+              "label": "👤 Support-Kunde & Vereinbarung",
+              "className": "text-lg font-bold text-slate-800 dark:text-slate-100 border-b pb-2"
+            },
+            {
+              "id": "grid_cust",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-2 gap-3",
+              "children": [
+                {
+                  "id": "fld_cu_name",
+                  "type": "field",
+                  "fieldId": "f_hdk_name",
+                  "label": "Kundenname",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_cu_org",
+                  "type": "field",
+                  "fieldId": "f_hdk_org",
+                  "label": "Organisation / Firma",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_cu_mail",
+                  "type": "field",
+                  "fieldId": "f_hdk_email",
+                  "label": "E-Mail",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_cu_sla",
+                  "type": "field",
+                  "fieldId": "f_hdk_sla",
+                  "label": "SLA-Stufe",
+                  "widgetType": "select"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "reports": [
+      {
+        "id": "r_ticket_status_report",
+        "name": "Helpdesk-SLA- & Abschlussbericht",
+        "sourceType": "table",
+        "sourceId": "tbl_hd_tickets",
+        "groupingFieldId": "f_tck_status",
+        "summaries": [
+          {
+            "fieldId": "f_tck_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_tck_number",
+            "label": "Ticket",
+            "visible": true,
+            "order": 0,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_tck_subject",
+            "label": "Betreff",
+            "visible": true,
+            "order": 1,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_tck_priority",
+            "label": "Priorität",
+            "visible": true,
+            "order": 2,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_tck_status",
+            "label": "Status",
+            "visible": true,
+            "order": 3,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_tck_assigned",
+            "label": "Agent",
+            "visible": true,
+            "order": 4,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_tck_created",
+            "label": "Erstellt am",
+            "visible": true,
+            "order": 5,
+            "renderType": "date"
+          }
+        ],
+        "settings": {
+          "orientation": "portrait",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Übersicht über Service-Anfragen und Bearbeitungsstatus"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "id": "p_helpdesk_dashboard",
+        "name": "Support Command Center",
+        "description": "Echtzeit-Helpdesk-Leitstand für Dispatcher und Support-Teams",
+        "layout": {
+          "id": "p_root_hd",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "hd_alert",
+              "type": "alert_box",
+              "props": {
+                "alertType": "info",
+                "title": "SLA-Status einwandfrei",
+                "message": "Durchschnittliche Reaktionszeit im First-Level: 14 Minuten (SLA-Ziel: < 60 Min).",
+                "dismissible": true
+              }
+            },
+            {
+              "id": "hd_header_row",
+              "type": "row",
+              "props": {
+                "className": "items-center justify-between pb-2 border-b border-slate-200"
+              },
+              "children": [
+                {
+                  "id": "hd_header_col",
+                  "type": "column",
+                  "props": {
+                    "flex": "1"
+                  },
+                  "children": [
+                    {
+                      "id": "hd_title",
+                      "type": "text",
+                      "props": {
+                        "text": "IT-Helpdesk & Kundenservice",
+                        "className": "text-2xl font-bold text-slate-900 tracking-tight"
+                      }
+                    },
+                    {
+                      "id": "hd_sub",
+                      "type": "text",
+                      "props": {
+                        "text": "Übersicht aller Tickets, Eskalationsstufen und Agenten-Kapazitäten",
+                        "className": "text-sm text-slate-500 mt-1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "hd_kpi_grid",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_hd_open",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Offene Support-Tickets",
+                    "value": "7",
+                    "unit": "Tickets",
+                    "trend": "4 in Bearbeitung",
+                    "trendDirection": "neutral",
+                    "trendLabel": "SLA-Erfüllung: 99.4%",
+                    "accentColor": "emerald",
+                    "icon": "LifeBuoy"
+                  }
+                },
+                {
+                  "id": "kpi_hd_crit",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "P1 Notfall-Tickets",
+                    "value": "0",
+                    "unit": "P1",
+                    "trend": "Keine Eskalation",
+                    "trendDirection": "up",
+                    "trendLabel": "Alle Systeme stabil",
+                    "accentColor": "indigo",
+                    "icon": "ShieldCheck"
+                  }
+                },
+                {
+                  "id": "kpi_hd_closed",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Gelöst diese Woche",
+                    "value": "29",
+                    "unit": "Tickets",
+                    "trend": "+6 vs. Vorwoche",
+                    "trendDirection": "up",
+                    "trendLabel": "Kundenzufriedenheit: 4.9/5",
+                    "accentColor": "amber",
+                    "icon": "CheckCircle"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "hd_tickets_table",
+              "type": "table_view",
+              "props": {
+                "tableId": "tbl_hd_tickets",
+                "title": "Aktuelle Support-Tickets in Bearbeitung"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_open_tickets",
+        "type": "SELECT",
+        "name": "Aktive Tickets & Prio 1",
+        "nodes": [
+          {
+            "id": "qn_tck",
+            "tableId": "tbl_hd_tickets",
+            "x": 40,
+            "y": 40
+          },
+          {
+            "id": "qn_cust",
+            "tableId": "tbl_hd_customers",
+            "x": 360,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c1",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_number",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "TicketNummer",
+            "alias": "TicketNr",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c2",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_subject",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "Betreff",
+            "alias": "Betreff",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c3",
+            "tableId": "tbl_hd_customers",
+            "fieldId": "f_hdk_name",
+            "tableName": "tbl_hd_customers",
+            "fieldName": "Name",
+            "alias": "Kunde",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c4",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_priority",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "Prioritaet",
+            "alias": "Prioritaet",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c5",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_status",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "Status",
+            "alias": "Status",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              "!= 'Geschlossen'"
+            ]
+          },
+          {
+            "id": "c6",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_assigned",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "ZuweisungAgent",
+            "alias": "Agent",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_sla_critical",
+        "type": "SELECT",
+        "name": "SLA-Eskalationen (P1 Notfall)",
+        "nodes": [
+          {
+            "id": "qn_crit",
+            "tableId": "tbl_hd_tickets",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c7",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_number",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "TicketNummer",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c8",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_priority",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "Prioritaet",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              "= 'P1_Notfall'"
+            ]
+          },
+          {
+            "id": "c9",
+            "tableId": "tbl_hd_tickets",
+            "fieldId": "f_tck_created",
+            "tableName": "tbl_hd_tickets",
+            "fieldName": "ErstelltAm",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      }
+    ],
+    "layout": [
+      {
+        "id": "tbl_hd_customers",
+        "tableId": "tbl_hd_customers",
+        "x": 40,
+        "y": 60
+      },
+      {
+        "id": "tbl_hd_tickets",
+        "tableId": "tbl_hd_tickets",
+        "x": 420,
+        "y": 60
+      },
+      {
+        "id": "tbl_hd_messages",
+        "tableId": "tbl_hd_messages",
+        "x": 420,
+        "y": 420
+      }
+    ],
+    "tableGroups": [
+      {
+        "id": "grp_support",
+        "name": "IT Service Desk",
+        "color": "purple"
+      }
+    ],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "HelpdeskPro",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, ClipboardList, Route, Zap, Database, Layers, LogIn, Cloud, User as UserIcon, FileText, ShieldCheck, Server, Wand2 } from 'lucide-react';
+import { Briefcase, ClipboardList, Route, Zap, Database, Layers, LogIn, Cloud, User as UserIcon, FileText, ShieldCheck, Server, Wand2, GitMerge } from 'lucide-react';
 import { RibbonButton } from '../RibbonButton';
 import { RibbonGroup } from '../RibbonGroup';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -15,6 +15,16 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onAction }) => {
 
   return (
     <div className="flex gap-4 h-full">
+      <RibbonGroup label="Multi-Projekt & Federation">
+        <RibbonButton 
+          icon={<GitMerge className="text-indigo-600" />} 
+          label="Projekte zusammenführen" 
+          onClick={() => onAction('open_project_merger')} 
+          size="large" 
+          sublabel="Multi-Domänen"
+        />
+      </RibbonGroup>
+
       <RibbonGroup label="Projektsteuerung">
         <RibbonButton 
           icon={<Briefcase className="text-emerald-600" />} 

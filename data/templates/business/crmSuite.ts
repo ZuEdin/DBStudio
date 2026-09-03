@@ -1,5 +1,6 @@
 
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getCrmPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: {
@@ -227,6 +228,7 @@ export const getCrmSuite = (lang: string): ProjectTemplate => {
               ]
             }
           ],
+          pages: getCrmPages(t),
           layout: [],
           tableGroups: []
         }

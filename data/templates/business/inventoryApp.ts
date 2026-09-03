@@ -1,5 +1,6 @@
 
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getInventoryPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: {
@@ -118,7 +119,17 @@ export const getInventoryApp = (lang: string): ProjectTemplate => {
               ]
             }
           ],
-          queries: [],
+          queries: [
+            {
+              id: 'q_low_stock', type: 'SELECT', name: 'Mindestbestand unterschritten',
+              nodes: [{ id: 'n1', tableId: 't_art', x: 50, y: 50 }],
+              columns: [
+                { id: 'qc1', tableId: 't_art', fieldId: 'a3', tableName: t.t_art, fieldName: t.f_bez, sort: 'ASC', show: true, criteria: [''] },
+                { id: 'qc2', tableId: 't_art', fieldId: 'a4', tableName: t.t_art, fieldName: t.f_stock, show: true, criteria: ['<= 100'] },
+                { id: 'qc3', tableId: 't_art', fieldId: 'a5', tableName: t.t_art, fieldName: t.f_min, show: true, criteria: [''] }
+              ]
+            }
+          ],
           forms: [
               {
                   id: 'f_art', name: t.f_art_form, sourceType: 'table', sourceId: 't_art',
@@ -140,6 +151,7 @@ export const getInventoryApp = (lang: string): ProjectTemplate => {
                   }
               }
           ],
+          pages: getInventoryPages(t),
           layout: [],
           tableGroups: []
         }

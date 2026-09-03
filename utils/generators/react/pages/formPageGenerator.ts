@@ -130,10 +130,11 @@ ${optionsJsx}
   table.fields.forEach(f => {
       const fCamel = toCamelCase(f.name);
       const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
-      const hasNowDefault = f.defaultValue && (
-          f.defaultValue.toLowerCase().includes('now') ||
-          f.defaultValue.toLowerCase().includes('current_timestamp') ||
-          f.defaultValue.toLowerCase().includes('getdate')
+      const defStr = f.defaultValue !== undefined && f.defaultValue !== null ? String(f.defaultValue) : '';
+      const hasNowDefault = defStr && (
+          defStr.toLowerCase().includes('now') ||
+          defStr.toLowerCase().includes('current_timestamp') ||
+          defStr.toLowerCase().includes('getdate')
       );
       const isCreatedAtField = ['created_at', 'createdat', 'erstellt_am', 'created_date', 'createddate'].includes(f.name.toLowerCase());
       const isCreatedByField = ['created_by', 'createdby', 'erstellt_von', 'created_user', 'createduser'].includes(f.name.toLowerCase());
@@ -152,14 +153,14 @@ ${optionsJsx}
       } else if (isCreatedByField) {
           defaultFields.push(`${fCamel}: getLoggedInUser()`);
           payloadSetups.push(`if (!payload.${fCamel}) payload.${fCamel} = getLoggedInUser();`);
-      } else if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+      } else if (f.defaultValue !== undefined && f.defaultValue !== null && defStr !== '') {
           if (f.type === 'BOOLEAN') {
-              const bVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
+              const bVal = defStr.toLowerCase() === 'true' || defStr === '1';
               defaultFields.push(`${fCamel}: ${bVal}`);
           } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
-              defaultFields.push(`${fCamel}: ${f.defaultValue}`);
+              defaultFields.push(`${fCamel}: ${defStr}`);
           } else {
-              defaultFields.push(`${fCamel}: "${f.defaultValue.replace(/"/g, '\\"')}"`);
+              defaultFields.push(`${fCamel}: "${defStr.replace(/"/g, '\\"')}"`);
           }
       }
   });

@@ -1,0 +1,64 @@
+{
+  "name": "Community & Enterprise Database Templates",
+  "version": "1.0.0",
+  "author": "DBStudio Community",
+  "updatedAt": "2026-09-03",
+  "templates": [
+    {
+      "id": "ext_crm_sales_pipeline",
+      "name": "CRM & Vertriebs-Pipeline",
+      "description": "Umfassendes Kunden- und Lead-Management mit Deals, Aktivitäten, Kontakten und Angeboten.",
+      "icon": "Users",
+      "category": "CRM & Vertrieb",
+      "file": "crm_sales_pipeline.json"
+    },
+    {
+      "id": "ext_project_task_management",
+      "name": "Projekt- & Aufgabenmanagement (Agile & Waterfall)",
+      "description": "Strukturierte Planung mit Projekten, Meilensteinen, Tasks, Aufwandserfassung und Team-Zuweisung.",
+      "icon": "Kanban",
+      "category": "Projektmanagement",
+      "file": "project_task_management.json"
+    },
+    {
+      "id": "ext_helpdesk_ticketing",
+      "name": "IT-Helpdesk & Kundensupport Ticketsystem",
+      "description": "Tickets, Prioritäten, SLA-Reaktionszeiten, Ticket-Historie und Support-Agenten.",
+      "icon": "LifeBuoy",
+      "category": "Support & Service",
+      "file": "helpdesk_ticketing.json"
+    },
+    {
+      "id": "ext_inventory_warehouse",
+      "name": "Warenwirtschaft, Lager & Bestandsführung",
+      "description": "Artikelstamm, Lagerorte, Bestände, Mindestmengen und Wareneingang/-ausgang.",
+      "icon": "Package",
+      "category": "Handel & Logistik",
+      "file": "inventory_warehouse.json"
+    },
+    {
+      "id": "ext_fleet_logistics",
+      "name": "Fuhrpark, Fahrtenbuch & Fahrzeug-Disposition",
+      "description": "Fahrzeugstamm, Fahrer, Tourenplanung, Wartungsintervalle und Kraftstoff-Erfassung.",
+      "icon": "Truck",
+      "category": "Mobilität & Fuhrpark",
+      "file": "fleet_logistics.json"
+    },
+    {
+      "id": "ext_hr_employee_management",
+      "name": "HR & Personalverwaltung mit Urlaubsmanagement",
+      "description": "Mitarbeiterstamm, Abteilungen, Stellen, Gehaltsstufen und Urlaubsanträge mit Genehmigungsworkflow.",
+      "icon": "Briefcase",
+      "category": "HR & Personal",
+      "file": "hr_employee_management.json"
+    },
+    {
+      "id": "ext_event_conference_management",
+      "name": "Event- & Konferenz-Management (Community)",
+      "description": "Veranstaltungen, Vortragsslots/Sessions, Referenten, Teilnehmer und Ticket-Registrierungen.",
+      "icon": "Calendar",
+      "category": "Community & Events",
+      "file": "event_management.json"
+    }
+  ]
+}

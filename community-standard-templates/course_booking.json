@@ -1,0 +1,506 @@
+{
+  "id": "ext_course_booking",
+  "name": "Kurs-, Workshop- & Raumbelegungs-Portal",
+  "description": "Organisation von Kursen, Dozenten, Räumen, Raumauslastung und Teilnehmer-Einschreibungen.",
+  "icon": "BookOpen",
+  "category": "Bildung & Events",
+  "file": "course_booking.json",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_rooms",
+        "name": "Räume & Seminarorte",
+        "description": "Hörsäle, Seminarräume und Computer-Labs mit Bestuhlung und Technik",
+        "fields": [
+          {
+            "id": "f_rm_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_rm_code",
+            "name": "Raumnummer",
+            "type": "VARCHAR",
+            "length": 40
+          },
+          {
+            "id": "f_rm_building",
+            "name": "Gebaeudeteil",
+            "type": "VARCHAR",
+            "length": 60
+          },
+          {
+            "id": "f_rm_cap",
+            "name": "Sitzplaetze",
+            "type": "INTEGER",
+            "defaultValue": "30"
+          },
+          {
+            "id": "f_rm_beamer",
+            "name": "Beamer_Vorhanden",
+            "type": "BOOLEAN",
+            "defaultValue": "true"
+          }
+        ]
+      },
+      {
+        "id": "tbl_instructors",
+        "name": "Dozenten & Referenten",
+        "description": "Lehrbeauftragte, Referenten und Kursleiter mit Fachgebiet und Kontaktdaten",
+        "fields": [
+          {
+            "id": "f_ins_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_ins_name",
+            "name": "Name",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_ins_email",
+            "name": "E-Mail",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_ins_subject",
+            "name": "Fachbereich",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_ins_rate",
+            "name": "Honorar_pro_Stunde_EUR",
+            "type": "DECIMAL",
+            "defaultValue": "65.00"
+          }
+        ]
+      },
+      {
+        "id": "tbl_courses",
+        "name": "Kurse & Workshops",
+        "description": "Kursangebot, Termine, maximale Teilnehmer und Gebühren",
+        "fields": [
+          {
+            "id": "f_crs_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_crs_title",
+            "name": "Kurstitel",
+            "type": "VARCHAR",
+            "length": 180
+          },
+          {
+            "id": "f_crs_ins",
+            "name": "instructor_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_crs_room",
+            "name": "room_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_crs_start",
+            "name": "Startzeit",
+            "type": "TIMESTAMP"
+          },
+          {
+            "id": "f_crs_end",
+            "name": "Endzeit",
+            "type": "TIMESTAMP"
+          },
+          {
+            "id": "f_crs_max",
+            "name": "Max_Teilnehmer",
+            "type": "INTEGER",
+            "defaultValue": "20"
+          },
+          {
+            "id": "f_crs_price",
+            "name": "Gebuehr_EUR",
+            "type": "DECIMAL",
+            "defaultValue": "0.00"
+          },
+          {
+            "id": "f_crs_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Geplant",
+              "Aktiv",
+              "Ausgebucht",
+              "Abgeschlossen",
+              "Abgesagt"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tbl_participants",
+        "name": "Teilnehmer & Studenten",
+        "description": "Registrierte Kursteilnehmer, Interessenten und Alumni",
+        "fields": [
+          {
+            "id": "f_pt_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_pt_name",
+            "name": "Name",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_pt_email",
+            "name": "E-Mail",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_pt_company",
+            "name": "Organisation_Uni",
+            "type": "VARCHAR",
+            "length": 120
+          }
+        ]
+      },
+      {
+        "id": "tbl_enrollments",
+        "name": "Einschreibungen",
+        "description": "Verknüpfung von Teilnehmern zu gebuchten Kursen inklusive Zahlungsstatus",
+        "fields": [
+          {
+            "id": "f_en_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_en_course",
+            "name": "course_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_en_part",
+            "name": "participant_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_en_date",
+            "name": "Anmeldedatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_en_status",
+            "name": "Zahlungsstatus",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Bezahlt",
+              "Offen",
+              "Erlaess"
+            ]
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_ins_crs",
+        "fromTableId": "tbl_instructors",
+        "fromFieldId": "f_ins_id",
+        "toTableId": "tbl_courses",
+        "toFieldId": "f_crs_ins",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "SET NULL"
+      },
+      {
+        "id": "rel_rm_crs",
+        "fromTableId": "tbl_rooms",
+        "fromFieldId": "f_rm_id",
+        "toTableId": "tbl_courses",
+        "toFieldId": "f_crs_room",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "SET NULL"
+      },
+      {
+        "id": "rel_crs_en",
+        "fromTableId": "tbl_courses",
+        "fromFieldId": "f_crs_id",
+        "toTableId": "tbl_enrollments",
+        "toFieldId": "f_en_course",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_pt_en",
+        "fromTableId": "tbl_participants",
+        "fromFieldId": "f_pt_id",
+        "toTableId": "tbl_enrollments",
+        "toFieldId": "f_en_part",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_new_course",
+        "name": "Neuen Workshop planen",
+        "sourceType": "table",
+        "sourceId": "tbl_courses",
+        "fields": [],
+        "layout": {
+          "id": "root_f_course",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_crs_head",
+              "type": "label",
+              "label": "🎓 Kursangebot erstellen",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_c_title",
+              "type": "field",
+              "fieldId": "f_crs_title",
+              "label": "Kurstitel & Fach",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_c_ins",
+              "type": "field",
+              "fieldId": "f_crs_ins",
+              "label": "Dozent",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_c_rm",
+              "type": "field",
+              "fieldId": "f_crs_room",
+              "label": "Seminarraum",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_c_max",
+              "type": "field",
+              "fieldId": "f_crs_max",
+              "label": "Teilnehmerlimit",
+              "widgetType": "number"
+            },
+            {
+              "id": "fld_c_price",
+              "type": "field",
+              "fieldId": "f_crs_price",
+              "label": "Teilnahmegebühr (€)",
+              "widgetType": "number"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_active_courses",
+        "name": "Aktive und buchbare Kurse",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "tbl_courses",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "tbl_courses",
+            "fieldId": "f_crs_title",
+            "tableName": "Kurse & Workshops",
+            "fieldName": "Kurstitel",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "tbl_courses",
+            "fieldId": "f_crs_price",
+            "tableName": "Kurse & Workshops",
+            "fieldName": "Gebuehr_EUR",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "tbl_courses",
+            "fieldId": "f_crs_status",
+            "tableName": "Kurse & Workshops",
+            "fieldName": "Status",
+            "show": true,
+            "criteria": [
+              "= \"Geplant\" OR = \"Aktiv\""
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_course_attendance",
+        "name": "Kursbelegung & Teilnehmer-Audit",
+        "sourceType": "table",
+        "sourceId": "tbl_courses",
+        "groupingFieldId": "f_crs_status",
+        "summaries": [
+          {
+            "fieldId": "f_crs_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_crs_title",
+            "label": "Kurstitel",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_crs_max",
+            "label": "Plätze",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_crs_price",
+            "label": "Gebühr",
+            "visible": true,
+            "order": 2
+          },
+          {
+            "fieldId": "f_crs_status",
+            "label": "Status",
+            "visible": true,
+            "order": 3
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_course_scheduler",
+        "name": "Kurs- & Raumbelegungs-Portal",
+        "description": "Seminarübersicht, Raumkapazitäten, Dozenten und Teilnehmerlisten",
+        "layout": {
+          "id": "course_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "course_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_courses_active",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Geplante Kurse",
+                    "value": "18",
+                    "unit": "Seminare",
+                    "accentColor": "indigo",
+                    "icon": "BookOpen"
+                  }
+                },
+                {
+                  "id": "kpi_rooms_util",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Raumauslastung",
+                    "value": "76%",
+                    "unit": "Belegung",
+                    "accentColor": "emerald",
+                    "icon": "Calendar"
+                  }
+                },
+                {
+                  "id": "kpi_participants_total",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Eingeschriebene Teilnehmer",
+                    "value": "210",
+                    "unit": "Personen",
+                    "accentColor": "cyan",
+                    "icon": "Users"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_courses",
+              "type": "card",
+              "props": {
+                "title": "Kursangebot & Raumzuteilung",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_courses_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "tbl_courses",
+                    "limit": 8,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "CourseBookingHub",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

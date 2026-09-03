@@ -1,0 +1,1108 @@
+{
+  "id": "ext_project_task_management",
+  "name": "Projekt- & Aufgabenmanagement (Agile & Waterfall)",
+  "description": "Strukturierte Planung mit Projekten, Meilensteinen, Tasks, Aufwandserfassung und Team-Zuweisung.",
+  "icon": "Kanban",
+  "category": "Projektmanagement",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_pm_projects",
+        "name": "Projekte",
+        "description": "Übergeordnete Kunden- und interne Initiativen",
+        "fields": [
+          {
+            "id": "f_prj_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_prj_code",
+            "name": "ProjektCode",
+            "type": "VARCHAR",
+            "length": 30,
+            "isUnique": true
+          },
+          {
+            "id": "f_prj_name",
+            "name": "Name",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_prj_status",
+            "name": "Status",
+            "type": "ENUM",
+            "enumValues": [
+              "InPlanung",
+              "Aktiv",
+              "Pausiert",
+              "Abgeschlossen",
+              "Abgebrochen"
+            ],
+            "defaultValue": "InPlanung"
+          },
+          {
+            "id": "f_prj_priority",
+            "name": "Prioritaet",
+            "type": "ENUM",
+            "enumValues": [
+              "Niedrig",
+              "Mittel",
+              "Hoch",
+              "Kritisch"
+            ],
+            "defaultValue": "Mittel"
+          },
+          {
+            "id": "f_prj_start",
+            "name": "Startdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_prj_end",
+            "name": "Zieldatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_prj_budget",
+            "name": "BudgetGesamt",
+            "type": "CURRENCY"
+          },
+          {
+            "id": "f_prj_owner",
+            "name": "Projektleiter",
+            "type": "VARCHAR",
+            "length": 100
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "ProjektCode": "PRJ-2026-ALPHA",
+            "Name": "Relaunch Web-Portal 3.0",
+            "Status": "Aktiv",
+            "Prioritaet": "Hoch",
+            "Startdatum": "2026-02-01",
+            "Zieldatum": "2026-11-30",
+            "BudgetGesamt": 120000.0,
+            "Projektleiter": "Theresa Lindemann"
+          },
+          {
+            "Id": 2,
+            "ProjektCode": "PRJ-2026-BETA",
+            "Name": "Automatisierte CI/CD & Cloud Migration",
+            "Status": "Aktiv",
+            "Prioritaet": "Kritisch",
+            "Startdatum": "2026-03-15",
+            "Zieldatum": "2026-09-30",
+            "BudgetGesamt": 65000.0,
+            "Projektleiter": "Felix Richter"
+          }
+        ]
+      },
+      {
+        "id": "tbl_pm_milestones",
+        "name": "Meilensteine",
+        "description": "Wichtige Abnahme- und Prüfzeitpunkte innerhalb der Projektphasen",
+        "fields": [
+          {
+            "id": "f_mls_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_mls_prj_id",
+            "name": "ProjektId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_mls_title",
+            "name": "Bezeichnung",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_mls_target_date",
+            "name": "AbnahmeDatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_mls_completed",
+            "name": "Erreicht",
+            "type": "BOOLEAN",
+            "defaultValue": "false"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "ProjektId": 1,
+            "Bezeichnung": "UX/UI Prototyp Freigabe",
+            "AbnahmeDatum": "2026-04-15",
+            "Erreicht": true
+          },
+          {
+            "Id": 2,
+            "ProjektId": 1,
+            "Bezeichnung": "Backend API Beta Release",
+            "AbnahmeDatum": "2026-08-31",
+            "Erreicht": false
+          },
+          {
+            "Id": 3,
+            "ProjektId": 2,
+            "Bezeichnung": "Infrastruktur Terraform Skripte fertig",
+            "AbnahmeDatum": "2026-05-10",
+            "Erreicht": true
+          }
+        ]
+      },
+      {
+        "id": "tbl_pm_tasks",
+        "name": "Aufgaben",
+        "description": "Einzelaufgaben, Features, Tickets und Arbeitspakete",
+        "fields": [
+          {
+            "id": "f_tsk_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_tsk_prj_id",
+            "name": "ProjektId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_tsk_mls_id",
+            "name": "MeilensteinId",
+            "type": "INTEGER",
+            "isForeignKey": true,
+            "allowNull": true
+          },
+          {
+            "id": "f_tsk_title",
+            "name": "Titel",
+            "type": "VARCHAR",
+            "length": 200
+          },
+          {
+            "id": "f_tsk_status",
+            "name": "Status",
+            "type": "ENUM",
+            "enumValues": [
+              "Backlog",
+              "InBearbeitung",
+              "Review",
+              "Abgeschlossen"
+            ],
+            "defaultValue": "Backlog"
+          },
+          {
+            "id": "f_tsk_assignee",
+            "name": "ZugewiesenAn",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_tsk_est_hours",
+            "name": "GeschaetzteStunden",
+            "type": "DOUBLE",
+            "defaultValue": "8"
+          },
+          {
+            "id": "f_tsk_act_hours",
+            "name": "IstStunden",
+            "type": "DOUBLE",
+            "defaultValue": "0"
+          },
+          {
+            "id": "f_tsk_due",
+            "name": "FaelligAm",
+            "type": "DATE"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "ProjektId": 1,
+            "MeilensteinId": 2,
+            "Titel": "GraphQL Endpunkte für Kundenprofile implementieren",
+            "Status": "InBearbeitung",
+            "ZugewiesenAn": "David Bauer",
+            "GeschaetzteStunden": 24,
+            "IstStunden": 14,
+            "FaelligAm": "2026-08-20"
+          },
+          {
+            "Id": 2,
+            "ProjektId": 1,
+            "MeilensteinId": 2,
+            "Titel": "OAuth2 Token Refresh Mechanism integrieren",
+            "Status": "Review",
+            "ZugewiesenAn": "David Bauer",
+            "GeschaetzteStunden": 16,
+            "IstStunden": 15.5,
+            "FaelligAm": "2026-08-15"
+          },
+          {
+            "Id": 3,
+            "ProjektId": 2,
+            "MeilensteinId": 3,
+            "Titel": "Staging Environment VPC Peering konfigurieren",
+            "Status": "Abgeschlossen",
+            "ZugewiesenAn": "Elena Fischer",
+            "GeschaetzteStunden": 12,
+            "IstStunden": 10,
+            "FaelligAm": "2026-05-08"
+          }
+        ]
+      },
+      {
+        "id": "tbl_pm_timelogs",
+        "name": "Zeiterfassung",
+        "description": "Erfasste Arbeitszeiten der Entwickler und Mitarbeiter",
+        "fields": [
+          {
+            "id": "f_tlog_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_tlog_tsk_id",
+            "name": "AufgabeId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_tlog_user",
+            "name": "Mitarbeiter",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_tlog_date",
+            "name": "Buchungsdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_tlog_hours",
+            "name": "DauerStunden",
+            "type": "DOUBLE"
+          },
+          {
+            "id": "f_tlog_desc",
+            "name": "Taetigkeitsbeschreibung",
+            "type": "TEXT"
+          },
+          {
+            "id": "f_tlog_billable",
+            "name": "Abrechenbar",
+            "type": "BOOLEAN",
+            "defaultValue": "true"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "AufgabeId": 1,
+            "Mitarbeiter": "David Bauer",
+            "Buchungsdatum": "2026-08-18",
+            "DauerStunden": 6.5,
+            "Taetigkeitsbeschreibung": "Resolver geschrieben & Integrationstests ergänzt",
+            "Abrechenbar": true
+          },
+          {
+            "Id": 2,
+            "AufgabeId": 2,
+            "Mitarbeiter": "David Bauer",
+            "Buchungsdatum": "2026-08-14",
+            "DauerStunden": 7.5,
+            "Taetigkeitsbeschreibung": "JWT Handling & Security Review mit Team",
+            "Abrechenbar": true
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_prj_mls",
+        "fromTableId": "tbl_pm_projects",
+        "fromFieldId": "f_prj_id",
+        "toTableId": "tbl_pm_milestones",
+        "toFieldId": "f_mls_prj_id",
+        "sourceTableId": "tbl_pm_projects",
+        "sourceFieldId": "f_prj_id",
+        "targetTableId": "tbl_pm_milestones",
+        "targetFieldId": "f_mls_prj_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_prj_tsk",
+        "fromTableId": "tbl_pm_projects",
+        "fromFieldId": "f_prj_id",
+        "toTableId": "tbl_pm_tasks",
+        "toFieldId": "f_tsk_prj_id",
+        "sourceTableId": "tbl_pm_projects",
+        "sourceFieldId": "f_prj_id",
+        "targetTableId": "tbl_pm_tasks",
+        "targetFieldId": "f_tsk_prj_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_tsk_tlog",
+        "fromTableId": "tbl_pm_tasks",
+        "fromFieldId": "f_tsk_id",
+        "toTableId": "tbl_pm_timelogs",
+        "toFieldId": "f_tlog_tsk_id",
+        "sourceTableId": "tbl_pm_tasks",
+        "sourceFieldId": "f_tsk_id",
+        "targetTableId": "tbl_pm_timelogs",
+        "targetFieldId": "f_tlog_tsk_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "f_project_form",
+        "name": "Projekt-Cockpit & Planung",
+        "sourceType": "table",
+        "sourceId": "tbl_pm_projects",
+        "fields": [],
+        "layout": {
+          "id": "root_prj",
+          "type": "container",
+          "className": "space-y-6 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_prj",
+              "type": "label",
+              "label": "📊 Projektstammdaten & Meilensteine",
+              "className": "text-xl font-bold text-slate-800 dark:text-slate-100 border-b pb-3 flex items-center gap-2"
+            },
+            {
+              "id": "grid_prj_meta",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800",
+              "children": [
+                {
+                  "id": "fld_p_code",
+                  "type": "field",
+                  "fieldId": "f_prj_code",
+                  "label": "Projekt-Code",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_p_name",
+                  "type": "field",
+                  "fieldId": "f_prj_name",
+                  "label": "Projektname",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_p_status",
+                  "type": "field",
+                  "fieldId": "f_prj_status",
+                  "label": "Status",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_p_prio",
+                  "type": "field",
+                  "fieldId": "f_prj_priority",
+                  "label": "Priorität",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_p_budget",
+                  "type": "field",
+                  "fieldId": "f_prj_budget",
+                  "label": "Gesamtbudget (€)",
+                  "widgetType": "number"
+                },
+                {
+                  "id": "fld_p_end",
+                  "type": "field",
+                  "fieldId": "f_prj_target_end",
+                  "label": "Geplante Fertigstellung",
+                  "widgetType": "date"
+                }
+              ]
+            },
+            {
+              "id": "sub_prj_tasks",
+              "type": "subform",
+              "label": "Zugeordnete Aufgaben & Arbeitspakete",
+              "subform": {
+                "formId": "f_project_tasks_sub",
+                "masterLinkFieldId": "f_prj_id",
+                "childLinkFieldId": "f_tsk_prj_id",
+                "canAdd": true,
+                "canEdit": true,
+                "canDelete": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_project_tasks_sub",
+        "name": "Aufgaben Subform",
+        "sourceType": "table",
+        "sourceId": "tbl_pm_tasks",
+        "fields": [],
+        "layout": {
+          "id": "sub_root_tsk",
+          "type": "container",
+          "className": "grid grid-cols-4 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg",
+          "children": [
+            {
+              "id": "fld_t_title",
+              "type": "field",
+              "fieldId": "f_tsk_title",
+              "label": "Aufgabe",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_t_status",
+              "type": "field",
+              "fieldId": "f_tsk_status",
+              "label": "Status",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_t_assignee",
+              "type": "field",
+              "fieldId": "f_tsk_assignee",
+              "label": "Verantwortlich",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_t_est",
+              "type": "field",
+              "fieldId": "f_tsk_est_hours",
+              "label": "Geschätzt (h)",
+              "widgetType": "number"
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_task_detail_form",
+        "name": "Aufgabendetail & Zeiterfassung",
+        "sourceType": "table",
+        "sourceId": "tbl_pm_tasks",
+        "fields": [],
+        "layout": {
+          "id": "root_tdetail",
+          "type": "container",
+          "className": "space-y-4 p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_tdetail",
+              "type": "label",
+              "label": "✅ Aufgabenblatt & Bearbeitung",
+              "className": "text-lg font-bold text-slate-800 dark:text-slate-100 border-b pb-2"
+            },
+            {
+              "id": "grid_tdetail",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-2 gap-3",
+              "children": [
+                {
+                  "id": "fld_td_title",
+                  "type": "field",
+                  "fieldId": "f_tsk_title",
+                  "label": "Titel",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_td_prj",
+                  "type": "field",
+                  "fieldId": "f_tsk_prj_id",
+                  "label": "Projekt",
+                  "widgetType": "select",
+                  "lookup": {
+                    "tableId": "tbl_pm_projects",
+                    "valueFieldId": "f_prj_id",
+                    "labelFields": [
+                      "f_prj_name"
+                    ]
+                  }
+                },
+                {
+                  "id": "fld_td_stat",
+                  "type": "field",
+                  "fieldId": "f_tsk_status",
+                  "label": "Status",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_td_prio",
+                  "type": "field",
+                  "fieldId": "f_tsk_priority",
+                  "label": "Priorität",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_td_user",
+                  "type": "field",
+                  "fieldId": "f_tsk_assignee",
+                  "label": "Zugewiesen an",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_td_due",
+                  "type": "field",
+                  "fieldId": "f_tsk_due_date",
+                  "label": "Fälligkeitsdatum",
+                  "widgetType": "date"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "reports": [
+      {
+        "id": "r_project_budget_status",
+        "name": "Projekt- & Budgetüberwachung",
+        "sourceType": "table",
+        "sourceId": "tbl_pm_projects",
+        "groupingFieldId": "f_prj_status",
+        "summaries": [
+          {
+            "fieldId": "f_prj_budget",
+            "fieldName": "BudgetGesamt",
+            "calculation": "SUM"
+          },
+          {
+            "fieldId": "f_prj_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_prj_code",
+            "label": "Code",
+            "visible": true,
+            "order": 0,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_prj_name",
+            "label": "Projekt",
+            "visible": true,
+            "order": 1,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_prj_status",
+            "label": "Status",
+            "visible": true,
+            "order": 2,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_prj_start",
+            "label": "Start",
+            "visible": true,
+            "order": 3,
+            "renderType": "date"
+          },
+          {
+            "fieldId": "f_prj_target_end",
+            "label": "Zieldatum",
+            "visible": true,
+            "order": 4,
+            "renderType": "date"
+          },
+          {
+            "fieldId": "f_prj_budget",
+            "label": "Budget (€)",
+            "visible": true,
+            "order": 5,
+            "renderType": "currency"
+          }
+        ],
+        "settings": {
+          "orientation": "landscape",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Kosten- und Terminübersicht aller laufenden Vorhaben"
+        }
+      },
+      {
+        "id": "r_timesheet_audit",
+        "name": "Zeiterfassungs- & Tätigkeitsbericht",
+        "sourceType": "table",
+        "sourceId": "tbl_pm_timelogs",
+        "groupingFieldId": "f_tlog_user",
+        "summaries": [
+          {
+            "fieldId": "f_tlog_hours",
+            "fieldName": "DauerStunden",
+            "calculation": "SUM"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_tlog_date",
+            "label": "Datum",
+            "visible": true,
+            "order": 0,
+            "renderType": "date"
+          },
+          {
+            "fieldId": "f_tlog_user",
+            "label": "Mitarbeiter",
+            "visible": true,
+            "order": 1,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_tlog_desc",
+            "label": "Tätigkeit",
+            "visible": true,
+            "order": 2,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_tlog_hours",
+            "label": "Stunden",
+            "visible": true,
+            "order": 3,
+            "renderType": "text"
+          }
+        ],
+        "settings": {
+          "orientation": "portrait",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Monatliche Stundenabrechnung nach Projektmitarbeitern"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "id": "p_pm_dashboard",
+        "name": "Projekt- & Aufgaben-Cockpit",
+        "description": "Scrum & Kanban Übersicht mit Budget-Tracking und Task-Board",
+        "layout": {
+          "id": "p_root_pm",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "pm_alert",
+              "type": "alert_box",
+              "props": {
+                "alertType": "info",
+                "title": "Sprint 38 läuft planmäßig",
+                "message": "Nächster Projekt-Meilenstein 'DB-Schema V2' am 15.09.2026 terminiert.",
+                "dismissible": true
+              }
+            },
+            {
+              "id": "pm_header_row",
+              "type": "row",
+              "props": {
+                "className": "items-center justify-between pb-2 border-b border-slate-200"
+              },
+              "children": [
+                {
+                  "id": "pm_header_col",
+                  "type": "column",
+                  "props": {
+                    "flex": "1"
+                  },
+                  "children": [
+                    {
+                      "id": "pm_title",
+                      "type": "text",
+                      "props": {
+                        "text": "Projektsteuerung & Task Management",
+                        "className": "text-2xl font-bold text-slate-900 tracking-tight"
+                      }
+                    },
+                    {
+                      "id": "pm_sub",
+                      "type": "text",
+                      "props": {
+                        "text": "Fortschritt, Ressourceneinsatz und Zeitaufwände im Überblick",
+                        "className": "text-sm text-slate-500 mt-1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "pm_kpi_grid",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_pm_budget",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Gesamtbudget verplant",
+                    "value": "260.000",
+                    "unit": "€",
+                    "trend": "84% Budgettreue",
+                    "trendDirection": "up",
+                    "trendLabel": "3 aktive Großprojekte",
+                    "accentColor": "emerald",
+                    "icon": "TrendingUp"
+                  }
+                },
+                {
+                  "id": "kpi_pm_tasks",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Offene Aufgaben (Backlog)",
+                    "value": "14",
+                    "unit": "Tasks",
+                    "trend": "2 mit hoher Priorität",
+                    "trendDirection": "neutral",
+                    "trendLabel": "Durchlaufzeit: 3.2 Tage",
+                    "accentColor": "indigo",
+                    "icon": "Layers"
+                  }
+                },
+                {
+                  "id": "kpi_pm_hours",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Geleistete Stunden (Monat)",
+                    "value": "342",
+                    "unit": "Std.",
+                    "trend": "+12 Std. vs. Plan",
+                    "trendDirection": "neutral",
+                    "trendLabel": "Teamkapazität: 92%",
+                    "accentColor": "amber",
+                    "icon": "Clock"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "pm_tasks_table",
+              "type": "table_view",
+              "props": {
+                "tableId": "tbl_pm_tasks",
+                "title": "Aufgaben-Backlog & Bearbeitungsstatus"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_open_tasks",
+        "type": "SELECT",
+        "name": "Offene Aufgaben nach Dringlichkeit",
+        "nodes": [
+          {
+            "id": "qn_tsk",
+            "tableId": "tbl_pm_tasks",
+            "x": 40,
+            "y": 40
+          },
+          {
+            "id": "qn_prj",
+            "tableId": "tbl_pm_projects",
+            "x": 360,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c1",
+            "tableId": "tbl_pm_tasks",
+            "fieldId": "f_tsk_title",
+            "tableName": "tbl_pm_tasks",
+            "fieldName": "Titel",
+            "alias": "Aufgabe",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c2",
+            "tableId": "tbl_pm_projects",
+            "fieldId": "f_prj_name",
+            "tableName": "tbl_pm_projects",
+            "fieldName": "Name",
+            "alias": "Projekt",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c3",
+            "tableId": "tbl_pm_tasks",
+            "fieldId": "f_tsk_status",
+            "tableName": "tbl_pm_tasks",
+            "fieldName": "Status",
+            "alias": "Status",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              "!= 'Erledigt'"
+            ]
+          },
+          {
+            "id": "c4",
+            "tableId": "tbl_pm_tasks",
+            "fieldId": "f_tsk_priority",
+            "tableName": "tbl_pm_tasks",
+            "fieldName": "Prioritaet",
+            "alias": "Prioritaet",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c5",
+            "tableId": "tbl_pm_tasks",
+            "fieldId": "f_tsk_assignee",
+            "tableName": "tbl_pm_tasks",
+            "fieldName": "ZugewiesenAn",
+            "alias": "Bearbeiter",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c6",
+            "tableId": "tbl_pm_tasks",
+            "fieldId": "f_tsk_est_hours",
+            "tableName": "tbl_pm_tasks",
+            "fieldName": "GeschaetzterAufwandStd",
+            "alias": "Plan_Std",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_project_status",
+        "type": "SELECT",
+        "name": "Projektübersicht & Budget",
+        "nodes": [
+          {
+            "id": "qn_prj_all",
+            "tableId": "tbl_pm_projects",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c7",
+            "tableId": "tbl_pm_projects",
+            "fieldId": "f_prj_code",
+            "tableName": "tbl_pm_projects",
+            "fieldName": "ProjektCode",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c8",
+            "tableId": "tbl_pm_projects",
+            "fieldId": "f_prj_name",
+            "tableName": "tbl_pm_projects",
+            "fieldName": "Name",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c9",
+            "tableId": "tbl_pm_projects",
+            "fieldId": "f_prj_status",
+            "tableName": "tbl_pm_projects",
+            "fieldName": "Status",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c10",
+            "tableId": "tbl_pm_projects",
+            "fieldId": "f_prj_budget",
+            "tableName": "tbl_pm_projects",
+            "fieldName": "BudgetGesamt",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c11",
+            "tableId": "tbl_pm_projects",
+            "fieldId": "f_prj_target_end",
+            "tableName": "tbl_pm_projects",
+            "fieldName": "Zieldatum",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_timelogs_recent",
+        "type": "SELECT",
+        "name": "Letzte Aufwandsbuchungen",
+        "nodes": [
+          {
+            "id": "qn_tlog",
+            "tableId": "tbl_pm_timelogs",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c12",
+            "tableId": "tbl_pm_timelogs",
+            "fieldId": "f_tlog_user",
+            "tableName": "tbl_pm_timelogs",
+            "fieldName": "Mitarbeiter",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c13",
+            "tableId": "tbl_pm_timelogs",
+            "fieldId": "f_tlog_date",
+            "tableName": "tbl_pm_timelogs",
+            "fieldName": "Buchungsdatum",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c14",
+            "tableId": "tbl_pm_timelogs",
+            "fieldId": "f_tlog_hours",
+            "tableName": "tbl_pm_timelogs",
+            "fieldName": "DauerStunden",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c15",
+            "tableId": "tbl_pm_timelogs",
+            "fieldId": "f_tlog_desc",
+            "tableName": "tbl_pm_timelogs",
+            "fieldName": "Taetigkeitsbeschreibung",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      }
+    ],
+    "layout": [
+      {
+        "id": "tbl_pm_projects",
+        "tableId": "tbl_pm_projects",
+        "x": 40,
+        "y": 60
+      },
+      {
+        "id": "tbl_pm_milestones",
+        "tableId": "tbl_pm_milestones",
+        "x": 420,
+        "y": 60
+      },
+      {
+        "id": "tbl_pm_tasks",
+        "tableId": "tbl_pm_tasks",
+        "x": 40,
+        "y": 420
+      },
+      {
+        "id": "tbl_pm_timelogs",
+        "tableId": "tbl_pm_timelogs",
+        "x": 420,
+        "y": 420
+      }
+    ],
+    "tableGroups": [
+      {
+        "id": "grp_pm",
+        "name": "Projekt- & Aufgabensteuerung",
+        "color": "emerald"
+      }
+    ],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "ProjectManagerPro",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

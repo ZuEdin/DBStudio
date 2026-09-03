@@ -1,0 +1,1119 @@
+{
+  "id": "ext_crm_sales_pipeline",
+  "name": "CRM & Vertriebs-Pipeline",
+  "description": "Umfassendes Kunden- und Lead-Management mit Deals, Aktivitäten, Kontakten und Angeboten.",
+  "icon": "Users",
+  "category": "CRM & Vertrieb",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_crm_companies",
+        "name": "Unternehmen",
+        "description": "Firmenkunden, Konzerne und Kooperationspartner",
+        "fields": [
+          {
+            "id": "f_comp_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_comp_name",
+            "name": "Firmenname",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_comp_industry",
+            "name": "Branche",
+            "type": "VARCHAR",
+            "length": 80,
+            "enumValues": [
+              "IT & Software",
+              "Maschinenbau",
+              "Handel & E-Commerce",
+              "Finanzdienstleistung",
+              "Bauwesen",
+              "Gesundheit"
+            ]
+          },
+          {
+            "id": "f_comp_website",
+            "name": "Webseite",
+            "type": "URL"
+          },
+          {
+            "id": "f_comp_city",
+            "name": "Stadt",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_comp_country",
+            "name": "Land",
+            "type": "VARCHAR",
+            "length": 50,
+            "defaultValue": "Deutschland"
+          },
+          {
+            "id": "f_comp_revenue",
+            "name": "Jahresumsatz",
+            "type": "CURRENCY"
+          },
+          {
+            "id": "f_comp_created",
+            "name": "ErstelltAm",
+            "type": "DATE"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Firmenname": "NovaTech Solutions GmbH",
+            "Branche": "IT & Software",
+            "Webseite": "https://novatech-demo.de",
+            "Stadt": "München",
+            "Land": "Deutschland",
+            "Jahresumsatz": 4500000,
+            "ErstelltAm": "2025-01-15"
+          },
+          {
+            "Id": 2,
+            "Firmenname": "Bavaria Präzisionsbau AG",
+            "Branche": "Maschinenbau",
+            "Webseite": "https://praezisionsbau-bayern.de",
+            "Stadt": "Nürnberg",
+            "Land": "Deutschland",
+            "Jahresumsatz": 12800000,
+            "ErstelltAm": "2025-03-20"
+          },
+          {
+            "Id": 3,
+            "Firmenname": "AlpenLogistik KG",
+            "Branche": "Handel & E-Commerce",
+            "Webseite": "https://alpenlogistik-trans.at",
+            "Stadt": "Salzburg",
+            "Land": "Österreich",
+            "Jahresumsatz": 6200000,
+            "ErstelltAm": "2025-04-10"
+          }
+        ]
+      },
+      {
+        "id": "tbl_crm_contacts",
+        "name": "Kontakte",
+        "description": "Ansprechpartner und Entscheider in den Zielunternehmen",
+        "fields": [
+          {
+            "id": "f_cnt_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_cnt_comp_id",
+            "name": "UnternehmenId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_cnt_firstname",
+            "name": "Vorname",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_cnt_lastname",
+            "name": "Nachname",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_cnt_role",
+            "name": "Position",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_cnt_email",
+            "name": "Email",
+            "type": "EMAIL"
+          },
+          {
+            "id": "f_cnt_phone",
+            "name": "Telefon",
+            "type": "PHONE"
+          },
+          {
+            "id": "f_cnt_is_primary",
+            "name": "Hauptansprechpartner",
+            "type": "BOOLEAN",
+            "defaultValue": "false"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "UnternehmenId": 1,
+            "Vorname": "Dr. Sarah",
+            "Nachname": "Münz",
+            "Position": "CTO & Head of Digital",
+            "Email": "s.muenz@novatech-demo.de",
+            "Telefon": "+49 89 4433221",
+            "Hauptansprechpartner": true
+          },
+          {
+            "Id": 2,
+            "UnternehmenId": 1,
+            "Vorname": "Markus",
+            "Nachname": "Lehmann",
+            "Position": "Lead Architect",
+            "Email": "m.lehmann@novatech-demo.de",
+            "Telefon": "+49 89 4433224",
+            "Hauptansprechpartner": false
+          },
+          {
+            "Id": 3,
+            "UnternehmenId": 2,
+            "Vorname": "Christian",
+            "Nachname": "Brunner",
+            "Position": "Einkaufsleiter",
+            "Email": "c.brunner@praezisionsbau-bayern.de",
+            "Telefon": "+49 911 889900",
+            "Hauptansprechpartner": true
+          },
+          {
+            "Id": 4,
+            "UnternehmenId": 3,
+            "Vorname": "Johanna",
+            "Nachname": "Wallner",
+            "Position": "Supply Chain Director",
+            "Email": "j.wallner@alpenlogistik.at",
+            "Telefon": "+43 662 554433",
+            "Hauptansprechpartner": true
+          }
+        ]
+      },
+      {
+        "id": "tbl_crm_deals",
+        "name": "Deals_Verkaufschancen",
+        "description": "Vertriebs-Pipeline mit Phasen, Wahrscheinlichkeiten und Abschlussdaten",
+        "fields": [
+          {
+            "id": "f_deal_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_deal_comp_id",
+            "name": "UnternehmenId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_deal_title",
+            "name": "Titel",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_deal_value",
+            "name": "Volumen",
+            "type": "CURRENCY"
+          },
+          {
+            "id": "f_deal_stage",
+            "name": "PipelinePhase",
+            "type": "ENUM",
+            "enumValues": [
+              "Qualifizierung",
+              "Bedarfsanalyse",
+              "AngebotErstellt",
+              "Verhandlung",
+              "Gewonnen",
+              "Verloren"
+            ],
+            "defaultValue": "Qualifizierung"
+          },
+          {
+            "id": "f_deal_prob",
+            "name": "Wahrscheinlichkeit",
+            "type": "PERCENTAGE",
+            "defaultValue": "25"
+          },
+          {
+            "id": "f_deal_closing",
+            "name": "ErwarteterAbschluss",
+            "type": "DATE"
+          },
+          {
+            "id": "f_deal_owner",
+            "name": "Vertriebsbeauftragter",
+            "type": "VARCHAR",
+            "length": 100
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "UnternehmenId": 1,
+            "Titel": "Cloud-Migration & Datenbank-Modernisierung",
+            "Volumen": 78000.0,
+            "PipelinePhase": "AngebotErstellt",
+            "Wahrscheinlichkeit": 60,
+            "ErwarteterAbschluss": "2026-10-31",
+            "Vertriebsbeauftragter": "Alexander Roth"
+          },
+          {
+            "Id": 2,
+            "UnternehmenId": 2,
+            "Titel": "Enterprise ERP-Konnektor Rollout",
+            "Volumen": 145000.0,
+            "PipelinePhase": "Verhandlung",
+            "Wahrscheinlichkeit": 85,
+            "ErwarteterAbschluss": "2026-09-30",
+            "Vertriebsbeauftragter": "Julia Sommer"
+          },
+          {
+            "Id": 3,
+            "UnternehmenId": 3,
+            "Titel": "Automatisierte Flotten-Schnittstelle",
+            "Volumen": 32500.0,
+            "PipelinePhase": "Bedarfsanalyse",
+            "Wahrscheinlichkeit": 40,
+            "ErwarteterAbschluss": "2026-12-15",
+            "Vertriebsbeauftragter": "Alexander Roth"
+          }
+        ]
+      },
+      {
+        "id": "tbl_crm_activities",
+        "name": "Aktivitaeten",
+        "description": "Anrufe, Termine, E-Mails und Notizen zu Deals und Kunden",
+        "fields": [
+          {
+            "id": "f_act_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_act_deal_id",
+            "name": "DealId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_act_type",
+            "name": "Typ",
+            "type": "ENUM",
+            "enumValues": [
+              "Telefonat",
+              "OnlineMeeting",
+              "VorOrtTermin",
+              "Email",
+              "Notiz"
+            ]
+          },
+          {
+            "id": "f_act_subject",
+            "name": "Betreff",
+            "type": "VARCHAR",
+            "length": 200
+          },
+          {
+            "id": "f_act_date",
+            "name": "DatumUhrzeit",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_act_status",
+            "name": "Status",
+            "type": "ENUM",
+            "enumValues": [
+              "Geplant",
+              "Durchgefuehrt",
+              "Abgesagt"
+            ],
+            "defaultValue": "Geplant"
+          },
+          {
+            "id": "f_act_notes",
+            "name": "Protokoll",
+            "type": "TEXT"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "DealId": 1,
+            "Typ": "OnlineMeeting",
+            "Betreff": "Architektur-Präsentation mit CTO",
+            "DatumUhrzeit": "2026-09-12 14:00:00",
+            "Status": "Durchgefuehrt",
+            "Protokoll": "Kunde begeistert von automatischer Migration. Sicherheitszertifizierung ISO 27001 nachreichen."
+          },
+          {
+            "Id": 2,
+            "DealId": 2,
+            "Typ": "VorOrtTermin",
+            "Betreff": "Vertragsverhandlung Finale Runde",
+            "DatumUhrzeit": "2026-09-25 10:30:00",
+            "Status": "Geplant",
+            "Protokoll": "Letzte Abstimmung SLA und Reaktionszeiten."
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_comp_cnt",
+        "fromTableId": "tbl_crm_companies",
+        "fromFieldId": "f_comp_id",
+        "toTableId": "tbl_crm_contacts",
+        "toFieldId": "f_cnt_comp_id",
+        "sourceTableId": "tbl_crm_companies",
+        "sourceFieldId": "f_comp_id",
+        "targetTableId": "tbl_crm_contacts",
+        "targetFieldId": "f_cnt_comp_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_comp_deal",
+        "fromTableId": "tbl_crm_companies",
+        "fromFieldId": "f_comp_id",
+        "toTableId": "tbl_crm_deals",
+        "toFieldId": "f_deal_comp_id",
+        "sourceTableId": "tbl_crm_companies",
+        "sourceFieldId": "f_comp_id",
+        "targetTableId": "tbl_crm_deals",
+        "targetFieldId": "f_deal_comp_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_deal_act",
+        "fromTableId": "tbl_crm_deals",
+        "fromFieldId": "f_deal_id",
+        "toTableId": "tbl_crm_activities",
+        "toFieldId": "f_act_deal_id",
+        "sourceTableId": "tbl_crm_deals",
+        "sourceFieldId": "f_deal_id",
+        "targetTableId": "tbl_crm_activities",
+        "targetFieldId": "f_act_deal_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "f_deal_form",
+        "name": "Deal-Erfassung & Pipeline-Details",
+        "sourceType": "table",
+        "sourceId": "tbl_crm_deals",
+        "fields": [],
+        "layout": {
+          "id": "root_deal",
+          "type": "container",
+          "className": "space-y-6 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_deal",
+              "type": "label",
+              "label": "💼 Verkaufschance / Deal erfassen",
+              "className": "text-xl font-bold text-slate-800 dark:text-slate-100 border-b pb-3 flex items-center gap-2"
+            },
+            {
+              "id": "grid_deal_main",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800",
+              "children": [
+                {
+                  "id": "fld_d_title",
+                  "type": "field",
+                  "fieldId": "f_deal_title",
+                  "label": "Deal-Bezeichnung",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_d_comp",
+                  "type": "field",
+                  "fieldId": "f_deal_comp_id",
+                  "label": "Unternehmen",
+                  "widgetType": "select",
+                  "lookup": {
+                    "tableId": "tbl_crm_companies",
+                    "valueFieldId": "f_comp_id",
+                    "labelFields": [
+                      "f_comp_name"
+                    ]
+                  }
+                },
+                {
+                  "id": "fld_d_stage",
+                  "type": "field",
+                  "fieldId": "f_deal_stage",
+                  "label": "Pipeline-Phase",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_d_val",
+                  "type": "field",
+                  "fieldId": "f_deal_value",
+                  "label": "Auftragsvolumen (€)",
+                  "widgetType": "number"
+                },
+                {
+                  "id": "fld_d_prob",
+                  "type": "field",
+                  "fieldId": "f_deal_prob",
+                  "label": "Wahrscheinlichkeit (%)",
+                  "widgetType": "number"
+                },
+                {
+                  "id": "fld_d_close",
+                  "type": "field",
+                  "fieldId": "f_deal_close",
+                  "label": "Erwartetes Abschlussdatum",
+                  "widgetType": "date"
+                }
+              ]
+            },
+            {
+              "id": "sub_deal_activities",
+              "type": "subform",
+              "label": "Verknüpfte Aktivitäten & Tasks",
+              "subform": {
+                "formId": "f_deal_act_sub",
+                "masterLinkFieldId": "f_deal_id",
+                "childLinkFieldId": "f_act_deal_id",
+                "canAdd": true,
+                "canEdit": true,
+                "canDelete": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_deal_act_sub",
+        "name": "Aktivitäten Subform",
+        "sourceType": "table",
+        "sourceId": "tbl_crm_activities",
+        "fields": [],
+        "layout": {
+          "id": "sub_root_act",
+          "type": "container",
+          "className": "grid grid-cols-4 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg",
+          "children": [
+            {
+              "id": "fld_act_type",
+              "type": "field",
+              "fieldId": "f_act_type",
+              "label": "Typ",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_act_subject",
+              "type": "field",
+              "fieldId": "f_act_subject",
+              "label": "Betreff",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_act_date",
+              "type": "field",
+              "fieldId": "f_act_date",
+              "label": "Fällig am",
+              "widgetType": "date"
+            },
+            {
+              "id": "fld_act_status",
+              "type": "field",
+              "fieldId": "f_act_status",
+              "label": "Status",
+              "widgetType": "select"
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_company_form",
+        "name": "Unternehmensstamm & Kundenakte",
+        "sourceType": "table",
+        "sourceId": "tbl_crm_companies",
+        "fields": [],
+        "layout": {
+          "id": "root_comp",
+          "type": "container",
+          "className": "space-y-4 p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_comp",
+              "type": "label",
+              "label": "🏢 Kunden- und Unternehmensdaten",
+              "className": "text-lg font-bold text-slate-800 dark:text-slate-100 border-b pb-2"
+            },
+            {
+              "id": "grid_comp",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-3",
+              "children": [
+                {
+                  "id": "fld_c_name",
+                  "type": "field",
+                  "fieldId": "f_comp_name",
+                  "label": "Firmenname",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_c_ind",
+                  "type": "field",
+                  "fieldId": "f_comp_industry",
+                  "label": "Branche",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_c_web",
+                  "type": "field",
+                  "fieldId": "f_comp_website",
+                  "label": "Webseite",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_c_phone",
+                  "type": "field",
+                  "fieldId": "f_comp_phone",
+                  "label": "Telefon",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_c_city",
+                  "type": "field",
+                  "fieldId": "f_comp_city",
+                  "label": "Stadt",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_c_country",
+                  "type": "field",
+                  "fieldId": "f_comp_country",
+                  "label": "Land",
+                  "widgetType": "text"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "reports": [
+      {
+        "id": "r_pipeline_summary",
+        "name": "Pipeline- & Umsatzprognose-Bericht",
+        "sourceType": "table",
+        "sourceId": "tbl_crm_deals",
+        "groupingFieldId": "f_deal_stage",
+        "summaries": [
+          {
+            "fieldId": "f_deal_value",
+            "fieldName": "Volumen",
+            "calculation": "SUM"
+          },
+          {
+            "fieldId": "f_deal_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_deal_title",
+            "label": "Deal",
+            "visible": true,
+            "order": 0,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_deal_stage",
+            "label": "Phase",
+            "visible": true,
+            "order": 1,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_deal_prob",
+            "label": "Wsk. (%)",
+            "visible": true,
+            "order": 2,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_deal_close",
+            "label": "Abschlussziel",
+            "visible": true,
+            "order": 3,
+            "renderType": "date"
+          },
+          {
+            "fieldId": "f_deal_value",
+            "label": "Volumen (€)",
+            "visible": true,
+            "order": 4,
+            "renderType": "currency"
+          }
+        ],
+        "settings": {
+          "orientation": "landscape",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Klassifizierung aller offenen Verkaufschancen nach Pipeline-Stufen"
+        }
+      },
+      {
+        "id": "r_companies_directory",
+        "name": "Kunden- & Account-Verzeichnis",
+        "sourceType": "table",
+        "sourceId": "tbl_crm_companies",
+        "summaries": [
+          {
+            "fieldId": "f_comp_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_comp_name",
+            "label": "Unternehmen",
+            "visible": true,
+            "order": 0,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_comp_industry",
+            "label": "Branche",
+            "visible": true,
+            "order": 1,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_comp_city",
+            "label": "Standort",
+            "visible": true,
+            "order": 2,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_comp_phone",
+            "label": "Telefon",
+            "visible": true,
+            "order": 3,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_comp_website",
+            "label": "Webseite",
+            "visible": true,
+            "order": 4,
+            "renderType": "text"
+          }
+        ],
+        "settings": {
+          "orientation": "portrait",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Aktueller Firmenstamm mit Kontaktdaten"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "id": "p_crm_dashboard",
+        "name": "Vertriebs-Cockpit & Pipeline 360°",
+        "description": "Zentrale Steuerungsseite für Vertriebsleitung und Account Manager",
+        "layout": {
+          "id": "p_root_crm",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "crm_alert",
+              "type": "alert_box",
+              "props": {
+                "alertType": "info",
+                "title": "Pipeline-Update Q3/Q4",
+                "message": "3 Deals befinden sich in der finalen Verhandlungsphase. Gesamterwartung: 280.000 €.",
+                "dismissible": true
+              }
+            },
+            {
+              "id": "crm_header_row",
+              "type": "row",
+              "props": {
+                "className": "items-center justify-between pb-2 border-b border-slate-200"
+              },
+              "children": [
+                {
+                  "id": "crm_header_col",
+                  "type": "column",
+                  "props": {
+                    "flex": "1"
+                  },
+                  "children": [
+                    {
+                      "id": "crm_title",
+                      "type": "text",
+                      "props": {
+                        "text": "Sales Pipeline & Lead-Management",
+                        "className": "text-2xl font-bold text-slate-900 tracking-tight"
+                      }
+                    },
+                    {
+                      "id": "crm_sub",
+                      "type": "text",
+                      "props": {
+                        "text": "Übersicht aller Deals, Key Accounts und anstehenden Vertriebs-Aktivitäten",
+                        "className": "text-sm text-slate-500 mt-1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "crm_kpi_grid",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_pipe_vol",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Gewichtetes Pipeline-Volumen",
+                    "value": "242.000",
+                    "unit": "€",
+                    "trend": "+14.2%",
+                    "trendDirection": "up",
+                    "trendLabel": "vs. Vormonat",
+                    "accentColor": "emerald",
+                    "icon": "DollarSign"
+                  }
+                },
+                {
+                  "id": "kpi_open_deals",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Aktive Deals in Pipeline",
+                    "value": "18",
+                    "unit": "Deals",
+                    "trend": "4 in Verhandlung",
+                    "trendDirection": "neutral",
+                    "trendLabel": "Abschlussquote: 68%",
+                    "accentColor": "indigo",
+                    "icon": "Briefcase"
+                  }
+                },
+                {
+                  "id": "kpi_pending_act",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Offene Aktivitäten heute",
+                    "value": "5",
+                    "unit": "Tasks",
+                    "trend": "2 Demos / 3 Calls",
+                    "trendDirection": "neutral",
+                    "trendLabel": "Fälligkeit heute",
+                    "accentColor": "amber",
+                    "icon": "Calendar"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "crm_deals_table",
+              "type": "table_view",
+              "props": {
+                "tableId": "tbl_crm_deals",
+                "title": "Aktuelle Verkaufschancen (Deals)"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_open_deals",
+        "type": "SELECT",
+        "name": "Offene Verkaufschancen & Pipeline",
+        "nodes": [
+          {
+            "id": "qn_deal",
+            "tableId": "tbl_crm_deals",
+            "x": 40,
+            "y": 40
+          },
+          {
+            "id": "qn_comp",
+            "tableId": "tbl_crm_companies",
+            "x": 360,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c1",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_title",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "Titel",
+            "alias": "Deal",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c2",
+            "tableId": "tbl_crm_companies",
+            "fieldId": "f_comp_name",
+            "tableName": "tbl_crm_companies",
+            "fieldName": "Firmenname",
+            "alias": "Kunde",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c3",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_value",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "Volumen",
+            "alias": "Volumen_EUR",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c4",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_stage",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "PipelinePhase",
+            "alias": "Phase",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              "!= 'Verloren'"
+            ]
+          },
+          {
+            "id": "c5",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_prob",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "Wahrscheinlichkeit",
+            "alias": "Wahrscheinlichkeit_Pct",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c6",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_close",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "ErwarteterAbschluss",
+            "alias": "Zieltermin",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_top_deals",
+        "type": "SELECT",
+        "name": "Top-Deals (> 25.000 €)",
+        "nodes": [
+          {
+            "id": "qn_top_deal",
+            "tableId": "tbl_crm_deals",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c7",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_title",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "Titel",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c8",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_value",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "Volumen",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ">= 25000"
+            ]
+          },
+          {
+            "id": "c9",
+            "tableId": "tbl_crm_deals",
+            "fieldId": "f_deal_stage",
+            "tableName": "tbl_crm_deals",
+            "fieldName": "PipelinePhase",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_open_activities",
+        "type": "SELECT",
+        "name": "Anstehende Vertriebsaktivitäten",
+        "nodes": [
+          {
+            "id": "qn_act",
+            "tableId": "tbl_crm_activities",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c10",
+            "tableId": "tbl_crm_activities",
+            "fieldId": "f_act_subject",
+            "tableName": "tbl_crm_activities",
+            "fieldName": "Betreff",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c11",
+            "tableId": "tbl_crm_activities",
+            "fieldId": "f_act_type",
+            "tableName": "tbl_crm_activities",
+            "fieldName": "Typ",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c12",
+            "tableId": "tbl_crm_activities",
+            "fieldId": "f_act_date",
+            "tableName": "tbl_crm_activities",
+            "fieldName": "DatumUhrzeit",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c13",
+            "tableId": "tbl_crm_activities",
+            "fieldId": "f_act_status",
+            "tableName": "tbl_crm_activities",
+            "fieldName": "Status",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              "= 'Offen'"
+            ]
+          }
+        ]
+      }
+    ],
+    "layout": [
+      {
+        "id": "tbl_crm_companies",
+        "tableId": "tbl_crm_companies",
+        "x": 40,
+        "y": 60
+      },
+      {
+        "id": "tbl_crm_contacts",
+        "tableId": "tbl_crm_contacts",
+        "x": 380,
+        "y": 60
+      },
+      {
+        "id": "tbl_crm_deals",
+        "tableId": "tbl_crm_deals",
+        "x": 40,
+        "y": 420
+      },
+      {
+        "id": "tbl_crm_activities",
+        "tableId": "tbl_crm_activities",
+        "x": 380,
+        "y": 420
+      }
+    ],
+    "tableGroups": [
+      {
+        "id": "grp_crm",
+        "name": "CRM Stammdaten & Pipeline",
+        "color": "blue"
+      }
+    ],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "CrmSalesPro",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

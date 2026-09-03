@@ -1,0 +1,443 @@
+{
+  "id": "ext_iot_machine_telemetry",
+  "name": "IoT Sensor-Telemetrie & Maschinen-Leitstand",
+  "description": "Echtzeit-Sensordaten, Schwingungsanalysen, Maschinentemperaturen und Grenzwert-Alarme.",
+  "icon": "Cpu",
+  "category": "IoT & Automation",
+  "file": "iot_machine_telemetry.json",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_device_types",
+        "name": "Sensor- & Gerätetypen",
+        "description": "Hersteller, Übertragungsprotokolle (MQTT, Modbus) und Spezifikationen",
+        "fields": [
+          {
+            "id": "f_dt_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_dt_model",
+            "name": "Modellbezeichnung",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_dt_vendor",
+            "name": "Hersteller",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_dt_proto",
+            "name": "Protokoll",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "MQTT",
+              "HTTP REST",
+              "Modbus TCP",
+              "OPC UA"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tbl_devices",
+        "name": "Messstationen & Maschinen",
+        "description": "Installierte Sensorknoten mit Standort, MAC-Adresse und Firmware",
+        "fields": [
+          {
+            "id": "f_d_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_d_type",
+            "name": "type_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_d_uid",
+            "name": "Geraete_UID",
+            "type": "VARCHAR",
+            "length": 60,
+            "isUnique": true
+          },
+          {
+            "id": "f_d_loc",
+            "name": "Halle_Standort",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_d_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Online",
+              "Standby",
+              "Warnung",
+              "Offline"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tbl_telemetry",
+        "name": "Telemetrie-Echtzeitdaten",
+        "description": "Echtzeit-Messwerte: Temperatur, Luftfeuchtigkeit, Druck und Vibration",
+        "fields": [
+          {
+            "id": "f_tel_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_tel_dev",
+            "name": "device_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_tel_time",
+            "name": "Zeitstempel",
+            "type": "TIMESTAMP",
+            "defaultValue": "CURRENT_TIMESTAMP"
+          },
+          {
+            "id": "f_tel_temp",
+            "name": "Temperatur_C",
+            "type": "DECIMAL"
+          },
+          {
+            "id": "f_tel_hum",
+            "name": "Feuchte_Prozent",
+            "type": "DECIMAL"
+          },
+          {
+            "id": "f_tel_vib",
+            "name": "Vibrationsindex_g",
+            "type": "DECIMAL"
+          },
+          {
+            "id": "f_tel_volt",
+            "name": "Batterie_Volt",
+            "type": "DECIMAL"
+          }
+        ]
+      },
+      {
+        "id": "tbl_alerts",
+        "name": "Grenzwerte & Alarmlog",
+        "description": "Automatisch ausgelöste Schwellwertwarnungen und Bestätigungen",
+        "fields": [
+          {
+            "id": "f_alt_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_alt_dev",
+            "name": "device_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_alt_severity",
+            "name": "Schweregrad",
+            "type": "VARCHAR",
+            "length": 40,
+            "enumValues": [
+              "Info",
+              "Warnung",
+              "Kritisch"
+            ]
+          },
+          {
+            "id": "f_alt_msg",
+            "name": "Alarm_Meldung",
+            "type": "VARCHAR",
+            "length": 240
+          },
+          {
+            "id": "f_alt_ack",
+            "name": "Quittiert",
+            "type": "BOOLEAN",
+            "defaultValue": "false"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_dt_d",
+        "fromTableId": "tbl_device_types",
+        "fromFieldId": "f_dt_id",
+        "toTableId": "tbl_devices",
+        "toFieldId": "f_d_type",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      },
+      {
+        "id": "rel_d_tel",
+        "fromTableId": "tbl_devices",
+        "fromFieldId": "f_d_id",
+        "toTableId": "tbl_telemetry",
+        "toFieldId": "f_tel_dev",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_d_alt",
+        "fromTableId": "tbl_devices",
+        "fromFieldId": "f_d_id",
+        "toTableId": "tbl_alerts",
+        "toFieldId": "f_alt_dev",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_calibrate_sensor",
+        "name": "Sensor kalibrieren & konfigurieren",
+        "sourceType": "table",
+        "sourceId": "tbl_devices",
+        "fields": [],
+        "layout": {
+          "id": "root_f_iot",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_iot_head",
+              "type": "label",
+              "label": "📡 Sensor-Station Parameter",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_iot_uid",
+              "type": "field",
+              "fieldId": "f_d_uid",
+              "label": "Geräte UID / Mac",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_iot_loc",
+              "type": "field",
+              "fieldId": "f_d_loc",
+              "label": "Installationsort (Halle / Ebene)",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_iot_status",
+              "type": "field",
+              "fieldId": "f_d_status",
+              "label": "Betriebsstatus",
+              "widgetType": "select"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_critical_temperatures",
+        "name": "Kritische Temperaturwerte (> 75°C)",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "tbl_telemetry",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "tbl_telemetry",
+            "fieldId": "f_tel_dev",
+            "tableName": "Telemetrie-Echtzeitdaten",
+            "fieldName": "device_id",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "tbl_telemetry",
+            "fieldId": "f_tel_temp",
+            "tableName": "Telemetrie-Echtzeitdaten",
+            "fieldName": "Temperatur_C",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              "> 75.0"
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "tbl_telemetry",
+            "fieldId": "f_tel_time",
+            "tableName": "Telemetrie-Echtzeitdaten",
+            "fieldName": "Zeitstempel",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_device_status_health",
+        "name": "Sensor-Health & Betriebsstatus",
+        "sourceType": "table",
+        "sourceId": "tbl_devices",
+        "groupingFieldId": "f_d_status",
+        "summaries": [
+          {
+            "fieldId": "f_d_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_d_uid",
+            "label": "Geräte-UID",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_d_loc",
+            "label": "Standort",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_d_status",
+            "label": "Status",
+            "visible": true,
+            "order": 2
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_iot_dashboard",
+        "name": "IoT Telemetrie & Sensor-Cockpit",
+        "description": "Maschinenlaufzeiten, Sensor-Grenzwerte, Temperatur- und Schwingungstelemetrie",
+        "layout": {
+          "id": "iot_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "iot_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 4,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_machines_live",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Maschinen Online",
+                    "value": "12 / 12",
+                    "unit": "Geräte",
+                    "accentColor": "emerald",
+                    "icon": "Cpu"
+                  }
+                },
+                {
+                  "id": "kpi_avg_temp",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Durchschnittstemp.",
+                    "value": "64.2",
+                    "unit": "°C",
+                    "accentColor": "amber",
+                    "icon": "Thermometer"
+                  }
+                },
+                {
+                  "id": "kpi_vibration",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Vibrationsindex",
+                    "value": "0.82",
+                    "unit": "g-force",
+                    "accentColor": "cyan",
+                    "icon": "Activity"
+                  }
+                },
+                {
+                  "id": "kpi_active_alerts",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Telemetrie-Warnungen",
+                    "value": "0",
+                    "unit": "Alarme",
+                    "accentColor": "emerald",
+                    "icon": "ShieldCheck"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_telemetry",
+              "type": "card",
+              "props": {
+                "title": "Echtzeit-Telemetriewerte & Maschinenstatus",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_telemetry_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "tbl_telemetry",
+                    "limit": 8,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "IotTelemetryHub",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

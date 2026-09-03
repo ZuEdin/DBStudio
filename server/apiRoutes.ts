@@ -190,3 +190,43 @@ apiRouter.put("/:name/data", (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Proxy route to fetch remote template/schema JSON avoiding browser CORS restrictions
+apiRouter.get("/proxy-fetch", async (req, res) => {
+  try {
+    const targetUrl = req.query.url as string;
+    if (!targetUrl) {
+      res.status(400).json({ error: "URL query parameter is required" });
+      return;
+    }
+
+    const parsed = new URL(targetUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      res.status(400).json({ error: "Nur HTTP und HTTPS Protokolle sind zulässig" });
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const response = await fetch(targetUrl, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'User-Agent': 'DBStudioPro-TemplateEngine/2.5'
+      }
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      res.status(response.status).json({ error: `Externer Server antwortete mit HTTP ${response.status}: ${response.statusText}` });
+      return;
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Fehler beim Laden der externen Vorlage" });
+  }
+});
+

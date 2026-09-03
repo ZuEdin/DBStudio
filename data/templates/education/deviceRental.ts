@@ -1,5 +1,6 @@
 
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getDeviceRentalPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: { 
@@ -163,7 +164,7 @@ export const getDeviceRental = (lang: string): ProjectTemplate => {
                   columns: [
                       { id: 'oc1', tableId: 'sys_users', fieldId: 'u5', tableName: 'sys_users', fieldName: 'FullName', sort: '', show: true, criteria: [''] },
                       { id: 'oc2', tableId: 't_devices', fieldId: 'd3', tableName: t.t_dev, fieldName: t.f_model, sort: '', show: true, criteria: [''] },
-                      { id: 'oc3', tableId: 't_rentals', fieldId: 'r5', tableName: t.t_rent, fieldName: t.f_date_due, sort: 'ASC', show: true, criteria: ['< TODAY'] },
+                      { id: 'oc3', tableId: 't_rentals', fieldId: 'r5', tableName: t.t_rent, fieldName: t.f_date_due, sort: 'ASC', show: true, criteria: ['< Date()'] },
                       { id: 'oc4', tableId: 't_rentals', fieldId: 'r7', tableName: t.t_rent, fieldName: t.f_status, sort: '', show: true, criteria: [`= "${t.rs_active}"`] }
                   ]
               }
@@ -236,6 +237,7 @@ export const getDeviceRental = (lang: string): ProjectTemplate => {
                   ]
               }
           ],
+          pages: getDeviceRentalPages(t),
           layout: [],
           tableGroups: []
         }

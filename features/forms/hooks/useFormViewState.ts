@@ -450,18 +450,19 @@ export const useFormViewState = ({
     const initialData = table.fields.reduce((acc, field) => {
       if (field.sequenceConfig?.enabled) {
         acc[field.name] = generateNextSequenceValue(field, table.data || []);
-      } else if (field.defaultValue !== undefined && field.defaultValue !== '') {
+      } else if (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '') {
+        const defStr = String(field.defaultValue).trim();
         if (field.type === 'BOOLEAN') {
-          acc[field.name] = field.defaultValue === 'true';
+          acc[field.name] = defStr.toLowerCase() === 'true' || defStr === '1';
         } else if (
           (field.type === 'DATE' ||
             field.type === 'TIME' ||
             field.type === 'DATETIME' ||
             field.type === 'TIMESTAMP') &&
-          (field.defaultValue.toUpperCase() === 'NOW' ||
-            field.defaultValue.toLowerCase() === 'now()' ||
-            field.defaultValue.toUpperCase() === 'CURRENT_TIMESTAMP' ||
-            field.defaultValue.toLowerCase() === 'current_timestamp()')
+          (defStr.toUpperCase() === 'NOW' ||
+            defStr.toLowerCase() === 'now()' ||
+            defStr.toUpperCase() === 'CURRENT_TIMESTAMP' ||
+            defStr.toLowerCase() === 'current_timestamp()')
         ) {
           acc[field.name] = new Date().toISOString();
         } else {

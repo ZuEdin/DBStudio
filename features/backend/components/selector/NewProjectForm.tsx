@@ -1,9 +1,9 @@
 import React from 'react';
 import { 
-  Database, Plus, Users, HardDrive, Cloud, Code, Shield, 
-  Briefcase, Package, Layout, Monitor, PlayCircle 
+  Database, Plus, Users, HardDrive, Cloud, Code, Shield 
 } from 'lucide-react';
 import { DbType, BackendLanguage, AuthConfig } from '../../../../types/index';
+import { NewProjectTemplatesList } from './NewProjectTemplatesList';
 
 interface NewProjectFormProps {
   activeTab: 'create' | 'templates';
@@ -312,37 +312,11 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({
           </button>
         </div>
       ) : (
-        <div id="templates-list-view" className="space-y-4 animate-in fade-in slide-in-from-right-2 bg-white p-6 rounded-2xl shadow-xl border border-slate-200/80">
-          <p className="text-center text-slate-500 text-sm mb-4">{t('start.start_schema')}</p>
-          
-          <div className="grid grid-cols-1 gap-4">
-            {templates.map(tmpl => {
-              const Icon = tmpl.icon === 'Briefcase' ? Briefcase : tmpl.icon === 'Package' ? Package : tmpl.icon === 'Kanban' ? Layout : tmpl.icon === 'Monitor' ? Monitor : Database;
-              return (
-                <div 
-                  key={tmpl.id}
-                  onClick={() => onSelectTemplate(tmpl.id)}
-                  className="group bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all flex gap-4 items-start"
-                >
-                  <div className={`p-3 rounded-lg shrink-0 ${tmpl.category === 'Business' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
-                    <Icon size={24} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-800 truncate">{tmpl.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{tmpl.description}</p>
-                    <div className="mt-2 flex gap-2">
-                      <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 border border-slate-200">{tmpl.data.backendConfig?.language}</span>
-                      <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 border border-slate-200">{tmpl.data.backendConfig?.dbType}</span>
-                    </div>
-                  </div>
-                  <div className="self-center shrink-0">
-                    <PlayCircle size={20} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <NewProjectTemplatesList
+          templates={templates}
+          onSelectTemplate={onSelectTemplate}
+          t={t}
+        />
       )}
     </div>
   );

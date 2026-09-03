@@ -1,4 +1,5 @@
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getCmsPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: {
@@ -134,7 +135,6 @@ export const getCmsTemplate = (lang: string): ProjectTemplate => {
             { id: 'r3', fromTableId: 't_posts', fromFieldId: 'p1', toTableId: 't_postcat', toFieldId: 'pc1', type: '1:n', referentialIntegrity: true, onDelete: 'CASCADE' },
             { id: 'r4', fromTableId: 't_categories', fromFieldId: 'c1', toTableId: 't_postcat', toFieldId: 'pc2', type: '1:n', referentialIntegrity: true, onDelete: 'CASCADE' }
           ],
-          queries: [],
           forms: [
             {
                 id: 'cms_login_form',
@@ -182,7 +182,29 @@ export const getCmsTemplate = (lang: string): ProjectTemplate => {
                 }
              }
           ],
-          reports: [],
+           queries: [
+            {
+              id: 'q_cms_posts', type: 'SELECT', name: 'Publizierte Beiträge',
+              nodes: [{ id: 'n1', tableId: 't_posts', x: 50, y: 50 }],
+              columns: [
+                { id: 'qc1', tableId: 't_posts', fieldId: 'p2', tableName: t.t_posts, fieldName: t.f_title, sort: 'ASC', show: true, criteria: [''] },
+                { id: 'qc2', tableId: 't_posts', fieldId: 'p5', tableName: t.t_posts, fieldName: t.f_status, show: true, criteria: ['= "Publiziert"'] }
+              ]
+            }
+          ],
+          reports: [
+            {
+              id: 'r_cms_posts', name: 'Beitrags- & Content-Audit', sourceType: 'table', sourceId: 't_posts',
+              groupingFieldId: 'p5',
+              summaries: [{ fieldId: 'p1', fieldName: 'Id', calculation: 'COUNT' }],
+              columns: [
+                { fieldId: 'p2', label: t.f_title, visible: true, order: 0 },
+                { fieldId: 'p3', label: t.f_slug, visible: true, order: 1 },
+                { fieldId: 'p5', label: t.f_status, visible: true, order: 2, formattingRules: [{ operator: 'eq', value: t.d_published, style: { color: 'green', bold: true } }] }
+              ]
+            }
+          ],
+          pages: getCmsPages(t),
           layout: [],
           tableGroups: []
         }

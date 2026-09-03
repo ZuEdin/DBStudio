@@ -1,0 +1,826 @@
+{
+  "id": "ext_fleet_logistics",
+  "name": "Fuhrpark, Fahrtenbuch & Fahrzeug-Disposition",
+  "description": "Fahrzeugstamm, Fahrer, Tourenplanung, Wartungsintervalle und Kraftstoff-Erfassung.",
+  "icon": "Truck",
+  "category": "Mobilität & Fuhrpark",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_flt_vehicles",
+        "name": "Fahrzeuge",
+        "description": "PKW, Transporter, LKW und Flottenfahrzeuge",
+        "fields": [
+          {
+            "id": "f_veh_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_veh_plate",
+            "name": "Kennzeichen",
+            "type": "VARCHAR",
+            "length": 25,
+            "isUnique": true
+          },
+          {
+            "id": "f_veh_brand",
+            "name": "Hersteller",
+            "type": "VARCHAR",
+            "length": 50
+          },
+          {
+            "id": "f_veh_model",
+            "name": "Modell",
+            "type": "VARCHAR",
+            "length": 60
+          },
+          {
+            "id": "f_veh_vin",
+            "name": "FIN_Fahrgestellnummer",
+            "type": "VARCHAR",
+            "length": 40
+          },
+          {
+            "id": "f_veh_type",
+            "name": "Fahrzeugkategorie",
+            "type": "ENUM",
+            "enumValues": [
+              "PKW",
+              "Kombi",
+              "Transporter_3_5t",
+              "LKW_7_5t",
+              "E_Transporter"
+            ]
+          },
+          {
+            "id": "f_veh_km",
+            "name": "KilometerstandAktuell",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_veh_tuv",
+            "name": "NaechsteHU_AU",
+            "type": "DATE"
+          },
+          {
+            "id": "f_veh_status",
+            "name": "Status",
+            "type": "ENUM",
+            "enumValues": [
+              "Einsatzbereit",
+              "AufTour",
+              "InWerkstatt",
+              "Ausgemustert"
+            ],
+            "defaultValue": "Einsatzbereit"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Kennzeichen": "M-DB-2024",
+            "Hersteller": "Mercedes-Benz",
+            "Modell": "Sprinter 317 CDI",
+            "FIN_Fahrgestellnummer": "WDB9066331S123456",
+            "Fahrzeugkategorie": "Transporter_3_5t",
+            "KilometerstandAktuell": 64200,
+            "NaechsteHU_AU": "2027-04-30",
+            "Status": "Einsatzbereit"
+          },
+          {
+            "Id": 2,
+            "Kennzeichen": "M-DB-2025",
+            "Hersteller": "Volkswagen",
+            "Modell": "ID. Buzz Cargo",
+            "FIN_Fahrgestellnummer": "WV2ZZZEB8PH098765",
+            "Fahrzeugkategorie": "E_Transporter",
+            "KilometerstandAktuell": 28400,
+            "NaechsteHU_AU": "2027-01-31",
+            "Status": "AufTour"
+          }
+        ]
+      },
+      {
+        "id": "tbl_flt_drivers",
+        "name": "Fahrer",
+        "description": "Mitarbeiter mit Führerscheinklassen und Gültigkeitsdaten",
+        "fields": [
+          {
+            "id": "f_drv_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_drv_firstname",
+            "name": "Vorname",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_drv_lastname",
+            "name": "Nachname",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_drv_license_nr",
+            "name": "FuehrerscheinNr",
+            "type": "VARCHAR",
+            "length": 50
+          },
+          {
+            "id": "f_drv_classes",
+            "name": "FahrerlaubnisKlassen",
+            "type": "VARCHAR",
+            "length": 50,
+            "defaultValue": "B, BE, C1"
+          },
+          {
+            "id": "f_drv_phone",
+            "name": "Mobiltelefon",
+            "type": "PHONE"
+          },
+          {
+            "id": "f_drv_active",
+            "name": "Aktiv",
+            "type": "BOOLEAN",
+            "defaultValue": "true"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Vorname": "Jan",
+            "Nachname": "Olszewski",
+            "FuehrerscheinNr": "B072K99812",
+            "FahrerlaubnisKlassen": "B, BE, C1, C",
+            "Mobiltelefon": "+49 171 9988771",
+            "Aktiv": true
+          },
+          {
+            "Id": 2,
+            "Vorname": "Melanie",
+            "Nachname": "Beck",
+            "FuehrerscheinNr": "B075M44199",
+            "FahrerlaubnisKlassen": "B, BE",
+            "Mobiltelefon": "+49 171 9988772",
+            "Aktiv": true
+          }
+        ]
+      },
+      {
+        "id": "tbl_flt_trips",
+        "name": "Fahrtenbuch_Touren",
+        "description": "Durchgeführte Fahrten, Abfahrt, Ziel, Zweck und Kilometer",
+        "fields": [
+          {
+            "id": "f_trp_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_trp_veh_id",
+            "name": "FahrzeugId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_trp_drv_id",
+            "name": "FahrerId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_trp_start_time",
+            "name": "AbfahrtZeit",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_trp_end_time",
+            "name": "AnkunftZeit",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_trp_km_start",
+            "name": "StartKm",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_trp_km_end",
+            "name": "EndeKm",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_trp_origin",
+            "name": "Startort",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_trp_dest",
+            "name": "Zielort",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_trp_purpose",
+            "name": "Fahrtzweck",
+            "type": "VARCHAR",
+            "length": 200
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "FahrzeugId": 1,
+            "FahrerId": 1,
+            "AbfahrtZeit": "2026-09-01 07:30:00",
+            "AnkunftZeit": "2026-09-01 16:45:00",
+            "StartKm": 63920,
+            "EndeKm": 64200,
+            "Startort": "München Zentrallager",
+            "Zielort": "Nürnberg & Regensburg",
+            "Fahrtzweck": "Ersatzteil-Lieferung an Kundenwerk"
+          },
+          {
+            "Id": 2,
+            "FahrzeugId": 2,
+            "FahrerId": 2,
+            "AbfahrtZeit": "2026-09-03 08:00:00",
+            "AnkunftZeit": "2026-09-03 12:30:00",
+            "StartKm": 28280,
+            "EndeKm": 28400,
+            "Startort": "München Stadt",
+            "Zielort": "Flughafen München Frachtzentrum",
+            "Fahrtzweck": "Eilige Express-Sendung"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_veh_trp",
+        "fromTableId": "tbl_flt_vehicles",
+        "fromFieldId": "f_veh_id",
+        "toTableId": "tbl_flt_trips",
+        "toFieldId": "f_trp_veh_id",
+        "sourceTableId": "tbl_flt_vehicles",
+        "sourceFieldId": "f_veh_id",
+        "targetTableId": "tbl_flt_trips",
+        "targetFieldId": "f_trp_veh_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_drv_trp",
+        "fromTableId": "tbl_flt_drivers",
+        "fromFieldId": "f_drv_id",
+        "toTableId": "tbl_flt_trips",
+        "toFieldId": "f_trp_drv_id",
+        "sourceTableId": "tbl_flt_drivers",
+        "sourceFieldId": "f_drv_id",
+        "targetTableId": "tbl_flt_trips",
+        "targetFieldId": "f_trp_drv_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      }
+    ],
+    "forms": [
+      {
+        "id": "f_vehicle_form",
+        "name": "Fahrzeugstamm & Tourenzuweisung",
+        "sourceType": "table",
+        "sourceId": "tbl_flt_vehicles",
+        "fields": [],
+        "layout": {
+          "id": "root_veh",
+          "type": "container",
+          "className": "space-y-6 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_veh",
+              "type": "label",
+              "label": "🚚 Flottenfahrzeug-Stammblatt",
+              "className": "text-xl font-bold text-slate-800 dark:text-slate-100 border-b pb-3 flex items-center gap-2"
+            },
+            {
+              "id": "grid_veh_meta",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800",
+              "children": [
+                {
+                  "id": "fld_v_plate",
+                  "type": "field",
+                  "fieldId": "f_veh_plate",
+                  "label": "Kennzeichen",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_v_brand",
+                  "type": "field",
+                  "fieldId": "f_veh_brand",
+                  "label": "Hersteller",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_v_model",
+                  "type": "field",
+                  "fieldId": "f_veh_model",
+                  "label": "Modell",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_v_vin",
+                  "type": "field",
+                  "fieldId": "f_veh_vin",
+                  "label": "FIN",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_v_type",
+                  "type": "field",
+                  "fieldId": "f_veh_type",
+                  "label": "Fahrzeugkategorie",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_v_km",
+                  "type": "field",
+                  "fieldId": "f_veh_km",
+                  "label": "Kilometerstand",
+                  "widgetType": "number"
+                },
+                {
+                  "id": "fld_v_tuv",
+                  "type": "field",
+                  "fieldId": "f_veh_tuv",
+                  "label": "Nächste HU / AU",
+                  "widgetType": "date"
+                },
+                {
+                  "id": "fld_v_stat",
+                  "type": "field",
+                  "fieldId": "f_veh_status",
+                  "label": "Einsatzstatus",
+                  "widgetType": "select"
+                }
+              ]
+            },
+            {
+              "id": "sub_veh_trips",
+              "type": "subform",
+              "label": "Fahrtenbuch & absolvierte Touren",
+              "subform": {
+                "formId": "f_vehicle_trips_sub",
+                "masterLinkFieldId": "f_veh_id",
+                "childLinkFieldId": "f_trp_veh_id",
+                "canAdd": true,
+                "canEdit": true,
+                "canDelete": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_vehicle_trips_sub",
+        "name": "Fahrtenbuch Subform",
+        "sourceType": "table",
+        "sourceId": "tbl_flt_trips",
+        "fields": [],
+        "layout": {
+          "id": "sub_root_trp",
+          "type": "container",
+          "className": "grid grid-cols-4 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg",
+          "children": [
+            {
+              "id": "fld_tr_drv",
+              "type": "field",
+              "fieldId": "f_trp_drv_id",
+              "label": "Fahrer",
+              "widgetType": "select",
+              "lookup": {
+                "tableId": "tbl_flt_drivers",
+                "valueFieldId": "f_drv_id",
+                "labelFields": [
+                  "f_drv_lastname",
+                  "f_drv_firstname"
+                ]
+              }
+            },
+            {
+              "id": "fld_tr_start",
+              "type": "field",
+              "fieldId": "f_trp_start_time",
+              "label": "Abfahrt",
+              "widgetType": "date"
+            },
+            {
+              "id": "fld_tr_dest",
+              "type": "field",
+              "fieldId": "f_trp_dest",
+              "label": "Zielort",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_tr_purpose",
+              "type": "field",
+              "fieldId": "f_trp_purpose",
+              "label": "Zweck",
+              "widgetType": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "reports": [
+      {
+        "id": "r_fleet_inspection_report",
+        "name": "Fuhrparkstatus & HU/AU-Fristen",
+        "sourceType": "table",
+        "sourceId": "tbl_flt_vehicles",
+        "groupingFieldId": "f_veh_status",
+        "summaries": [
+          {
+            "fieldId": "f_veh_km",
+            "fieldName": "KilometerstandAktuell",
+            "calculation": "AVG"
+          },
+          {
+            "fieldId": "f_veh_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_veh_plate",
+            "label": "Kennzeichen",
+            "visible": true,
+            "order": 0,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_veh_brand",
+            "label": "Hersteller",
+            "visible": true,
+            "order": 1,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_veh_model",
+            "label": "Modell",
+            "visible": true,
+            "order": 2,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_veh_type",
+            "label": "Typ",
+            "visible": true,
+            "order": 3,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_veh_km",
+            "label": "Km-Stand",
+            "visible": true,
+            "order": 4,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_veh_tuv",
+            "label": "TÜV bis",
+            "visible": true,
+            "order": 5,
+            "renderType": "date"
+          },
+          {
+            "fieldId": "f_veh_status",
+            "label": "Status",
+            "visible": true,
+            "order": 6,
+            "renderType": "badge"
+          }
+        ],
+        "settings": {
+          "orientation": "portrait",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Flottenzustand und Terminkontrolle für gesetzliche Prüfungen"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "id": "p_fleet_dashboard",
+        "name": "Fuhrpark- & Touren-Disposition",
+        "description": "Fahrzeugstatus, Kilometerstände und Fahrtenbuch-Dashboard",
+        "layout": {
+          "id": "p_root_flt",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "flt_alert",
+              "type": "alert_box",
+              "props": {
+                "alertType": "info",
+                "title": "Flotte voll einsatzfähig",
+                "message": "Alle Fahrzeuge verfügen über gültige Hauptuntersuchungen. 1 Fahrzeug aktuell auf Tour.",
+                "dismissible": true
+              }
+            },
+            {
+              "id": "flt_header_row",
+              "type": "row",
+              "props": {
+                "className": "items-center justify-between pb-2 border-b border-slate-200"
+              },
+              "children": [
+                {
+                  "id": "flt_header_col",
+                  "type": "column",
+                  "props": {
+                    "flex": "1"
+                  },
+                  "children": [
+                    {
+                      "id": "flt_title",
+                      "type": "text",
+                      "props": {
+                        "text": "Fuhrparkverwaltung & Mobilität",
+                        "className": "text-2xl font-bold text-slate-900 tracking-tight"
+                      }
+                    },
+                    {
+                      "id": "flt_sub",
+                      "type": "text",
+                      "props": {
+                        "text": "Fahrzeugübersicht, Tourenüberwachung und Fahrerdaten",
+                        "className": "text-sm text-slate-500 mt-1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "flt_kpi_grid",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_flt_vehicles",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Fahrzeuge im Fuhrpark",
+                    "value": "12",
+                    "unit": "Kfz",
+                    "trend": "100% Verfügbarkeit",
+                    "trendDirection": "up",
+                    "trendLabel": "inkl. E-Transporter",
+                    "accentColor": "emerald",
+                    "icon": "Truck"
+                  }
+                },
+                {
+                  "id": "kpi_flt_km",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Gesamtfahrleistung Monat",
+                    "value": "14.280",
+                    "unit": "km",
+                    "trend": "+4.8% Auslastung",
+                    "trendDirection": "up",
+                    "trendLabel": "Ø Verbrauch: 8.2 l / 100km",
+                    "accentColor": "indigo",
+                    "icon": "Activity"
+                  }
+                },
+                {
+                  "id": "kpi_flt_drivers",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Registrierte Fahrer",
+                    "value": "8",
+                    "unit": "Fahrer",
+                    "trend": "Führerscheinprüfung aktuell",
+                    "trendDirection": "neutral",
+                    "trendLabel": "Fahrerlaubnis B/BE/C1",
+                    "accentColor": "amber",
+                    "icon": "UserCheck"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "flt_vehicles_table",
+              "type": "table_view",
+              "props": {
+                "tableId": "tbl_flt_vehicles",
+                "title": "Fahrzeugflotte im Überblick"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_ready_vehicles",
+        "type": "SELECT",
+        "name": "Sofort einsatzbereite Fahrzeuge",
+        "nodes": [
+          {
+            "id": "qn_veh",
+            "tableId": "tbl_flt_vehicles",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c1",
+            "tableId": "tbl_flt_vehicles",
+            "fieldId": "f_veh_plate",
+            "tableName": "tbl_flt_vehicles",
+            "fieldName": "Kennzeichen",
+            "alias": "Kennzeichen",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c2",
+            "tableId": "tbl_flt_vehicles",
+            "fieldId": "f_veh_brand",
+            "tableName": "tbl_flt_vehicles",
+            "fieldName": "Hersteller",
+            "alias": "Hersteller",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c3",
+            "tableId": "tbl_flt_vehicles",
+            "fieldId": "f_veh_model",
+            "tableName": "tbl_flt_vehicles",
+            "fieldName": "Modell",
+            "alias": "Modell",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c4",
+            "tableId": "tbl_flt_vehicles",
+            "fieldId": "f_veh_km",
+            "tableName": "tbl_flt_vehicles",
+            "fieldName": "KilometerstandAktuell",
+            "alias": "KmStand",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c5",
+            "tableId": "tbl_flt_vehicles",
+            "fieldId": "f_veh_status",
+            "tableName": "tbl_flt_vehicles",
+            "fieldName": "Status",
+            "alias": "Status",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              "= 'Einsatzbereit'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_trips_log",
+        "type": "SELECT",
+        "name": "Fahrtenbuch & Tourenhistorie",
+        "nodes": [
+          {
+            "id": "qn_trp",
+            "tableId": "tbl_flt_trips",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c6",
+            "tableId": "tbl_flt_trips",
+            "fieldId": "f_trp_start_time",
+            "tableName": "tbl_flt_trips",
+            "fieldName": "AbfahrtZeit",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c7",
+            "tableId": "tbl_flt_trips",
+            "fieldId": "f_trp_origin",
+            "tableName": "tbl_flt_trips",
+            "fieldName": "Startort",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c8",
+            "tableId": "tbl_flt_trips",
+            "fieldId": "f_trp_dest",
+            "tableName": "tbl_flt_trips",
+            "fieldName": "Zielort",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c9",
+            "tableId": "tbl_flt_trips",
+            "fieldId": "f_trp_purpose",
+            "tableName": "tbl_flt_trips",
+            "fieldName": "Fahrtzweck",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      }
+    ],
+    "layout": [
+      {
+        "id": "tbl_flt_vehicles",
+        "tableId": "tbl_flt_vehicles",
+        "x": 40,
+        "y": 60
+      },
+      {
+        "id": "tbl_flt_drivers",
+        "tableId": "tbl_flt_drivers",
+        "x": 400,
+        "y": 60
+      },
+      {
+        "id": "tbl_flt_trips",
+        "tableId": "tbl_flt_trips",
+        "x": 220,
+        "y": 420
+      }
+    ],
+    "tableGroups": [
+      {
+        "id": "grp_fleet",
+        "name": "Flotte & Disposition",
+        "color": "teal"
+      }
+    ],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "FleetManagerPro",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

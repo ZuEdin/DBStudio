@@ -163,10 +163,11 @@ export const generateCustomFormPage = (
   sourceTable.fields.forEach(f => {
       const camelName = toCamelCase(f.name);
       const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
-      const hasNowDefault = f.defaultValue && (
-          f.defaultValue.toLowerCase().includes('now') ||
-          f.defaultValue.toLowerCase().includes('current_timestamp') ||
-          f.defaultValue.toLowerCase().includes('getdate')
+      const defStr = f.defaultValue !== undefined && f.defaultValue !== null ? String(f.defaultValue) : '';
+      const hasNowDefault = defStr && (
+          defStr.toLowerCase().includes('now') ||
+          defStr.toLowerCase().includes('current_timestamp') ||
+          defStr.toLowerCase().includes('getdate')
       );
       const isCreatedAtField = ['created_at', 'createdat', 'erstellt_am', 'created_date', 'createddate'].includes(f.name.toLowerCase());
       const isCreatedByField = ['created_by', 'createdby', 'erstellt_von', 'created_user', 'createduser'].includes(f.name.toLowerCase());
@@ -185,14 +186,14 @@ export const generateCustomFormPage = (
       } else if (isCreatedByField) {
           defaultFields.push(`${camelName}: getLoggedInUser()`);
           payloadSetups.push(`if (!payload.${camelName}) payload.${camelName} = getLoggedInUser();`);
-      } else if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+      } else if (f.defaultValue !== undefined && f.defaultValue !== null && defStr !== '') {
           if (f.type === 'BOOLEAN') {
-              const bVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
+              const bVal = defStr.toLowerCase() === 'true' || defStr === '1';
               defaultFields.push(`${camelName}: ${bVal}`);
           } else if (f.type === 'INTEGER' || f.type === 'DECIMAL') {
-              defaultFields.push(`${camelName}: ${f.defaultValue}`);
+              defaultFields.push(`${camelName}: ${defStr}`);
           } else {
-              defaultFields.push(`${camelName}: "${f.defaultValue.replace(/"/g, '\\"')}"`);
+              defaultFields.push(`${camelName}: "${defStr.replace(/"/g, '\\"')}"`);
           }
       }
   });

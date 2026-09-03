@@ -198,13 +198,14 @@ export const generateNode = (
             const defaultFields: string[] = [];
             tObj.fields.forEach(f => {
                 const fCamel = toCamelCase(f.name);
-                if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+                const defStr = f.defaultValue !== undefined && f.defaultValue !== null ? String(f.defaultValue) : '';
+                if (f.defaultValue !== undefined && f.defaultValue !== null && defStr !== '') {
                     if (f.type === 'BOOLEAN') {
-                        defaultFields.push(`${fCamel}: ${f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1'}`);
+                        defaultFields.push(`${fCamel}: ${defStr.toLowerCase() === 'true' || defStr === '1'}`);
                     } else if (f.type === 'INTEGER' || f.type === 'DECIMAL' || f.type === 'DOUBLE') {
-                        defaultFields.push(`${fCamel}: ${f.defaultValue}`);
+                        defaultFields.push(`${fCamel}: ${defStr}`);
                     } else {
-                        defaultFields.push(`'${fCamel}': "${f.defaultValue.replace(/"/g, '\\"')}"`);
+                        defaultFields.push(`'${fCamel}': "${defStr.replace(/"/g, '\\"')}"`);
                     }
                 }
             });

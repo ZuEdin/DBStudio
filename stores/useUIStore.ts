@@ -178,6 +178,8 @@ interface UIStore {
   setShowOpenApiExporterModal: (show: boolean) => void;
   showCsvMigrationModal: boolean;
   setShowCsvMigrationModal: (show: boolean) => void;
+  showProjectMergeModal: boolean;
+  setShowProjectMergeModal: (show: boolean) => void;
   
   activeWizard: string | null;
   setActiveWizard: (wizard: string | null) => void;
@@ -363,6 +365,8 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowOpenApiExporterModal: (showOpenApiExporterModal) => set({ showOpenApiExporterModal }),
   showCsvMigrationModal: false,
   setShowCsvMigrationModal: (showCsvMigrationModal) => set({ showCsvMigrationModal }),
+  showProjectMergeModal: false,
+  setShowProjectMergeModal: (showProjectMergeModal) => set({ showProjectMergeModal }),
 
   activeWizard: null,
   setActiveWizard: (activeWizard) => set({ activeWizard }),

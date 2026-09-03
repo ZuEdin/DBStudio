@@ -1,0 +1,851 @@
+{
+  "id": "ext_inventory_warehouse",
+  "name": "Warenwirtschaft, Lager & Bestandsführung",
+  "description": "Artikelstamm, Lagerorte, Bestände, Mindestmengen und Wareneingang/-ausgang.",
+  "icon": "Package",
+  "category": "Handel & Logistik",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_inv_warehouses",
+        "name": "Lagerstandorte",
+        "description": "Zentrallager, Außenlager und Filialen",
+        "fields": [
+          {
+            "id": "f_wh_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_wh_code",
+            "name": "LagerCode",
+            "type": "VARCHAR",
+            "length": 20,
+            "isUnique": true
+          },
+          {
+            "id": "f_wh_name",
+            "name": "Bezeichnung",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_wh_city",
+            "name": "StandortOrt",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_wh_manager",
+            "name": "Lagerleiter",
+            "type": "VARCHAR",
+            "length": 100
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "LagerCode": "WH-HAUPT-01",
+            "Bezeichnung": "Zentrallager Süd",
+            "StandortOrt": "Augsburg",
+            "Lagerleiter": "Klaus Huber"
+          },
+          {
+            "Id": 2,
+            "LagerCode": "WH-NORD-02",
+            "Bezeichnung": "Umschlaglager Nord",
+            "StandortOrt": "Hamburg",
+            "Lagerleiter": "Svenja Petersen"
+          }
+        ]
+      },
+      {
+        "id": "tbl_inv_articles",
+        "name": "Artikelstamm",
+        "description": "Produkte, Artikelnummern, EAN, Preise und Steuersätze",
+        "fields": [
+          {
+            "id": "f_art_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_art_sku",
+            "name": "Artikelnummer",
+            "type": "VARCHAR",
+            "length": 40,
+            "isUnique": true
+          },
+          {
+            "id": "f_art_ean",
+            "name": "EAN_Barcode",
+            "type": "VARCHAR",
+            "length": 20
+          },
+          {
+            "id": "f_art_name",
+            "name": "Bezeichnung",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_art_cat",
+            "name": "Kategorie",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_art_price_buy",
+            "name": "EinkaufspreisNetto",
+            "type": "CURRENCY"
+          },
+          {
+            "id": "f_art_price_sell",
+            "name": "VerkaufspreisNetto",
+            "type": "CURRENCY"
+          },
+          {
+            "id": "f_art_min_stock",
+            "name": "Mindestbestand",
+            "type": "INTEGER",
+            "defaultValue": "10"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Artikelnummer": "ART-5501",
+            "EAN_Barcode": "4012345678901",
+            "Bezeichnung": "Industrie-WLAN Access Point AP-900",
+            "Kategorie": "Netzwerktechnik",
+            "EinkaufspreisNetto": 185.0,
+            "VerkaufspreisNetto": 299.0,
+            "Mindestbestand": 15
+          },
+          {
+            "Id": 2,
+            "Artikelnummer": "ART-8820",
+            "EAN_Barcode": "4012345678918",
+            "Bezeichnung": "Cat.7 Patchkabel 10m LSOH",
+            "Kategorie": "Kabel & Zubehör",
+            "EinkaufspreisNetto": 4.5,
+            "VerkaufspreisNetto": 14.9,
+            "Mindestbestand": 50
+          }
+        ]
+      },
+      {
+        "id": "tbl_inv_stock",
+        "name": "Lagerbestand",
+        "description": "Tatsächlicher Bestand je Artikel und Lager",
+        "fields": [
+          {
+            "id": "f_stk_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_stk_wh_id",
+            "name": "LagerId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_stk_art_id",
+            "name": "ArtikelId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_stk_bin",
+            "name": "LagerfachRegal",
+            "type": "VARCHAR",
+            "length": 30
+          },
+          {
+            "id": "f_stk_qty",
+            "name": "MengeAufLager",
+            "type": "INTEGER",
+            "defaultValue": "0"
+          },
+          {
+            "id": "f_stk_reserved",
+            "name": "MengeReserviert",
+            "type": "INTEGER",
+            "defaultValue": "0"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "LagerId": 1,
+            "ArtikelId": 1,
+            "LagerfachRegal": "R-04-B-12",
+            "MengeAufLager": 42,
+            "MengeReserviert": 5
+          },
+          {
+            "Id": 2,
+            "LagerId": 1,
+            "ArtikelId": 2,
+            "LagerfachRegal": "K-01-A-01",
+            "MengeAufLager": 180,
+            "MengeReserviert": 20
+          },
+          {
+            "Id": 3,
+            "LagerId": 2,
+            "ArtikelId": 1,
+            "LagerfachRegal": "H-12-01",
+            "MengeAufLager": 12,
+            "MengeReserviert": 0
+          }
+        ]
+      },
+      {
+        "id": "tbl_inv_movements",
+        "name": "Lagerbewegungen",
+        "description": "Protokoll aller Ein-, Aus- und Umlagerungen",
+        "fields": [
+          {
+            "id": "f_mov_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_mov_art_id",
+            "name": "ArtikelId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_mov_wh_id",
+            "name": "LagerId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_mov_type",
+            "name": "Bewegungsart",
+            "type": "ENUM",
+            "enumValues": [
+              "Wareneingang",
+              "Warenausgang",
+              "Korrektur_Inventur",
+              "Umlagerung"
+            ]
+          },
+          {
+            "id": "f_mov_qty",
+            "name": "Menge",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_mov_ref",
+            "name": "BelegReferenz",
+            "type": "VARCHAR",
+            "length": 60
+          },
+          {
+            "id": "f_mov_date",
+            "name": "Buchungszeitpunkt",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_mov_user",
+            "name": "GebuchtVon",
+            "type": "VARCHAR",
+            "length": 80
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "ArtikelId": 1,
+            "LagerId": 1,
+            "Bewegungsart": "Wareneingang",
+            "Menge": 20,
+            "BelegReferenz": "LIEF-88401",
+            "Buchungszeitpunkt": "2026-08-28 09:15:00",
+            "GebuchtVon": "Klaus Huber"
+          },
+          {
+            "Id": 2,
+            "ArtikelId": 2,
+            "LagerId": 1,
+            "Bewegungsart": "Warenausgang",
+            "Menge": -10,
+            "BelegReferenz": "AUFTR-10492",
+            "Buchungszeitpunkt": "2026-08-30 11:20:00",
+            "GebuchtVon": "Klaus Huber"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_wh_stk",
+        "fromTableId": "tbl_inv_warehouses",
+        "fromFieldId": "f_wh_id",
+        "toTableId": "tbl_inv_stock",
+        "toFieldId": "f_stk_wh_id",
+        "sourceTableId": "tbl_inv_warehouses",
+        "sourceFieldId": "f_wh_id",
+        "targetTableId": "tbl_inv_stock",
+        "targetFieldId": "f_stk_wh_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_art_stk",
+        "fromTableId": "tbl_inv_articles",
+        "fromFieldId": "f_art_id",
+        "toTableId": "tbl_inv_stock",
+        "toFieldId": "f_stk_art_id",
+        "sourceTableId": "tbl_inv_articles",
+        "sourceFieldId": "f_art_id",
+        "targetTableId": "tbl_inv_stock",
+        "targetFieldId": "f_stk_art_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_art_mov",
+        "fromTableId": "tbl_inv_articles",
+        "fromFieldId": "f_art_id",
+        "toTableId": "tbl_inv_movements",
+        "toFieldId": "f_mov_art_id",
+        "sourceTableId": "tbl_inv_articles",
+        "sourceFieldId": "f_art_id",
+        "targetTableId": "tbl_inv_movements",
+        "targetFieldId": "f_mov_art_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "f_article_form",
+        "name": "Artikelstamm & Lagerpositionierung",
+        "sourceType": "table",
+        "sourceId": "tbl_inv_articles",
+        "fields": [],
+        "layout": {
+          "id": "root_art",
+          "type": "container",
+          "className": "space-y-6 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_art",
+              "type": "label",
+              "label": "📦 Artikelstammblatt & Lagerdaten",
+              "className": "text-xl font-bold text-slate-800 dark:text-slate-100 border-b pb-3 flex items-center gap-2"
+            },
+            {
+              "id": "grid_art_meta",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800",
+              "children": [
+                {
+                  "id": "fld_a_sku",
+                  "type": "field",
+                  "fieldId": "f_art_sku",
+                  "label": "Artikelnummer (SKU)",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_a_ean",
+                  "type": "field",
+                  "fieldId": "f_art_ean",
+                  "label": "EAN Barcode",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_a_name",
+                  "type": "field",
+                  "fieldId": "f_art_name",
+                  "label": "Bezeichnung",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_a_cat",
+                  "type": "field",
+                  "fieldId": "f_art_cat",
+                  "label": "Kategorie",
+                  "widgetType": "select"
+                },
+                {
+                  "id": "fld_a_buy",
+                  "type": "field",
+                  "fieldId": "f_art_price_buy",
+                  "label": "Einkaufspreis (€)",
+                  "widgetType": "number"
+                },
+                {
+                  "id": "fld_a_sell",
+                  "type": "field",
+                  "fieldId": "f_art_price_sell",
+                  "label": "Verkaufspreis (€)",
+                  "widgetType": "number"
+                },
+                {
+                  "id": "fld_a_min",
+                  "type": "field",
+                  "fieldId": "f_art_min_stock",
+                  "label": "Mindestbestand",
+                  "widgetType": "number"
+                }
+              ]
+            },
+            {
+              "id": "sub_art_stock",
+              "type": "subform",
+              "label": "Lagerplätze & physische Bestände",
+              "subform": {
+                "formId": "f_article_stock_sub",
+                "masterLinkFieldId": "f_art_id",
+                "childLinkFieldId": "f_stk_art_id",
+                "canAdd": true,
+                "canEdit": true,
+                "canDelete": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_article_stock_sub",
+        "name": "Lagerbestand Subform",
+        "sourceType": "table",
+        "sourceId": "tbl_inv_stock",
+        "fields": [],
+        "layout": {
+          "id": "sub_root_stk",
+          "type": "container",
+          "className": "grid grid-cols-4 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg",
+          "children": [
+            {
+              "id": "fld_st_wh",
+              "type": "field",
+              "fieldId": "f_stk_wh_id",
+              "label": "Lager",
+              "widgetType": "select",
+              "lookup": {
+                "tableId": "tbl_inv_warehouses",
+                "valueFieldId": "f_wh_id",
+                "labelFields": [
+                  "f_wh_name"
+                ]
+              }
+            },
+            {
+              "id": "fld_st_bin",
+              "type": "field",
+              "fieldId": "f_stk_bin",
+              "label": "Lagerfach",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_st_qty",
+              "type": "field",
+              "fieldId": "f_stk_qty",
+              "label": "Menge frei",
+              "widgetType": "number"
+            },
+            {
+              "id": "fld_st_res",
+              "type": "field",
+              "fieldId": "f_stk_reserved",
+              "label": "Reserviert",
+              "widgetType": "number"
+            }
+          ]
+        }
+      }
+    ],
+    "reports": [
+      {
+        "id": "r_inventory_valuation",
+        "name": "Inventur- & Lagerwertbericht",
+        "sourceType": "table",
+        "sourceId": "tbl_inv_articles",
+        "groupingFieldId": "f_art_cat",
+        "summaries": [
+          {
+            "fieldId": "f_art_price_buy",
+            "fieldName": "EinkaufspreisNetto",
+            "calculation": "SUM"
+          },
+          {
+            "fieldId": "f_art_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_art_sku",
+            "label": "SKU",
+            "visible": true,
+            "order": 0,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_art_name",
+            "label": "Artikelbezeichnung",
+            "visible": true,
+            "order": 1,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_art_cat",
+            "label": "Warengruppe",
+            "visible": true,
+            "order": 2,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_art_min_stock",
+            "label": "Mindestbestand",
+            "visible": true,
+            "order": 3,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_art_price_buy",
+            "label": "EK Netto (€)",
+            "visible": true,
+            "order": 4,
+            "renderType": "currency"
+          },
+          {
+            "fieldId": "f_art_price_sell",
+            "label": "VK Netto (€)",
+            "visible": true,
+            "order": 5,
+            "renderType": "currency"
+          }
+        ],
+        "settings": {
+          "orientation": "portrait",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Stichtagsbezogene Auswertung der Warenbestände nach Warengruppen"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "id": "p_inventory_dashboard",
+        "name": "Warenwirtschaft & Lager-Cockpit",
+        "description": "Bestandsübersicht, Mindestmengen-Monitoring und Wareneingang",
+        "layout": {
+          "id": "p_root_inv",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "inv_alert",
+              "type": "alert_box",
+              "props": {
+                "alertType": "info",
+                "title": "Lagerlogistik im Regelbetrieb",
+                "message": "Alle Lagerstandorte synchronisiert. 1 Artikel nähert sich dem Sicherheitsbestand.",
+                "dismissible": true
+              }
+            },
+            {
+              "id": "inv_header_row",
+              "type": "row",
+              "props": {
+                "className": "items-center justify-between pb-2 border-b border-slate-200"
+              },
+              "children": [
+                {
+                  "id": "inv_header_col",
+                  "type": "column",
+                  "props": {
+                    "flex": "1"
+                  },
+                  "children": [
+                    {
+                      "id": "inv_title",
+                      "type": "text",
+                      "props": {
+                        "text": "Warenwirtschaft & Lagerdisposition",
+                        "className": "text-2xl font-bold text-slate-900 tracking-tight"
+                      }
+                    },
+                    {
+                      "id": "inv_sub",
+                      "type": "text",
+                      "props": {
+                        "text": "Artikelbestand, Lagerorte und Materialbewegungen in Echtzeit",
+                        "className": "text-sm text-slate-500 mt-1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "inv_kpi_grid",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_inv_articles",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Geführte Artikelstämme",
+                    "value": "248",
+                    "unit": "Artikel",
+                    "trend": "4 Warengruppen",
+                    "trendDirection": "neutral",
+                    "trendLabel": "Katalog 2026/2027",
+                    "accentColor": "emerald",
+                    "icon": "Package"
+                  }
+                },
+                {
+                  "id": "kpi_inv_units",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Physisch verfügbar",
+                    "value": "8.420",
+                    "unit": "Stück",
+                    "trend": "96% lieferfähig",
+                    "trendDirection": "up",
+                    "trendLabel": "2 Standorte aktiv",
+                    "accentColor": "indigo",
+                    "icon": "Layers"
+                  }
+                },
+                {
+                  "id": "kpi_inv_val",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Gebundener Lagerwert (EK)",
+                    "value": "128.450",
+                    "unit": "€",
+                    "trend": "Optimale Umschlagshäufigkeit",
+                    "trendDirection": "up",
+                    "trendLabel": "Inventurwert Q3",
+                    "accentColor": "amber",
+                    "icon": "DollarSign"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "inv_stock_table",
+              "type": "table_view",
+              "props": {
+                "tableId": "tbl_inv_stock",
+                "title": "Aktuelle Lagerplatzbestände"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_reorder_warning",
+        "type": "SELECT",
+        "name": "Nachbestell-Bedarf (Bestand < Mindestbestand)",
+        "nodes": [
+          {
+            "id": "qn_art",
+            "tableId": "tbl_inv_articles",
+            "x": 40,
+            "y": 40
+          },
+          {
+            "id": "qn_stk",
+            "tableId": "tbl_inv_stock",
+            "x": 360,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c1",
+            "tableId": "tbl_inv_articles",
+            "fieldId": "f_art_sku",
+            "tableName": "tbl_inv_articles",
+            "fieldName": "Artikelnummer",
+            "alias": "ArtikelNr",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c2",
+            "tableId": "tbl_inv_articles",
+            "fieldId": "f_art_name",
+            "tableName": "tbl_inv_articles",
+            "fieldName": "Bezeichnung",
+            "alias": "Artikel",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c3",
+            "tableId": "tbl_inv_stock",
+            "fieldId": "f_stk_qty",
+            "tableName": "tbl_inv_stock",
+            "fieldName": "MengeAufLager",
+            "alias": "IstBestand",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c4",
+            "tableId": "tbl_inv_articles",
+            "fieldId": "f_art_min_stock",
+            "tableName": "tbl_inv_articles",
+            "fieldName": "Mindestbestand",
+            "alias": "Meldebestand",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c5",
+            "tableId": "tbl_inv_articles",
+            "fieldId": "f_art_price_buy",
+            "tableName": "tbl_inv_articles",
+            "fieldName": "EinkaufspreisNetto",
+            "alias": "EK_Preis",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_stock_by_warehouse",
+        "type": "SELECT",
+        "name": "Bestandsübersicht je Lagerstandort",
+        "nodes": [
+          {
+            "id": "qn_stk_all",
+            "tableId": "tbl_inv_stock",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c6",
+            "tableId": "tbl_inv_stock",
+            "fieldId": "f_stk_bin",
+            "tableName": "tbl_inv_stock",
+            "fieldName": "LagerfachRegal",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c7",
+            "tableId": "tbl_inv_stock",
+            "fieldId": "f_stk_qty",
+            "tableName": "tbl_inv_stock",
+            "fieldName": "MengeAufLager",
+            "sort": "DESC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c8",
+            "tableId": "tbl_inv_stock",
+            "fieldId": "f_stk_reserved",
+            "tableName": "tbl_inv_stock",
+            "fieldName": "MengeReserviert",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      }
+    ],
+    "layout": [
+      {
+        "id": "tbl_inv_warehouses",
+        "tableId": "tbl_inv_warehouses",
+        "x": 40,
+        "y": 60
+      },
+      {
+        "id": "tbl_inv_articles",
+        "tableId": "tbl_inv_articles",
+        "x": 380,
+        "y": 60
+      },
+      {
+        "id": "tbl_inv_stock",
+        "tableId": "tbl_inv_stock",
+        "x": 40,
+        "y": 420
+      },
+      {
+        "id": "tbl_inv_movements",
+        "tableId": "tbl_inv_movements",
+        "x": 380,
+        "y": 420
+      }
+    ],
+    "tableGroups": [
+      {
+        "id": "grp_inv",
+        "name": "Lager & Bestandsverwaltung",
+        "color": "orange"
+      }
+    ],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "WarehouseInventoryPro",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

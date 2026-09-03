@@ -1,0 +1,403 @@
+{
+  "id": "ext_dbstudio_cluster_management",
+  "name": "DBStudio Server- & Cluster-Operations",
+  "description": "Leitstand für gehostete Datenbankinstanzen, Knoten, Backups und System-Health.",
+  "icon": "Server",
+  "category": "DevOps & Administration",
+  "file": "dbstudio_cluster_management.json",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_nodes",
+        "name": "Server-Knoten & Cluster-Hosts",
+        "description": "Physische Server und Cloud-VMs im DBStudio-Verbund",
+        "fields": [
+          {
+            "id": "f_nd_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_nd_host",
+            "name": "Hostname",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_nd_ip",
+            "name": "IP_Adresse",
+            "type": "VARCHAR",
+            "length": 45
+          },
+          {
+            "id": "f_nd_cpu",
+            "name": "CPU_Kerne",
+            "type": "INTEGER",
+            "defaultValue": "8"
+          },
+          {
+            "id": "f_nd_ram",
+            "name": "RAM_GB",
+            "type": "INTEGER",
+            "defaultValue": "32"
+          },
+          {
+            "id": "f_nd_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Online",
+              "Wartung",
+              "Ausgefallen"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tbl_instances",
+        "name": "Gehostete Datenbankinstanzen",
+        "description": "PostgreSQL, SQLite und MySQL Datenbanken auf den Knoten",
+        "fields": [
+          {
+            "id": "f_ins_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_ins_node",
+            "name": "node_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_ins_name",
+            "name": "Datenbankname",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_ins_engine",
+            "name": "DB_Engine",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "PostgreSQL",
+              "SQLite",
+              "MariaDB",
+              "SQL Server"
+            ]
+          },
+          {
+            "id": "f_ins_port",
+            "name": "Port",
+            "type": "INTEGER",
+            "defaultValue": "5432"
+          },
+          {
+            "id": "f_ins_size",
+            "name": "Speicher_MB",
+            "type": "INTEGER",
+            "defaultValue": "250"
+          }
+        ]
+      },
+      {
+        "id": "tbl_backups",
+        "name": "Automatisierte Snapshots & Backups",
+        "description": "Tägliche Sicherungen mit Aufbewahrungsfrist und Prüfsumme",
+        "fields": [
+          {
+            "id": "f_bk_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_bk_ins",
+            "name": "instance_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_bk_time",
+            "name": "Sicherungszeitpunkt",
+            "type": "TIMESTAMP",
+            "defaultValue": "CURRENT_TIMESTAMP"
+          },
+          {
+            "id": "f_bk_file",
+            "name": "Dateiname_Archive",
+            "type": "VARCHAR",
+            "length": 250
+          },
+          {
+            "id": "f_bk_status",
+            "name": "Integritaet",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Verifiziert",
+              "Fehlgeschlagen"
+            ]
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_nd_ins",
+        "fromTableId": "tbl_nodes",
+        "fromFieldId": "f_nd_id",
+        "toTableId": "tbl_instances",
+        "toFieldId": "f_ins_node",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      },
+      {
+        "id": "rel_ins_bk",
+        "fromTableId": "tbl_instances",
+        "fromFieldId": "f_ins_id",
+        "toTableId": "tbl_backups",
+        "toFieldId": "f_bk_ins",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_create_db_instance",
+        "name": "Neue Datenbank-Instanz anlegen",
+        "sourceType": "table",
+        "sourceId": "tbl_instances",
+        "fields": [],
+        "layout": {
+          "id": "root_f_cluster",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_cls_head",
+              "type": "label",
+              "label": "🗄️ Neue DB-Instanz bereitstellen",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_ci_name",
+              "type": "field",
+              "fieldId": "f_ins_name",
+              "label": "Datenbankname (z.B. app_prod_db)",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_ci_node",
+              "type": "field",
+              "fieldId": "f_ins_node",
+              "label": "Host Server-Knoten",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_ci_engine",
+              "type": "field",
+              "fieldId": "f_ins_engine",
+              "label": "DB Engine",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_ci_port",
+              "type": "field",
+              "fieldId": "f_ins_port",
+              "label": "Port",
+              "widgetType": "number"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_online_nodes",
+        "name": "Betriebsbereite Cluster-Knoten",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "tbl_nodes",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "tbl_nodes",
+            "fieldId": "f_nd_host",
+            "tableName": "Server-Knoten & Cluster-Hosts",
+            "fieldName": "Hostname",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "tbl_nodes",
+            "fieldId": "f_nd_ip",
+            "tableName": "Server-Knoten & Cluster-Hosts",
+            "fieldName": "IP_Adresse",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "tbl_nodes",
+            "fieldId": "f_nd_status",
+            "tableName": "Server-Knoten & Cluster-Hosts",
+            "fieldName": "Status",
+            "show": true,
+            "criteria": [
+              "= \"Online\""
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_storage_by_engine",
+        "name": "Speicherbelegung nach Datenbank-Engine",
+        "sourceType": "table",
+        "sourceId": "tbl_instances",
+        "groupingFieldId": "f_ins_engine",
+        "summaries": [
+          {
+            "fieldId": "f_ins_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          },
+          {
+            "fieldId": "f_ins_size",
+            "fieldName": "Speicher_MB",
+            "calculation": "SUM"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_ins_name",
+            "label": "Instanz",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_ins_engine",
+            "label": "Engine",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_ins_size",
+            "label": "Speicher (MB)",
+            "visible": true,
+            "order": 2
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_cluster_ops",
+        "name": "DBStudio Server & Node Leitstand",
+        "description": "Zentrale Verwaltung von gehosteten Datenbankinstanzen, Knoten und Replikation",
+        "layout": {
+          "id": "cluster_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "cluster_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_nodes_online",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Aktive Server-Knoten",
+                    "value": "4",
+                    "unit": "Nodes",
+                    "accentColor": "emerald",
+                    "icon": "Server"
+                  }
+                },
+                {
+                  "id": "kpi_active_dbs",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Gehostete Datenbanken",
+                    "value": "16",
+                    "unit": "Instanzen",
+                    "accentColor": "cyan",
+                    "icon": "Database"
+                  }
+                },
+                {
+                  "id": "kpi_cluster_load",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Cluster CPU & Memory",
+                    "value": "28%",
+                    "unit": "Auslastung",
+                    "accentColor": "indigo",
+                    "icon": "Activity"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_nodes",
+              "type": "card",
+              "props": {
+                "title": "Instanzen- und Knotenübersicht",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_instances_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "tbl_instances",
+                    "limit": 6,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "DbstudioClusterOps",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

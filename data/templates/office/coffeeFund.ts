@@ -1,5 +1,6 @@
 
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getCoffeeFundPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: {
@@ -180,6 +181,7 @@ export const getCoffeeFund = (lang: string): ProjectTemplate => {
                 ]
             }
           ],
+          pages: getCoffeeFundPages(t),
           layout: [],
           tableGroups: []
         }

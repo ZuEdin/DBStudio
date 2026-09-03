@@ -1,0 +1,840 @@
+{
+  "id": "ext_hr_employee_management",
+  "name": "HR & Personalverwaltung mit Urlaubsmanagement",
+  "description": "Mitarbeiterstamm, Abteilungen, Stellen, Gehaltsstufen und Urlaubsanträge mit Genehmigungsworkflow.",
+  "icon": "Briefcase",
+  "category": "HR & Personal",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_hr_departments",
+        "name": "Abteilungen",
+        "description": "Unternehmenseinheiten und Kostenstellen",
+        "fields": [
+          {
+            "id": "f_dpt_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_dpt_code",
+            "name": "Kostenstelle",
+            "type": "VARCHAR",
+            "length": 20,
+            "isUnique": true
+          },
+          {
+            "id": "f_dpt_name",
+            "name": "Abteilungsname",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_dpt_lead",
+            "name": "Abteilungsleiter",
+            "type": "VARCHAR",
+            "length": 100
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Kostenstelle": "KST-100",
+            "Abteilungsname": "Forschung & Softwareentwicklung",
+            "Abteilungsleiter": "Dr. Miriam Voss"
+          },
+          {
+            "Id": 2,
+            "Kostenstelle": "KST-200",
+            "Abteilungsname": "Vertrieb & Marketing",
+            "Abteilungsleiter": "Stefan Brandt"
+          },
+          {
+            "Id": 3,
+            "Kostenstelle": "KST-300",
+            "Abteilungsname": "Finanzen & Personalwesen",
+            "Abteilungsleiter": "Claudia Weber"
+          }
+        ]
+      },
+      {
+        "id": "tbl_hr_employees",
+        "name": "Mitarbeiter",
+        "description": "Mitarbeiterdaten, Eintrittsdatum, Position und Kontaktdaten",
+        "fields": [
+          {
+            "id": "f_emp_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_emp_dpt_id",
+            "name": "AbteilungId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_emp_nr",
+            "name": "Personalnummer",
+            "type": "VARCHAR",
+            "length": 30,
+            "isUnique": true
+          },
+          {
+            "id": "f_emp_firstname",
+            "name": "Vorname",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_emp_lastname",
+            "name": "Nachname",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_emp_email",
+            "name": "EmailGeschaeftlich",
+            "type": "EMAIL"
+          },
+          {
+            "id": "f_emp_position",
+            "name": "Positionsbezeichnung",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_emp_entry",
+            "name": "Eintrittsdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_emp_vac_days",
+            "name": "UrlaubstageAnspruch",
+            "type": "INTEGER",
+            "defaultValue": "30"
+          },
+          {
+            "id": "f_emp_active",
+            "name": "IstAktiv",
+            "type": "BOOLEAN",
+            "defaultValue": "true"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "AbteilungId": 1,
+            "Personalnummer": "EMP-0104",
+            "Vorname": "Tim",
+            "Nachname": "Wagner",
+            "EmailGeschaeftlich": "t.wagner@unternehmen-demo.de",
+            "Positionsbezeichnung": "Senior Full-Stack Engineer",
+            "Eintrittsdatum": "2023-04-01",
+            "UrlaubstageAnspruch": 30,
+            "IstAktiv": true
+          },
+          {
+            "Id": 2,
+            "AbteilungId": 2,
+            "Personalnummer": "EMP-0145",
+            "Vorname": "Nadine",
+            "Nachname": "Lorenz",
+            "EmailGeschaeftlich": "n.lorenz@unternehmen-demo.de",
+            "Positionsbezeichnung": "Account Executive",
+            "Eintrittsdatum": "2024-02-15",
+            "UrlaubstageAnspruch": 30,
+            "IstAktiv": true
+          }
+        ]
+      },
+      {
+        "id": "tbl_hr_leaves",
+        "name": "Urlaubsantraege",
+        "description": "Urlaubs- und Abwesenheitsanträge mit Genehmigungsstatus",
+        "fields": [
+          {
+            "id": "f_lve_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_lve_emp_id",
+            "name": "MitarbeiterId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_lve_type",
+            "name": "Abwesenheitsart",
+            "type": "ENUM",
+            "enumValues": [
+              "Erholungsurlaub",
+              "Sonderurlaub",
+              "Gleitzeittag",
+              "Elternzeit",
+              "Fortbildung"
+            ],
+            "defaultValue": "Erholungsurlaub"
+          },
+          {
+            "id": "f_lve_start",
+            "name": "Startdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_lve_end",
+            "name": "Enddatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_lve_days",
+            "name": "AnzahlTage",
+            "type": "DOUBLE"
+          },
+          {
+            "id": "f_lve_status",
+            "name": "Status",
+            "type": "ENUM",
+            "enumValues": [
+              "Beantragt",
+              "Genehmigt",
+              "Abgelehnt",
+              "Storniert"
+            ],
+            "defaultValue": "Beantragt"
+          },
+          {
+            "id": "f_lve_approved_by",
+            "name": "GenehmigtVon",
+            "type": "VARCHAR",
+            "length": 100,
+            "allowNull": true
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "MitarbeiterId": 1,
+            "Abwesenheitsart": "Erholungsurlaub",
+            "Startdatum": "2026-10-12",
+            "Enddatum": "2026-10-23",
+            "AnzahlTage": 10,
+            "Status": "Genehmigt",
+            "GenehmigtVon": "Dr. Miriam Voss"
+          },
+          {
+            "Id": 2,
+            "MitarbeiterId": 2,
+            "Abwesenheitsart": "Gleitzeittag",
+            "Startdatum": "2026-09-18",
+            "Enddatum": "2026-09-18",
+            "AnzahlTage": 1,
+            "Status": "Beantragt",
+            "GenehmigtVon": null
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_dpt_emp",
+        "fromTableId": "tbl_hr_departments",
+        "fromFieldId": "f_dpt_id",
+        "toTableId": "tbl_hr_employees",
+        "toFieldId": "f_emp_dpt_id",
+        "sourceTableId": "tbl_hr_departments",
+        "sourceFieldId": "f_dpt_id",
+        "targetTableId": "tbl_hr_employees",
+        "targetFieldId": "f_emp_dpt_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      },
+      {
+        "id": "rel_emp_lve",
+        "fromTableId": "tbl_hr_employees",
+        "fromFieldId": "f_emp_id",
+        "toTableId": "tbl_hr_leaves",
+        "toFieldId": "f_lve_emp_id",
+        "sourceTableId": "tbl_hr_employees",
+        "sourceFieldId": "f_emp_id",
+        "targetTableId": "tbl_hr_leaves",
+        "targetFieldId": "f_lve_emp_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "f_employee_form",
+        "name": "Mitarbeiterstammblatt & Urlaubsdaten",
+        "sourceType": "table",
+        "sourceId": "tbl_hr_employees",
+        "fields": [],
+        "layout": {
+          "id": "root_emp",
+          "type": "container",
+          "className": "space-y-6 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_emp",
+              "type": "label",
+              "label": "👤 Personalakte & Abwesenheiten",
+              "className": "text-xl font-bold text-slate-800 dark:text-slate-100 border-b pb-3 flex items-center gap-2"
+            },
+            {
+              "id": "grid_emp_meta",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800",
+              "children": [
+                {
+                  "id": "fld_e_nr",
+                  "type": "field",
+                  "fieldId": "f_emp_nr",
+                  "label": "Personalnummer",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_e_dpt",
+                  "type": "field",
+                  "fieldId": "f_emp_dpt_id",
+                  "label": "Abteilung",
+                  "widgetType": "select",
+                  "lookup": {
+                    "tableId": "tbl_hr_departments",
+                    "valueFieldId": "f_dpt_id",
+                    "labelFields": [
+                      "f_dpt_name"
+                    ]
+                  }
+                },
+                {
+                  "id": "fld_e_fn",
+                  "type": "field",
+                  "fieldId": "f_emp_firstname",
+                  "label": "Vorname",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_e_ln",
+                  "type": "field",
+                  "fieldId": "f_emp_lastname",
+                  "label": "Nachname",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_e_mail",
+                  "type": "field",
+                  "fieldId": "f_emp_email",
+                  "label": "Geschäftliche E-Mail",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_e_pos",
+                  "type": "field",
+                  "fieldId": "f_emp_position",
+                  "label": "Position",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_e_ent",
+                  "type": "field",
+                  "fieldId": "f_emp_entry",
+                  "label": "Eintrittsdatum",
+                  "widgetType": "date"
+                },
+                {
+                  "id": "fld_e_vac",
+                  "type": "field",
+                  "fieldId": "f_emp_vac_days",
+                  "label": "Jahresurlaub (Tage)",
+                  "widgetType": "number"
+                }
+              ]
+            },
+            {
+              "id": "sub_emp_leaves",
+              "type": "subform",
+              "label": "Urlaubsanträge & Abwesenheiten",
+              "subform": {
+                "formId": "f_employee_leaves_sub",
+                "masterLinkFieldId": "f_emp_id",
+                "childLinkFieldId": "f_lve_emp_id",
+                "canAdd": true,
+                "canEdit": true,
+                "canDelete": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_employee_leaves_sub",
+        "name": "Urlaubsanträge Subform",
+        "sourceType": "table",
+        "sourceId": "tbl_hr_leaves",
+        "fields": [],
+        "layout": {
+          "id": "sub_root_lve",
+          "type": "container",
+          "className": "grid grid-cols-4 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg",
+          "children": [
+            {
+              "id": "fld_lv_type",
+              "type": "field",
+              "fieldId": "f_lve_type",
+              "label": "Art",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_lv_start",
+              "type": "field",
+              "fieldId": "f_lve_start",
+              "label": "Von",
+              "widgetType": "date"
+            },
+            {
+              "id": "fld_lv_end",
+              "type": "field",
+              "fieldId": "f_lve_end",
+              "label": "Bis",
+              "widgetType": "date"
+            },
+            {
+              "id": "fld_lv_days",
+              "type": "field",
+              "fieldId": "f_lve_days",
+              "label": "Tage",
+              "widgetType": "number"
+            }
+          ]
+        }
+      }
+    ],
+    "reports": [
+      {
+        "id": "r_vacation_summary",
+        "name": "Urlaubs- & Abwesenheitsübersicht",
+        "sourceType": "table",
+        "sourceId": "tbl_hr_leaves",
+        "groupingFieldId": "f_lve_type",
+        "summaries": [
+          {
+            "fieldId": "f_lve_days",
+            "fieldName": "AnzahlTage",
+            "calculation": "SUM"
+          },
+          {
+            "fieldId": "f_lve_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_lve_type",
+            "label": "Abwesenheitsart",
+            "visible": true,
+            "order": 0,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_lve_start",
+            "label": "Beginn",
+            "visible": true,
+            "order": 1,
+            "renderType": "date"
+          },
+          {
+            "fieldId": "f_lve_end",
+            "label": "Ende",
+            "visible": true,
+            "order": 2,
+            "renderType": "date"
+          },
+          {
+            "fieldId": "f_lve_days",
+            "label": "Tage",
+            "visible": true,
+            "order": 3,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_lve_status",
+            "label": "Status",
+            "visible": true,
+            "order": 4,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_lve_approved_by",
+            "label": "Genehmiger",
+            "visible": true,
+            "order": 5,
+            "renderType": "text"
+          }
+        ],
+        "settings": {
+          "orientation": "portrait",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Übersicht über genehmigte und beantragte Urlaubstage"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "id": "p_hr_dashboard",
+        "name": "HR- & Personal-Cockpit",
+        "description": "Mitarbeiterübersicht, Urlaubsfreigaben und Organisationsstruktur",
+        "layout": {
+          "id": "p_root_hr",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "hr_alert",
+              "type": "alert_box",
+              "props": {
+                "alertType": "info",
+                "title": "Urlaubsantrag ausstehend",
+                "message": "1 Urlaubsantrag für September wartet auf Freigabe durch die Abteilungsleitung.",
+                "dismissible": true
+              }
+            },
+            {
+              "id": "hr_header_row",
+              "type": "row",
+              "props": {
+                "className": "items-center justify-between pb-2 border-b border-slate-200"
+              },
+              "children": [
+                {
+                  "id": "hr_header_col",
+                  "type": "column",
+                  "props": {
+                    "flex": "1"
+                  },
+                  "children": [
+                    {
+                      "id": "hr_title",
+                      "type": "text",
+                      "props": {
+                        "text": "Personalverwaltung & Urlaubsmanagement",
+                        "className": "text-2xl font-bold text-slate-900 tracking-tight"
+                      }
+                    },
+                    {
+                      "id": "hr_sub",
+                      "type": "text",
+                      "props": {
+                        "text": "Mitarbeiterstamm, Abteilungen und Abwesenheitsfreigaben",
+                        "className": "text-sm text-slate-500 mt-1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "hr_kpi_grid",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_hr_employees",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Mitarbeiter aktiv",
+                    "value": "42",
+                    "unit": "Personen",
+                    "trend": "3 neue Zugänge",
+                    "trendDirection": "up",
+                    "trendLabel": "3 Abteilungen / Kostenstellen",
+                    "accentColor": "emerald",
+                    "icon": "Users"
+                  }
+                },
+                {
+                  "id": "kpi_hr_leaves",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Urlaubstage genommen",
+                    "value": "184",
+                    "unit": "Tage",
+                    "trend": "Restanspruch im Schnitt: 18 T.",
+                    "trendDirection": "neutral",
+                    "trendLabel": "Urlaubsquote 42%",
+                    "accentColor": "indigo",
+                    "icon": "Calendar"
+                  }
+                },
+                {
+                  "id": "kpi_hr_pend",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Ausstehende Anträge",
+                    "value": "1",
+                    "unit": "Antrag",
+                    "trend": "Bearbeitungsdauer < 24h",
+                    "trendDirection": "up",
+                    "trendLabel": "Abteilung Vertrieb",
+                    "accentColor": "amber",
+                    "icon": "Clock"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "hr_emp_table",
+              "type": "table_view",
+              "props": {
+                "tableId": "tbl_hr_employees",
+                "title": "Mitarbeiterverzeichnis"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_pending_leaves",
+        "type": "SELECT",
+        "name": "Offene Urlaubsanträge zur Freigabe",
+        "nodes": [
+          {
+            "id": "qn_lve",
+            "tableId": "tbl_hr_leaves",
+            "x": 40,
+            "y": 40
+          },
+          {
+            "id": "qn_emp",
+            "tableId": "tbl_hr_employees",
+            "x": 360,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c1",
+            "tableId": "tbl_hr_employees",
+            "fieldId": "f_emp_nr",
+            "tableName": "tbl_hr_employees",
+            "fieldName": "Personalnummer",
+            "alias": "PersNr",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c2",
+            "tableId": "tbl_hr_employees",
+            "fieldId": "f_emp_lastname",
+            "tableName": "tbl_hr_employees",
+            "fieldName": "Nachname",
+            "alias": "Mitarbeiter",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c3",
+            "tableId": "tbl_hr_leaves",
+            "fieldId": "f_lve_type",
+            "tableName": "tbl_hr_leaves",
+            "fieldName": "Abwesenheitsart",
+            "alias": "Art",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c4",
+            "tableId": "tbl_hr_leaves",
+            "fieldId": "f_lve_start",
+            "tableName": "tbl_hr_leaves",
+            "fieldName": "Startdatum",
+            "alias": "Von",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c5",
+            "tableId": "tbl_hr_leaves",
+            "fieldId": "f_lve_end",
+            "tableName": "tbl_hr_leaves",
+            "fieldName": "Enddatum",
+            "alias": "Bis",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c6",
+            "tableId": "tbl_hr_leaves",
+            "fieldId": "f_lve_days",
+            "tableName": "tbl_hr_leaves",
+            "fieldName": "AnzahlTage",
+            "alias": "Tage",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c7",
+            "tableId": "tbl_hr_leaves",
+            "fieldId": "f_lve_status",
+            "tableName": "tbl_hr_leaves",
+            "fieldName": "Status",
+            "alias": "Status",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              "= 'Beantragt'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_active_employees",
+        "type": "SELECT",
+        "name": "Aktive Mitarbeiterliste",
+        "nodes": [
+          {
+            "id": "qn_act_emp",
+            "tableId": "tbl_hr_employees",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c8",
+            "tableId": "tbl_hr_employees",
+            "fieldId": "f_emp_nr",
+            "tableName": "tbl_hr_employees",
+            "fieldName": "Personalnummer",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c9",
+            "tableId": "tbl_hr_employees",
+            "fieldId": "f_emp_firstname",
+            "tableName": "tbl_hr_employees",
+            "fieldName": "Vorname",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c10",
+            "tableId": "tbl_hr_employees",
+            "fieldId": "f_emp_lastname",
+            "tableName": "tbl_hr_employees",
+            "fieldName": "Nachname",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c11",
+            "tableId": "tbl_hr_employees",
+            "fieldId": "f_emp_position",
+            "tableName": "tbl_hr_employees",
+            "fieldName": "Positionsbezeichnung",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c12",
+            "tableId": "tbl_hr_employees",
+            "fieldId": "f_emp_entry",
+            "tableName": "tbl_hr_employees",
+            "fieldName": "Eintrittsdatum",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      }
+    ],
+    "layout": [
+      {
+        "id": "tbl_hr_departments",
+        "tableId": "tbl_hr_departments",
+        "x": 40,
+        "y": 60
+      },
+      {
+        "id": "tbl_hr_employees",
+        "tableId": "tbl_hr_employees",
+        "x": 400,
+        "y": 60
+      },
+      {
+        "id": "tbl_hr_leaves",
+        "tableId": "tbl_hr_leaves",
+        "x": 400,
+        "y": 420
+      }
+    ],
+    "tableGroups": [
+      {
+        "id": "grp_hr",
+        "name": "HR & Personal",
+        "color": "indigo"
+      }
+    ],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "HrManagerPro",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

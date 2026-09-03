@@ -1,5 +1,6 @@
 
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getAgilePmPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: { name: 'Agile Projektplaner', desc: 'Projektmanagement mit User-Login, Tasks und Sprints.', t_proj: 'Projekte', t_task: 'Aufgaben', f_title: 'Titel', f_desc: 'Beschreibung', f_status: 'Status', f_est: 'Schaetzung', f_task_form: 'Aufgabe bearbeiten', q_todo: 'Offene Aufgaben', f_proj_form: 'Projekt Details' },
@@ -112,7 +113,19 @@ export const getAgilePm = (lang: string): ProjectTemplate => {
                   }
               }
           ],
-          reports: [],
+          reports: [
+            {
+              id: 'r_sprint_tasks', name: 'Sprint Aufgaben-Report', sourceType: 'table', sourceId: 't_task',
+              groupingFieldId: 'tk5',
+              summaries: [{ fieldId: 'tk1', fieldName: 'Id', calculation: 'COUNT' }, { fieldId: 'tk6', fieldName: t.f_est, calculation: 'SUM' }],
+              columns: [
+                { fieldId: 'tk4', label: t.f_title, visible: true, order: 0 },
+                { fieldId: 'tk5', label: t.f_status, visible: true, order: 1 },
+                { fieldId: 'tk6', label: `${t.f_est} (h)`, visible: true, order: 2 }
+              ]
+            }
+          ],
+          pages: getAgilePmPages(t),
           layout: [],
           tableGroups: []
         }

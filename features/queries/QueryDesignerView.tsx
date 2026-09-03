@@ -142,13 +142,6 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
           addCalculatedColumn();
           ui.addToast("Neues Berechnungs- und Kriterienfeld eingefügt.", "success");
           break;
-        case 'open_access_converter':
-        case 'query_open_access_converter':
-          setShowAccessSqlModal(true);
-          break;
-        case 'open_crosstab_modal':
-          setShowCrosstabModal(true);
-          break;
         case 'query_toggle_totals':
           toggleTotals();
           break;

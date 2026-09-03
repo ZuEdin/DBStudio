@@ -57,6 +57,7 @@ import { WhitelabelDocGeneratorModal } from '../features/agency/WhitelabelDocGen
 import { ClientApprovalPreviewModal } from '../features/agency/ClientApprovalPreviewModal';
 import { OpenApiPostmanExportModal } from '../features/agency/OpenApiPostmanExportModal';
 import { CsvMigrationWizardModal } from '../features/agency/CsvMigrationWizardModal';
+import { ProjectMergeModal } from '../features/projects/merger/ProjectMergeModal';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { CodeGenDisclaimerModal } from './modals/CodeGenDisclaimerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
@@ -672,6 +673,13 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <CsvMigrationWizardModal
           isOpen={ui.showCsvMigrationModal}
           onClose={() => ui.setShowCsvMigrationModal(false)}
+        />
+      )}
+
+      {ui.showProjectMergeModal && (
+        <ProjectMergeModal
+          isOpen={ui.showProjectMergeModal}
+          onClose={() => ui.setShowProjectMergeModal(false)}
         />
       )}
 

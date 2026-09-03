@@ -1,0 +1,878 @@
+{
+  "id": "ext_event_conference_management",
+  "name": "Event- & Konferenz-Management (Community)",
+  "description": "Veranstaltungen, Vortragsslots/Sessions, Referenten, Teilnehmer und Ticket-Registrierungen.",
+  "icon": "Calendar",
+  "category": "Community & Events",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_evt_events",
+        "name": "Veranstaltungen",
+        "description": "Konferenzen, Messen, Workshops und Community-Meetups",
+        "fields": [
+          {
+            "id": "f_ev_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_ev_title",
+            "name": "Titel",
+            "type": "VARCHAR",
+            "length": 150
+          },
+          {
+            "id": "f_ev_desc",
+            "name": "Beschreibung",
+            "type": "TEXT"
+          },
+          {
+            "id": "f_ev_venue",
+            "name": "Veranstaltungsort",
+            "type": "VARCHAR",
+            "length": 120
+          },
+          {
+            "id": "f_ev_city",
+            "name": "Stadt",
+            "type": "VARCHAR",
+            "length": 80
+          },
+          {
+            "id": "f_ev_start",
+            "name": "BeginnDatum",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_ev_end",
+            "name": "EndeDatum",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_ev_capacity",
+            "name": "MaxTeilnehmer",
+            "type": "INTEGER",
+            "defaultValue": "200"
+          },
+          {
+            "id": "f_ev_price",
+            "name": "Ticketpreis",
+            "type": "CURRENCY",
+            "defaultValue": "0"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Titel": "Modern Data & Cloud Architecture Summit 2026",
+            "Beschreibung": "Community-Treffen rund um relationale Datenbanken, Microservices und C# .NET",
+            "Veranstaltungsort": "Design Offices Hbf",
+            "Stadt": "München",
+            "BeginnDatum": "2026-11-12 09:00:00",
+            "EndeDatum": "2026-11-13 18:00:00",
+            "MaxTeilnehmer": 350,
+            "Ticketpreis": 189.0
+          },
+          {
+            "Id": 2,
+            "Titel": "Full-Stack Developer Bootcamp Workshop",
+            "Beschreibung": "Hands-on Workshop: React & EF Core Micro-Frontends",
+            "Veranstaltungsort": "TechCampus Berlin",
+            "Stadt": "Berlin",
+            "BeginnDatum": "2026-10-05 10:00:00",
+            "EndeDatum": "2026-10-05 17:00:00",
+            "MaxTeilnehmer": 40,
+            "Ticketpreis": 49.0
+          }
+        ]
+      },
+      {
+        "id": "tbl_evt_speakers",
+        "name": "Referenten",
+        "description": "Speaker, Keynote-Redner und Workshop-Leiter",
+        "fields": [
+          {
+            "id": "f_spk_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_spk_name",
+            "name": "Name",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_spk_company",
+            "name": "Organisation_Firma",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_spk_bio",
+            "name": "Kurzbiografie",
+            "type": "TEXT"
+          },
+          {
+            "id": "f_spk_email",
+            "name": "Email",
+            "type": "EMAIL"
+          },
+          {
+            "id": "f_spk_linkedin",
+            "name": "SocialProfile",
+            "type": "URL"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "Name": "Prof. Dr. Christian Stein",
+            "Organisation_Firma": "TU München & Open Source Labs",
+            "Kurzbiografie": "Experte für verteilte Datenbank-Engines und High-Throughput Replikation.",
+            "Email": "c.stein@lab-demo.org",
+            "SocialProfile": "https://linkedin.com/in/prof-c-stein"
+          },
+          {
+            "Id": 2,
+            "Name": "Laura Zimmermann",
+            "Organisation_Firma": "FinTech Cloud Solutions",
+            "Kurzbiografie": "Lead Software Architect mit Schwerpunkt Domain-Driven Design.",
+            "Email": "laura.z@cloudsolutions.eu",
+            "SocialProfile": "https://linkedin.com/in/laura-zimmermann"
+          }
+        ]
+      },
+      {
+        "id": "tbl_evt_sessions",
+        "name": "Programmpunkte_Sessions",
+        "description": "Vortragsslots, Räume und Zeitpläne",
+        "fields": [
+          {
+            "id": "f_ses_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_ses_ev_id",
+            "name": "VeranstaltungId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_ses_spk_id",
+            "name": "ReferentId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_ses_title",
+            "name": "Vortragstitel",
+            "type": "VARCHAR",
+            "length": 180
+          },
+          {
+            "id": "f_ses_room",
+            "name": "Raum",
+            "type": "VARCHAR",
+            "length": 50
+          },
+          {
+            "id": "f_ses_start",
+            "name": "Startzeit",
+            "type": "DATETIME"
+          },
+          {
+            "id": "f_ses_duration",
+            "name": "DauerMinuten",
+            "type": "INTEGER",
+            "defaultValue": "45"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "VeranstaltungId": 1,
+            "ReferentId": 1,
+            "Vortragstitel": "Keynote: Die Evolution von Relational SQL zu verteilten WASM-Engines",
+            "Raum": "Auditorium A",
+            "Startzeit": "2026-11-12 09:30:00",
+            "DauerMinuten": 60
+          },
+          {
+            "Id": 2,
+            "VeranstaltungId": 1,
+            "ReferentId": 2,
+            "Vortragstitel": "Event-Sourcing und CQRS in C# .NET & TypeScript Architekturen",
+            "Raum": "Saal Beta",
+            "Startzeit": "2026-11-12 11:00:00",
+            "DauerMinuten": 45
+          }
+        ]
+      },
+      {
+        "id": "tbl_evt_registrations",
+        "name": "Anmeldungen_Tickets",
+        "description": "Gebuchte Tickets und Teilnehmerlisten",
+        "fields": [
+          {
+            "id": "f_reg_id",
+            "name": "Id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_reg_ev_id",
+            "name": "VeranstaltungId",
+            "type": "INTEGER",
+            "isForeignKey": true
+          },
+          {
+            "id": "f_reg_code",
+            "name": "TicketCode",
+            "type": "VARCHAR",
+            "length": 30,
+            "isUnique": true
+          },
+          {
+            "id": "f_reg_name",
+            "name": "TeilnehmerName",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_reg_email",
+            "name": "TeilnehmerEmail",
+            "type": "EMAIL"
+          },
+          {
+            "id": "f_reg_paid",
+            "name": "Bezahlt",
+            "type": "BOOLEAN",
+            "defaultValue": "false"
+          },
+          {
+            "id": "f_reg_date",
+            "name": "Buchungszeitpunkt",
+            "type": "DATETIME"
+          }
+        ],
+        "data": [
+          {
+            "Id": 1,
+            "VeranstaltungId": 1,
+            "TicketCode": "TCK-2026-9041A",
+            "TeilnehmerName": "Matthias Dorn",
+            "TeilnehmerEmail": "m.dorn@techfirm.de",
+            "Bezahlt": true,
+            "Buchungszeitpunkt": "2026-09-01 10:20:00"
+          },
+          {
+            "Id": 2,
+            "VeranstaltungId": 1,
+            "TicketCode": "TCK-2026-9042B",
+            "TeilnehmerName": "Sophie Eder",
+            "TeilnehmerEmail": "sophie.eder@austria-it.at",
+            "Bezahlt": true,
+            "Buchungszeitpunkt": "2026-09-02 14:45:00"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_ev_ses",
+        "fromTableId": "tbl_evt_events",
+        "fromFieldId": "f_ev_id",
+        "toTableId": "tbl_evt_sessions",
+        "toFieldId": "f_ses_ev_id",
+        "sourceTableId": "tbl_evt_events",
+        "sourceFieldId": "f_ev_id",
+        "targetTableId": "tbl_evt_sessions",
+        "targetFieldId": "f_ses_ev_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_spk_ses",
+        "fromTableId": "tbl_evt_speakers",
+        "fromFieldId": "f_spk_id",
+        "toTableId": "tbl_evt_sessions",
+        "toFieldId": "f_ses_spk_id",
+        "sourceTableId": "tbl_evt_speakers",
+        "sourceFieldId": "f_spk_id",
+        "targetTableId": "tbl_evt_sessions",
+        "targetFieldId": "f_ses_spk_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "RESTRICT"
+      },
+      {
+        "id": "rel_ev_reg",
+        "fromTableId": "tbl_evt_events",
+        "fromFieldId": "f_ev_id",
+        "toTableId": "tbl_evt_registrations",
+        "toFieldId": "f_reg_ev_id",
+        "sourceTableId": "tbl_evt_events",
+        "sourceFieldId": "f_ev_id",
+        "targetTableId": "tbl_evt_registrations",
+        "targetFieldId": "f_reg_ev_id",
+        "type": "1:N",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "f_event_form",
+        "name": "Veranstaltungsplanung & Sessions",
+        "sourceType": "table",
+        "sourceId": "tbl_evt_events",
+        "fields": [],
+        "layout": {
+          "id": "root_ev",
+          "type": "container",
+          "className": "space-y-6 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800",
+          "children": [
+            {
+              "id": "hdr_ev",
+              "type": "label",
+              "label": "🎤 Event & Konferenz organisieren",
+              "className": "text-xl font-bold text-slate-800 dark:text-slate-100 border-b pb-3 flex items-center gap-2"
+            },
+            {
+              "id": "grid_ev_meta",
+              "type": "container",
+              "className": "grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800",
+              "children": [
+                {
+                  "id": "fld_ev_title",
+                  "type": "field",
+                  "fieldId": "f_ev_title",
+                  "label": "Veranstaltungstitel",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_ev_venue",
+                  "type": "field",
+                  "fieldId": "f_ev_venue",
+                  "label": "Veranstaltungsort",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_ev_city",
+                  "type": "field",
+                  "fieldId": "f_ev_city",
+                  "label": "Stadt",
+                  "widgetType": "text"
+                },
+                {
+                  "id": "fld_ev_start",
+                  "type": "field",
+                  "fieldId": "f_ev_start",
+                  "label": "Beginn",
+                  "widgetType": "date"
+                },
+                {
+                  "id": "fld_ev_end",
+                  "type": "field",
+                  "fieldId": "f_ev_end",
+                  "label": "Ende",
+                  "widgetType": "date"
+                },
+                {
+                  "id": "fld_ev_cap",
+                  "type": "field",
+                  "fieldId": "f_ev_capacity",
+                  "label": "Max. Teilnehmer",
+                  "widgetType": "number"
+                },
+                {
+                  "id": "fld_ev_price",
+                  "type": "field",
+                  "fieldId": "f_ev_price",
+                  "label": "Ticketpreis (€)",
+                  "widgetType": "number"
+                }
+              ]
+            },
+            {
+              "id": "sub_ev_sessions",
+              "type": "subform",
+              "label": "Agenda & Programmpunkte",
+              "subform": {
+                "formId": "f_event_sessions_sub",
+                "masterLinkFieldId": "f_ev_id",
+                "childLinkFieldId": "f_ses_ev_id",
+                "canAdd": true,
+                "canEdit": true,
+                "canDelete": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "f_event_sessions_sub",
+        "name": "Sessions Subform",
+        "sourceType": "table",
+        "sourceId": "tbl_evt_sessions",
+        "fields": [],
+        "layout": {
+          "id": "sub_root_ses",
+          "type": "container",
+          "className": "grid grid-cols-4 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg",
+          "children": [
+            {
+              "id": "fld_se_title",
+              "type": "field",
+              "fieldId": "f_ses_title",
+              "label": "Vortragstitel",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_se_spk",
+              "type": "field",
+              "fieldId": "f_ses_spk_id",
+              "label": "Speaker",
+              "widgetType": "select",
+              "lookup": {
+                "tableId": "tbl_evt_speakers",
+                "valueFieldId": "f_spk_id",
+                "labelFields": [
+                  "f_spk_name"
+                ]
+              }
+            },
+            {
+              "id": "fld_se_room",
+              "type": "field",
+              "fieldId": "f_ses_room",
+              "label": "Raum",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_se_dur",
+              "type": "field",
+              "fieldId": "f_ses_duration",
+              "label": "Dauer (Min.)",
+              "widgetType": "number"
+            }
+          ]
+        }
+      }
+    ],
+    "reports": [
+      {
+        "id": "r_event_attendees_report",
+        "name": "Teilnehmerliste & Ticket-Registrierungen",
+        "sourceType": "table",
+        "sourceId": "tbl_evt_registrations",
+        "groupingFieldId": "f_reg_paid",
+        "summaries": [
+          {
+            "fieldId": "f_reg_id",
+            "fieldName": "Id",
+            "calculation": "COUNT"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_reg_code",
+            "label": "Ticket-Code",
+            "visible": true,
+            "order": 0,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_reg_name",
+            "label": "Teilnehmer",
+            "visible": true,
+            "order": 1,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_reg_email",
+            "label": "E-Mail",
+            "visible": true,
+            "order": 2,
+            "renderType": "text"
+          },
+          {
+            "fieldId": "f_reg_paid",
+            "label": "Bezahlt",
+            "visible": true,
+            "order": 3,
+            "renderType": "badge"
+          },
+          {
+            "fieldId": "f_reg_date",
+            "label": "Buchungsdatum",
+            "visible": true,
+            "order": 4,
+            "renderType": "date"
+          }
+        ],
+        "settings": {
+          "orientation": "portrait",
+          "pageSize": "A4",
+          "zebraStriping": true,
+          "showGridlines": true,
+          "subtitle": "Registrierte Teilnehmer für Konferenzen und Workshops"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "id": "p_event_dashboard",
+        "name": "Event- & Konferenz-Leitstand",
+        "description": "Veranstaltungsüberblick, Ticketverkäufe und Referentenplanung",
+        "layout": {
+          "id": "p_root_evt",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "evt_alert",
+              "type": "alert_box",
+              "props": {
+                "alertType": "info",
+                "title": "Ticket-Verkauf läuft auf Hochtouren",
+                "message": "Bereits 85% der Konferenztickets für den Architecture Summit 2026 reserviert.",
+                "dismissible": true
+              }
+            },
+            {
+              "id": "evt_header_row",
+              "type": "row",
+              "props": {
+                "className": "items-center justify-between pb-2 border-b border-slate-200"
+              },
+              "children": [
+                {
+                  "id": "evt_header_col",
+                  "type": "column",
+                  "props": {
+                    "flex": "1"
+                  },
+                  "children": [
+                    {
+                      "id": "evt_title",
+                      "type": "text",
+                      "props": {
+                        "text": "Konferenz- & Community-Management",
+                        "className": "text-2xl font-bold text-slate-900 tracking-tight"
+                      }
+                    },
+                    {
+                      "id": "evt_sub",
+                      "type": "text",
+                      "props": {
+                        "text": "Planung von Konferenzen, Sessions, Referenten und Ticketverkäufen",
+                        "className": "text-sm text-slate-500 mt-1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "evt_kpi_grid",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_evt_reg",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Ticketbuchungen gesamt",
+                    "value": "390",
+                    "unit": "Teilnehmer",
+                    "trend": "+45 diese Woche",
+                    "trendDirection": "up",
+                    "trendLabel": "2 aktive Events",
+                    "accentColor": "emerald",
+                    "icon": "Calendar"
+                  }
+                },
+                {
+                  "id": "kpi_evt_speakers",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Bestätigte Referenten",
+                    "value": "18",
+                    "unit": "Speaker",
+                    "trend": "Agenda vollständig",
+                    "trendDirection": "up",
+                    "trendLabel": "Keynotes & Workshops",
+                    "accentColor": "indigo",
+                    "icon": "Mic"
+                  }
+                },
+                {
+                  "id": "kpi_evt_rev",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Ticket-Erlöse (Brutto)",
+                    "value": "68.420",
+                    "unit": "€",
+                    "trend": "94% bezahlt",
+                    "trendDirection": "up",
+                    "trendLabel": "Frühbucher abgeschlossen",
+                    "accentColor": "amber",
+                    "icon": "DollarSign"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "evt_table",
+              "type": "table_view",
+              "props": {
+                "tableId": "tbl_evt_events",
+                "title": "Geplante Veranstaltungen"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_upcoming_events",
+        "type": "SELECT",
+        "name": "Anstehende Veranstaltungen & Konferenzen",
+        "nodes": [
+          {
+            "id": "qn_ev",
+            "tableId": "tbl_evt_events",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c1",
+            "tableId": "tbl_evt_events",
+            "fieldId": "f_ev_title",
+            "tableName": "tbl_evt_events",
+            "fieldName": "Titel",
+            "alias": "Event",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c2",
+            "tableId": "tbl_evt_events",
+            "fieldId": "f_ev_venue",
+            "tableName": "tbl_evt_events",
+            "fieldName": "Veranstaltungsort",
+            "alias": "Location",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c3",
+            "tableId": "tbl_evt_events",
+            "fieldId": "f_ev_city",
+            "tableName": "tbl_evt_events",
+            "fieldName": "Stadt",
+            "alias": "Stadt",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c4",
+            "tableId": "tbl_evt_events",
+            "fieldId": "f_ev_start",
+            "tableName": "tbl_evt_events",
+            "fieldName": "BeginnDatum",
+            "alias": "Beginn",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c5",
+            "tableId": "tbl_evt_events",
+            "fieldId": "f_ev_capacity",
+            "tableName": "tbl_evt_events",
+            "fieldName": "MaxTeilnehmer",
+            "alias": "Kapazitaet",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c6",
+            "tableId": "tbl_evt_events",
+            "fieldId": "f_ev_price",
+            "tableName": "tbl_evt_events",
+            "fieldName": "Ticketpreis",
+            "alias": "Preis_EUR",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q_event_sessions",
+        "type": "SELECT",
+        "name": "Programm-Sessions & Referenten",
+        "nodes": [
+          {
+            "id": "qn_ses",
+            "tableId": "tbl_evt_sessions",
+            "x": 40,
+            "y": 40
+          },
+          {
+            "id": "qn_spk",
+            "tableId": "tbl_evt_speakers",
+            "x": 360,
+            "y": 40
+          }
+        ],
+        "columns": [
+          {
+            "id": "c7",
+            "tableId": "tbl_evt_sessions",
+            "fieldId": "f_ses_title",
+            "tableName": "tbl_evt_sessions",
+            "fieldName": "Vortragstitel",
+            "alias": "Session",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c8",
+            "tableId": "tbl_evt_speakers",
+            "fieldId": "f_spk_name",
+            "tableName": "tbl_evt_speakers",
+            "fieldName": "Name",
+            "alias": "Referent",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c9",
+            "tableId": "tbl_evt_sessions",
+            "fieldId": "f_ses_room",
+            "tableName": "tbl_evt_sessions",
+            "fieldName": "Raum",
+            "alias": "Raum",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c10",
+            "tableId": "tbl_evt_sessions",
+            "fieldId": "f_ses_start",
+            "tableName": "tbl_evt_sessions",
+            "fieldName": "Startzeit",
+            "alias": "Startzeit",
+            "sort": "ASC",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "c11",
+            "tableId": "tbl_evt_sessions",
+            "fieldId": "f_ses_duration",
+            "tableName": "tbl_evt_sessions",
+            "fieldName": "DauerMinuten",
+            "alias": "Dauer_Min",
+            "sort": "",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          }
+        ]
+      }
+    ],
+    "layout": [
+      {
+        "id": "tbl_evt_events",
+        "tableId": "tbl_evt_events",
+        "x": 40,
+        "y": 60
+      },
+      {
+        "id": "tbl_evt_speakers",
+        "tableId": "tbl_evt_speakers",
+        "x": 400,
+        "y": 60
+      },
+      {
+        "id": "tbl_evt_sessions",
+        "tableId": "tbl_evt_sessions",
+        "x": 40,
+        "y": 420
+      },
+      {
+        "id": "tbl_evt_registrations",
+        "tableId": "tbl_evt_registrations",
+        "x": 400,
+        "y": 420
+      }
+    ],
+    "tableGroups": [
+      {
+        "id": "grp_events",
+        "name": "Community & Konferenzen",
+        "color": "pink"
+      }
+    ],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "EventSummitPro",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

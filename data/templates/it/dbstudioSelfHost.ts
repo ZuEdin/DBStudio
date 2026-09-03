@@ -1,4 +1,5 @@
 import { ProjectTemplate, DbType } from '../../../types/index';
+import { getDbstudioSelfHostPages } from '../pages/index';
 
 const dict: Record<string, any> = {
     de: {
@@ -186,8 +187,45 @@ export const getDbstudioSelfHost = (lang: string): ProjectTemplate => {
                     ]
                 }
             ],
-            forms: [],
-            reports: [],
+            forms: [
+                {
+                    id: 'f_sys_project',
+                    name: t.f_proj_form || 'Projekt-Metadaten',
+                    sourceType: 'table',
+                    sourceId: 'sys_projects',
+                    fields: [],
+                    layout: {
+                        id: 'root_f_proj',
+                        type: 'container',
+                        className: 'p-6 space-y-4 bg-white rounded-xl shadow-xs',
+                        children: [
+                            { id: 'lbl_proj', type: 'label', label: 'Projekt-Instanz konfigurieren', className: 'text-xl font-bold border-b pb-2' },
+                            { id: 'fld_name', type: 'field', fieldId: 'p2', label: 'Projektname', widgetType: 'text' },
+                            { id: 'fld_db', type: 'field', fieldId: 'p3', label: 'Datenbanktyp (PostgreSQL / SQLite)', widgetType: 'text' },
+                            { id: 'fld_cloud', type: 'field', fieldId: 'p4', label: 'Cloud-Synchronisation aktiv', widgetType: 'checkbox' },
+                            { id: 'fld_owner', type: 'field', fieldId: 'p5', label: 'Besitzer / Admin-ID', widgetType: 'text' }
+                        ]
+                    }
+                }
+            ],
+            reports: [
+                {
+                    id: 'r_sys_projects',
+                    name: 'Server- & Projekt-Inventar',
+                    sourceType: 'table',
+                    sourceId: 'sys_projects',
+                    groupingFieldId: 'p3',
+                    summaries: [{ fieldId: 'p1', fieldName: 'id', calculation: 'COUNT' }],
+                    columns: [
+                        { fieldId: 'p2', label: 'Projektname', visible: true, order: 0 },
+                        { fieldId: 'p3', label: 'DB-Typ', visible: true, order: 1 },
+                        { fieldId: 'p4', label: 'Cloud-Sync', visible: true, order: 2 },
+                        { fieldId: 'p5', label: 'Besitzer', visible: true, order: 3 },
+                        { fieldId: 'p6', label: 'Erstellt am', visible: true, order: 4 }
+                    ]
+                }
+            ],
+            pages: getDbstudioSelfHostPages(t),
             layout: [],
             tableGroups: []
         }

@@ -1,0 +1,469 @@
+{
+  "id": "ext_agile_scrum_board",
+  "name": "Agiler Sprint- & Task-Planer (Developer Community)",
+  "description": "Scrum- und Kanban-Projektmanagement mit Sprints, User Stories, Story Points und Aufgaben-Tracking.",
+  "icon": "Kanban",
+  "category": "IT & Softwareentwicklung",
+  "file": "agile_scrum_board.json",
+  "data": {
+    "tables": [
+      {
+        "id": "tbl_projects",
+        "name": "Projekte & Repositorien",
+        "description": "Softwareprojekte, GitHub/GitLab Repositories und Produkt-Epics",
+        "fields": [
+          {
+            "id": "f_prj_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_prj_key",
+            "name": "Projekt_Kuerzel",
+            "type": "VARCHAR",
+            "length": 10,
+            "isUnique": true
+          },
+          {
+            "id": "f_prj_name",
+            "name": "Projektname",
+            "type": "VARCHAR",
+            "length": 140
+          },
+          {
+            "id": "f_prj_owner",
+            "name": "Product_Owner",
+            "type": "VARCHAR",
+            "length": 100
+          }
+        ]
+      },
+      {
+        "id": "tbl_sprints",
+        "name": "Sprints & Iterationen",
+        "description": "Zwei-Wochen-Sprints mit Velocity-Ziel und Status",
+        "fields": [
+          {
+            "id": "f_sp_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_sp_prj",
+            "name": "project_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_sp_name",
+            "name": "Sprint_Name",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_sp_start",
+            "name": "Startdatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_sp_end",
+            "name": "Enddatum",
+            "type": "DATE"
+          },
+          {
+            "id": "f_sp_velocity",
+            "name": "Ziel_Velocity_Points",
+            "type": "INTEGER",
+            "defaultValue": "40"
+          },
+          {
+            "id": "f_sp_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Planung",
+              "Aktiv",
+              "Abgeschlossen"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tbl_stories",
+        "name": "User Stories & Backlog",
+        "description": "Fachliche Anforderungen mit Akzeptanzkriterien und Story Points",
+        "fields": [
+          {
+            "id": "f_st_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_st_sp",
+            "name": "sprint_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_st_title",
+            "name": "Story_Titel",
+            "type": "VARCHAR",
+            "length": 200
+          },
+          {
+            "id": "f_st_points",
+            "name": "Story_Points",
+            "type": "INTEGER",
+            "defaultValue": "3"
+          },
+          {
+            "id": "f_st_prio",
+            "name": "Prioritaet",
+            "type": "VARCHAR",
+            "length": 40,
+            "enumValues": [
+              "Niedrig",
+              "Mittel",
+              "Hoch",
+              "Blocker"
+            ]
+          },
+          {
+            "id": "f_st_status",
+            "name": "Status",
+            "type": "VARCHAR",
+            "length": 50,
+            "enumValues": [
+              "Backlog",
+              "In Bearbeitung",
+              "Code Review",
+              "Erledigt"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tbl_tasks",
+        "name": "Entwicklungsaufgaben",
+        "description": "Konkrete Programmieraufgaben und Bugfixes pro User Story",
+        "fields": [
+          {
+            "id": "f_tk_id",
+            "name": "id",
+            "type": "INTEGER",
+            "isPrimaryKey": true,
+            "isAutoIncrement": true
+          },
+          {
+            "id": "f_tk_story",
+            "name": "story_id",
+            "type": "INTEGER"
+          },
+          {
+            "id": "f_tk_title",
+            "name": "Task_Titel",
+            "type": "VARCHAR",
+            "length": 180
+          },
+          {
+            "id": "f_tk_assignee",
+            "name": "Zugewiesen_An",
+            "type": "VARCHAR",
+            "length": 100
+          },
+          {
+            "id": "f_tk_esthours",
+            "name": "Schaetzung_Std",
+            "type": "DECIMAL",
+            "defaultValue": "4.0"
+          },
+          {
+            "id": "f_tk_acthours",
+            "name": "Ist_Aufwand_Std",
+            "type": "DECIMAL",
+            "defaultValue": "0.0"
+          },
+          {
+            "id": "f_tk_blocked",
+            "name": "Ist_Blockiert",
+            "type": "BOOLEAN",
+            "defaultValue": "false"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_prj_sp",
+        "fromTableId": "tbl_projects",
+        "fromFieldId": "f_prj_id",
+        "toTableId": "tbl_sprints",
+        "toFieldId": "f_sp_prj",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_sp_st",
+        "fromTableId": "tbl_sprints",
+        "fromFieldId": "f_sp_id",
+        "toTableId": "tbl_stories",
+        "toFieldId": "f_st_sp",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      },
+      {
+        "id": "rel_st_tk",
+        "fromTableId": "tbl_stories",
+        "fromFieldId": "f_st_id",
+        "toTableId": "tbl_tasks",
+        "toFieldId": "f_tk_story",
+        "type": "1:n",
+        "referentialIntegrity": true,
+        "onDelete": "CASCADE"
+      }
+    ],
+    "forms": [
+      {
+        "id": "form_new_story",
+        "name": "Neue User Story erstellen",
+        "sourceType": "table",
+        "sourceId": "tbl_stories",
+        "fields": [],
+        "layout": {
+          "id": "root_f_story",
+          "type": "container",
+          "className": "p-6 space-y-4 bg-white rounded-xl shadow-xs border border-slate-200",
+          "children": [
+            {
+              "id": "lbl_st_head",
+              "type": "label",
+              "label": "🚀 User Story definieren",
+              "className": "text-xl font-bold text-slate-900 border-b pb-2"
+            },
+            {
+              "id": "fld_st_title",
+              "type": "field",
+              "fieldId": "f_st_title",
+              "label": "Story Titel",
+              "widgetType": "text"
+            },
+            {
+              "id": "fld_st_sp",
+              "type": "field",
+              "fieldId": "f_st_sp",
+              "label": "Sprint",
+              "widgetType": "select"
+            },
+            {
+              "id": "fld_st_pts",
+              "type": "field",
+              "fieldId": "f_st_points",
+              "label": "Story Points (Fibonacci)",
+              "widgetType": "number"
+            },
+            {
+              "id": "fld_st_prio",
+              "type": "field",
+              "fieldId": "f_st_prio",
+              "label": "Priorität",
+              "widgetType": "select"
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_active_stories",
+        "name": "Aktive User Stories im aktuellen Sprint",
+        "type": "SELECT",
+        "nodes": [
+          {
+            "id": "n1",
+            "tableId": "tbl_stories",
+            "x": 50,
+            "y": 50
+          }
+        ],
+        "columns": [
+          {
+            "id": "qc1",
+            "tableId": "tbl_stories",
+            "fieldId": "f_st_title",
+            "tableName": "User Stories & Backlog",
+            "fieldName": "Story_Titel",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc2",
+            "tableId": "tbl_stories",
+            "fieldId": "f_st_points",
+            "tableName": "User Stories & Backlog",
+            "fieldName": "Story_Points",
+            "show": true,
+            "criteria": [
+              ""
+            ]
+          },
+          {
+            "id": "qc3",
+            "tableId": "tbl_stories",
+            "fieldId": "f_st_status",
+            "tableName": "User Stories & Backlog",
+            "fieldName": "Status",
+            "show": true,
+            "criteria": [
+              "!= \"Erledigt\""
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "id": "rep_story_points_status",
+        "name": "Sprint Story-Points nach Status",
+        "sourceType": "table",
+        "sourceId": "tbl_stories",
+        "groupingFieldId": "f_st_status",
+        "summaries": [
+          {
+            "fieldId": "f_st_id",
+            "fieldName": "id",
+            "calculation": "COUNT"
+          },
+          {
+            "fieldId": "f_st_points",
+            "fieldName": "Story_Points",
+            "calculation": "SUM"
+          }
+        ],
+        "columns": [
+          {
+            "fieldId": "f_st_title",
+            "label": "Story",
+            "visible": true,
+            "order": 0
+          },
+          {
+            "fieldId": "f_st_prio",
+            "label": "Prio",
+            "visible": true,
+            "order": 1
+          },
+          {
+            "fieldId": "f_st_points",
+            "label": "Points",
+            "visible": true,
+            "order": 2
+          },
+          {
+            "fieldId": "f_st_status",
+            "label": "Status",
+            "visible": true,
+            "order": 3
+          }
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "id": "page_agile_sprint_board",
+        "name": "Agile Sprint & Velocity Cockpit",
+        "description": "Sprint-Übersicht, Story-Points, Burndown-Fortschritt und Backlog",
+        "layout": {
+          "id": "agile_root",
+          "type": "container",
+          "props": {
+            "className": "p-6 max-w-7xl mx-auto space-y-6"
+          },
+          "children": [
+            {
+              "id": "agile_kpis",
+              "type": "grid_layout",
+              "props": {
+                "columns": 3,
+                "gap": 4
+              },
+              "children": [
+                {
+                  "id": "kpi_sprint_pts",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Sprint Velocity",
+                    "value": "42",
+                    "unit": "Story Points",
+                    "accentColor": "indigo",
+                    "icon": "Zap"
+                  }
+                },
+                {
+                  "id": "kpi_tasks_done",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Erledigte Aufgaben",
+                    "value": "18 / 24",
+                    "unit": "Tasks",
+                    "accentColor": "emerald",
+                    "icon": "CheckSquare"
+                  }
+                },
+                {
+                  "id": "kpi_blockers",
+                  "type": "kpi_widget",
+                  "props": {
+                    "label": "Blockaden / Impediments",
+                    "value": "1",
+                    "unit": "Blocker",
+                    "accentColor": "rose",
+                    "icon": "AlertOctagon"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "card_stories",
+              "type": "card",
+              "props": {
+                "title": "Aktive User Stories & Aufgaben",
+                "className": "p-4 bg-white border border-slate-200 rounded-xl shadow-xs"
+              },
+              "children": [
+                {
+                  "id": "tbl_stories_view",
+                  "type": "table_view",
+                  "props": {
+                    "tableId": "tbl_stories",
+                    "limit": 8,
+                    "showActions": true
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "layout": [],
+    "tableGroups": [],
+    "backendConfig": {
+      "dbType": "SQL",
+      "language": "dotnet",
+      "projectName": "AgileSprintScrum",
+      "port": 5000,
+      "dbConnection": "",
+      "useSwagger": true,
+      "frontendFramework": "react"
+    }
+  }
+}

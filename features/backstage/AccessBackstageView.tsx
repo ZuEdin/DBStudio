@@ -15,6 +15,7 @@ import { FeedbackBugReportTab } from './components/FeedbackBugReportTab';
 import { NewDatabaseModal } from './components/NewDatabaseModal';
 import { createTableFromTemplate, getAllTemplates } from '../../services/tableTemplateService';
 import { getTemplates } from '../../data/templates/index';
+import { externalTemplateService } from '../../services/externalTemplateService';
 
 interface AccessBackstageViewProps {
   onCloseBackstage?: () => void;
@@ -230,7 +231,7 @@ export const AccessBackstageView: React.FC<AccessBackstageViewProps> = ({
   const handleApplyTemplate = async (templateId: string, templateName: string) => {
     try {
       const newId = crypto.randomUUID();
-      const projectTemplates = getTemplates('de');
+      const projectTemplates = externalTemplateService.getAllAvailableProjectTemplates('de');
       const projTemplate = projectTemplates.find(t => t.id === templateId);
 
       let newProject: Project;

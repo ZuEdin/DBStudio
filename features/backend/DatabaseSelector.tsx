@@ -5,6 +5,7 @@ import { sanitizeProjectName } from '../../utils/nameUtils';
 import { getAllProjects, deleteProjectFromStorage, saveProjectToStorage, getProjectById } from '../../services/storageService';
 import { cloudService } from '../../services/cloudService';
 import { getTemplates } from '../../data/templates/index';
+import { externalTemplateService } from '../../services/externalTemplateService';
 import { LanguageSelector } from '../../components/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -32,7 +33,15 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   
   const { t, i18n } = useTranslation();
   const { user, whoamiData, login, register } = useAuthStore();
-  const templates = useMemo(() => getTemplates(i18n.language), [i18n.language]);
+  const [templateUpdateTick, setTemplateUpdateTick] = useState(0);
+  
+  useEffect(() => {
+    const onUpdated = () => setTemplateUpdateTick(c => c + 1);
+    window.addEventListener('dbstudio:external-templates-updated', onUpdated);
+    return () => window.removeEventListener('dbstudio:external-templates-updated', onUpdated);
+  }, []);
+
+  const templates = useMemo(() => externalTemplateService.getAllAvailableProjectTemplates(i18n.language), [i18n.language, templateUpdateTick]);
 
   // Backend & AD/LDAP configuration auto-detection state
   const [backendDetected, setBackendDetected] = useState<boolean>(false);
@@ -369,7 +378,15 @@ export const DatabaseSelector: React.FC<ProjectSelectionViewProps> = ({ onSelect
   const handleTemplateSelect = (templateId: string) => {
       const tmpl = templates.find(t => t.id === templateId);
       if (tmpl) {
-          const config = tmpl.data.backendConfig!;
+          const config = tmpl.data.backendConfig || {
+            dbType: DbType.SQL,
+            language: 'dotnet' as BackendLanguage,
+            projectName: tmpl.name,
+            port: 5000,
+            dbConnection: '',
+            useSwagger: true,
+            frontendFramework: 'react'
+          };
           onCreateNew(config.dbType, tmpl.name, config, tmpl.data);
       }
   };

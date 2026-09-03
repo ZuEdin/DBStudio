@@ -175,10 +175,11 @@ namespace ${safeNamespace}.Controllers
       table.fields.forEach(f => {
           const fieldPascal = getPropName(f);
           const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
-          const hasNowDefault = f.defaultValue && typeof f.defaultValue === 'string' && (
-              f.defaultValue.toLowerCase().includes('now') ||
-              f.defaultValue.toLowerCase().includes('current_timestamp') ||
-              f.defaultValue.toLowerCase().includes('getdate')
+          const defStr = f.defaultValue !== undefined && f.defaultValue !== null ? String(f.defaultValue) : '';
+          const hasNowDefault = defStr && (
+              defStr.toLowerCase().includes('now') ||
+              defStr.toLowerCase().includes('current_timestamp') ||
+              defStr.toLowerCase().includes('getdate')
           );
           const isCreatedAtField = ['created_at', 'createdat', 'erstellt_am', 'created_date', 'createddate'].includes(f.name.toLowerCase());
           
@@ -187,9 +188,9 @@ namespace ${safeNamespace}.Controllers
             {
                 item.${fieldPascal} = DateTime.Now;
             }\n`;
-          } else if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+          } else if (f.defaultValue !== undefined && f.defaultValue !== null && defStr !== '') {
               if (f.type === 'INTEGER' || f.type === 'TINYINT') {
-                  const numVal = parseInt(f.defaultValue, 10);
+                  const numVal = parseInt(defStr, 10);
                   if (!isNaN(numVal)) {
                       defaultValuesLogic += `            if (item.${fieldPascal} == 0)
             {
@@ -197,7 +198,7 @@ namespace ${safeNamespace}.Controllers
             }\n`;
                   }
               } else if (f.type === 'BOOLEAN') {
-                  const boolVal = f.defaultValue.toLowerCase() === 'true' || f.defaultValue === '1';
+                  const boolVal = defStr.toLowerCase() === 'true' || defStr === '1';
                   if (boolVal) {
                       const nullable = f.allowNull !== false && !f.isPrimaryKey;
                       if (nullable) {
@@ -213,7 +214,7 @@ namespace ${safeNamespace}.Controllers
                       }
                   }
               } else if (f.type === 'DECIMAL') {
-                  const numVal = parseFloat(f.defaultValue);
+                  const numVal = parseFloat(defStr);
                   if (!isNaN(numVal)) {
                       defaultValuesLogic += `            if (item.${fieldPascal} == null || item.${fieldPascal} == 0m)
             {
@@ -223,7 +224,7 @@ namespace ${safeNamespace}.Controllers
               } else if (['VARCHAR', 'TEXT', 'EMAIL', 'PHONE', 'URL'].includes(f.type)) {
                   defaultValuesLogic += `            if (string.IsNullOrEmpty(item.${fieldPascal}))
             {
-                item.${fieldPascal} = "${f.defaultValue.replace(/"/g, '\\"')}";
+                item.${fieldPascal} = "${defStr.replace(/"/g, '\\"')}";
             }\n`;
               }
           }

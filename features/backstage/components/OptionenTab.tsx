@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { downloadBridgePackageZip, downloadRelayPhpScript } from '../../../utils/bridgePackageGenerator';
 import { useDisclaimerStore } from '../../../stores/useDisclaimerStore';
+import { ExternalProvidersSettings } from '../../../components/settings/ExternalProvidersSettings';
 
 export const OptionenTab: React.FC = () => {
   const { config, updateConfig } = useConfigStore();
@@ -563,6 +564,11 @@ export const OptionenTab: React.FC = () => {
               </button>
             )}
           </div>
+        </div>
+
+        {/* External Schema & Template Providers */}
+        <div className="p-5 rounded-xl bg-[#333333] border border-[#444444]">
+          <ExternalProvidersSettings />
         </div>
 
         {/* Keyboard Shortcuts Overview */}

@@ -321,10 +321,11 @@ class BaseModel {
 
       const nowDefaultFields = table.fields.filter(f => {
           const isDateType = ['DATETIME', 'TIMESTAMP', 'DATE', 'TIME'].includes(f.type);
-          const hasNowDefault = f.defaultValue && typeof f.defaultValue === 'string' && (
-              f.defaultValue.toLowerCase().includes('now') ||
-              f.defaultValue.toLowerCase().includes('current_timestamp') ||
-              f.defaultValue.toLowerCase().includes('getdate')
+          const defStr = f.defaultValue !== undefined && f.defaultValue !== null ? String(f.defaultValue) : '';
+          const hasNowDefault = defStr && (
+              defStr.toLowerCase().includes('now') ||
+              defStr.toLowerCase().includes('current_timestamp') ||
+              defStr.toLowerCase().includes('getdate')
           );
           return isDateType && hasNowDefault;
       });
