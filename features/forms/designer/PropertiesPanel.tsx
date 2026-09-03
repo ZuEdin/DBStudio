@@ -440,107 +440,188 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
                 {selectedElement.widgetType === 'select' && (
                   <div className="pt-2 border-t border-slate-200 space-y-3">
-                    <button 
-                      onClick={onShowLookupModal}
-                      className="w-full bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-semibold py-2 px-3 rounded flex items-center justify-center gap-2"
-                    >
-                      <Settings2 size={14} /> Lookup-Datenquelle konfigurieren
-                    </button>
-                    
-                    {selectedElement.lookup && (
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input 
-                                type="checkbox" 
-                                checked={selectedElement.lookup.allowQuickCreate || false}
-                                onChange={e => onLookupPropertyChange('allowQuickCreate', e.target.checked)}
-                                className="rounded text-blue-600"
-                                />
-                                <span className="text-xs font-semibold text-slate-700">Quick Create (+) erlauben</span>
-                            </label>
-                            {selectedElement.lookup.allowQuickCreate && (
-                                <select 
-                                    value={selectedElement.lookup.quickCreateFormId || ''}
-                                    onChange={e => onLookupPropertyChange('quickCreateFormId', e.target.value)}
-                                    className="w-full border border-slate-300 rounded p-1 text-xs"
-                                >
-                                    <option value="">(Auto-Formular)</option>
-                                    {allForms.filter(f => f.sourceId === selectedElement.lookup?.tableId).map(f => (
-                                        <option key={f.id} value={f.id}>{f.name}</option>
-                                    ))}
-                                </select>
-                            )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Settings2 size={13} className="text-blue-600" />
+                        Lookup-Datenquelle
+                      </span>
+                      <button 
+                        type="button"
+                        onClick={onShowLookupModal}
+                        className="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold border border-blue-200 px-2 py-0.5 rounded transition-colors"
+                        title="Erweiterten Lookup-Assistenten öffnen"
+                      >
+                        Assistent öffnen
+                      </button>
+                    </div>
 
-                            {/* Cascading Dependent Lookup Filter */}
-                            <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg text-xs space-y-2">
-                              <div className="flex items-center justify-between font-bold text-blue-900">
-                                <span className="flex items-center gap-1.5">
-                                  <Filter size={13} className="text-blue-600" />
-                                  Kaskadierender Filter (Abhängige Auswahl)
-                                </span>
-                                {selectedElement.dependentLookup && (
-                                  <button
-                                    type="button"
-                                    onClick={() => onPropertyChange('dependentLookup', undefined)}
-                                    className="text-[10px] text-red-600 hover:underline"
-                                  >
-                                    Zurücksetzen
-                                  </button>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-blue-800 leading-snug">
-                                Filtert diese Dropdown-Liste dynamisch basierend auf dem gewählten Wert eines übergeordneten Feldes im Formular.
-                              </p>
-                              
-                              <div className="space-y-1.5">
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Übergeordnetes Formularfeld:</label>
-                                  <select
-                                    value={selectedElement.dependentLookup?.parentFieldId || ''}
-                                    onChange={e => {
-                                      const parentFieldId = e.target.value;
-                                      if (!parentFieldId) {
-                                        onPropertyChange('dependentLookup', undefined);
-                                      } else {
-                                        onPropertyChange('dependentLookup', {
-                                          parentFieldId,
-                                          parentFilterKey: selectedElement.dependentLookup?.parentFilterKey || ''
-                                        });
-                                      }
-                                    }}
-                                    className="w-full border border-slate-300 rounded p-1 bg-white text-xs text-slate-800"
-                                  >
-                                    <option value="">-- Kein übergeordnetes Feld (Alle anzeigen) --</option>
-                                    {sourceTable?.fields.filter(f => f.id !== selectedElement.fieldId).map(f => (
-                                      <option key={f.id} value={f.id}>{f.name}</option>
-                                    ))}
-                                  </select>
-                                </div>
+                    <div className="space-y-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                      {/* Source Table Selector */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Fremdtabelle (Quelle):</label>
+                        <select
+                          value={selectedElement.lookup?.tableId || ''}
+                          onChange={e => {
+                            const newTableId = e.target.value;
+                            const newTable = allTables.find(t => t.id === newTableId);
+                            const pk = newTable?.fields.find(f => f.isPrimaryKey) || newTable?.fields[0];
+                            const label = newTable?.fields.find(f => !f.isPrimaryKey) || newTable?.fields[0];
+                            onLookupPropertyChange('tableId', newTableId);
+                            if (pk) onLookupPropertyChange('valueFieldId', pk.id);
+                            if (label) onLookupPropertyChange('labelFields', [label.id]);
+                          }}
+                          className="w-full border border-slate-300 rounded p-1.5 bg-white text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="">-- Quelltabelle wählen --</option>
+                          {allTables.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.name} {t.id === form.sourceId ? '(Eigenes Formular)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                                {selectedElement.dependentLookup?.parentFieldId && (
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Filterspalte in Fremdtabelle ({targetLookupTable?.name || 'Lookup'}):</label>
-                                    <select
-                                      value={selectedElement.dependentLookup?.parentFilterKey || ''}
-                                      onChange={e => {
-                                        onPropertyChange('dependentLookup', {
-                                          ...selectedElement.dependentLookup,
-                                          parentFilterKey: e.target.value
-                                        });
-                                      }}
-                                      className="w-full border border-slate-300 rounded p-1 bg-white text-xs text-slate-800"
-                                    >
-                                      <option value="">-- Spalte auswählen --</option>
-                                      {targetLookupTable?.fields.map(f => (
-                                        <option key={f.id} value={f.name}>{f.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                      {targetLookupTable && (
+                        <>
+                          {/* Value Field Selector */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Schlüsselfeld (Gespeicherter Wert):</label>
+                            <select
+                              value={selectedElement.lookup?.valueFieldId || targetLookupTable.fields.find(f => f.isPrimaryKey)?.id || targetLookupTable.fields[0]?.id || ''}
+                              onChange={e => onLookupPropertyChange('valueFieldId', e.target.value)}
+                              className="w-full border border-slate-300 rounded p-1.5 bg-white text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                            >
+                              {targetLookupTable.fields.map(f => (
+                                <option key={f.id} value={f.id}>
+                                  {f.name} {f.isPrimaryKey ? '(Primärschlüssel)' : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Display Label Field Selector */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Anzeige-Spalte im Dropdown:</label>
+                            <select
+                              value={selectedElement.lookup?.labelFields?.[0] || selectedElement.lookup?.displayFormat?.[0]?.fieldId || targetLookupTable.fields.find(f => !f.isPrimaryKey)?.id || targetLookupTable.fields[0]?.id || ''}
+                              onChange={e => {
+                                const fieldId = e.target.value;
+                                onLookupPropertyChange('labelFields', [fieldId]);
+                                onLookupPropertyChange('displayFormat', [{ fieldId, prefix: '', suffix: ' ' }]);
+                              }}
+                              className="w-full border border-slate-300 rounded p-1.5 bg-white text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                            >
+                              {targetLookupTable.fields.map(f => (
+                                <option key={f.id} value={f.id}>
+                                  {f.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </>
+                      )}
+
+                      <button 
+                        type="button"
+                        onClick={onShowLookupModal}
+                        className="w-full mt-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 px-3 rounded flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                      >
+                        <Settings2 size={13} /> Mehrspaltig &amp; Sortierung konfigurieren
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedElement.lookup?.allowQuickCreate || false}
+                          onChange={e => onLookupPropertyChange('allowQuickCreate', e.target.checked)}
+                          className="rounded text-blue-600"
+                        />
+                        <span className="text-xs font-semibold text-slate-700">Quick Create (+) erlauben</span>
+                      </label>
+                      {selectedElement.lookup?.allowQuickCreate && (
+                        <select 
+                          value={selectedElement.lookup?.quickCreateFormId || ''}
+                          onChange={e => onLookupPropertyChange('quickCreateFormId', e.target.value)}
+                          className="w-full border border-slate-300 rounded p-1 text-xs"
+                        >
+                          <option value="">(Auto-Formular)</option>
+                          {allForms.filter(f => f.sourceId === (selectedElement.lookup?.tableId || targetLookupTable?.id)).map(f => (
+                            <option key={f.id} value={f.id}>{f.name}</option>
+                          ))}
+                        </select>
+                      )}
+
+                      {/* Cascading Dependent Lookup Filter */}
+                      <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg text-xs space-y-2">
+                        <div className="flex items-center justify-between font-bold text-blue-900">
+                          <span className="flex items-center gap-1.5">
+                            <Filter size={13} className="text-blue-600" />
+                            Kaskadierender Filter (Abhängige Auswahl)
+                          </span>
+                          {selectedElement.dependentLookup && (
+                            <button
+                              type="button"
+                              onClick={() => onPropertyChange('dependentLookup', undefined)}
+                              className="text-[10px] text-red-600 hover:underline"
+                            >
+                              Zurücksetzen
+                            </button>
+                          )}
                         </div>
-                    )}
+                        <p className="text-[10px] text-blue-800 leading-snug">
+                          Filtert diese Dropdown-Liste dynamisch basierend auf dem gewählten Wert eines übergeordneten Feldes im Formular.
+                        </p>
+                        
+                        <div className="space-y-1.5">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Übergeordnetes Formularfeld:</label>
+                            <select
+                              value={selectedElement.dependentLookup?.parentFieldId || ''}
+                              onChange={e => {
+                                const parentFieldId = e.target.value;
+                                if (!parentFieldId) {
+                                  onPropertyChange('dependentLookup', undefined);
+                                } else {
+                                  onPropertyChange('dependentLookup', {
+                                    parentFieldId,
+                                    parentFilterKey: selectedElement.dependentLookup?.parentFilterKey || ''
+                                  });
+                                }
+                              }}
+                              className="w-full border border-slate-300 rounded p-1 bg-white text-xs text-slate-800"
+                            >
+                              <option value="">-- Kein übergeordnetes Feld (Alle anzeigen) --</option>
+                              {sourceTable?.fields.filter(f => f.id !== selectedElement.fieldId).map(f => (
+                                <option key={f.id} value={f.id}>{f.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {selectedElement.dependentLookup?.parentFieldId && (
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Filterspalte in Fremdtabelle ({targetLookupTable?.name || 'Lookup'}):</label>
+                              <select
+                                value={selectedElement.dependentLookup?.parentFilterKey || ''}
+                                onChange={e => {
+                                  onPropertyChange('dependentLookup', {
+                                    ...selectedElement.dependentLookup,
+                                    parentFilterKey: e.target.value
+                                  });
+                                }}
+                                className="w-full border border-slate-300 rounded p-1 bg-white text-xs text-slate-800"
+                              >
+                                <option value="">-- Spalte auswählen --</option>
+                                {targetLookupTable?.fields.map(f => (
+                                  <option key={f.id} value={f.name}>{f.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

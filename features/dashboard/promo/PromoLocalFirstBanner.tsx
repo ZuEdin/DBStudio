@@ -8,7 +8,7 @@ interface PromoLocalFirstBannerProps {
 export const PromoLocalFirstBanner: React.FC<PromoLocalFirstBannerProps> = ({ onNavigate }) => {
   return (
     <div className="space-y-12">
-      <div className="bg-gradient-to-br from-indigo-950/40 via-purple-950/20 to-slate-950 border border-indigo-900/50 rounded-3xl p-8 sm:p-12 max-w-5xl mx-auto space-y-8 flex flex-col md:flex-row gap-8 items-center justify-between shadow-2xl">
+      <div className="bg-slate-950 border border-slate-800 rounded-3xl p-8 sm:p-12 max-w-5xl mx-auto space-y-8 flex flex-col md:flex-row gap-8 items-center justify-between shadow-xl">
         <div className="space-y-4 max-w-xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-xs text-emerald-300 font-bold">
             <CheckCircle2 size={13} className="text-emerald-400" />
@@ -18,7 +18,7 @@ export const PromoLocalFirstBanner: React.FC<PromoLocalFirstBannerProps> = ({ on
             Volle Datensouveränität &amp; Null Vendor Lock-in
           </h3>
           <p className="text-xs text-slate-300 leading-relaxed">
-            DB Studio Pro ist eine professionelle, autarke Entwicklungsumgebung. Ihre Schemata, Formulardefinitionen und Datensätze verbleiben lokal in Ihrem Browser und auf Ihrem PC. Kein Zwang zu proprietären Cloud-Abos und 100% Quellcode-Eigentum bei jedem Export.
+            DB Studio Pro ist eine professionelle, autarke Entwicklungsumgebung in aktiver Entwicklung. Ihre Schemata, Formulardefinitionen und Datensätze verbleiben lokal in Ihrem Browser und auf Ihrem PC. Kein Zwang zu proprietären Cloud-Abos und 100% Quellcode-Eigentum bei jedem Export.
           </p>
           <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
             <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
@@ -33,7 +33,7 @@ export const PromoLocalFirstBanner: React.FC<PromoLocalFirstBannerProps> = ({ on
           </div>
         </div>
 
-        <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-4 w-full md:w-80 shadow-lg shrink-0">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 w-full md:w-80 shadow-lg shrink-0">
           <h4 className="text-xs font-extrabold uppercase text-slate-300 tracking-wider">
             Ihre Vorteile auf einen Blick
           </h4>
@@ -52,7 +52,7 @@ export const PromoLocalFirstBanner: React.FC<PromoLocalFirstBannerProps> = ({ on
             </div>
             <div className="flex gap-2 items-center text-slate-300">
               <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-              <span>Natives .dbsp Projekt-Format</span>
+              <span>Keine Fake-Logos, ehrlicher Status</span>
             </div>
           </div>
           <button 
@@ -72,7 +72,7 @@ export const PromoLocalFirstBanner: React.FC<PromoLocalFirstBannerProps> = ({ on
         <div className="flex gap-4">
           <a href="#interactive-showroom" className="hover:text-white transition-colors">Spezifikation</a>
           <span className="text-slate-600">•</span>
-          <span className="text-indigo-400 font-semibold">Version 1.0.0 Gold Master</span>
+          <span className="text-amber-400 font-semibold">Pre-1.0 Developer Preview (Aktive Entwicklung)</span>
         </div>
       </div>
     </div>

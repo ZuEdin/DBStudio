@@ -17,7 +17,7 @@ export const PromoRoiCalculator: React.FC<PromoRoiCalculatorProps> = ({ onNaviga
   const totalSavingsYear1 = traditionalSaasCostPerYear + devCostSavings;
 
   return (
-    <div className="bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 border border-indigo-900/50 rounded-3xl p-6 sm:p-10 max-w-5xl mx-auto space-y-8 shadow-2xl">
+    <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-10 max-w-5xl mx-auto space-y-8 shadow-xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-950/70 border border-emerald-800 px-3 py-1 rounded-full inline-flex items-center gap-1.5 mb-2">

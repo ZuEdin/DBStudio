@@ -80,8 +80,13 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
       } else if (initialConfig?.labelFields && initialConfig.labelFields.length > 0) {
           // Migration from old array string format
           setSelectedItems(initialConfig.labelFields.map(id => ({ fieldId: id, prefix: '', suffix: ' ' })));
+      } else if (selectedTable && selectedTable.fields.length > 0) {
+          const defaultLabel = selectedTable.fields.find(f => !f.isPrimaryKey) || selectedTable.fields[0];
+          if (defaultLabel) {
+              setSelectedItems([{ fieldId: defaultLabel.id, prefix: '', suffix: ' ' }]);
+          }
       }
-  }, [initialConfig]);
+  }, [initialConfig, selectedTable]);
 
   // Reset fields when table changes
   useEffect(() => {
@@ -89,8 +94,14 @@ export const LookupConfigModal: React.FC<LookupConfigModalProps> = ({
         // Validate Value Field
         const isValueValid = selectedTable.fields.some(f => f.id === valueFieldId);
         if (!isValueValid) {
-            setValueFieldId(selectedTable.fields.find(f => f.isPrimaryKey)?.id || selectedTable.fields[0]?.id || '');
-            setSelectedItems([]);
+            const pk = selectedTable.fields.find(f => f.isPrimaryKey) || selectedTable.fields[0];
+            setValueFieldId(pk?.id || '');
+            const defaultLabel = selectedTable.fields.find(f => !f.isPrimaryKey) || selectedTable.fields[0];
+            if (defaultLabel) {
+                setSelectedItems([{ fieldId: defaultLabel.id, prefix: '', suffix: ' ' }]);
+            } else {
+                setSelectedItems([]);
+            }
         }
         // Validate Sort Field
         const isSortValid = selectedTable.fields.some(f => f.id === sortFieldId);

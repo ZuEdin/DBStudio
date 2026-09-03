@@ -165,9 +165,16 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
           const el = findElement(layout, selectedElementId);
           if (el) {
               (el as any)[key] = value;
-              // Auto-init lookup if needed
+              // Auto-init lookup if needed when switching to select widget
               if (key === 'widgetType' && value === 'select' && !el.lookup) {
-                  el.lookup = { tableId: allTables[0]?.id || '', valueFieldId: '', labelFields: [] };
+                  const defaultTable = allTables.find(t => t.id !== form.sourceId) || allTables[0];
+                  const pk = defaultTable?.fields.find(f => f.isPrimaryKey) || defaultTable?.fields[0];
+                  const label = defaultTable?.fields.find(f => !f.isPrimaryKey) || defaultTable?.fields[0];
+                  el.lookup = {
+                    tableId: defaultTable?.id || '',
+                    valueFieldId: pk?.id || '',
+                    labelFields: label ? [label.id] : []
+                  };
               }
           }
       });
@@ -177,7 +184,15 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       if (!selectedElementId) return;
       updateFormLayout((layout) => {
           const el = findElement(layout, selectedElementId);
-          if (el) el.lookup = { ...el.lookup, ...newLookup };
+          if (el) {
+              const defaultTable = allTables.find(t => t.id !== form.sourceId) || allTables[0];
+              const defaultLookup = {
+                  tableId: defaultTable?.id || '',
+                  valueFieldId: defaultTable?.fields.find(f => f.isPrimaryKey)?.id || defaultTable?.fields[0]?.id || '',
+                  labelFields: []
+              };
+              el.lookup = { ...(el.lookup || defaultLookup), ...newLookup };
+          }
       });
   };
 
@@ -1207,8 +1222,21 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
           onClose={() => setLinkingSubform(null)}
         />
       )}
-      {showLookupModal && selectedEl && selectedEl.lookup && (
-          <LookupConfigModal allTables={allTables} queries={queries} initialConfig={selectedEl.lookup} onSave={handleLookupSave} onClose={() => setShowLookupModal(false)} />
+      {showLookupModal && selectedEl && (
+          <LookupConfigModal 
+            allTables={allTables} 
+            queries={queries} 
+            initialConfig={selectedEl.lookup || {
+              tableId: allTables.find(t => t.id !== form.sourceId)?.id || allTables[0]?.id || '',
+              valueFieldId: '',
+              labelFields: []
+            }} 
+            onSave={(newLookup) => {
+              handleLookupSave(newLookup);
+              setShowLookupModal(false);
+            }} 
+            onClose={() => setShowLookupModal(false)} 
+          />
       )}
 
       {/* Main Canvas */}
@@ -1380,13 +1408,25 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
                 allForms={allForms}
                 onPropertyChange={handlePropertyChange}
                 onFormPropertyChange={(k, v) => onFormChange({...form, [k]: v})}
-                onLookupPropertyChange={(k, v) => { if(selectedEl?.lookup) handleLookupSave({ [k]: v }); }}
+                onLookupPropertyChange={(k, v) => handleLookupSave({ [k]: v })}
                 onSubformPermissionChange={(k, v) => { if(selectedEl?.subform) { 
                     updateFormLayout(l => { const el = findElement(l, selectedElementId!); if(el && el.subform) (el.subform as any)[k] = v; });
                 }}}
                 onDeleteSelected={deleteSelected}
                 onMoveElement={(dir) => { if (selectedElementId) handleMoveElementDirect(selectedElementId, dir); }}
-                onShowLookupModal={() => setShowLookupModal(true)}
+                onShowLookupModal={() => {
+                  if (selectedEl && !selectedEl.lookup) {
+                    const defaultTable = allTables.find(t => t.id !== form.sourceId) || allTables[0];
+                    const pk = defaultTable?.fields.find(f => f.isPrimaryKey) || defaultTable?.fields[0];
+                    const label = defaultTable?.fields.find(f => !f.isPrimaryKey) || defaultTable?.fields[0];
+                    handleLookupSave({
+                      tableId: defaultTable?.id || '',
+                      valueFieldId: pk?.id || '',
+                      labelFields: label ? [label.id] : []
+                    });
+                  }
+                  setShowLookupModal(true);
+                }}
                 onToggleFullScreen={() => onFormChange({...form, settings: {...form.settings, isFullScreen: !form.settings?.isFullScreen}})}
                 onToggleEditButton={() => onFormChange({...form, settings: {...form.settings, showEditToggle: !form.settings?.showEditToggle}})}
                 onToggleTableSplitView={() => onFormChange({...form, settings: {...form.settings, showTableSplitView: !form.settings?.showTableSplitView}})}
