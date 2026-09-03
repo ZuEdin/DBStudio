@@ -579,9 +579,30 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
                           }
                         }
 
+                        const isNumericField = f?.type?.includes('DECIMAL') || f?.type?.includes('INT') || f?.type?.includes('FLOAT') || f?.type?.includes('NUMERIC');
+                        const isNumber = !isNaN(Number(rawVal)) && rawVal !== '' && rawVal !== null;
+                        const numVal = isNumber ? Number(rawVal) : null;
+
+                        // Conditional Formatting Badges
+                        const lowerVal = cellDisplay.trim().toLowerCase();
+                        let badgeStyle: string | null = null;
+                        if (['bezahlt', 'genehmigt', 'erledigt', 'abgeschlossen', 'aktiv', 'ja', 'wahr', 'true', 'a-kunde (premium)'].includes(lowerVal)) {
+                          badgeStyle = 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+                        } else if (['offen', 'in bearbeitung', 'entwurf', 'wartend', 'b-kunde'].includes(lowerVal)) {
+                          badgeStyle = 'bg-amber-50 text-amber-700 border border-amber-200 font-semibold';
+                        } else if (['überfällig', 'storniert', 'abgelehnt', 'mahnung', 'inaktiv', 'nein', 'falsch', 'false'].includes(lowerVal)) {
+                          badgeStyle = 'bg-rose-50 text-rose-700 border border-rose-200 font-semibold';
+                        }
+
                         return (
-                          <td key={col.id || col.fieldId} className="p-2.5 px-3 whitespace-nowrap">
-                            {cellDisplay}
+                          <td key={col.id || col.fieldId} className={`p-2.5 px-3 whitespace-nowrap ${numVal !== null && numVal < 0 ? 'text-rose-600 font-bold' : ''}`}>
+                            {badgeStyle ? (
+                              <span className={`inline-block px-2 py-0.5 rounded text-[11px] ${badgeStyle}`}>
+                                {cellDisplay}
+                              </span>
+                            ) : (
+                              cellDisplay
+                            )}
                           </td>
                         );
                       })}
@@ -610,6 +631,40 @@ export const FormElementRenderer: React.FC<FormElementRendererProps> = ({
                     </tr>
                   ))}
                 </tbody>
+                {/* Aggregated Footer with Live Calculations */}
+                <tfoot className="bg-slate-100/90 text-slate-800 font-semibold border-t-2 border-slate-300">
+                  <tr>
+                    {subColumns.map((col, idx) => {
+                      const f = subTable?.fields.find((field) => field.id === col.fieldId);
+                      const fieldName = f?.name || '';
+                      const isNumeric = f?.type?.includes('DECIMAL') || f?.type?.includes('INT') || f?.type?.includes('FLOAT') || f?.type?.includes('NUMERIC') || ['menge', 'preis', 'gesamtpreis_netto', 'gesamtpreis_brutto', 'summe', 'betrag'].some(k => fieldName.toLowerCase().includes(k));
+
+                      if (idx === 0) {
+                        return (
+                          <td key={col.id || col.fieldId} className="p-2 px-3 text-slate-600 font-bold text-[11px]">
+                            Gesamtsumme ({subformData.length} Pos.)
+                          </td>
+                        );
+                      }
+
+                      if (isNumeric && subformData.length > 0) {
+                        const sum = subformData.reduce((acc, row) => {
+                          const val = parseFloat(String(row[fieldName] || 0).replace(',', '.'));
+                          return acc + (isNaN(val) ? 0 : val);
+                        }, 0);
+
+                        return (
+                          <td key={col.id || col.fieldId} className="p-2 px-3 font-mono text-[11px] text-slate-900 bg-slate-200/50">
+                            {sum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        );
+                      }
+
+                      return <td key={col.id || col.fieldId} className="p-2 px-3"></td>;
+                    })}
+                    {!isReadOnly && (canEdit || canDelete) && <td className="p-2 px-3"></td>}
+                  </tr>
+                </tfoot>
               </table>
             </div>
           ) : (

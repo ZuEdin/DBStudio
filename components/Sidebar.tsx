@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, Report } from '../types/index';
-import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, Briefcase, GitFork, CalendarClock, LayoutTemplate, Server, Cloud, CheckSquare, History } from 'lucide-react';
+import { Table as TableIcon, Search, FileText, Layout, ChevronDown, ChevronRight, Database, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Folder, FolderOpen, Globe, BarChart2, Briefcase, GitFork, CalendarClock, LayoutTemplate, Server, Cloud, CheckSquare, History, Sparkles, FileSpreadsheet, GitCompare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
@@ -369,6 +369,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSetView }) => {
         <button onClick={() => toggleSidebar(false)} className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 p-0.5 rounded">
            <PanelLeftClose size={16} />
         </button>
+      </div>
+
+      {/* Quick Launch Actions */}
+      <div className="p-2 bg-slate-100/70 dark:bg-slate-950/40 border-b border-slate-200 dark:border-slate-800 space-y-1">
+        <button
+          type="button"
+          onClick={() => ui.setShowDachTemplateHubModal(true)}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-semibold rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200/60 dark:border-amber-800/40 transition-colors shadow-2xs text-left"
+        >
+          <Sparkles size={14} className="text-amber-600 shrink-0" />
+          <span className="truncate">DACH Vorlagen Hub</span>
+        </button>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => ui.setShowMultiFormatImportModal(true)}
+            title="CSV, Excel oder JSON mit automatischer Typerkennung importieren"
+            className="flex-1 flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors truncate"
+          >
+            <FileSpreadsheet size={12} className="text-blue-500 shrink-0" />
+            <span className="truncate">Multi-Import</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => ui.setShowSchemaDiffModal(true)}
+            title="Live-Schema-Diff und Migrations-Skripte vergleichen"
+            className="flex-1 flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors truncate"
+          >
+            <GitCompare size={12} className="text-purple-500 shrink-0" />
+            <span className="truncate">Schema-Diff</span>
+          </button>
+        </div>
       </div>
       
       <div className="flex-1 overflow-y-auto p-2 space-y-2">

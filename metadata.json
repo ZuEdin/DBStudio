@@ -1,6 +1,6 @@
 {
   "name": "DB Studio Pro",
-  "description": "Professionelle Low-Code Datenbank- und Workflow-Suite mit visuellem Designer, WordPress Plugin Generator, Offline-Sync und Multi-Framework Codegenerator (React, Angular Standalone & Signals, .NET C#, PHP, Tauri).",
+  "description": "Enterprise Datenbank- & Anwendungsdesigner mit MS-Access-Style Visual Query Builder, Live-Schema-Diff Migrationsgenerator, DACH-Vorlagen-Hub (DIN 5008, E-Rechnung, DSGVO), Smart Multi-Format Import und Full-Stack Code-Generierung.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

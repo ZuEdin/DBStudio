@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Canvas } from '../../components/Canvas';
 import { QueryGrid } from './components/QueryGrid';
 import { TableNode, Table, Relationship, Query, QueryColumn, SelectQuery, DbType, Form, QueryParameter } from '../../types/index';
-import { Calculator, Sigma, Sparkles, Play, Database, Wand2, Loader2, Check, HelpCircle, X, Terminal, Code, GitCommit, Sliders, FileCode, PlayCircle, Table as TableIcon, TableProperties } from 'lucide-react';
+import { Calculator, Sigma, Sparkles, Play, Database, Wand2, Loader2, Check, HelpCircle, X, Terminal, Code, GitCommit, Sliders, FileCode, PlayCircle, Table as TableIcon, TableProperties, Eye, CheckCircle2, ChevronRight, Layers } from 'lucide-react';
 import { generateSqlSelect } from '../../utils/sqlHelper';
 import { AccessSqlConverterModal } from '../tools/AccessSqlConverterModal';
 import { useUIStore } from '../../stores/useUIStore';
@@ -22,6 +22,7 @@ import { SetOperationsModal } from './components/SetOperationsModal';
 import { VisualExplainCostTreeModal } from './components/VisualExplainCostTreeModal';
 import { generateMultiDialectSql, SupportedSqlDialect } from './utils/multiDialectSqlGenerator';
 import { executeQueryInWasmSandbox } from './services/queryWasmSandboxService';
+import { LiveQueryDataPreview } from './components/LiveQueryDataPreview';
 
 interface QueryDesignerViewProps {
   query: Query;
@@ -244,6 +245,39 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
     }
   };
   
+  const [bottomPaneTab, setBottomPaneTab] = useState<'preview' | 'sql' | 'dialect'>('preview');
+
+  const handleConnect = (t1: string, f1: string, t2: string, f2: string) => {
+    const fromTable = tables.find(t => t.id === t1);
+    const toTable = tables.find(t => t.id === t2);
+    if (!fromTable || !toTable) return;
+    const fromField = fromTable.fields.find(f => f.id === f1);
+    const toField = toTable.fields.find(f => f.id === f2);
+    const type = fromField?.isPrimaryKey && !toField?.isPrimaryKey ? '1:n' : '1:1';
+    
+    // Check if relationship already exists
+    const existing = relationships.find(
+      r => (r.fromTableId === t1 && r.fromFieldId === f1 && r.toTableId === t2 && r.toFieldId === f2) ||
+           (r.fromTableId === t2 && r.fromFieldId === f2 && r.toTableId === t1 && r.toFieldId === f1)
+    );
+
+    if (!existing) {
+      const newRel: Relationship = {
+        id: crypto.randomUUID(),
+        fromTableId: t1,
+        fromFieldId: f1,
+        toTableId: t2,
+        toFieldId: f2,
+        type: type,
+        joinType: 'INNER',
+        referentialIntegrity: false
+      };
+      setRelationships([...relationships, newRel]);
+      ui.addToast(`JOIN zwischen "${fromTable.name}.${fromField?.name}" und "${toTable.name}.${toField?.name}" erstellt!`, 'success');
+      setSelectedRelForJoin(newRel);
+    }
+  };
+
   const handleMoveNode = (id: string, x: number, y: number) => {
     setNodes(nodes.map(n => n.id === id ? { ...n, x, y } : n));
   };
@@ -608,6 +642,7 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
           relationships={relationships} 
           onMoveNode={handleMoveNode} 
           onRemoveNode={handleRemoveNode} 
+          onConnect={handleConnect}
           onRelationshipClick={handleRelationshipClick}
           isInteractive={true} 
         />
@@ -615,14 +650,14 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none"> 
             <div className="bg-white/90 p-5 rounded-xl border border-slate-300 text-slate-600 text-sm shadow-md text-center max-w-sm"> 
               <p className="font-bold text-slate-800 text-base mb-1">Visueller Query Designer</p> 
-              <p className="text-xs text-slate-500 mb-2">Ziehen Sie Tabellen aus der linken Navigationsleiste hierher. Klicken Sie auf Verbindungslinien, um JOIN-Typen (INNER, LEFT, RIGHT, FULL) einzustellen.</p> 
+              <p className="text-xs text-slate-500 mb-2">Ziehen Sie Tabellen aus der linken Navigationsleiste hierher. Verbinden Sie Felder per Drag-and-Drop, um JOINs (INNER, LEFT, RIGHT, CROSS) zu erstellen.</p> 
             </div> 
           </div> 
         )}
       </div>
       
-      {/* Query Grid & SQL Terminal */}
-      <div className="h-72 flex flex-col bg-white border-t border-slate-300 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
+      {/* Query Grid & Split-Screen Terminal / Live Preview */}
+      <div className="h-80 flex flex-col bg-white border-t border-slate-300 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
         <div className="flex-1 overflow-hidden flex flex-col" onDragOver={e => e.preventDefault()} onDrop={handleGridDrop}>
            <QueryGrid 
              columns={queryColumns} 
@@ -635,24 +670,111 @@ export const QueryDesignerView: React.FC<QueryDesignerViewProps> = ({
            />
         </div>
         
-        {/* Terminal / Code Editor Pane */}
-        <div id="query-sql-terminal-pane" className="flex flex-col bg-slate-900 border-t border-slate-700 shrink-0">
-          {overrideSql && (
-            <div className="bg-amber-500/10 border-b border-amber-500/30 px-3 py-1 flex justify-between items-center text-[10px] text-amber-400">
-              <span className="flex items-center gap-1 font-bold">
-                <Terminal size={11} />
-                ⚠️ Manuelles SQL aktiv. Der interaktive Grid-Designer ist pausiert.
-              </span>
-              <button 
-                onClick={() => setOverrideSql('')}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-2 py-0.5 rounded font-extrabold"
+        {/* Terminal / Live Preview Tabs & Pane */}
+        <div id="query-sql-terminal-pane" className="flex flex-col bg-slate-950 border-t border-slate-800 shrink-0 h-36">
+          {/* Bottom Tabs */}
+          <div className="flex items-center justify-between bg-slate-900 border-b border-slate-800 px-2 py-0.5">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setBottomPaneTab('preview')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-t transition-colors ${
+                  bottomPaneTab === 'preview'
+                    ? 'bg-slate-950 text-emerald-400 border-t-2 border-emerald-500'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
               >
-                Designer reaktivieren
+                <CheckCircle2 size={12} className="text-emerald-400" />
+                <span>Live-Daten-Vorschau (Top 25)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBottomPaneTab('sql')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-t transition-colors ${
+                  bottomPaneTab === 'sql'
+                    ? 'bg-slate-950 text-blue-400 border-t-2 border-blue-500'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <Terminal size={12} className="text-blue-400" />
+                <span>SQL-Terminal</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBottomPaneTab('dialect')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-t transition-colors ${
+                  bottomPaneTab === 'dialect'
+                    ? 'bg-slate-950 text-indigo-400 border-t-2 border-indigo-500'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <Code size={12} className="text-indigo-400" />
+                <span>Dialekt ({selectedDialect})</span>
               </button>
             </div>
-          )}
-          <div className="p-2.5 text-white font-mono text-xs overflow-auto h-20">
-            <pre className="text-emerald-400 font-mono leading-relaxed">{overrideSql || generatedSql}</pre>
+
+            {bottomPaneTab === 'dialect' && (
+              <div className="flex items-center gap-1">
+                {(['SQLITE', 'POSTGRESQL', 'MYSQL', 'MSSQL', 'ORACLE'] as SupportedSqlDialect[]).map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setSelectedDialect(d)}
+                    className={`px-1.5 py-0.5 text-[10px] rounded font-bold transition-colors ${
+                      selectedDialect === d
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pane Content */}
+          <div className="flex-1 overflow-hidden relative">
+            {bottomPaneTab === 'preview' && (
+              <LiveQueryDataPreview
+                selectQuery={selectQuery}
+                tables={tables}
+                relationships={relationships}
+                generatedSql={overrideSql || generatedSql}
+              />
+            )}
+
+            {bottomPaneTab === 'sql' && (
+              <div className="h-full flex flex-col">
+                {overrideSql && (
+                  <div className="bg-amber-500/10 border-b border-amber-500/30 px-3 py-1 flex justify-between items-center text-[10px] text-amber-400">
+                    <span className="flex items-center gap-1 font-bold">
+                      <Terminal size={11} />
+                      ⚠️ Manuelles SQL aktiv. Der interaktive Grid-Designer ist pausiert.
+                    </span>
+                    <button 
+                      onClick={() => setOverrideSql('')}
+                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-2 py-0.5 rounded font-extrabold"
+                    >
+                      Designer reaktivieren
+                    </button>
+                  </div>
+                )}
+                <div className="p-2.5 text-white font-mono text-xs overflow-auto flex-1">
+                  <pre className="text-emerald-400 font-mono leading-relaxed">{overrideSql || generatedSql}</pre>
+                </div>
+              </div>
+            )}
+
+            {bottomPaneTab === 'dialect' && (
+              <div className="p-2.5 text-white font-mono text-xs overflow-auto h-full">
+                <pre className="text-indigo-300 font-mono leading-relaxed">
+                  {generateMultiDialectSql(selectQuery, tables, relationships, selectedDialect)}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       </div>

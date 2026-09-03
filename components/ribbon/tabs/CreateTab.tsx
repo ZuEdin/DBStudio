@@ -30,8 +30,16 @@ export const CreateTab: React.FC<CreateTabProps> = ({ onAction }) => {
           onOpenTemplateManager={() => onAction('open_table_template_manager')}
           onSaveCurrentAsTemplate={() => onAction('save_current_as_template')}
         />
-        <RibbonButton icon={<Sparkles className="text-indigo-600" />} label="AI Copilot (Vorbereitet)" onClick={() => onAction('open_ai_copilot', 'schema')} />
-        <RibbonButton icon={<FileCode className="text-teal-600" />} label="Projekt/SQL Import" onClick={() => onAction('import_schema')} />
+        <RibbonButton 
+          icon={<Sparkles className="text-amber-500" />} 
+          label="DACH Vorlagen Hub" 
+          onClick={() => onAction('open_dach_template_hub')} 
+        />
+        <RibbonButton 
+          icon={<FileCode className="text-teal-600" />} 
+          label="Smart Multi-Import" 
+          onClick={() => onAction('import_smart_multiformat')} 
+        />
       </RibbonGroup>
 
       {/* Queries Group */}

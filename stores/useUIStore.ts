@@ -178,6 +178,13 @@ interface UIStore {
   setShowOpenApiExporterModal: (show: boolean) => void;
   showCsvMigrationModal: boolean;
   setShowCsvMigrationModal: (show: boolean) => void;
+  showDachTemplateHubModal: boolean;
+  setShowDachTemplateHubModal: (show: boolean) => void;
+  showMultiFormatImportModal: boolean;
+  setShowMultiFormatImportModal: (show: boolean) => void;
+  multiFormatImportTableId: string | null;
+  setMultiFormatImportTableId: (id: string | null) => void;
+
   showProjectMergeModal: boolean;
   setShowProjectMergeModal: (show: boolean) => void;
   
@@ -365,6 +372,12 @@ export const useUIStore = create<UIStore>((set) => ({
   setShowOpenApiExporterModal: (showOpenApiExporterModal) => set({ showOpenApiExporterModal }),
   showCsvMigrationModal: false,
   setShowCsvMigrationModal: (showCsvMigrationModal) => set({ showCsvMigrationModal }),
+  showDachTemplateHubModal: false,
+  setShowDachTemplateHubModal: (showDachTemplateHubModal) => set({ showDachTemplateHubModal }),
+  showMultiFormatImportModal: false,
+  setShowMultiFormatImportModal: (showMultiFormatImportModal) => set({ showMultiFormatImportModal }),
+  multiFormatImportTableId: null,
+  setMultiFormatImportTableId: (multiFormatImportTableId) => set({ multiFormatImportTableId }),
   showProjectMergeModal: false,
   setShowProjectMergeModal: (showProjectMergeModal) => set({ showProjectMergeModal }),
 

@@ -1618,6 +1618,10 @@ export const useAppController = () => {
         case 'open_openapi_exporter': ui.setShowOpenApiExporterModal(true); break;
         case 'open_csv_migration': ui.setShowCsvMigrationModal(true); break;
         case 'open_project_merger': ui.setShowProjectMergeModal(true); break;
+        case 'open_dach_template_hub':
+        case 'open_template_hub': ui.setShowDachTemplateHubModal(true); break;
+        case 'import_smart_multiformat':
+        case 'open_multiformat_import': ui.setShowMultiFormatImportModal(true); break;
         
         case 'open_ai_copilot':
         case 'ai_copilot': {

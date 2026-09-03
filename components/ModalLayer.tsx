@@ -58,6 +58,8 @@ import { ClientApprovalPreviewModal } from '../features/agency/ClientApprovalPre
 import { OpenApiPostmanExportModal } from '../features/agency/OpenApiPostmanExportModal';
 import { CsvMigrationWizardModal } from '../features/agency/CsvMigrationWizardModal';
 import { ProjectMergeModal } from '../features/projects/merger/ProjectMergeModal';
+import { DachTemplateHubModal } from '../features/templates/DachTemplateHubModal';
+import { MultiFormatSmartImportWizard } from '../features/tools/MultiFormatSmartImportWizard';
 import { BridgeRunnerModal } from './modals/BridgeRunnerModal';
 import { CodeGenDisclaimerModal } from './modals/CodeGenDisclaimerModal';
 import { createTableFromTemplate } from '../services/tableTemplateService';
@@ -680,6 +682,24 @@ export const ModalLayer: React.FC<ModalLayerProps> = (props) => {
         <ProjectMergeModal
           isOpen={ui.showProjectMergeModal}
           onClose={() => ui.setShowProjectMergeModal(false)}
+        />
+      )}
+
+      {ui.showDachTemplateHubModal && (
+        <DachTemplateHubModal
+          isOpen={ui.showDachTemplateHubModal}
+          onClose={() => ui.setShowDachTemplateHubModal(false)}
+        />
+      )}
+
+      {ui.showMultiFormatImportModal && (
+        <MultiFormatSmartImportWizard
+          isOpen={ui.showMultiFormatImportModal}
+          targetTableId={ui.multiFormatImportTableId || undefined}
+          onClose={() => {
+            ui.setShowMultiFormatImportModal(false);
+            ui.setMultiFormatImportTableId(null);
+          }}
         />
       )}
 
