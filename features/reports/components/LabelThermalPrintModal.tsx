@@ -350,32 +350,141 @@ export const LabelThermalPrintModal: React.FC<LabelThermalPrintModalProps> = ({ 
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block font-bold mb-1 text-slate-800">Vorlagen-Raster wählen:</label>
-                <select
-                  value={labelTemplate}
-                  onChange={(e) => setLabelTemplate(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-medium"
-                >
-                  <option value="AVERY_L7160">Avery L7160 (63.5 x 38.1 mm - 21 Labels/A4)</option>
-                  <option value="AVERY_3474">Avery 3474 (70 x 37 mm - 24 Labels/A4)</option>
-                  <option value="ZEBRA_4x6">Zebra Versandetikett (102 x 152 mm / 4x6")</option>
-                  <option value="DYMO_LARGE">Dymo Large Address (89 x 36 mm)</option>
-                </select>
+            <div className="space-y-4">
+              {/* Preset Selector */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-800">Vorlagen-Raster (Avery / Herma):</label>
+                  <select
+                    value={labelTemplate}
+                    onChange={(e) => setLabelTemplate(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-semibold text-xs text-slate-800"
+                  >
+                    <option value="AVERY_L7160">Avery Zweckform L7160 (63.5 × 38.1 mm – 21/A4, 3×7)</option>
+                    <option value="AVERY_L7161">Avery Zweckform L7161 (63.5 × 46.6 mm – 18/A4, 3×6)</option>
+                    <option value="AVERY_L7159">Avery Zweckform L7159 (63.5 × 33.9 mm – 24/A4, 3×8)</option>
+                    <option value="AVERY_L7163">Avery Zweckform L7163 (99.1 × 38.1 mm – 14/A4, 2×7)</option>
+                    <option value="AVERY_J8166">Avery Zweckform J8166 (99.1 × 93.1 mm – 6 Paket-Labels/A4, 2×3)</option>
+                    <option value="HERMA_4428">Herma 4428 Universal (105 × 42.3 mm – 14/A4, 2×7)</option>
+                    <option value="ZEBRA_4x6">Zebra Versandetikett 4×6" (102 × 152 mm Einzelrolle)</option>
+                    <option value="DYMO_LARGE">Dymo Large Address (89 × 36 mm)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1 text-slate-800">Barcode-Symbologie:</label>
+                  <select
+                    value={barcodeType}
+                    onChange={(e) => setBarcodeType(e.target.value as any)}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-medium text-xs"
+                  >
+                    <option value="QR_CODE">2D QR-Code (GS1 Digital Link / TSE)</option>
+                    <option value="CODE128">Code-128 Industriestandard (Alpha+Num)</option>
+                    <option value="EAN13">EAN-13 / GTIN Einzelhandelsbarcode</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1 text-slate-800">Barcode-Wert / SKU:</label>
+                  <input
+                    type="text"
+                    value={barcodeVal}
+                    onChange={(e) => setBarcodeVal(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-mono text-xs font-bold"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-bold mb-1 text-slate-800">Barcode-Format:</label>
-                <select
-                  value={barcodeType}
-                  onChange={(e) => setBarcodeType(e.target.value as any)}
-                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 bg-white font-medium"
+              {/* Label Content Form */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-200 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-0.5">Kopfzeile / Firma:</label>
+                  <input
+                    type="text"
+                    value={companyTitle}
+                    onChange={(e) => setCompanyTitle(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-2 py-1 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-0.5">Artikelbezeichnung:</label>
+                  <input
+                    type="text"
+                    defaultValue="Portlandzement CEM II 25kg"
+                    id="label-item-title"
+                    className="w-full border border-slate-300 rounded px-2 py-1 text-xs font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-0.5">Preis / Einheit:</label>
+                  <input
+                    type="text"
+                    defaultValue="8,50 € / Sack"
+                    id="label-item-price"
+                    className="w-full border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-0.5">Startposition (Offset):</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    defaultValue={1}
+                    id="label-sheet-start"
+                    className="w-full border border-slate-300 rounded px-2 py-1 text-xs"
+                    title="Bereits genutzte Etiketten auf dem Bogen überspringen"
+                  />
+                </div>
+              </div>
+
+              {/* Sheet Visual Grid Preview */}
+              <div className="border border-slate-300 rounded-lg p-3 bg-slate-100 flex flex-col items-center">
+                <div className="w-full flex justify-between items-center mb-2 px-1 text-[11px] text-slate-600 font-semibold">
+                  <span>DIN A4 Bogen Vorschau (Echtmaße nach Avery-Spezifikation):</span>
+                  <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-mono text-[10px]">
+                    {labelTemplate.includes('L7160') ? '3 × 7 = 21 Etiketten (63.5 × 38.1 mm)' :
+                     labelTemplate.includes('L7161') ? '3 × 6 = 18 Etiketten (63.5 × 46.6 mm)' :
+                     labelTemplate.includes('L7159') ? '3 × 8 = 24 Etiketten (63.5 × 33.9 mm)' :
+                     labelTemplate.includes('L7163') ? '2 × 7 = 14 Etiketten (99.1 × 38.1 mm)' :
+                     labelTemplate.includes('J8166') ? '2 × 3 = 6 Versandetiketten (99.1 × 93.1 mm)' :
+                     labelTemplate.includes('HERMA') ? '2 × 7 = 14 Etiketten (105 × 42.3 mm)' : 'Einzelrolle'}
+                  </span>
+                </div>
+
+                {/* Printable Label Grid Container */}
+                <div 
+                  id="printable-label-sheet"
+                  className={`w-full max-w-xl bg-white shadow-md border border-slate-300 p-2 grid gap-1.5 min-h-[300px] ${
+                    labelTemplate.includes('L7160') || labelTemplate.includes('L7161') || labelTemplate.includes('L7159')
+                      ? 'grid-cols-3'
+                      : labelTemplate.includes('4x6') || labelTemplate.includes('DYMO')
+                      ? 'grid-cols-1'
+                      : 'grid-cols-2'
+                  }`}
                 >
-                  <option value="QR_CODE">2D QR-Code</option>
-                  <option value="CODE128">Code-128 Industriestandard</option>
-                  <option value="EAN13">EAN-13 Artikelnummer</option>
-                </select>
+                  {Array.from({ length: labelTemplate.includes('L7160') ? 21 : labelTemplate.includes('L7161') ? 18 : labelTemplate.includes('L7159') ? 24 : labelTemplate.includes('J8166') ? 6 : labelTemplate.includes('4x6') ? 1 : 14 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="border border-dashed border-slate-300 hover:border-blue-500 rounded p-1.5 flex flex-col justify-between bg-white text-[9.5px] transition-colors"
+                    >
+                      <div className="flex justify-between items-start border-b border-slate-100 pb-0.5">
+                        <span className="font-bold text-slate-800 truncate text-[9px]">{companyTitle}</span>
+                        <span className="font-bold text-emerald-700 font-mono text-[9px]">8,50 €</span>
+                      </div>
+                      <div className="font-semibold text-slate-900 truncate my-0.5 text-[9.5px]">
+                        Portlandzement CEM II 25kg
+                      </div>
+                      <div className="flex items-center justify-between pt-0.5">
+                        <span className="font-mono text-[8px] text-slate-500">{barcodeVal}</span>
+                        <div 
+                          className="scale-75 origin-right"
+                          dangerouslySetInnerHTML={{ __html: svgBarcode }} 
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -396,12 +505,24 @@ export const LabelThermalPrintModal: React.FC<LabelThermalPrintModalProps> = ({ 
               Schließen
             </button>
             <button
-              onClick={handlePrint}
+              onClick={() => {
+                if (mode === 'LABEL_SHEET') {
+                  window.print();
+                } else {
+                  handlePrint();
+                }
+              }}
               disabled={isPrinting}
-              className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+              className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer"
             >
               <Printer size={14} />
-              <span>{isPrinting ? 'Wird gesendet...' : 'ESC/POS Druck starten'}</span>
+              <span>
+                {isPrinting
+                  ? 'Wird gesendet...'
+                  : mode === 'LABEL_SHEET'
+                  ? 'Etikettenbogen drucken (A4)'
+                  : 'ESC/POS Druck starten'}
+              </span>
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@ import { ConditionRulesBuilderModal } from './components/ConditionRulesBuilderMo
 import { FormulaEditorModal } from './components/FormulaEditorModal';
 import { FieldRbacModal } from './components/FieldRbacModal';
 import { FormLifecycleHooksConfigModal } from './components/FormLifecycleHooksConfigModal';
+import { FormEventRulesBuilderModal } from './components/FormEventRulesBuilderModal';
 
 interface FormDesignerViewProps {
   form: Form;
@@ -1878,10 +1879,12 @@ export const FormDesignerView: React.FC<FormDesignerViewProps> = ({ form, allFor
       )}
 
       {showLifecycleModal && (
-        <FormLifecycleHooksConfigModal
+        <FormEventRulesBuilderModal
           isOpen={showLifecycleModal}
           onClose={() => setShowLifecycleModal(false)}
           form={form}
+          tables={allTables}
+          forms={allForms}
           onSaveForm={onFormChange}
         />
       )}

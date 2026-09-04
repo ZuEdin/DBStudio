@@ -9,6 +9,7 @@ import { isElementVisible, isElementReadOnly } from '../utils/formConditionEvalu
 import { saveFormDraft, clearFormDraft } from '../utils/formOfflineDrafts';
 import { eventBus } from '../../../services/eventBus';
 import { validateFormRecord } from '../utils/formValidationEngine';
+import { executeFormEventHandlers } from '../utils/formEventEngine';
 import { FormValidationErrorItem } from '../../../types/index';
 
 interface UseFormViewStateProps {
@@ -197,6 +198,19 @@ export const useFormViewState = ({
     }
   }, [tempRecord, currentRecord, isCreating, isUnbound, form, sourceTable, allTables]);
 
+  // Execute OnCurrent No-Code Event Engine when navigating records or loading
+  useEffect(() => {
+    if (!currentRecord || Object.keys(currentRecord).length === 0) return;
+    executeFormEventHandlers({
+      event: 'OnCurrent',
+      form,
+      currentRecord,
+      sourceTable,
+      allTables,
+      allForms,
+    });
+  }, [currentIndex, isCreating, isUnbound]);
+
   useEffect(() => {
     if (!isCreating && !isUnbound) {
       if (currentIndex >= processedData.length && processedData.length > 0) {
@@ -380,8 +394,18 @@ export const useFormViewState = ({
 
     if (isCreating || isUnbound) {
       setTempRecord((prev) => {
-        const nextRec = { ...prev, [fieldName]: value };
-        return recalculateCalculatedFields(nextRec);
+        let nextRec = { ...prev, [fieldName]: value };
+        nextRec = recalculateCalculatedFields(nextRec);
+        const eventRes = executeFormEventHandlers({
+          event: 'OnChange',
+          form,
+          currentRecord: nextRec,
+          sourceTable,
+          changedFieldId: fieldName,
+          allTables,
+          allForms,
+        });
+        return eventRes.hasChanges ? eventRes.updatedRecord : nextRec;
       });
       eventBus.publishFormFieldChange({
         formId: form.id,
@@ -417,7 +441,22 @@ export const useFormViewState = ({
     if (originalIndex === undefined || originalIndex === -1) return;
 
     const newData = [...sourceTable.data!];
-    const nextRec = recalculateCalculatedFields({ ...newData[originalIndex], [fieldName]: value });
+    let nextRec = recalculateCalculatedFields({ ...newData[originalIndex], [fieldName]: value });
+    
+    // Execute No-Code OnChange Event Engine
+    const eventRes = executeFormEventHandlers({
+      event: 'OnChange',
+      form,
+      currentRecord: nextRec,
+      sourceTable,
+      changedFieldId: fieldName,
+      allTables,
+      allForms,
+    });
+    if (eventRes.hasChanges) {
+      nextRec = eventRes.updatedRecord;
+    }
+
     newData[originalIndex] = nextRec;
     onTableChange({ ...sourceTable, data: newData });
 
@@ -534,7 +573,7 @@ export const useFormViewState = ({
 
   const saveNewRecord = () => {
     if (!sourceTable) return;
-    const recordToSave = { ...tempRecord };
+    let recordToSave = { ...tempRecord };
 
     if (parentRecord && linkConfig) {
       const masterFieldObj = getFieldObj(linkConfig.masterFieldId);
@@ -560,6 +599,23 @@ export const useFormViewState = ({
     }
 
     if (!validateRecord(recordToSave)) return;
+
+    // Execute No-Code BeforeUpdate Event Engine
+    const beforeEvent = executeFormEventHandlers({
+      event: 'BeforeUpdate',
+      form,
+      currentRecord: recordToSave,
+      sourceTable,
+      allTables,
+      allForms,
+    });
+    if (beforeEvent.cancelSave) {
+      setValidationError(beforeEvent.cancelReason || 'Speichervorgang durch Formular-Ereignisregel abgebrochen.');
+      return;
+    }
+    if (beforeEvent.hasChanges) {
+      recordToSave = beforeEvent.updatedRecord;
+    }
 
     const beforePayload = eventBus.publishFormBeforeSave({
       formId: form.id,
@@ -595,6 +651,16 @@ export const useFormViewState = ({
       action: 'INSERT',
       user: 'admin',
       details: `Datensatz in Formular '${form.name}' neu angelegt.`,
+    });
+
+    // Execute No-Code AfterUpdate Event Engine
+    executeFormEventHandlers({
+      event: 'AfterUpdate',
+      form,
+      currentRecord: recordToSave,
+      sourceTable,
+      allTables,
+      allForms,
     });
 
     eventBus.publishFormAfterSave({

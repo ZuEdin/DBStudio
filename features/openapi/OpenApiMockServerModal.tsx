@@ -4,8 +4,10 @@ import { generateOpenApiSpec } from './openApiGeneratorService';
 import { OpenApiSwaggerUi } from './components/OpenApiSwaggerUi';
 import { InBrowserMockConsole } from './components/InBrowserMockConsole';
 import { ApiExportDrawer } from './components/ApiExportDrawer';
+import { GraphQlMockPlayground } from './components/GraphQlMockPlayground';
+import { WebhookDispatcherConsole } from './components/WebhookDispatcherConsole';
 import { MockApiLog } from './openApiTypes';
-import { X, Globe, Radio, Download, Activity, Code } from 'lucide-react';
+import { X, Globe, Radio, Download, Activity, Code, Sparkles, Send } from 'lucide-react';
 
 interface OpenApiMockServerModalProps {
   tables: Table[];
@@ -16,9 +18,9 @@ interface OpenApiMockServerModalProps {
 export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
   tables,
   updateTable,
-  onClose
+  onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'swagger' | 'console' | 'export'>('swagger');
+  const [activeTab, setActiveTab] = useState<'swagger' | 'graphql' | 'webhooks' | 'console' | 'export'>('swagger');
   const [logs, setLogs] = useState<MockApiLog[]>([]);
   const [latencyMs, setLatencyMs] = useState<number>(80);
 
@@ -27,7 +29,7 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
   }, [tables]);
 
   const handleLogGenerated = (log: MockApiLog) => {
-    setLogs(prev => [log, ...prev.slice(0, 49)]); // Keep last 50 logs
+    setLogs((prev) => [log, ...prev.slice(0, 49)]); // Keep last 50 logs
   };
 
   // Close on Escape
@@ -40,14 +42,13 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
   }, [onClose]);
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/60 z-[999] flex items-center justify-center p-3 sm:p-6 animate-in fade-in backdrop-blur-xs"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[min(92vh,780px)] h-full animate-in zoom-in-95 duration-150">
-        
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-6xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[min(92vh,850px)] h-full animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="bg-slate-900 text-white p-4.5 flex justify-between items-center shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -56,7 +57,9 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black tracking-tight">OpenAPI 3.1 & In-Browser Mock Server</h2>
+                <h2 className="text-lg font-black tracking-tight">
+                  Lokaler REST &amp; GraphQL Mock-API Server &amp; Webhook Dispatcher
+                </h2>
                 <span className="bg-emerald-900/60 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-700">
                   Live Mocking Aktiv
                 </span>
@@ -65,7 +68,7 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Interaktive Swagger-Dokumentation mit Live-REST-Mocking gegen die echte In-Memory Datenbank.
+                CRUD REST Endpoints, GraphiQL Explorer, und signierte Webhooks mit In-Memory Datensynchronisation.
               </p>
             </div>
           </div>
@@ -79,7 +82,7 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-6 pt-3 flex items-center justify-between shrink-0">
+        <div className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-6 pt-3 flex items-center justify-between shrink-0 overflow-x-auto">
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('swagger')}
@@ -90,8 +93,33 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
               }`}
             >
               <Code size={13} />
-              <span>Swagger API Explorer</span>
+              <span>Swagger REST Explorer</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('graphql')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-t border-x ${
+                activeTab === 'graphql'
+                  ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-fuchsia-600 dark:text-fuchsia-400 shadow-2xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+              }`}
+            >
+              <Sparkles size={13} />
+              <span>GraphQL Playground &amp; Schema</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('webhooks')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-t border-x ${
+                activeTab === 'webhooks'
+                  ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+              }`}
+            >
+              <Send size={13} />
+              <span>Webhook Dispatcher</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('console')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-t border-x ${
@@ -101,13 +129,14 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
               }`}
             >
               <Activity size={13} />
-              <span>Mock Server Logs & Latenz</span>
+              <span>Mock Server Logs &amp; Latenz</span>
               {logs.length > 0 && (
                 <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
                   {logs.length}
                 </span>
               )}
             </button>
+
             <button
               onClick={() => setActiveTab('export')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-t border-x ${
@@ -117,34 +146,46 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
               }`}
             >
               <Download size={13} />
-              <span>Postman & cURL Export</span>
+              <span>Postman &amp; cURL Export</span>
             </button>
           </div>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-slate-900">
+        <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
           {activeTab === 'swagger' && (
-            <OpenApiSwaggerUi
-              spec={spec}
-              tables={tables}
-              updateTable={updateTable}
-              latencyMs={latencyMs}
-              onLogGenerated={handleLogGenerated}
-            />
+            <div className="p-6">
+              <OpenApiSwaggerUi
+                spec={spec}
+                tables={tables}
+                updateTable={updateTable}
+                latencyMs={latencyMs}
+                onLogGenerated={handleLogGenerated}
+              />
+            </div>
           )}
 
+          {activeTab === 'graphql' && (
+            <GraphQlMockPlayground tables={tables} updateTable={updateTable} />
+          )}
+
+          {activeTab === 'webhooks' && <WebhookDispatcherConsole tables={tables} />}
+
           {activeTab === 'console' && (
-            <InBrowserMockConsole
-              logs={logs}
-              onClearLogs={() => setLogs([])}
-              latencyMs={latencyMs}
-              setLatencyMs={setLatencyMs}
-            />
+            <div className="p-6">
+              <InBrowserMockConsole
+                logs={logs}
+                onClearLogs={() => setLogs([])}
+                latencyMs={latencyMs}
+                setLatencyMs={setLatencyMs}
+              />
+            </div>
           )}
 
           {activeTab === 'export' && (
-            <ApiExportDrawer spec={spec} tables={tables} />
+            <div className="p-6">
+              <ApiExportDrawer spec={spec} tables={tables} />
+            </div>
           )}
         </div>
 
@@ -152,17 +193,17 @@ export const OpenApiMockServerModal: React.FC<OpenApiMockServerModalProps> = ({
         <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
           <div className="text-xs text-slate-500 flex items-center gap-2">
             <Radio size={13} className="text-emerald-500 animate-pulse" />
-            <span>Mock Server läuft autark in diesem Browser-Tab (IndexedDB / State-Backed)</span>
+            <span>Mock Server läuft autark in diesem Browser-Tab (In-Memory Data Engine)</span>
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-2xs transition-colors"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
           >
             Schließen
           </button>
         </div>
-
       </div>
     </div>
   );
 };
+

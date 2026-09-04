@@ -50,6 +50,7 @@ export interface GroupLevel {
 export interface Din5008Config {
   enabled: boolean;
   formType: 'FormA' | 'FormB'; // Form A: 27mm top distance, Form B: 45mm top distance
+  showFoldingMarks?: boolean; // DIN 5008 Falz- & Lochmarken (87mm, 148.5mm, 192mm / 210mm)
   senderLine: string; // e.g. "Musterbau GmbH • Baustr. 1 • 10115 Berlin"
   recipientAddress: string; // e.g. "Bauherr GmbH\nMax-Muster-Str. 4\n80331 München"
   infoblock: {

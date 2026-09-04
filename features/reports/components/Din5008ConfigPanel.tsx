@@ -139,6 +139,22 @@ export const Din5008ConfigPanel: React.FC<Din5008ConfigPanelProps> = ({
               </div>
             </div>
 
+            <div className="pt-2 border-t border-slate-200">
+              <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={din.showFoldingMarks ?? true}
+                  onChange={(e) => onChangeDin({ ...din, showFoldingMarks: e.target.checked })}
+                  className="rounded text-indigo-600"
+                />
+                <Crosshair size={14} className="text-indigo-600" />
+                <span>DIN 5008 Falz- und Lochmarken anzeigen (87mm, 105mm, 148.5mm, 192mm)</span>
+              </label>
+              <p className="text-[10px] text-slate-500 ml-6">
+                Druckt exakte millimetergenaue Schneid-, Falz- und Lochmarken am linken Seitenrand für DIN-Briefumschläge DL/C65.
+              </p>
+            </div>
+
             <div>
               <label className="block text-slate-600 font-medium mb-1">
                 Einzeilige Rücksendeangabe (Absenderzeile über Anschriftfeld):

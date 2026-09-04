@@ -46,12 +46,33 @@ export interface FormValidationRule {
 
 export interface FormEventHandler {
   id: string;
-  event: 'OnCurrent' | 'BeforeUpdate' | 'AfterUpdate' | 'OnClick';
-  actionType: 'macro' | 'js_script' | 'toast' | 'open_form' | 'open_report';
-  macroId?: string;
-  jsCode?: string;
+  name?: string;
+  description?: string;
+  enabled?: boolean;
+  event: 'OnCurrent' | 'BeforeUpdate' | 'AfterUpdate' | 'OnChange' | 'OnClick' | 'OnDelete';
+  triggerFieldId?: string; // Optional: specific field for OnChange trigger
+  conditionExpr?: string; // Optional: e.g. "[Status] == 'Offen'" or "[Betrag] > 500"
+  actionType:
+    | 'set_field_value'
+    | 'toast'
+    | 'macro'
+    | 'open_form'
+    | 'open_report'
+    | 'cancel_save'
+    | 'webhook'
+    | 'js_script'
+    | 'recalculate';
+  targetFieldId?: string; // Field to update
+  valueExpr?: string; // Value or expression to assign, e.g. "[Nettopreis] * 1.19"
+  targetId?: string; // ID of form/report/macro
+  targetFilterFieldId?: string; // Filter field when opening form/report
+  targetFilterValueExpr?: string; // Value to pass to filter
   toastMessage?: string;
-  targetId?: string;
+  toastType?: 'success' | 'error' | 'warning' | 'info';
+  macroId?: string;
+  webhookUrl?: string;
+  cancelReason?: string;
+  jsCode?: string;
 }
 
 export interface DropdownItem {

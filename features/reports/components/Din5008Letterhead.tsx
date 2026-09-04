@@ -16,9 +16,45 @@ export const Din5008Letterhead: React.FC<Din5008LetterheadProps> = ({
   if (!config || !config.enabled) return null;
 
   const isFormB = config.formType === 'FormB';
+  const showFoldingMarks = config.showFoldingMarks !== false;
 
   return (
-    <div className="w-full bg-white text-slate-800 font-sans border-b border-slate-200 pb-6 mb-6">
+    <div className="w-full bg-white text-slate-800 font-sans border-b border-slate-200 pb-6 mb-6 relative">
+      {/* DIN 5008 Falz- und Lochmarken (Folding & Punch Marks for A4 letter envelope DL/C65) */}
+      {showFoldingMarks && (
+        <div className="absolute -left-6 top-0 bottom-0 pointer-events-none select-none text-[8px] text-slate-400 font-mono hidden md:block print:block">
+          {/* Falzmarke 1 (Form B: 105mm, Form A: 87mm) */}
+          <div 
+            className="absolute left-0 flex items-center gap-1"
+            style={{ top: isFormB ? '105mm' : '87mm' }}
+            title="DIN 5008 Falzmarke 1"
+          >
+            <div className="w-3.5 h-[0.75px] bg-slate-500" />
+            <span className="text-[7px] text-slate-400 uppercase tracking-tighter opacity-70">Falz 1</span>
+          </div>
+
+          {/* Lochmarke Mitte (148.5mm) */}
+          <div 
+            className="absolute left-0 flex items-center gap-1"
+            style={{ top: '148.5mm' }}
+            title="DIN 5008 Lochmarke (Blattmitte)"
+          >
+            <div className="w-5 h-[1px] bg-slate-700" />
+            <span className="text-[7px] text-slate-500 font-bold uppercase tracking-tighter opacity-80">Loch</span>
+          </div>
+
+          {/* Falzmarke 2 (Form B: 210mm, Form A: 192mm) */}
+          <div 
+            className="absolute left-0 flex items-center gap-1"
+            style={{ top: isFormB ? '210mm' : '192mm' }}
+            title="DIN 5008 Falzmarke 2"
+          >
+            <div className="w-3.5 h-[0.75px] bg-slate-500" />
+            <span className="text-[7px] text-slate-400 uppercase tracking-tighter opacity-70">Falz 2</span>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Row with Company Logo / Sender */}
       <div className="flex justify-between items-start mb-6">
         <div>
